@@ -1,0 +1,103 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven { url = "https://maven.minecraftforge.net" }
+        maven { url = "https://files.minecraftforge.net/maven" } // legacy fallback
+        mavenCentral()
+        maven { url = "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        classpath 'gradle.plugin.com.matthewprenger:CurseGradle:1.2.0'
+    }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+
+version = "0.1.0"
+group = "com.cells"
+archivesBaseName = "cells"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+minecraft {
+    version = "1.12.2-14.23.5.2847"
+    runDir = "run"
+    mappings = "stable_39"
+}
+
+repositories {
+    mavenCentral()
+    jcenter()
+    maven { url 'https://maven.minecraftforge.net' }
+    maven { url 'https://maven.blamejared.com' }
+    maven { url 'https://cursemaven.com' }
+}
+
+configurations {
+    deobfCompile
+}
+
+dependencies {
+    deobfCompile "curse.maven:ae2-extended-life-570458:5378163"
+    deobfCompile "curse.maven:jei-238222:4538010"
+
+    // Optional: NAE2 support for larger cell tier recipes
+    deobfCompile "curse.maven:nae2-884359:5380800"
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.minecraft.version
+    }
+
+    // Ensure all other resources are still copied (models, lang, textures, etc.)
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+// --------------------
+// CurseForge publishing
+// --------------------
+def cfProjectId = (project.findProperty('curseforgeProjectId') ?: System.getenv('CURSEFORGE_PROJECT_ID'))
+if (cfProjectId) {
+    apply plugin: 'com.matthewprenger.cursegradle'
+
+    def cfReleaseType = (project.findProperty('curseforgeReleaseType') ?: 'release')
+    def cfChangelog = (project.findProperty('curseforgeChangelog') ?: '')
+    def cfApiKey = (System.getenv('CURSEFORGE_TOKEN') ?: '')
+
+    curseforge {
+        apiKey = cfApiKey
+
+        project {
+            id = cfProjectId.toString()
+            releaseType = cfReleaseType.toString()
+
+            addGameVersion '1.12.2'
+
+            mainArtifact(jar) {
+                displayName = "C.E.L.L.S. ${project.version}"
+                changelog = cfChangelog
+                changelogType = 'markdown'
+            }
+
+            relations {
+                requiredDependency 'ae2-extended-life'
+                optionalDependency 'nae2'
+            }
+        }
+    }
+
+    afterEvaluate {
+        tasks.findAll { it.name.startsWith('curseforge') }.each { t ->
+            t.dependsOn 'reobfJar'
+        }
+    }
+}

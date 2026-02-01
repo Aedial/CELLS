@@ -1,0 +1,17 @@
+{
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        {
+            "item": "appliedenergistics2:material",
+            "data": 39
+        },
+        {
+            "item": "cells:hyper_density_component",
+            "data": 10
+        }
+    ],
+    "result": {
+        "item": "cells:hyper_density_cell",
+        "data": 10
+    }
+}

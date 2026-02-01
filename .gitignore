@@ -1,0 +1,90 @@
+# Misc
+*.zip
+TODO.md
+*.patch
+
+# Gradle
+.gradle/
+build/
+out/
+bin/
+
+# Gradle Wrapper - keep the wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# ForgeGradle
+run/
+logs/
+crash-reports/
+
+# Eclipse
+.classpath
+.project
+.settings/
+*.launch
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# NetBeans
+nbproject/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.directory
+
+# Minecraft
+options.txt
+optionsof.txt
+servers.dat
+usercache.json
+usernamecache.json
+realms_persistence.json
+screenshots/
+saves/
+resourcepacks/
+mods/
+*.log
+
+# Compiled class files
+*.class
+
+# Package files
+*.jar
+# But keep the Gradle wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
+# And keep local deobf jars if you use them
+!libs/*-deobf.jar
+
+# Virtual machine crash logs
+hs_err_pid*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+
+# Sensitive data (if you add local credentials)
+gradle-local.properties
+local.properties

@@ -1,0 +1,19 @@
+{
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        {
+            "item": "appliedenergistics2:material",
+            "data": 25
+        },
+        {
+            "item": "minecraft:obsidian"
+        },
+        {
+            "item": "minecraft:lava_bucket"
+        }
+    ],
+    "result": {
+        "item": "cells:overflow_card",
+        "count": 1
+    }
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "cells",
+    "name": "Compacting/Extra Large Lattice Storage",
+    "description": "An AE2 addon providing additional storage cells with extended capacities and special features.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["Aedial"],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": ["ae2-extended-life"]
+  }
+]

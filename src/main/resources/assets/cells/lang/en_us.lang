@@ -1,0 +1,122 @@
+# Compacting Cells
+item.cells.compacting_cell.1k.name=1k Compacting Storage Cell
+item.cells.compacting_cell.4k.name=4k Compacting Storage Cell
+item.cells.compacting_cell.16k.name=16k Compacting Storage Cell
+item.cells.compacting_cell.64k.name=64k Compacting Storage Cell
+item.cells.compacting_cell.256k.name=256k Compacting Storage Cell
+item.cells.compacting_cell.1m.name=1M Compacting Storage Cell
+item.cells.compacting_cell.4m.name=4M Compacting Storage Cell
+item.cells.compacting_cell.16m.name=16M Compacting Storage Cell
+item.cells.compacting_cell.64m.name=64M Compacting Storage Cell
+item.cells.compacting_cell.256m.name=256M Compacting Storage Cell
+item.cells.compacting_cell.1g.name=1G Compacting Storage Cell
+item.cells.compacting_cell.2g.name=2G Compacting Storage Cell
+
+# Compacting Components
+item.cells.compacting_component.1k.name=1k Compacting Storage Component
+item.cells.compacting_component.4k.name=4k Compacting Storage Component
+item.cells.compacting_component.16k.name=16k Compacting Storage Component
+item.cells.compacting_component.64k.name=64k Compacting Storage Component
+item.cells.compacting_component.256k.name=256k Compacting Storage Component
+item.cells.compacting_component.1m.name=1M Compacting Storage Component
+item.cells.compacting_component.4m.name=4M Compacting Storage Component
+item.cells.compacting_component.16m.name=16M Compacting Storage Component
+item.cells.compacting_component.64m.name=64M Compacting Storage Component
+item.cells.compacting_component.256m.name=256M Compacting Storage Component
+item.cells.compacting_component.1g.name=1G Compacting Storage Component
+item.cells.compacting_component.2g.name=2G Compacting Storage Component
+
+# Misc
+tooltip.cells.card.separator=, 
+tooltip.cells.card.compatible=Compatible with: %s
+tooltip.cells.type.compact=Compacting Storage Cell
+tooltip.cells.type.hyperdensity=Hyper-Density Storage Cell
+tooltip.cells.type.hyperdensity_compact=Hyper-Density Compacting Cell
+
+# Overflow Card
+item.cells.overflow_card.name=Overflow Card
+tooltip.cells.overflow_card.desc=Voids overflow items when cell is full
+tooltip.cells.overflow_card.use=Use in Compacting/HD Storage Cells
+
+# Equal Distribution Card
+item.cells.equal_distribution_card.1x.name=Equal Distribution Card (1x)
+item.cells.equal_distribution_card.2x.name=Equal Distribution Card (2x)
+item.cells.equal_distribution_card.4x.name=Equal Distribution Card (4x)
+item.cells.equal_distribution_card.8x.name=Equal Distribution Card (8x)
+item.cells.equal_distribution_card.16x.name=Equal Distribution Card (16x)
+item.cells.equal_distribution_card.32x.name=Equal Distribution Card (32x)
+item.cells.equal_distribution_card.63x.name=Equal Distribution Card (63x)
+tooltip.cells.equal_distribution_card.desc=Limits cell to %d types, dividing capacity equally
+
+# Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
+item.cells.hyper_density_cell.1k.name=1k Hyper-Density Storage Cell
+item.cells.hyper_density_cell.4k.name=4k Hyper-Density Storage Cell
+item.cells.hyper_density_cell.16k.name=16k Hyper-Density Storage Cell
+item.cells.hyper_density_cell.64k.name=64k Hyper-Density Storage Cell
+item.cells.hyper_density_cell.256k.name=256k Hyper-Density Storage Cell
+item.cells.hyper_density_cell.1m.name=1M Hyper-Density Storage Cell
+item.cells.hyper_density_cell.4m.name=4M Hyper-Density Storage Cell
+item.cells.hyper_density_cell.16m.name=16M Hyper-Density Storage Cell
+item.cells.hyper_density_cell.64m.name=64M Hyper-Density Storage Cell
+item.cells.hyper_density_cell.256m.name=256M Hyper-Density Storage Cell
+item.cells.hyper_density_cell.1g.name=1G Hyper-Density Storage Cell
+
+# Hyper-Density Components
+item.cells.hyper_density_component.1k.name=1k Hyper-Density Storage Component
+item.cells.hyper_density_component.4k.name=4k Hyper-Density Storage Component
+item.cells.hyper_density_component.16k.name=16k Hyper-Density Storage Component
+item.cells.hyper_density_component.64k.name=64k Hyper-Density Storage Component
+item.cells.hyper_density_component.256k.name=256k Hyper-Density Storage Component
+item.cells.hyper_density_component.1m.name=1M Hyper-Density Storage Component
+item.cells.hyper_density_component.4m.name=4M Hyper-Density Storage Component
+item.cells.hyper_density_component.16m.name=16M Hyper-Density Storage Component
+item.cells.hyper_density_component.64m.name=64M Hyper-Density Storage Component
+item.cells.hyper_density_component.256m.name=256M Hyper-Density Storage Component
+item.cells.hyper_density_component.1g.name=1G Hyper-Density Storage Component
+
+# Hyper-Density Compacting Cells (1k-16M max due to overflow safety)
+item.cells.hyper_density_compacting_cell.1k.name=1k Hyper-Density Compacting Cell
+item.cells.hyper_density_compacting_cell.4k.name=4k Hyper-Density Compacting Cell
+item.cells.hyper_density_compacting_cell.16k.name=16k Hyper-Density Compacting Cell
+item.cells.hyper_density_compacting_cell.64k.name=64k Hyper-Density Compacting Cell
+item.cells.hyper_density_compacting_cell.256k.name=256k Hyper-Density Compacting Cell
+item.cells.hyper_density_compacting_cell.1m.name=1M Hyper-Density Compacting Cell
+item.cells.hyper_density_compacting_cell.4m.name=4M Hyper-Density Compacting Cell
+item.cells.hyper_density_compacting_cell.16m.name=16M Hyper-Density Compacting Cell
+
+# Hyper-Density Compacting Components
+item.cells.hyper_density_compacting_component.1k.name=1k Hyper-Density Compacting Component
+item.cells.hyper_density_compacting_component.4k.name=4k Hyper-Density Compacting Component
+item.cells.hyper_density_compacting_component.16k.name=16k Hyper-Density Compacting Component
+item.cells.hyper_density_compacting_component.64k.name=64k Hyper-Density Compacting Component
+item.cells.hyper_density_compacting_component.256k.name=256k Hyper-Density Compacting Component
+item.cells.hyper_density_compacting_component.1m.name=1M Hyper-Density Compacting Component
+item.cells.hyper_density_compacting_component.4m.name=4M Hyper-Density Compacting Component
+item.cells.hyper_density_compacting_component.16m.name=16M Hyper-Density Compacting Component
+
+# Normal Storage Cells (64M-2G)
+item.nae2.storage_cell.65536k.name=§265536k§r ME Storage Cell
+item.nae2.storage_cell.262144k.name=§b262144k§r ME Storage Cell
+item.nae2.storage_cell.1048576k.name=§51048576k§r ME Storage Cell
+item.nae2.storage_cell.2097152k.name=§d2097152k§r ME Storage Cell
+
+item.nae2.material.cell_part.65536k.name=§265536k§r ME Storage Component
+item.nae2.material.cell_part.262144k.name=§b262144k§r ME Storage Component
+item.nae2.material.cell_part.1048576k.name=§51048576k§r ME Storage Component
+item.nae2.material.cell_part.2097152k.name=§d2097152k§r ME Storage Component
+
+# Compacting Cell Tooltips
+tooltip.cells.compacting_cell.not_partitioned=Partition required to use
+tooltip.cells.compacting_cell.stores_one_type=Stores one item type with compression
+tooltip.cells.compacting_cell.insert_to_set_compression=Insert items to set compression chain
+tooltip.cells.compacting_cell.converts_up=Compresses to: %s
+tooltip.cells.compacting_cell.converts_down=Decompresses to: %s
+tooltip.cells.compacting_cell.no_compression=No compression available for this item
+
+# Hyper-Density Tooltips
+tooltip.cells.hyper_density_cell.info=Hyper-Density: ~2.1B per Byte
+tooltip.cells.hyper_density_component.info=Hyper-Density storage component
+
+# Upgrade Tooltips
+tooltip.cells.upgrade.overflow_active=Voids overflow
+tooltip.cells.upgrade.equal_distribution_active=Split in %d types

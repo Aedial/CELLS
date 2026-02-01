@@ -1,0 +1,115 @@
+# Compacting/Extra Large Lattice Storage (C.E.L.L.S.)
+
+An AE2-UEL addon providing additional storage cells with extended capacities and special features.
+
+## Features
+
+### Compacting Storage Cells
+Storage cells that automatically expose compressed and decompressed forms of items to the ME network, similar to Storage Drawers' Compacting Drawer.
+
+#### How It Works
+1. **Partition Required**: Compacting cells require a partition to be set before they can accept items.
+2. **Compression Chain**: When partitioned with an item (e.g., Iron Ingot), the cell automatically detects the compression chain:
+   - Higher tier: Iron Block (compressed form)
+   - Main tier: Iron Ingot (the partitioned item)
+   - Lower tier: Iron Nugget (decompressed form)
+3. **Virtual Conversion**: Items are stored in a unified pool and can be extracted in any compression tier:
+   - Insert 81 Iron Nuggets → Extract 81 Nuggets, 9 Iron Ingots, or 1 Iron Block
+   - Insert 1 Iron Block → Extract 9 Iron Ingots, 81 Iron Nuggets, or 1 Iron Block
+   - All conversions are lossless and instant
+4. **Single Item Type**: Each compacting cell stores only one item type (with its compression variants).
+5. **Storage Counting**: Storage capacity is measured in main tier (partitioned item) units, so no need to worry about conversion factors when checking capacity.
+
+#### Available Tiers
+- **1k - 64k Compacting Storage Cells** (Standard AE2 sizes)
+- **256k - 16M Compacting Storage Cells** (NAE2-equivalent sizes)
+- **64M - 2G Compacting Storage Cells** (Extended sizes)
+- **1k - 16M Hyper-Density Compacting Storage Cells** (with ~2.1B multiplier per byte)
+
+#### Partition Protection
+- If a compacting cell contains items, the partition cannot be changed.
+- Empty the cell first before changing what item type it stores.
+
+
+### Normal Storage Cells (Extended Capacity)
+Standard AE2-style storage cells with larger capacities:
+- **64M ME Storage Cell** (67,108,864 bytes)
+- **256M ME Storage Cell** (268,435,456 bytes)
+- **1G ME Storage Cell** (1,073,741,824 bytes)
+- **2G ME Storage Cell** (2,147,483,648 bytes)
+
+### Hyper-Density Storage Cells
+Storage cells with an internal multiplier of ~2.1 billion per displayed byte:
+- **1k - 1G Hyper-Density Storage Cells** (each "byte" holds ~2.1B items)
+
+### Hyper-Density Compacting Cells
+Combining hyper-density storage with compacting functionality:
+- **1k - 16M Hyper-Density Compacting Cells** (limited due to overflow protection)
+
+### Upgrades
+
+#### Void Overflow Card
+Install in a cell's upgrade slots to void excess items when full.
+Useful for automated systems where overflow should be destroyed.
+
+**Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells
+
+**Not compatible with**: Normal Storage Cells or cells from other mods
+
+#### Equal Distribution Card
+Limits the number of types a cell can hold and divides capacity equally among them. Available in 7 variants:
+- **1x**: 1 type (all capacity to one item)
+- **2x**: 2 types (half capacity each)
+- **4x**: 4 types (quarter capacity each)
+- **8x**: 8 types
+- **16x**: 16 types
+- **32x**: 32 types
+- **63x**: 63 types (default max)
+
+Use cases:
+- Force a cell to hold exactly one item type with maximum capacity (1x)
+- Prevent one item from dominating cell storage
+- Ensure fair distribution across multiple stored items
+
+**Compatible with**: Hyper-Density Storage Cells
+
+**Not compatible with**: Compacting Cells (which already stores one type)
+
+## Configuration
+
+The mod includes a server-side configuration file with an in-game GUI editor:
+
+### General Settings
+- **Max Types**: Maximum types per cell (default: 63)
+
+### Idle Power Drain
+Configure power drain per tick for each cell type:
+- Compacting Cells
+- Hyper-Density Cells
+- Hyper-Density Compacting Cells
+- Normal Extended Cells
+
+### Cell Toggles
+Enable or disable entire cell categories:
+- Compacting Cells
+- Hyper-Density Cells
+- Hyper-Density Compacting Cells
+- Normal Extended Cells
+
+## API
+
+This mod exposes an API for computing compression chains:
+
+```java
+// Initialize the compacting cell chain for a given partition. Should be called when setting the partition item.
+void initializeCompactingCellChain(@Nonnull ItemStack cellStack, @Nonnull ItemStack partitionItem, @Nonnull World world);
+```
+
+## Building
+```
+./gradlew -q build
+```
+Resulting jar will be under `build/libs/`.
+
+## License
+This project is licensed under the MIT License - see the LICENSE file for details.
