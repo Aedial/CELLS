@@ -1,0 +1,122 @@
+# Compacting Cells
+item.cells.compacting_cell.1k.name=1k压缩存储元件
+item.cells.compacting_cell.4k.name=4k压缩存储元件
+item.cells.compacting_cell.16k.name=16k压缩存储元件
+item.cells.compacting_cell.64k.name=64k压缩存储元件
+item.cells.compacting_cell.256k.name=256k压缩存储元件
+item.cells.compacting_cell.1m.name=1M压缩存储元件
+item.cells.compacting_cell.4m.name=4M压缩存储元件
+item.cells.compacting_cell.16m.name=16M压缩存储元件
+item.cells.compacting_cell.64m.name=64M压缩存储元件
+item.cells.compacting_cell.256m.name=256M压缩存储元件
+item.cells.compacting_cell.1g.name=1G压缩存储元件
+item.cells.compacting_cell.2g.name=2G压缩存储元件
+
+# Compacting Components
+item.cells.compacting_component.1k.name=1k压缩存储组件
+item.cells.compacting_component.4k.name=4k压缩存储组件
+item.cells.compacting_component.16k.name=16k压缩存储组件
+item.cells.compacting_component.64k.name=64k压缩存储组件
+item.cells.compacting_component.256k.name=256k压缩存储组件
+item.cells.compacting_component.1m.name=1M压缩存储组件
+item.cells.compacting_component.4m.name=4M压缩存储组件
+item.cells.compacting_component.16m.name=16M压缩存储组件
+item.cells.compacting_component.64m.name=64M压缩存储组件
+item.cells.compacting_component.256m.name=256M压缩存储组件
+item.cells.compacting_component.1g.name=1G压缩存储组件
+item.cells.compacting_component.2g.name=2G压缩存储组件
+
+# Misc
+tooltip.cells.card.separator=、
+tooltip.cells.card.compatible=兼容：%s
+tooltip.cells.type.compact=压缩存储元件
+tooltip.cells.type.hyperdensity=超高密度存储元件
+tooltip.cells.type.hyperdensity_compact=超高密度压缩元件
+
+# Overflow Card
+item.cells.overflow_card.name=溢出销毁卡
+tooltip.cells.overflow_card.desc=在元件已满时销毁溢出的物品
+tooltip.cells.overflow_card.use=用于压缩/超高密度压缩元件
+
+# Equal Distribution Card
+item.cells.equal_distribution_card.1x.name=均分卡（1x）
+item.cells.equal_distribution_card.2x.name=均分卡（2x）
+item.cells.equal_distribution_card.4x.name=均分卡（4x）
+item.cells.equal_distribution_card.8x.name=均分卡（8x）
+item.cells.equal_distribution_card.16x.name=均分卡（16x）
+item.cells.equal_distribution_card.32x.name=均分卡（32x）
+item.cells.equal_distribution_card.63x.name=均分卡（63x）
+tooltip.cells.equal_distribution_card.desc=将元件可容纳类型限制为%d，并均分容量
+
+# Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
+item.cells.hyper_density_cell.1k.name=1k超高密度存储元件
+item.cells.hyper_density_cell.4k.name=4k超高密度存储元件
+item.cells.hyper_density_cell.16k.name=16k超高密度存储元件
+item.cells.hyper_density_cell.64k.name=64k超高密度存储元件
+item.cells.hyper_density_cell.256k.name=256k超高密度存储元件
+item.cells.hyper_density_cell.1m.name=1M超高密度存储元件
+item.cells.hyper_density_cell.4m.name=4M超高密度存储元件
+item.cells.hyper_density_cell.16m.name=16M超高密度存储元件
+item.cells.hyper_density_cell.64m.name=64M超高密度存储元件
+item.cells.hyper_density_cell.256m.name=256M超高密度存储元件
+item.cells.hyper_density_cell.1g.name=1G超高密度存储元件
+
+# Hyper-Density Components
+item.cells.hyper_density_component.1k.name=1k超高密度存储组件
+item.cells.hyper_density_component.4k.name=4k超高密度存储组件
+item.cells.hyper_density_component.16k.name=16k超高密度存储组件
+item.cells.hyper_density_component.64k.name=64k超高密度存储组件
+item.cells.hyper_density_component.256k.name=256k超高密度存储组件
+item.cells.hyper_density_component.1m.name=1M超高密度存储组件
+item.cells.hyper_density_component.4m.name=4M超高密度存储组件
+item.cells.hyper_density_component.16m.name=16M超高密度存储组件
+item.cells.hyper_density_component.64m.name=64M超高密度存储组件
+item.cells.hyper_density_component.256m.name=256M超高密度存储组件
+item.cells.hyper_density_component.1g.name=1G超高密度存储组件
+
+# Hyper-Density Compacting Cells (1k-16M max due to overflow safety)
+item.cells.hyper_density_compacting_cell.1k.name=1k超高密度压缩元件
+item.cells.hyper_density_compacting_cell.4k.name=4k超高密度压缩元件
+item.cells.hyper_density_compacting_cell.16k.name=16k超高密度压缩元件
+item.cells.hyper_density_compacting_cell.64k.name=64k超高密度压缩元件
+item.cells.hyper_density_compacting_cell.256k.name=256k超高密度压缩元件
+item.cells.hyper_density_compacting_cell.1m.name=1M超高密度压缩元件
+item.cells.hyper_density_compacting_cell.4m.name=4M超高密度压缩元件
+item.cells.hyper_density_compacting_cell.16m.name=16M超高密度压缩元件
+
+# Hyper-Density Compacting Components
+item.cells.hyper_density_compacting_component.1k.name=1k超高密度压缩组件
+item.cells.hyper_density_compacting_component.4k.name=4k超高密度压缩组件
+item.cells.hyper_density_compacting_component.16k.name=16k超高密度压缩组件
+item.cells.hyper_density_compacting_component.64k.name=64k超高密度压缩组件
+item.cells.hyper_density_compacting_component.256k.name=256k超高密度压缩组件
+item.cells.hyper_density_compacting_component.1m.name=1M超高密度压缩组件
+item.cells.hyper_density_compacting_component.4m.name=4M超高密度压缩组件
+item.cells.hyper_density_compacting_component.16m.name=16M超高密度压缩组件
+
+# Normal Storage Cells (64M-2G)
+item.nae2.storage_cell.65536k.name=§265536k§r-ME存储元件
+item.nae2.storage_cell.262144k.name=§b262144k§r-ME存储元件
+item.nae2.storage_cell.1048576k.name=§51048576k§r-ME存储元件
+item.nae2.storage_cell.2097152k.name=§d2097152k§r-ME存储元件
+
+item.nae2.material.cell_part.65536k.name=§265536k§r-ME存储组件
+item.nae2.material.cell_part.262144k.name=§b262144k§r-ME存储组件
+item.nae2.material.cell_part.1048576k.name=§51048576k§r-ME存储组件
+item.nae2.material.cell_part.2097152k.name=§d2097152k§r-ME存储组件
+
+# Compacting Cell Tooltips
+tooltip.cells.compacting_cell.not_partitioned=需进行分区才能使用
+tooltip.cells.compacting_cell.stores_one_type=以压缩形式存储一种物品类型
+tooltip.cells.compacting_cell.insert_to_set_compression=放入物品以设置压缩链
+tooltip.cells.compacting_cell.converts_up=压缩为：%s
+tooltip.cells.compacting_cell.converts_down=解压为：%s
+tooltip.cells.compacting_cell.no_compression=该物品无可用的压缩形式
+
+# Hyper-Density Tooltips
+tooltip.cells.hyper_density_cell.info=超高密度：每字节约2.1B
+tooltip.cells.hyper_density_component.info=超高密度存储组件
+
+# Upgrade Tooltips
+tooltip.cells.upgrade.overflow_active=溢出销毁
+tooltip.cells.upgrade.equal_distribution_active=分割为%d种类型
