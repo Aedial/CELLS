@@ -24,6 +24,13 @@ import com.cells.Tags;
  * cell are voided instead of being rejected back to the network.
  * </p>
  * <p>
+ * <b>Important:</b> The overflow card only voids items of types that are already
+ * stored in the cell. New types that the cell cannot accept (due to type limit,
+ * blacklist, or partition restrictions) will still be rejected normally.
+ * This prevents accidentally voiding valuable items that were never intended
+ * for the cell.
+ * </p>
+ * <p>
  * This is useful for automated systems where you want to store as much as possible
  * and destroy the overflow, rather than having items back up in the network.
  * </p>

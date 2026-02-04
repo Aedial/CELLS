@@ -50,6 +50,12 @@ public class CellsConfig {
     /** Idle drain for normal (extended) cells */
     public static double normalIdleDrain = 3.0;
 
+    /** Idle drain for fluid hyper-density cells */
+    public static double fluidHdIdleDrain = 10.0;
+
+    /** Idle drain for fluid normal (extended) cells */
+    public static double fluidNormalIdleDrain = 3.0;
+
     /** Enable compacting cells */
     public static boolean enableCompactingCells = true;
 
@@ -61,6 +67,12 @@ public class CellsConfig {
 
     /** Enable normal (64M-2G) cells */
     public static boolean enableNormalCells = true;
+
+    /** Enable fluid hyper-density cells */
+    public static boolean enableFluidHDCells = true;
+
+    /** Enable fluid normal (64M-2G) cells */
+    public static boolean enableFluidNormalCells = true;
 
     /**
      * Initializes the configuration from the given file.
@@ -124,6 +136,16 @@ public class CellsConfig {
             "Idle drain for normal (extended capacity) cells"
         );
 
+        fluidHdIdleDrain = config.getFloat(
+            "fluidHdIdleDrain", CATEGORY_IDLE_DRAIN, 1.0f, 0.0f, 100.0f,
+            "Idle drain for fluid hyper-density cells"
+        );
+
+        fluidNormalIdleDrain = config.getFloat(
+            "fluidNormalIdleDrain", CATEGORY_IDLE_DRAIN, 3.0f, 0.0f, 100.0f,
+            "Idle drain for fluid normal (extended capacity) cells"
+        );
+
         // Enabled cells category
         config.addCustomCategoryComment(CATEGORY_ENABLED,
             "Enable or disable specific cell types. Disabled cells will not be registered.");
@@ -146,6 +168,16 @@ public class CellsConfig {
         enableNormalCells = config.getBoolean(
             "enableNormalCells", CATEGORY_ENABLED, true,
             "Enable normal (64M-2G) storage cells"
+        );
+
+        enableFluidHDCells = config.getBoolean(
+            "enableFluidHDCells", CATEGORY_ENABLED, true,
+            "Enable fluid hyper-density storage cells"
+        );
+
+        enableFluidNormalCells = config.getBoolean(
+            "enableFluidNormalCells", CATEGORY_ENABLED, true,
+            "Enable fluid normal (64M-2G) storage cells"
         );
 
         // Save if config was created or changed

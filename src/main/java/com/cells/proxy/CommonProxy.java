@@ -8,9 +8,10 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import appeng.api.AEApi;
 
 import com.cells.ItemRegistry;
-import com.cells.cells.compacting.CompactingCellHandler;
-import com.cells.cells.hyperdensity.HyperDensityCellHandler;
-import com.cells.cells.hyperdensity.HyperDensityCompactingCellHandler;
+import com.cells.cells.normal.compacting.CompactingCellHandler;
+import com.cells.cells.hyperdensity.fluid.FluidHyperDensityCellHandler;
+import com.cells.cells.hyperdensity.item.HyperDensityCellHandler;
+import com.cells.cells.hyperdensity.compacting.HyperDensityCompactingCellHandler;
 
 
 public class CommonProxy {
@@ -29,6 +30,9 @@ public class CommonProxy {
 
         // Register the hyper-density compacting cell handler with AE2
         AEApi.instance().registries().cell().addCellHandler(new HyperDensityCompactingCellHandler());
+
+        // Register the fluid hyper-density cell handler with AE2
+        AEApi.instance().registries().cell().addCellHandler(new FluidHyperDensityCellHandler());
     }
 
     public void postInit(FMLPostInitializationEvent event) {

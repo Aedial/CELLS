@@ -9,15 +9,21 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.cells.cells.compacting.ItemCompactingCell;
-import com.cells.cells.compacting.ItemCompactingComponent;
-import com.cells.cells.hyperdensity.ItemHyperDensityCell;
-import com.cells.cells.hyperdensity.ItemHyperDensityComponent;
-import com.cells.cells.hyperdensity.ItemHyperDensityCompactingCell;
-import com.cells.cells.hyperdensity.ItemHyperDensityCompactingComponent;
-import com.cells.cells.normal.ItemNormalStorageCell;
-import com.cells.cells.normal.ItemNormalStorageComponent;
+import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingCell;
+import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingComponent;
+import com.cells.cells.hyperdensity.item.ItemHyperDensityCell;
+import com.cells.cells.hyperdensity.item.ItemHyperDensityComponent;
+import com.cells.cells.hyperdensity.fluid.ItemFluidHyperDensityCell;
+import com.cells.cells.hyperdensity.fluid.ItemFluidHyperDensityComponent;
+import com.cells.cells.normal.compacting.ItemCompactingCell;
+import com.cells.cells.normal.compacting.ItemCompactingComponent;
+import com.cells.cells.normal.item.ItemNormalStorageCell;
+import com.cells.cells.normal.item.ItemNormalStorageComponent;
+import com.cells.cells.normal.fluid.ItemFluidNormalStorageCell;
+import com.cells.cells.normal.fluid.ItemFluidNormalStorageComponent;
 import com.cells.config.CellsConfig;
+import com.cells.items.ItemCompressionTierCard;
+import com.cells.items.ItemDecompressionTierCard;
 import com.cells.items.ItemEqualDistributionCard;
 import com.cells.items.ItemOverflowCard;
 
@@ -32,8 +38,14 @@ public class ItemRegistry {
     public static ItemHyperDensityCompactingComponent HIGH_DENSITY_COMPACTING_COMPONENT;
     public static ItemNormalStorageCell NORMAL_STORAGE_CELL;
     public static ItemNormalStorageComponent NORMAL_STORAGE_COMPONENT;
+    public static ItemFluidHyperDensityCell FLUID_HYPER_DENSITY_CELL;
+    public static ItemFluidHyperDensityComponent FLUID_HYPER_DENSITY_COMPONENT;
+    public static ItemFluidNormalStorageCell FLUID_NORMAL_STORAGE_CELL;
+    public static ItemFluidNormalStorageComponent FLUID_NORMAL_STORAGE_COMPONENT;
     public static ItemOverflowCard OVERFLOW_CARD;
     public static ItemEqualDistributionCard EQUAL_DISTRIBUTION_CARD;
+    public static ItemCompressionTierCard COMPRESSION_TIER_CARD;
+    public static ItemDecompressionTierCard DECOMPRESSION_TIER_CARD;
 
     public static void init() {
         // Initialize items based on config
@@ -57,9 +69,21 @@ public class ItemRegistry {
             NORMAL_STORAGE_COMPONENT = new ItemNormalStorageComponent();
         }
 
+        if (CellsConfig.enableFluidHDCells) {
+            FLUID_HYPER_DENSITY_CELL = new ItemFluidHyperDensityCell();
+            FLUID_HYPER_DENSITY_COMPONENT = new ItemFluidHyperDensityComponent();
+        }
+
+        if (CellsConfig.enableFluidNormalCells) {
+            FLUID_NORMAL_STORAGE_CELL = new ItemFluidNormalStorageCell();
+            FLUID_NORMAL_STORAGE_COMPONENT = new ItemFluidNormalStorageComponent();
+        }
+
         // Upgrades are always available
         OVERFLOW_CARD = new ItemOverflowCard();
         EQUAL_DISTRIBUTION_CARD = new ItemEqualDistributionCard();
+        COMPRESSION_TIER_CARD = new ItemCompressionTierCard();
+        DECOMPRESSION_TIER_CARD = new ItemDecompressionTierCard();
     }
 
     @SubscribeEvent
@@ -84,23 +108,46 @@ public class ItemRegistry {
             event.getRegistry().register(NORMAL_STORAGE_COMPONENT);
         }
 
+        if (FLUID_HYPER_DENSITY_CELL != null) {
+            event.getRegistry().register(FLUID_HYPER_DENSITY_CELL);
+            event.getRegistry().register(FLUID_HYPER_DENSITY_COMPONENT);
+        }
+
+        if (FLUID_NORMAL_STORAGE_CELL != null) {
+            event.getRegistry().register(FLUID_NORMAL_STORAGE_CELL);
+            event.getRegistry().register(FLUID_NORMAL_STORAGE_COMPONENT);
+        }
+
         event.getRegistry().register(OVERFLOW_CARD);
         event.getRegistry().register(EQUAL_DISTRIBUTION_CARD);
+        event.getRegistry().register(COMPRESSION_TIER_CARD);
+        event.getRegistry().register(DECOMPRESSION_TIER_CARD);
     }
 
     @SubscribeEvent
     @SideOnly(Side.CLIENT)
     public void registerModels(ModelRegistryEvent event) {
         registerModel(OVERFLOW_CARD);
-        Cells.LOGGER.info("Registered model for Overflow Card at " + OVERFLOW_CARD.getRegistryName());
 
         // Register equal distribution card models for each tier
         String[] equalDistTiers = ItemEqualDistributionCard.getTierNames();
         for (int i = 0; i < equalDistTiers.length; i++) {
             ModelLoader.setCustomModelResourceLocation(EQUAL_DISTRIBUTION_CARD, i,
                 new ModelResourceLocation(EQUAL_DISTRIBUTION_CARD.getRegistryName() + "_" + equalDistTiers[i], "inventory"));
-            Cells.LOGGER.info("Registered model for Equal Distribution Card tier: " + equalDistTiers[i] +
-                " at " + EQUAL_DISTRIBUTION_CARD.getRegistryName() + "_" + equalDistTiers[i]);
+        }
+
+        // Register compression tier card models for each tier
+        String[] compressionTiers = ItemCompressionTierCard.getTierNames();
+        for (int i = 0; i < compressionTiers.length; i++) {
+            ModelLoader.setCustomModelResourceLocation(COMPRESSION_TIER_CARD, i,
+                new ModelResourceLocation(COMPRESSION_TIER_CARD.getRegistryName() + "_" + compressionTiers[i], "inventory"));
+        }
+
+        // Register decompression tier card models for each tier
+        String[] decompressionTiers = ItemDecompressionTierCard.getTierNames();
+        for (int i = 0; i < decompressionTiers.length; i++) {
+            ModelLoader.setCustomModelResourceLocation(DECOMPRESSION_TIER_CARD, i,
+                new ModelResourceLocation(DECOMPRESSION_TIER_CARD.getRegistryName() + "_" + decompressionTiers[i], "inventory"));
         }
 
         // Register compacting cell models for each tier
@@ -160,6 +207,36 @@ public class ItemRegistry {
             for (int i = 0; i < normalComponentTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(NORMAL_STORAGE_COMPONENT, i,
                     new ModelResourceLocation(NORMAL_STORAGE_COMPONENT.getRegistryName() + "_" + normalComponentTiers[i], "inventory"));
+            }
+        }
+
+        // Register fluid hyper-density cell models for each tier
+        if (FLUID_HYPER_DENSITY_CELL != null) {
+            String[] fluidHdCellTiers = ItemFluidHyperDensityCell.getTierNames();
+            for (int i = 0; i < fluidHdCellTiers.length; i++) {
+                ModelLoader.setCustomModelResourceLocation(FLUID_HYPER_DENSITY_CELL, i,
+                    new ModelResourceLocation(FLUID_HYPER_DENSITY_CELL.getRegistryName() + "_" + fluidHdCellTiers[i], "inventory"));
+            }
+
+            String[] fluidHdComponentTiers = ItemFluidHyperDensityComponent.getTierNames();
+            for (int i = 0; i < fluidHdComponentTiers.length; i++) {
+                ModelLoader.setCustomModelResourceLocation(FLUID_HYPER_DENSITY_COMPONENT, i,
+                    new ModelResourceLocation(FLUID_HYPER_DENSITY_COMPONENT.getRegistryName() + "_" + fluidHdComponentTiers[i], "inventory"));
+            }
+        }
+
+        // Register fluid normal storage cell models for each tier (64M-2G)
+        if (FLUID_NORMAL_STORAGE_CELL != null) {
+            String[] fluidNormalCellTiers = ItemFluidNormalStorageCell.getTierNames();
+            for (int i = 0; i < fluidNormalCellTiers.length; i++) {
+                ModelLoader.setCustomModelResourceLocation(FLUID_NORMAL_STORAGE_CELL, i,
+                    new ModelResourceLocation(FLUID_NORMAL_STORAGE_CELL.getRegistryName() + "_" + fluidNormalCellTiers[i], "inventory"));
+            }
+
+            String[] fluidNormalComponentTiers = ItemFluidNormalStorageComponent.getTierNames();
+            for (int i = 0; i < fluidNormalComponentTiers.length; i++) {
+                ModelLoader.setCustomModelResourceLocation(FLUID_NORMAL_STORAGE_COMPONENT, i,
+                    new ModelResourceLocation(FLUID_NORMAL_STORAGE_COMPONENT.getRegistryName() + "_" + fluidNormalComponentTiers[i], "inventory"));
             }
         }
     }

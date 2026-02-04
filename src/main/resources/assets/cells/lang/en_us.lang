@@ -27,6 +27,7 @@ item.cells.compacting_component.1g.name=1G Compacting Storage Component
 item.cells.compacting_component.2g.name=2G Compacting Storage Component
 
 # Misc
+tooltip.cells.wip_do_not_use=§c⚠ Work in Progress - Do Not Use ⚠§r
 tooltip.cells.card.separator=, 
 tooltip.cells.card.compatible=Compatible with: %s
 tooltip.cells.type.compact=Compacting Storage Cell
@@ -47,6 +48,22 @@ item.cells.equal_distribution_card.16x.name=Equal Distribution Card (16x)
 item.cells.equal_distribution_card.32x.name=Equal Distribution Card (32x)
 item.cells.equal_distribution_card.63x.name=Equal Distribution Card (63x)
 tooltip.cells.equal_distribution_card.desc=Limits cell to %d types, dividing capacity equally
+
+# Compression Tier Card
+item.cells.compression_tier_card.3x.name=Compression Tier Card (3x)
+item.cells.compression_tier_card.6x.name=Compression Tier Card (6x)
+item.cells.compression_tier_card.9x.name=Compression Tier Card (9x)
+item.cells.compression_tier_card.12x.name=Compression Tier Card (12x)
+item.cells.compression_tier_card.15x.name=Compression Tier Card (15x)
+tooltip.cells.compression_tier_card.desc=Enables up to %d compression tiers
+
+# Decompression Tier Card
+item.cells.decompression_tier_card.3x.name=Decompression Tier Card (3x)
+item.cells.decompression_tier_card.6x.name=Decompression Tier Card (6x)
+item.cells.decompression_tier_card.9x.name=Decompression Tier Card (9x)
+item.cells.decompression_tier_card.12x.name=Decompression Tier Card (12x)
+item.cells.decompression_tier_card.15x.name=Decompression Tier Card (15x)
+tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k Hyper-Density Storage Cell
@@ -105,18 +122,60 @@ item.nae2.material.cell_part.262144k.name=§b262144k§r ME Storage Component
 item.nae2.material.cell_part.1048576k.name=§51048576k§r ME Storage Component
 item.nae2.material.cell_part.2097152k.name=§d2097152k§r ME Storage Component
 
+# Fluid Hyper-Density Cells (1k-1G)
+item.cells.fluid_hyper_density_cell.1k.name=1k Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.4k.name=4k Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.16k.name=16k Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.64k.name=64k Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.256k.name=256k Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.1m.name=1M Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.4m.name=4M Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.16m.name=16M Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.64m.name=64M Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.256m.name=256M Hyper-Density Fluid Storage Cell
+item.cells.fluid_hyper_density_cell.1g.name=1G Hyper-Density Fluid Storage Cell
+
+# Fluid Hyper-Density Components
+item.cells.fluid_hyper_density_component.1k.name=1k Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.4k.name=4k Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.16k.name=16k Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.64k.name=64k Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.256k.name=256k Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.1m.name=1M Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.4m.name=4M Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.16m.name=16M Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.64m.name=64M Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.256m.name=256M Hyper-Density Fluid Storage Component
+item.cells.fluid_hyper_density_component.1g.name=1G Hyper-Density Fluid Storage Component
+
+# Fluid Normal Storage Cells (64M-2G)
+item.cells.fluid_normal_storage_cell.65536k.name=§265536k§r Fluid Storage Cell
+item.cells.fluid_normal_storage_cell.262144k.name=§b262144k§r Fluid Storage Cell
+item.cells.fluid_normal_storage_cell.1048576k.name=§51048576k§r Fluid Storage Cell
+item.cells.fluid_normal_storage_cell.2097152k.name=§d2097152k§r Fluid Storage Cell
+
+# Fluid Normal Storage Components (64M-2G)
+item.cells.fluid_normal_storage_component.65536k.name=§265536k§r Fluid Storage Component
+item.cells.fluid_normal_storage_component.262144k.name=§b262144k§r Fluid Storage Component
+item.cells.fluid_normal_storage_component.1048576k.name=§51048576k§r Fluid Storage Component
+item.cells.fluid_normal_storage_component.2097152k.name=§d2097152k§r Fluid Storage Component
+
 # Compacting Cell Tooltips
 tooltip.cells.compacting_cell.not_partitioned=Partition required to use
 tooltip.cells.compacting_cell.stores_one_type=Stores one item type with compression
-tooltip.cells.compacting_cell.insert_to_set_compression=Insert items to set compression chain
+tooltip.cells.compacting_cell.insert_to_set_compression=Insert the partitioned item to set compression chain
 tooltip.cells.compacting_cell.converts_up=Compresses to: %s
 tooltip.cells.compacting_cell.converts_down=Decompresses to: %s
 tooltip.cells.compacting_cell.no_compression=No compression available for this item
 
 # Hyper-Density Tooltips
-tooltip.cells.hyper_density_cell.info=Hyper-Density: ~2.1B per Byte
+tooltip.cells.hyper_density_cell.info=Hyper-Density: ~17.2B items per Byte
 tooltip.cells.hyper_density_component.info=Hyper-Density storage component
+tooltip.cells.hyper_density_fluid_cell.info=Hyper-Density Fluid: ~17.2M buckets per Byte
+tooltip.cells.hyper_density_fluid_component.info=Hyper-Density fluid storage component
 
 # Upgrade Tooltips
 tooltip.cells.upgrade.overflow_active=Voids overflow
 tooltip.cells.upgrade.equal_distribution_active=Split in %d types
+tooltip.cells.upgrade.compression_tier_active=Compression tiers: %d
+tooltip.cells.upgrade.decompression_tier_active=Decompression tiers: %d

@@ -8,6 +8,30 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.2.1] - 2026-02-05
+### Added
+- Add overflow protection to Compacting Cells
+- Add 3x, 6x, 9x, 12x, 15x Compression/Decompression cards for Compacting Cells. The partitioned item determines the compression chain, and the card determines how many tiers can be compressed/decompressed in that chain. It only goes in one direction at a time (compressing or decompressing), depending on the card used.
+  - 3x card allows compressing/decompressing up to 3 tiers (e.g., nugget → ingot → block → double block)
+  - 6x card allows compressing/decompressing up to 6 tiers
+  - 9x card allows compressing/decompressing up to 9 tiers
+  - 12x card allows compressing/decompressing up to 12 tiers
+  - 15x card allows compressing/decompressing up to 15 tiers
+
+
+## [0.2.0] - 2026-02-04
+### Added
+- Add Fluid Hyper-Density Storage Cells: 1k to 1G (multiplying base size by ~2.1B)
+- Add Fluid Normal Storage Cells: 64M, 256M, 1G, 2G
+- Add fluid support to the `/fillcell` command
+- Add textures for 1k to 1G Hyper-Density Storage Components (courtesy of @archezekiel)
+
+### Fixed
+- Wire all cell idle drain values from the config file (previously hardcoded)
+- Fix Overflow Card being too eager and voiding anything that couldn't be inserted, instead of only voiding excess of already stored types
+- Fix some overflow issues with Hyper-Density Cells when nearing maximum capacity
+
+
 ## [0.1.0] - 2026-02-01
 ### Added
 - Add Storage Cells for larger capacities:

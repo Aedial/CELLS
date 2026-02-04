@@ -11,6 +11,8 @@ import appeng.parts.automation.StackUpgradeInventory;
 import appeng.util.Platform;
 import appeng.util.inv.filter.IAEItemFilter;
 
+import com.cells.items.ItemCompressionTierCard;
+import com.cells.items.ItemDecompressionTierCard;
 import com.cells.items.ItemEqualDistributionCard;
 import com.cells.items.ItemOverflowCard;
 
@@ -64,6 +66,17 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
 
             if (stack.getItem() instanceof ItemEqualDistributionCard) {
                 return countInstalled(ItemEqualDistributionCard.class) < 1; // Max 1
+            }
+
+            // Compression and Decompression tier cards are mutually exclusive (max 1 total)
+            if (stack.getItem() instanceof ItemCompressionTierCard) {
+                return countInstalled(ItemCompressionTierCard.class) < 1
+                    && countInstalled(ItemDecompressionTierCard.class) < 1;
+            }
+
+            if (stack.getItem() instanceof ItemDecompressionTierCard) {
+                return countInstalled(ItemDecompressionTierCard.class) < 1
+                    && countInstalled(ItemCompressionTierCard.class) < 1;
             }
 
             // Also accept standard AE2 upgrades if getMaxInstalled allows

@@ -38,13 +38,25 @@ Standard AE2-style storage cells with larger capacities:
 - **1G ME Storage Cell** (1,073,741,824 bytes)
 - **2G ME Storage Cell** (2,147,483,648 bytes)
 
+### Fluid Storage Cells (Extended Capacity)
+Standard AE2-style fluid storage cells with larger capacities:
+- **64M Fluid Storage Cell** (67,108,864 bytes)
+- **256M Fluid Storage Cell** (268,435,456 bytes)
+- **1G Fluid Storage Cell** (1,073,741,824 bytes)
+- **2G Fluid Storage Cell** (2,147,483,648 bytes)
+
 ### Hyper-Density Storage Cells
 Storage cells with an internal multiplier of ~2.1 billion per displayed byte:
 - **1k - 1G Hyper-Density Storage Cells** (each "byte" holds ~2.1B items)
 
+### Hyper-Density Fluid Storage Cells
+Fluid storage cells with the same massive multiplier:
+- **1k - 1G Hyper-Density Fluid Storage Cells** (each "byte" holds ~2.1B mB)
+
 ### Hyper-Density Compacting Cells
 Combining hyper-density storage with compacting functionality:
 - **1k - 16M Hyper-Density Compacting Cells** (limited due to overflow protection)
+
 
 ### Upgrades
 
@@ -53,8 +65,6 @@ Install in a cell's upgrade slots to void excess items when full.
 Useful for automated systems where overflow should be destroyed.
 
 **Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells
-
-**Not compatible with**: Normal Storage Cells or cells from other mods
 
 #### Equal Distribution Card
 Limits the number of types a cell can hold and divides capacity equally among them. Available in 7 variants:
@@ -73,7 +83,17 @@ Use cases:
 
 **Compatible with**: Hyper-Density Storage Cells
 
-**Not compatible with**: Compacting Cells (which already stores one type)
+
+#### Compression/Decompression Cards
+Install in a Compacting Cell's upgrade slots to increase the number of compression tiers that are available for compression/decompression. Do note it only goes in one direction at a time (compressing or decompressing), depending on the card used.
+- **3x Card**: Allows compressing/decompressing up to 3 tiers (e.g., nugget → ingot → block → double block)
+- **6x Card**: Allows compressing/decompressing up to 6 tiers
+- **9x Card**: Allows compressing/decompressing up to 9 tiers
+- **12x Card**: Allows compressing/decompressing up to 12 tiers
+- **15x Card**: Allows compressing/decompressing up to 15 tiers
+
+**Compatible with**: Compacting Cells
+
 
 ## Configuration
 
@@ -88,6 +108,8 @@ Configure power drain per tick for each cell type:
 - Hyper-Density Cells
 - Hyper-Density Compacting Cells
 - Normal Extended Cells
+- Fluid Hyper-Density Cells
+- Fluid Normal Extended Cells
 
 ### Cell Toggles
 Enable or disable entire cell categories:
@@ -95,6 +117,8 @@ Enable or disable entire cell categories:
 - Hyper-Density Cells
 - Hyper-Density Compacting Cells
 - Normal Extended Cells
+- Fluid Hyper-Density Cells
+- Fluid Normal Extended Cells
 
 ## API
 
@@ -104,6 +128,16 @@ This mod exposes an API for computing compression chains:
 // Initialize the compacting cell chain for a given partition. Should be called when setting the partition item.
 void initializeCompactingCellChain(@Nonnull ItemStack cellStack, @Nonnull ItemStack partitionItem, @Nonnull World world);
 ```
+
+## Commands
+
+### /fillcell
+Fill a storage cell with a specified quantity of items or fluids, for testing purposes.
+- Usage: `/fillCell <item id>|<fluid id> <count>`
+- Supports suffixes for count: k (thousand), m (million), b (billion), t (trillion), q (quadrillion), qq (quintillion).
+- The storage cell must be held in the main hand.
+- Example: `/fillCell minecraft:iron_ingot 10k` fills the held cell with 10,000 Iron Ingots.
+
 
 ## Building
 ```

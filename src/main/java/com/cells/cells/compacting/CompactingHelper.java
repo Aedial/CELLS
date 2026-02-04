@@ -25,6 +25,12 @@ import net.minecraft.world.World;
  */
 public class CompactingHelper {
 
+    /** Default number of tiers when no tier card is installed. */
+    public static final int DEFAULT_TIERS = 3;
+
+    /** Maximum supported tiers (for 15x cards). */
+    public static final int MAX_SUPPORTED_TIERS = 15;
+
     private static final InventoryLookup lookup1 = new InventoryLookup(1, 1);
     private static final InventoryLookup lookup2 = new InventoryLookup(2, 2);
     private static final InventoryLookup lookup3 = new InventoryLookup(3, 3);
@@ -36,55 +42,89 @@ public class CompactingHelper {
     }
 
     /**
-     * Represents a compression chain with up to 3 tiers.
+     * Represents a compression chain with a dynamic number of tiers.
+     * <p>
+     * Tier 0 is always the highest (most compressed) form.
+     * The main tier is where the partitioned item sits in the chain.
+     * </p>
      */
     public static class CompressionChain {
 
-        private final ItemStack[] stacks = new ItemStack[3];
-        private final int[] rates = new int[3];
+        private final ItemStack[] stacks;
+        private final int[] rates;
+        private final int mainTierIndex;
+        private final int maxTiers;
 
         public CompressionChain() {
-            for (int i = 0; i < 3; i++) {
+            this(DEFAULT_TIERS);
+        }
+
+        public CompressionChain(int maxTiers) {
+            this.maxTiers = maxTiers;
+            this.stacks = new ItemStack[maxTiers];
+            this.rates = new int[maxTiers];
+            this.mainTierIndex = 0;
+
+            for (int i = 0; i < maxTiers; i++) {
                 stacks[i] = ItemStack.EMPTY;
                 rates[i] = 0;
             }
         }
 
-        public CompressionChain(ItemStack[] chain, int[] convRates) {
-            for (int i = 0; i < 3; i++) {
-                stacks[i] = (chain != null && chain[i] != null) ? chain[i] : ItemStack.EMPTY;
-                rates[i] = (convRates != null) ? convRates[i] : 0;
+        public CompressionChain(ItemStack[] chain, int[] convRates, int mainTierIndex, int maxTiers) {
+            this.maxTiers = maxTiers;
+            this.stacks = new ItemStack[maxTiers];
+            this.rates = new int[maxTiers];
+            this.mainTierIndex = mainTierIndex;
+
+            for (int i = 0; i < maxTiers; i++) {
+                stacks[i] = (chain != null && i < chain.length && chain[i] != null) ? chain[i] : ItemStack.EMPTY;
+                rates[i] = (convRates != null && i < convRates.length) ? convRates[i] : 0;
             }
         }
 
         /**
          * Get the item stack at the given tier.
-         * @param tier 0=highest, 1=middle, 2=lowest
+         * @param tier 0=highest (most compressed), increasing=less compressed
          */
         @Nonnull
         public ItemStack getStack(int tier) {
-            return tier >= 0 && tier < 3 ? stacks[tier] : ItemStack.EMPTY;
+            return tier >= 0 && tier < maxTiers ? stacks[tier] : ItemStack.EMPTY;
         }
 
         /**
          * Get the conversion rate at the given tier.
          * The rate is relative to the lowest tier (base = 1).
-         * @param tier 0=highest, 1=middle, 2=lowest
+         * @param tier 0=highest, increasing=less compressed
          */
         public int getRate(int tier) {
-            return tier >= 0 && tier < 3 ? rates[tier] : 0;
+            return tier >= 0 && tier < maxTiers ? rates[tier] : 0;
         }
 
         /**
-         * Get the number of tiers in this chain (1-3).
+         * Get the number of tiers in this chain.
          */
         public int getTierCount() {
             int count = 0;
-            for (int i = 0; i < 3; i++) {
+            for (int i = 0; i < maxTiers; i++) {
                 if (!stacks[i].isEmpty()) count++;
             }
 
             return count;
+        }
+
+        /**
+         * Get the max tiers this chain supports.
+         */
+        public int getMaxTiers() {
+            return maxTiers;
+        }
+
+        /**
+         * Get the tier index where the main (partitioned) item is located.
+         */
+        public int getMainTierIndex() {
+            return mainTierIndex;
         }
     }
 
@@ -209,56 +249,111 @@ public class CompactingHelper {
      * 
      * This only looks ONE tier up and ONE tier down from the input item.
      * The input item becomes the middle tier.
+     * 
+     * @deprecated Use {@link #getCompressionChain(ItemStack, int, int)} for dynamic tier support.
      */
+    @Deprecated
     @Nonnull
     public CompressionChain getCompressionChain(@Nonnull ItemStack inputItem) {
+        return getCompressionChain(inputItem, 1, 1);
+    }
+
+    /**
+     * Get the compression chain for an item with configurable tier depths.
+     * <p>
+     * Builds a compression chain centered on the input item, extending
+     * upward (compressed) and downward (decompressed) by the specified
+     * number of tiers.
+     * </p>
+     * 
+     * @param inputItem The item to build the chain around (becomes the main tier)
+     * @param tiersUp Number of tiers to look upward (toward compressed forms), 0 or more
+     * @param tiersDown Number of tiers to look downward (toward decompressed forms), 0 or more
+     * @return A CompressionChain with the main item and any found tiers
+     */
+    @Nonnull
+    public CompressionChain getCompressionChain(@Nonnull ItemStack inputItem, int tiersUp, int tiersDown) {
         if (inputItem.isEmpty()) return new CompressionChain();
 
         ItemStack normalized = inputItem.copy();
         normalized.setCount(1);
 
-        Result higher = findHigherTier(normalized);
-        Result lower = findLowerTier(normalized);
+        // Collect tiers going up (more compressed) - will be reversed
+        List<ItemStack> upStacks = new ArrayList<>();
+        List<Integer> upRatios = new ArrayList<>();
+        ItemStack current = normalized;
 
-        ItemStack[] chain = new ItemStack[3];
-        int[] rates = new int[3];
-        for (int i = 0; i < 3; i++) {
-            chain[i] = ItemStack.EMPTY;
-            rates[i] = 0;
+        for (int i = 0; i < tiersUp; i++) {
+            Result higher = findHigherTier(current);
+            if (higher.getStack().isEmpty()) break;
+
+            upStacks.add(higher.getStack());
+            upRatios.add(higher.getConversionRate());
+            current = higher.getStack();
         }
 
-        // Build chain based on what we found
-        if (!higher.getStack().isEmpty() && !lower.getStack().isEmpty()) {
-            // Full 3-tier chain: higher -> middle -> lower
-            chain[0] = higher.getStack();
-            chain[1] = normalized;
-            chain[2] = lower.getStack();
+        // Collect tiers going down (less compressed)
+        List<ItemStack> downStacks = new ArrayList<>();
+        List<Integer> downRatios = new ArrayList<>();
+        current = normalized;
 
-            // Rates relative to lowest tier (base = 1)
-            rates[0] = higher.getConversionRate() * lower.getConversionRate();
-            rates[1] = lower.getConversionRate();
-            rates[2] = 1;
-        } else if (!higher.getStack().isEmpty()) {
-            // 2-tier: higher -> middle (no lower)
-            chain[0] = higher.getStack();
-            chain[1] = normalized;
+        for (int i = 0; i < tiersDown; i++) {
+            Result lower = findLowerTier(current);
+            if (lower.getStack().isEmpty()) break;
 
-            rates[0] = higher.getConversionRate();
-            rates[1] = 1;
-        } else if (!lower.getStack().isEmpty()) {
-            // 2-tier: middle -> lower (no higher)
-            chain[0] = normalized;
-            chain[1] = lower.getStack();
-
-            rates[0] = lower.getConversionRate();
-            rates[1] = 1;
-        } else {
-            // Single item, no compression
-            chain[0] = normalized;
-            rates[0] = 1;
+            downStacks.add(lower.getStack());
+            downRatios.add(lower.getConversionRate());
+            current = lower.getStack();
         }
 
-        return new CompressionChain(chain, rates);
+        // Total chain size: up tiers + main item + down tiers
+        int totalTiers = upStacks.size() + 1 + downStacks.size();
+        int mainTierIndex = upStacks.size(); // Main item is after all up tiers
+
+        ItemStack[] chain = new ItemStack[totalTiers];
+        int[] rates = new int[totalTiers];
+
+        // Fill chain: highest (most compressed) first
+        // upStacks are in order [first up, second up, ...] so reverse for chain order
+        int idx = 0;
+        for (int i = upStacks.size() - 1; i >= 0; i--) {
+            chain[idx++] = upStacks.get(i);
+        }
+
+        // Main item
+        chain[idx++] = normalized;
+
+        // Down tiers (already in order - lowest first from main)
+        for (int i = 0; i < downStacks.size(); i++) {
+            chain[idx++] = downStacks.get(i);
+        }
+
+        // Calculate rates relative to lowest tier (base = 1)
+        // Work backwards from lowest tier
+        int cumulativeRate = 1;
+        for (int i = totalTiers - 1; i >= 0; i--) {
+            rates[i] = cumulativeRate;
+
+            // Determine the ratio to the next tier up
+            if (i > mainTierIndex) {
+                // We're below main tier, use downRatios
+                int downIdx = i - mainTierIndex - 1;
+                if (downIdx < downRatios.size()) {
+                    cumulativeRate *= downRatios.get(downIdx);
+                }
+            } else if (i == mainTierIndex && !downStacks.isEmpty()) {
+                // Main tier - multiply by first down ratio
+                cumulativeRate *= downRatios.get(0);
+            } else if (i < mainTierIndex) {
+                // Above main tier, use upRatios (in reverse order)
+                int upIdx = mainTierIndex - i - 1;
+                if (upIdx < upRatios.size()) {
+                    cumulativeRate *= upRatios.get(upIdx);
+                }
+            }
+        }
+
+        return new CompressionChain(chain, rates, mainTierIndex, totalTiers);
     }
 
     private void setupLookup(InventoryLookup lookup, ItemStack stack) {

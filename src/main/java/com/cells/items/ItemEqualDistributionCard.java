@@ -16,6 +16,7 @@ import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
 import appeng.core.CreativeTab;
 
+import com.cells.ItemRegistry;
 import com.cells.Tags;
 
 
@@ -133,7 +134,7 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
     public static ItemStack create(int tier) {
         if (tier < 0 || tier >= TIER_NAMES.length) tier = 0;
 
-        return new ItemStack(com.cells.ItemRegistry.EQUAL_DISTRIBUTION_CARD, 1, tier);
+        return new ItemStack(ItemRegistry.EQUAL_DISTRIBUTION_CARD, 1, tier);
     }
 
     /**

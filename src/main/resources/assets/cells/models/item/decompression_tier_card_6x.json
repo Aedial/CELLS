@@ -1,0 +1,6 @@
+{
+    "parent": "item/generated",
+    "textures": {
+        "layer0": "cells:items/decompression_tier_card_6x"
+    }
+}

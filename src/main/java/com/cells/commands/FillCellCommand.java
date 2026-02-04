@@ -11,6 +11,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.text.TextComponentString;
 
 import appeng.api.AEApi;
@@ -19,6 +20,11 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.channels.IFluidStorageChannel;
+import appeng.api.storage.data.IAEFluidStack;
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
 
 /**
  * /fillCell <item id> <count>
@@ -33,7 +39,7 @@ public class FillCellCommand extends CommandBase {
 
     @Override
     public String getUsage(ICommandSender sender) {
-        return "/fillCell <item id> <count>";
+        return "/fillCell <item id>|<fluid id> <count> (with k,m,b,t,q,qq suffixes)";
     }
 
     @Override
@@ -56,12 +62,9 @@ public class FillCellCommand extends CommandBase {
         String itemId = args[0];
         String countStr = args[1].toLowerCase();
 
-        // Find item by id
+        // Try resolve item or fluid by id (may be null depending on request)
         Item item = Item.getByNameOrId(itemId);
-        if (item == null) {
-            sender.sendMessage(new TextComponentString("Unknown item: " + itemId));
-            return;
-        }
+        Fluid fluid = FluidRegistry.getFluid(itemId);
 
         long count;
         try {
@@ -83,44 +86,121 @@ public class FillCellCommand extends CommandBase {
             return;
         }
 
-        IStorageChannel<IAEItemStack> channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-        IMEInventoryHandler<IAEItemStack> inv = AEApi.instance().registries().cell().getCellInventory(held, null, channel);
-        if (inv == null) {
-            sender.sendMessage(new TextComponentString("Held item is not a recognized AE2 storage cell."));
+        IStorageChannel<IAEItemStack> itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+        IMEInventoryHandler<IAEItemStack> itemInv = AEApi.instance().registries().cell().getCellInventory(held, null, itemChannel);
+
+        IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+        IMEInventoryHandler<IAEFluidStack> fluidInv = AEApi.instance().registries().cell().getCellInventory(held, null, fluidChannel);
+
+        // Decide insertion path based on cell capabilities.
+        boolean canItem = itemInv != null;
+        boolean canFluid = fluidInv != null;
+        if (!canItem && !canFluid) {
+            sender.sendMessage(new TextComponentString("Held item cannot store items or fluids."));
             return;
         }
 
-        // Create AE stack and set requested size. We create a one-item ItemStack of the target item and let AE wrap it.
-        ItemStack toInsert = new ItemStack(item, 1);
-        IAEItemStack aeStack = channel.createStack(toInsert);
-        if (aeStack == null) {
-            sender.sendMessage(new TextComponentString("Failed to create AE item stack for " + itemId));
+        if (canItem) {
+            // Item cell
+            if (item == null) {
+                sender.sendMessage(new TextComponentString("Unknown item: " + itemId));
+                return;
+            }
+
+            ItemStack toInsert = new ItemStack(item, 1);
+            IAEItemStack aeStack = itemChannel.createStack(toInsert);
+            if (aeStack == null) {
+                sender.sendMessage(new TextComponentString("Failed to create AE item stack for " + itemId));
+                return;
+            }
+
+            aeStack.setStackSize(count);
+            IAEItemStack remainder = itemInv.injectItems(aeStack, Actionable.MODULATE, null);
+            if (remainder == null) {
+                sender.sendMessage(new TextComponentString("Filled cell with " + args[1] + " of " + itemId));
+                return;
+            }
+
+            long notInserted = remainder.getStackSize();
+            if (notInserted <= 0) {
+                sender.sendMessage(new TextComponentString("Filled cell with " + args[1] + " of " + itemId));
+            } else {
+                sender.sendMessage(new TextComponentString("Partially filled cell. Could not insert " + notInserted + " items."));
+            }
+
             return;
         }
 
-        aeStack.setStackSize(count);
-        IAEItemStack remainder = inv.injectItems(aeStack, Actionable.MODULATE, null);
-        if (remainder == null) return;  // fully inserted
+        if (canFluid) {
+            // Fluid cell
+            if (fluid == null) {
+                sender.sendMessage(new TextComponentString("Unknown fluid: " + itemId));
+                return;
+            }
 
-        // remainder present -> not all inserted
-        // remainder.getStackSize() is number not inserted from this chunk
-        count = remainder.getStackSize();
-        if (count <= 0) {
-            sender.sendMessage(new TextComponentString("Filled cell with " + count + " of " + itemId));
-        } else {
-            sender.sendMessage(new TextComponentString("Partially filled cell. Could not insert " + count + " items."));
+            int amount = (int) Math.min(count, (long) Integer.MAX_VALUE);
+            FluidStack fs = new FluidStack(fluid, amount);
+            IAEFluidStack aeFluid = fluidChannel.createStack(fs);
+            if (aeFluid == null) {
+                sender.sendMessage(new TextComponentString("Failed to create AE fluid stack for " + itemId));
+                return;
+            }
+
+            aeFluid.setStackSize(count);
+            IAEFluidStack remainder = fluidInv.injectItems(aeFluid, Actionable.MODULATE, null);
+            if (remainder == null) {
+                sender.sendMessage(new TextComponentString("Filled fluid cell with " + args[1] + " mB of " + itemId));
+                return;
+            }
+
+            long notInserted = remainder.getStackSize();
+            if (notInserted <= 0) {
+                sender.sendMessage(new TextComponentString("Filled fluid cell with " + args[1] + " mB of " + itemId));
+            } else {
+                sender.sendMessage(new TextComponentString("Partially filled fluid cell. Could not insert " + notInserted + " mB."));
+            }
+
+            return;
         }
     }
 
     @Override
     public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, BlockPos pos) {
         List<String> ret = new ArrayList<>();
-
         if (args.length == 1) {
             String last = args[args.length - 1];
-            for (ResourceLocationWrapper rl : ResourceLocationWrapper.listItemRegistry()) {
-                String name = rl.toString();
-                if (name.startsWith(last)) ret.add(name);
+
+            // Try to detect held cell type from the command sender (if player)
+            if (sender.getCommandSenderEntity() instanceof EntityPlayerMP) {
+                EntityPlayerMP player = (EntityPlayerMP) sender.getCommandSenderEntity();
+                ItemStack held = player.getHeldItemMainhand();
+
+                if (held != null && !held.isEmpty()) {
+                    IStorageChannel<IAEItemStack> itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+                    IMEInventoryHandler<IAEItemStack> itemInv = AEApi.instance().registries().cell().getCellInventory(held, null, itemChannel);
+
+                    IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+                    IMEInventoryHandler<IAEFluidStack> fluidInv = AEApi.instance().registries().cell().getCellInventory(held, null, fluidChannel);
+
+                    if (itemInv != null) {
+                        // item cell: suggest item ids
+                        for (ResourceLocationWrapper rl : ResourceLocationWrapper.listItemRegistry()) {
+                            String name = rl.toString();
+                            if (name.startsWith(last)) ret.add(name);
+                        }
+
+                        return getListOfStringsMatchingLastWord(args, ret);
+                    }
+
+                    if (fluidInv != null) {
+                        // fluid cell: suggest fluid ids
+                        for (String fname : FluidRegistry.getRegisteredFluids().keySet()) {
+                            if (fname.startsWith(last)) ret.add(fname);
+                        }
+
+                        return getListOfStringsMatchingLastWord(args, ret);
+                    }
+                }
             }
         }
 
@@ -167,8 +247,8 @@ public class FillCellCommand extends CommandBase {
         public String toString() { return name; }
 
         static Iterable<ResourceLocationWrapper> listItemRegistry() {
-            java.util.List<ResourceLocationWrapper> out = new java.util.ArrayList<>();
-            for (net.minecraft.util.ResourceLocation rl : Item.REGISTRY.getKeys()) {
+            List<ResourceLocationWrapper> out = new ArrayList<>();
+            for (ResourceLocation rl : Item.REGISTRY.getKeys()) {
                 out.add(new ResourceLocationWrapper(rl.toString()));
             }
 
