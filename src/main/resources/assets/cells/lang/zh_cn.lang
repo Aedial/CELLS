@@ -27,6 +27,7 @@ item.cells.compacting_component.1g.name=1G压缩存储组件
 item.cells.compacting_component.2g.name=2G压缩存储组件
 
 # Misc
+tooltip.cells.wip_do_not_use=§c⚠ Work in Progress - Do Not Use ⚠§r
 tooltip.cells.card.separator=、
 tooltip.cells.card.compatible=兼容：%s
 tooltip.cells.type.compact=压缩存储元件
@@ -47,6 +48,22 @@ item.cells.equal_distribution_card.16x.name=均分卡（16x）
 item.cells.equal_distribution_card.32x.name=均分卡（32x）
 item.cells.equal_distribution_card.63x.name=均分卡（63x）
 tooltip.cells.equal_distribution_card.desc=将元件可容纳类型限制为%d，并均分容量
+
+# Compression Tier Card
+item.cells.compression_tier_card.3x.name=压缩等级卡（3x）
+item.cells.compression_tier_card.6x.name=压缩等级卡（6x）
+item.cells.compression_tier_card.9x.name=压缩等级卡（9x）
+item.cells.compression_tier_card.12x.name=压缩等级卡（12x）
+item.cells.compression_tier_card.15x.name=压缩等级卡（15x）
+tooltip.cells.compression_tier_card.desc=支持最多%d级压缩
+
+# Decompression Tier Card
+item.cells.decompression_tier_card.3x.name=解压等级卡（3x）
+item.cells.decompression_tier_card.6x.name=解压等级卡（6x）
+item.cells.decompression_tier_card.9x.name=解压等级卡（9x）
+item.cells.decompression_tier_card.12x.name=解压等级卡（12x）
+item.cells.decompression_tier_card.15x.name=解压等级卡（15x）
+tooltip.cells.decompression_tier_card.desc=支持最多%d级解压
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k超高密度存储元件
@@ -105,18 +122,60 @@ item.nae2.material.cell_part.262144k.name=§b262144k§r-ME存储组件
 item.nae2.material.cell_part.1048576k.name=§51048576k§r-ME存储组件
 item.nae2.material.cell_part.2097152k.name=§d2097152k§r-ME存储组件
 
+# Fluid Hyper-Density Cells (1k-1G)
+item.cells.fluid_hyper_density_cell.1k.name=1k超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.4k.name=4k超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.16k.name=16k超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.64k.name=64k超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.256k.name=256k超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.1m.name=1M超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.4m.name=4M超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.16m.name=16M超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.64m.name=64M超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.256m.name=256M超高密度流体存储元件
+item.cells.fluid_hyper_density_cell.1g.name=1G超高密度流体存储元件
+
+# Fluid Hyper-Density Components
+item.cells.fluid_hyper_density_component.1k.name=1k超高密度流体存储组件
+item.cells.fluid_hyper_density_component.4k.name=4k超高密度流体存储组件
+item.cells.fluid_hyper_density_component.16k.name=16k超高密度流体存储组件
+item.cells.fluid_hyper_density_component.64k.name=64k超高密度流体存储组件
+item.cells.fluid_hyper_density_component.256k.name=256k超高密度流体存储组件
+item.cells.fluid_hyper_density_component.1m.name=1M超高密度流体存储组件
+item.cells.fluid_hyper_density_component.4m.name=4M超高密度流体存储组件
+item.cells.fluid_hyper_density_component.16m.name=16M超高密度流体存储组件
+item.cells.fluid_hyper_density_component.64m.name=64M超高密度流体存储组件
+item.cells.fluid_hyper_density_component.256m.name=256M超高密度流体存储组件
+item.cells.fluid_hyper_density_component.1g.name=1G超高密度流体存储组件
+
+# Fluid Normal Storage Cells (64M-2G)
+item.cells.fluid_normal_storage_cell.65536k.name=§265536k§r-ME流体存储元件
+item.cells.fluid_normal_storage_cell.262144k.name=§b262144k§r-ME流体存储元件
+item.cells.fluid_normal_storage_cell.1048576k.name=§51048576k§r-ME流体存储元件
+item.cells.fluid_normal_storage_cell.2097152k.name=§d2097152k§r-ME流体存储元件
+
+# Fluid Normal Storage Components (64M-2G)
+item.cells.fluid_normal_storage_component.65536k.name=§265536k§r-ME流体存储组件
+item.cells.fluid_normal_storage_component.262144k.name=§b262144k§r-ME流体存储组件
+item.cells.fluid_normal_storage_component.1048576k.name=§51048576k§r-ME流体存储组件
+item.cells.fluid_normal_storage_component.2097152k.name=§d2097152k§r-ME流体存储组件
+
 # Compacting Cell Tooltips
 tooltip.cells.compacting_cell.not_partitioned=需进行分区才能使用
 tooltip.cells.compacting_cell.stores_one_type=以压缩形式存储一种物品类型
-tooltip.cells.compacting_cell.insert_to_set_compression=放入物品以设置压缩链
+tooltip.cells.compacting_cell.insert_to_set_compression=放入分区设定的物品以设置压缩链
 tooltip.cells.compacting_cell.converts_up=压缩为：%s
 tooltip.cells.compacting_cell.converts_down=解压为：%s
 tooltip.cells.compacting_cell.no_compression=该物品无可用的压缩形式
 
 # Hyper-Density Tooltips
-tooltip.cells.hyper_density_cell.info=超高密度：每字节约2.1B
+tooltip.cells.hyper_density_cell.info=超高密度：每字节约17.2B物品
 tooltip.cells.hyper_density_component.info=超高密度存储组件
+tooltip.cells.hyper_density_fluid_cell.info=超高密度流体：每字节约17.2M桶
+tooltip.cells.hyper_density_fluid_component.info=超高密度流体存储组件
 
 # Upgrade Tooltips
 tooltip.cells.upgrade.overflow_active=溢出销毁
 tooltip.cells.upgrade.equal_distribution_active=分割为%d种类型
+tooltip.cells.upgrade.compression_tier_active=压缩等级：%d
+tooltip.cells.upgrade.decompression_tier_active=解压等级：%d
