@@ -1,0 +1,26 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "aba",
+        "bcb",
+        "aba"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "dustRedstone"
+        },
+        "b": {
+            "type": "forge:ore_dict",
+            "ore": "crystalCertusQuartz"
+        },
+        "c": {
+            "item": "cells:overclocked_processor",
+            "data": 2
+        }
+    },
+    "result": {
+        "item": "cells:compacting_component",
+        "data": 0
+    }
+}

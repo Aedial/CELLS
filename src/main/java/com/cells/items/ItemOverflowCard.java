@@ -12,7 +12,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 
 import com.cells.Tags;
 
@@ -50,7 +50,7 @@ public class ItemOverflowCard extends Item implements IUpgradeModule {
         setRegistryName(Tags.MODID, "overflow_card");
         setTranslationKey(Tags.MODID + ".overflow_card");
         setMaxStackSize(64);
-        setCreativeTab(CreativeTab.instance);
+        setCreativeTab(CellsCreativeTab.instance);
     }
 
     @Override

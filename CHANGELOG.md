@@ -10,6 +10,8 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [0.2.1] - 2026-02-05
 ### Added
+- Add recipes for all processors, cell components, and upgrades
+- Add textures for Hyper-Density Compacting/Fluid Cell Components (courtesy of archezekiel)
 - Add overflow protection to Compacting Cells
 - Add 3x, 6x, 9x, 12x, 15x Compression/Decompression cards for Compacting Cells. The partitioned item determines the compression chain, and the card determines how many tiers can be compressed/decompressed in that chain. It only goes in one direction at a time (compressing or decompressing), depending on the card used.
   - 3x card allows compressing/decompressing up to 3 tiers (e.g., nugget → ingot → block → double block)
@@ -18,13 +20,16 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   - 12x card allows compressing/decompressing up to 12 tiers
   - 15x card allows compressing/decompressing up to 15 tiers
 
+### Changed
+- Remove normal cells, as they don't bring much value. Other mods already provide larger normal storage cells, and even 1k Hyper-Density Cells are better than 2G normal cells. It has been decided to not use the normal cell components in the crafting recipes for Hyper-Density Cells.
+
 
 ## [0.2.0] - 2026-02-04
 ### Added
 - Add Fluid Hyper-Density Storage Cells: 1k to 1G (multiplying base size by ~2.1B)
 - Add Fluid Normal Storage Cells: 64M, 256M, 1G, 2G
 - Add fluid support to the `/fillcell` command
-- Add textures for 1k to 1G Hyper-Density Storage Components (courtesy of @archezekiel)
+- Add textures for 1k to 1G Hyper-Density Storage Components (courtesy of archezekiel)
 
 ### Fixed
 - Wire all cell idle drain values from the config file (previously hardcoded)

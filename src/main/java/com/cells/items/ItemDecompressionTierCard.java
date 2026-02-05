@@ -14,7 +14,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 
 import com.cells.ItemRegistry;
 import com.cells.Tags;
@@ -61,7 +61,7 @@ public class ItemDecompressionTierCard extends Item implements IUpgradeModule {
         setMaxStackSize(64);
         setHasSubtypes(true);
         setMaxDamage(0);
-        setCreativeTab(CreativeTab.instance);
+        setCreativeTab(CellsCreativeTab.instance);
     }
 
     @Override

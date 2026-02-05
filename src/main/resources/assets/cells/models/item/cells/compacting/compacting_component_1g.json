@@ -1,0 +1,6 @@
+{
+    "parent": "item/generated",
+    "textures": {
+        "layer0": "cells:items/cells/compacting/compacting_component_1g"
+    }
+}

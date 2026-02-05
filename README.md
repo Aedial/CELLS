@@ -17,6 +17,7 @@ Storage cells that automatically expose compressed and decompressed forms of ite
    - Insert 81 Iron Nuggets → Extract 81 Nuggets, 9 Iron Ingots, or 1 Iron Block
    - Insert 1 Iron Block → Extract 9 Iron Ingots, 81 Iron Nuggets, or 1 Iron Block
    - All conversions are lossless and instant
+   - Due to size limitations, the maximum capacity is ~9.2 Quintillion items of the lowest tier. This is mainly an issue with high compression chains (using compression/decompression cards)
 4. **Single Item Type**: Each compacting cell stores only one item type (with its compression variants).
 5. **Storage Counting**: Storage capacity is measured in main tier (partitioned item) units, so no need to worry about conversion factors when checking capacity.
 
@@ -47,11 +48,11 @@ Standard AE2-style fluid storage cells with larger capacities:
 
 ### Hyper-Density Storage Cells
 Storage cells with an internal multiplier of ~2.1 billion per displayed byte:
-- **1k - 1G Hyper-Density Storage Cells** (each "byte" holds ~2.1B items)
+- **1k - 1G Hyper-Density Storage Cells** (each "byte" holds ~17.2B items)
 
 ### Hyper-Density Fluid Storage Cells
 Fluid storage cells with the same massive multiplier:
-- **1k - 1G Hyper-Density Fluid Storage Cells** (each "byte" holds ~2.1B mB)
+- **1k - 1G Hyper-Density Fluid Storage Cells** (each "byte" holds ~17.2M buckets)
 
 ### Hyper-Density Compacting Cells
 Combining hyper-density storage with compacting functionality:

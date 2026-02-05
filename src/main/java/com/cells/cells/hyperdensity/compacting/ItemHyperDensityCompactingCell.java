@@ -24,10 +24,10 @@ import com.cells.Tags;
  */
 public class ItemHyperDensityCompactingCell extends ItemHyperDensityCompactingCellBase {
 
-    // Limited to 16M max due to overflow with base units * conversion rates
     private static final String[] TIER_NAMES = {
         "1k", "4k", "16k", "64k",
-        "256k", "1m", "4m", "16m"
+        "256k", "1m", "4m", "16m",
+        "64m", "256m", "1g"
     };
 
     private static final long[] DISPLAY_BYTES = {
@@ -38,7 +38,10 @@ public class ItemHyperDensityCompactingCell extends ItemHyperDensityCompactingCe
         262144L,        // 256k
         1048576L,       // 1M
         4194304L,       // 4M
-        16777216L       // 16M (max safe tier)
+        16777216L,      // 16M
+        67108864L,      // 64M
+        268435456L,     // 256M
+        1073741824L     // 1G
     };
 
     private static final long[] DISPLAY_BYTES_PER_TYPE = {
@@ -49,7 +52,10 @@ public class ItemHyperDensityCompactingCell extends ItemHyperDensityCompactingCe
         2048L,          // 256k
         8192L,          // 1M
         32768L,         // 4M
-        131072L         // 16M
+        131072L,        // 16M
+        524288L,        // 64M
+        2097152L,       // 256M
+        8388608L        // 1G
     };
 
     public ItemHyperDensityCompactingCell() {
@@ -70,7 +76,7 @@ public class ItemHyperDensityCompactingCell extends ItemHyperDensityCompactingCe
     public static ItemStack create(int tier) {
         if (tier < 0 || tier >= TIER_NAMES.length) tier = 0;
 
-        return new ItemStack(ItemRegistry.HIGH_DENSITY_COMPACTING_CELL, 1, tier);
+        return new ItemStack(ItemRegistry.HYPER_DENSITY_COMPACTING_CELL, 1, tier);
     }
 
     /**

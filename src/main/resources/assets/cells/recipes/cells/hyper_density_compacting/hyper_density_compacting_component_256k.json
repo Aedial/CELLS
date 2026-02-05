@@ -1,0 +1,30 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "aba",
+        "cdc",
+        "aca"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "dustRedstone"
+        },
+        "b": {
+            "item": "cells:overclocked_processor",
+            "data": 1
+        },
+        "c": {
+            "item": "cells:hyper_density_compacting_component",
+            "data": 3
+        },
+        "d": {
+            "item": "cells:singularity_processor",
+            "data": 1
+        }
+    },
+    "result": {
+        "item": "cells:hyper_density_compacting_component",
+        "data": 4
+    }
+}

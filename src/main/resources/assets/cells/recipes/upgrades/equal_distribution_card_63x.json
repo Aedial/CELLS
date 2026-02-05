@@ -1,0 +1,35 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "flf",
+        "gcg",
+        "fqf"
+    ],
+    "key": {
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 9
+        },
+        "l": {
+            "item": "cells:overclocked_processor",
+            "data": 2
+        },
+        "g": {
+            "item": "cells:overclocked_processor",
+            "data": 0
+        },
+        "q": {
+            "item": "appliedenergistics2:material",
+            "data": 1
+        },
+        "c": {
+            "item": "cells:equal_distribution_card",
+            "data": 5
+        }
+    },
+    "result": {
+        "item": "cells:equal_distribution_card",
+        "count": 1,
+        "data": 6
+    }
+}

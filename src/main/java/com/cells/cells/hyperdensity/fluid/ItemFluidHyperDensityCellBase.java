@@ -31,7 +31,7 @@ import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IItemList;
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 import appeng.core.localization.GuiText;
 import appeng.items.contents.CellConfig;
 import appeng.util.InventoryAdaptor;
@@ -74,7 +74,7 @@ public abstract class ItemFluidHyperDensityCellBase extends Item implements IIte
         setMaxStackSize(64);
         setHasSubtypes(true);
         setMaxDamage(0);
-        setCreativeTab(CreativeTab.instance);
+        setCreativeTab(CellsCreativeTab.instance);
     }
 
     @Override
