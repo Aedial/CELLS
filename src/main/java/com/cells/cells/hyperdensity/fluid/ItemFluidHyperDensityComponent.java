@@ -14,7 +14,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 
 import com.cells.ItemRegistry;
 import com.cells.Tags;
@@ -38,9 +38,9 @@ public class ItemFluidHyperDensityComponent extends Item {
         setMaxStackSize(64);
         setHasSubtypes(true);
         setMaxDamage(0);
-        setCreativeTab(CreativeTab.instance);
-        setRegistryName(Tags.MODID, "fluid_hyper_density_component");
-        setTranslationKey(Tags.MODID + ".fluid_hyper_density_component");
+        setCreativeTab(CellsCreativeTab.instance);
+        setRegistryName(Tags.MODID, "hyper_density_fluid_component");
+        setTranslationKey(Tags.MODID + ".hyper_density_fluid_component");
     }
 
     @Override

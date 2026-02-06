@@ -1,6 +1,0 @@
-{
-    "parent": "item/generated",
-    "textures": {
-        "layer0": "cells:items/compacting_cell_64m"
-    }
-}

@@ -1,38 +1,39 @@
-# Compacting Cells
-item.cells.compacting_cell.1k.name=1k Compacting Storage Cell
-item.cells.compacting_cell.4k.name=4k Compacting Storage Cell
-item.cells.compacting_cell.16k.name=16k Compacting Storage Cell
-item.cells.compacting_cell.64k.name=64k Compacting Storage Cell
-item.cells.compacting_cell.256k.name=256k Compacting Storage Cell
-item.cells.compacting_cell.1m.name=1M Compacting Storage Cell
-item.cells.compacting_cell.4m.name=4M Compacting Storage Cell
-item.cells.compacting_cell.16m.name=16M Compacting Storage Cell
-item.cells.compacting_cell.64m.name=64M Compacting Storage Cell
-item.cells.compacting_cell.256m.name=256M Compacting Storage Cell
-item.cells.compacting_cell.1g.name=1G Compacting Storage Cell
-item.cells.compacting_cell.2g.name=2G Compacting Storage Cell
-
-# Compacting Components
-item.cells.compacting_component.1k.name=1k Compacting Storage Component
-item.cells.compacting_component.4k.name=4k Compacting Storage Component
-item.cells.compacting_component.16k.name=16k Compacting Storage Component
-item.cells.compacting_component.64k.name=64k Compacting Storage Component
-item.cells.compacting_component.256k.name=256k Compacting Storage Component
-item.cells.compacting_component.1m.name=1M Compacting Storage Component
-item.cells.compacting_component.4m.name=4M Compacting Storage Component
-item.cells.compacting_component.16m.name=16M Compacting Storage Component
-item.cells.compacting_component.64m.name=64M Compacting Storage Component
-item.cells.compacting_component.256m.name=256M Compacting Storage Component
-item.cells.compacting_component.1g.name=1G Compacting Storage Component
-item.cells.compacting_component.2g.name=2G Compacting Storage Component
-
 # Misc
+itemGroup.cells=C.E.L.L.S
 tooltip.cells.wip_do_not_use=§c⚠ Work in Progress - Do Not Use ⚠§r
 tooltip.cells.card.separator=, 
 tooltip.cells.card.compatible=Compatible with: %s
-tooltip.cells.type.compact=Compacting Storage Cell
-tooltip.cells.type.hyperdensity=Hyper-Density Storage Cell
-tooltip.cells.type.hyperdensity_compact=Hyper-Density Compacting Cell
+tooltip.cells.type.compact=Compacting ME Storage Cell
+tooltip.cells.type.hyperdensity=Hyper-Density ME Storage Cell
+tooltip.cells.type.hyperdensity_compact=Hyper-Density Compacting ME Storage Cell
+
+# Compacting Cells
+item.cells.compacting_cell.1k.name=1k Compacting ME Storage Cell
+item.cells.compacting_cell.4k.name=4k Compacting ME Storage Cell
+item.cells.compacting_cell.16k.name=16k Compacting ME Storage Cell
+item.cells.compacting_cell.64k.name=64k Compacting ME Storage Cell
+item.cells.compacting_cell.256k.name=256k Compacting ME Storage Cell
+item.cells.compacting_cell.1m.name=1M Compacting ME Storage Cell
+item.cells.compacting_cell.4m.name=4M Compacting ME Storage Cell
+item.cells.compacting_cell.16m.name=16M Compacting ME Storage Cell
+item.cells.compacting_cell.64m.name=64M Compacting ME Storage Cell
+item.cells.compacting_cell.256m.name=256M Compacting ME Storage Cell
+item.cells.compacting_cell.1g.name=1G Compacting ME Storage Cell
+item.cells.compacting_cell.2g.name=2G Compacting ME Storage Cell
+
+# Compacting Components
+item.cells.compacting_component.1k.name=1k Compacting ME Storage Component
+item.cells.compacting_component.4k.name=4k Compacting ME Storage Component
+item.cells.compacting_component.16k.name=16k Compacting ME Storage Component
+item.cells.compacting_component.64k.name=64k Compacting ME Storage Component
+item.cells.compacting_component.256k.name=256k Compacting ME Storage Component
+item.cells.compacting_component.1m.name=1M Compacting ME Storage Component
+item.cells.compacting_component.4m.name=4M Compacting ME Storage Component
+item.cells.compacting_component.16m.name=16M Compacting ME Storage Component
+item.cells.compacting_component.64m.name=64M Compacting ME Storage Component
+item.cells.compacting_component.256m.name=256M Compacting ME Storage Component
+item.cells.compacting_component.1g.name=1G Compacting ME Storage Component
+item.cells.compacting_component.2g.name=2G Compacting ME Storage Component
 
 # Overflow Card
 item.cells.overflow_card.name=Overflow Card
@@ -66,99 +67,82 @@ item.cells.decompression_tier_card.15x.name=Decompression Tier Card (15x)
 tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
-item.cells.hyper_density_cell.1k.name=1k Hyper-Density Storage Cell
-item.cells.hyper_density_cell.4k.name=4k Hyper-Density Storage Cell
-item.cells.hyper_density_cell.16k.name=16k Hyper-Density Storage Cell
-item.cells.hyper_density_cell.64k.name=64k Hyper-Density Storage Cell
-item.cells.hyper_density_cell.256k.name=256k Hyper-Density Storage Cell
-item.cells.hyper_density_cell.1m.name=1M Hyper-Density Storage Cell
-item.cells.hyper_density_cell.4m.name=4M Hyper-Density Storage Cell
-item.cells.hyper_density_cell.16m.name=16M Hyper-Density Storage Cell
-item.cells.hyper_density_cell.64m.name=64M Hyper-Density Storage Cell
-item.cells.hyper_density_cell.256m.name=256M Hyper-Density Storage Cell
-item.cells.hyper_density_cell.1g.name=1G Hyper-Density Storage Cell
+item.cells.hyper_density_cell.1k.name=1k Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.4k.name=4k Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.16k.name=16k Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.64k.name=64k Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.256k.name=256k Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.1m.name=1M Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.4m.name=4M Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.16m.name=16M Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.64m.name=64M Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.256m.name=256M Hyper-Density ME Storage Cell
+item.cells.hyper_density_cell.1g.name=1G Hyper-Density ME Storage Cell
 
 # Hyper-Density Components
-item.cells.hyper_density_component.1k.name=1k Hyper-Density Storage Component
-item.cells.hyper_density_component.4k.name=4k Hyper-Density Storage Component
-item.cells.hyper_density_component.16k.name=16k Hyper-Density Storage Component
-item.cells.hyper_density_component.64k.name=64k Hyper-Density Storage Component
-item.cells.hyper_density_component.256k.name=256k Hyper-Density Storage Component
-item.cells.hyper_density_component.1m.name=1M Hyper-Density Storage Component
-item.cells.hyper_density_component.4m.name=4M Hyper-Density Storage Component
-item.cells.hyper_density_component.16m.name=16M Hyper-Density Storage Component
-item.cells.hyper_density_component.64m.name=64M Hyper-Density Storage Component
-item.cells.hyper_density_component.256m.name=256M Hyper-Density Storage Component
-item.cells.hyper_density_component.1g.name=1G Hyper-Density Storage Component
+item.cells.hyper_density_component.1k.name=1k Hyper-Density ME Storage Component
+item.cells.hyper_density_component.4k.name=4k Hyper-Density ME Storage Component
+item.cells.hyper_density_component.16k.name=16k Hyper-Density ME Storage Component
+item.cells.hyper_density_component.64k.name=64k Hyper-Density ME Storage Component
+item.cells.hyper_density_component.256k.name=256k Hyper-Density ME Storage Component
+item.cells.hyper_density_component.1m.name=1M Hyper-Density ME Storage Component
+item.cells.hyper_density_component.4m.name=4M Hyper-Density ME Storage Component
+item.cells.hyper_density_component.16m.name=16M Hyper-Density ME Storage Component
+item.cells.hyper_density_component.64m.name=64M Hyper-Density ME Storage Component
+item.cells.hyper_density_component.256m.name=256M Hyper-Density ME Storage Component
+item.cells.hyper_density_component.1g.name=1G Hyper-Density ME Storage Component
 
-# Hyper-Density Compacting Cells (1k-16M max due to overflow safety)
-item.cells.hyper_density_compacting_cell.1k.name=1k Hyper-Density Compacting Cell
-item.cells.hyper_density_compacting_cell.4k.name=4k Hyper-Density Compacting Cell
-item.cells.hyper_density_compacting_cell.16k.name=16k Hyper-Density Compacting Cell
-item.cells.hyper_density_compacting_cell.64k.name=64k Hyper-Density Compacting Cell
-item.cells.hyper_density_compacting_cell.256k.name=256k Hyper-Density Compacting Cell
-item.cells.hyper_density_compacting_cell.1m.name=1M Hyper-Density Compacting Cell
-item.cells.hyper_density_compacting_cell.4m.name=4M Hyper-Density Compacting Cell
-item.cells.hyper_density_compacting_cell.16m.name=16M Hyper-Density Compacting Cell
+# Hyper-Density Compacting Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
+item.cells.hyper_density_compacting_cell.1k.name=1k Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.4k.name=4k Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.16k.name=16k Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.64k.name=64k Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.256k.name=256k Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.1m.name=1M Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.4m.name=4M Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.16m.name=16M Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.64m.name=64M Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.256m.name=256M Hyper-Density ME Compacting Cell
+item.cells.hyper_density_compacting_cell.1g.name=1G Hyper-Density ME Compacting Cell
 
 # Hyper-Density Compacting Components
-item.cells.hyper_density_compacting_component.1k.name=1k Hyper-Density Compacting Component
-item.cells.hyper_density_compacting_component.4k.name=4k Hyper-Density Compacting Component
-item.cells.hyper_density_compacting_component.16k.name=16k Hyper-Density Compacting Component
-item.cells.hyper_density_compacting_component.64k.name=64k Hyper-Density Compacting Component
-item.cells.hyper_density_compacting_component.256k.name=256k Hyper-Density Compacting Component
-item.cells.hyper_density_compacting_component.1m.name=1M Hyper-Density Compacting Component
-item.cells.hyper_density_compacting_component.4m.name=4M Hyper-Density Compacting Component
-item.cells.hyper_density_compacting_component.16m.name=16M Hyper-Density Compacting Component
+item.cells.hyper_density_compacting_component.1k.name=1k Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.4k.name=4k Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.16k.name=16k Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.64k.name=64k Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.256k.name=256k Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.1m.name=1M Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.4m.name=4M Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.16m.name=16M Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.64m.name=64M Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.256m.name=256M Hyper-Density ME Compacting Component
+item.cells.hyper_density_compacting_component.1g.name=1G Hyper-Density ME Compacting Component
 
-# Normal Storage Cells (64M-2G)
-item.nae2.storage_cell.65536k.name=§265536k§r ME Storage Cell
-item.nae2.storage_cell.262144k.name=§b262144k§r ME Storage Cell
-item.nae2.storage_cell.1048576k.name=§51048576k§r ME Storage Cell
-item.nae2.storage_cell.2097152k.name=§d2097152k§r ME Storage Cell
+# Hyper-Density Fluid Cells (1k-1G)
+item.cells.hyper_density_fluid_cell.1k.name=1k Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.4k.name=4k Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.16k.name=16k Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.64k.name=64k Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.256k.name=256k Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.1m.name=1M Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.4m.name=4M Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.16m.name=16M Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.64m.name=64M Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.256m.name=256M Hyper-Density ME Fluid Storage Cell
+item.cells.hyper_density_fluid_cell.1g.name=1G Hyper-Density ME Fluid Storage Cell
 
-item.nae2.material.cell_part.65536k.name=§265536k§r ME Storage Component
-item.nae2.material.cell_part.262144k.name=§b262144k§r ME Storage Component
-item.nae2.material.cell_part.1048576k.name=§51048576k§r ME Storage Component
-item.nae2.material.cell_part.2097152k.name=§d2097152k§r ME Storage Component
-
-# Fluid Hyper-Density Cells (1k-1G)
-item.cells.fluid_hyper_density_cell.1k.name=1k Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.4k.name=4k Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.16k.name=16k Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.64k.name=64k Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.256k.name=256k Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.1m.name=1M Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.4m.name=4M Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.16m.name=16M Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.64m.name=64M Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.256m.name=256M Hyper-Density Fluid Storage Cell
-item.cells.fluid_hyper_density_cell.1g.name=1G Hyper-Density Fluid Storage Cell
-
-# Fluid Hyper-Density Components
-item.cells.fluid_hyper_density_component.1k.name=1k Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.4k.name=4k Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.16k.name=16k Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.64k.name=64k Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.256k.name=256k Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.1m.name=1M Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.4m.name=4M Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.16m.name=16M Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.64m.name=64M Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.256m.name=256M Hyper-Density Fluid Storage Component
-item.cells.fluid_hyper_density_component.1g.name=1G Hyper-Density Fluid Storage Component
-
-# Fluid Normal Storage Cells (64M-2G)
-item.cells.fluid_normal_storage_cell.65536k.name=§265536k§r Fluid Storage Cell
-item.cells.fluid_normal_storage_cell.262144k.name=§b262144k§r Fluid Storage Cell
-item.cells.fluid_normal_storage_cell.1048576k.name=§51048576k§r Fluid Storage Cell
-item.cells.fluid_normal_storage_cell.2097152k.name=§d2097152k§r Fluid Storage Cell
-
-# Fluid Normal Storage Components (64M-2G)
-item.cells.fluid_normal_storage_component.65536k.name=§265536k§r Fluid Storage Component
-item.cells.fluid_normal_storage_component.262144k.name=§b262144k§r Fluid Storage Component
-item.cells.fluid_normal_storage_component.1048576k.name=§51048576k§r Fluid Storage Component
-item.cells.fluid_normal_storage_component.2097152k.name=§d2097152k§r Fluid Storage Component
+# Hyper-Density Fluid Components
+item.cells.hyper_density_fluid_component.1k.name=1k Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.4k.name=4k Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.16k.name=16k Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.64k.name=64k Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.256k.name=256k Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.1m.name=1M Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.4m.name=4M Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.16m.name=16M Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.64m.name=64M Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.256m.name=256M Hyper-Density ME Fluid Storage Component
+item.cells.hyper_density_fluid_component.1g.name=1G Hyper-Density ME Fluid Storage Component
 
 # Compacting Cell Tooltips
 tooltip.cells.compacting_cell.not_partitioned=Partition required to use
@@ -179,3 +163,37 @@ tooltip.cells.upgrade.overflow_active=Voids overflow
 tooltip.cells.upgrade.equal_distribution_active=Split in %d types
 tooltip.cells.upgrade.compression_tier_active=Compression tiers: %d
 tooltip.cells.upgrade.decompression_tier_active=Decompression tiers: %d
+
+# Compressed Calculation Prints
+item.cells.compressed_calculation_print.compressed.name=Compressed Calculation Processor Print
+item.cells.compressed_calculation_print.double_compressed.name=Double Compressed Calculation Processor Print
+item.cells.compressed_calculation_print.triple_compressed.name=Triple Compressed Calculation Processor Print
+item.cells.compressed_calculation_print.quadruple_compressed.name=Quadruple Compressed Calculation Processor Print
+
+# Compressed Engineering Prints
+item.cells.compressed_engineering_print.compressed.name=Compressed Engineering Processor Print
+item.cells.compressed_engineering_print.double_compressed.name=Double Compressed Engineering Processor Print
+item.cells.compressed_engineering_print.triple_compressed.name=Triple Compressed Engineering Processor Print
+item.cells.compressed_engineering_print.quadruple_compressed.name=Quadruple Compressed Engineering Processor Print
+
+# Compressed Logic Prints
+item.cells.compressed_logic_print.compressed.name=Compressed Logic Processor Print
+item.cells.compressed_logic_print.double_compressed.name=Double Compressed Logic Processor Print
+item.cells.compressed_logic_print.triple_compressed.name=Triple Compressed Logic Processor Print
+item.cells.compressed_logic_print.quadruple_compressed.name=Quadruple Compressed Logic Processor Print
+
+# Compressed Silicon Prints
+item.cells.compressed_silicon_print.compressed.name=Compressed Silicon Print
+item.cells.compressed_silicon_print.double_compressed.name=Double Compressed Silicon Print
+item.cells.compressed_silicon_print.triple_compressed.name=Triple Compressed Silicon Print
+item.cells.compressed_silicon_print.quadruple_compressed.name=Quadruple Compressed Silicon Print
+
+# Overclocked Processors
+item.cells.overclocked_processor.calculation.name=Overclocked Calculation Processor
+item.cells.overclocked_processor.engineering.name=Overclocked Engineering Processor
+item.cells.overclocked_processor.logic.name=Overclocked Logic Processor
+
+# Singularity Processors
+item.cells.singularity_processor.calculation.name=Singularity Calculation Processor
+item.cells.singularity_processor.engineering.name=Singularity Engineering Processor
+item.cells.singularity_processor.logic.name=Singularity Logic Processor

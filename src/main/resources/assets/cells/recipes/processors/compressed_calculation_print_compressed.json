@@ -1,0 +1,21 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "ppp",
+        "pcp",
+        "ppp"
+    ],
+    "key": {
+        "p": {
+            "item": "appliedenergistics2:material", "data": 16
+        },
+        "c": {
+            "item": "minecraft:nether_star"
+        }
+    },
+    "result": {
+        "item": "cells:compressed_calculation_print",
+        "count": 1,
+        "data": 0
+    }
+}

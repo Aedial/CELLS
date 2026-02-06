@@ -32,7 +32,7 @@ import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 import appeng.core.localization.GuiText;
 import appeng.items.contents.CellConfig;
 import appeng.items.contents.CellUpgrades;
@@ -73,7 +73,7 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
         setMaxStackSize(64);
         setHasSubtypes(true);
         setMaxDamage(0);
-        setCreativeTab(CreativeTab.instance);
+        setCreativeTab(CellsCreativeTab.instance);
     }
 
     @Override
@@ -114,18 +114,18 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
                     tooltip.add("");
                     tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
                 } else {
-                    ItemStack higherTier = hdCompInv.getHigherTierItem();
-                    ItemStack lowerTier = hdCompInv.getLowerTierItem();
+                    List<ItemStack> higherTiers = hdCompInv.getAllHigherTierItems();
+                    List<ItemStack> lowerTiers = hdCompInv.getAllLowerTierItems();
 
-                    if (!higherTier.isEmpty() || !lowerTier.isEmpty()) {
+                    if (!higherTiers.isEmpty() || !lowerTiers.isEmpty()) {
                         tooltip.add("");
 
-                        if (!higherTier.isEmpty()) {
-                            tooltip.add("\u00a7a" + I18n.format("tooltip.cells.compacting_cell.converts_up", higherTier.getDisplayName()));
+                        for (ItemStack tier : higherTiers) {
+                            tooltip.add("\u00a7a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
                         }
 
-                        if (!lowerTier.isEmpty()) {
-                            tooltip.add("\u00a7b" + I18n.format("tooltip.cells.compacting_cell.converts_down", lowerTier.getDisplayName()));
+                        for (ItemStack tier : lowerTiers) {
+                            tooltip.add("\u00a7b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
                         }
                     } else {
                         tooltip.add("");

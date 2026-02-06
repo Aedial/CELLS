@@ -1,11 +1,17 @@
 package com.cells.cells.hyperdensity.compacting;
 
+import java.util.List;
+
+import javax.annotation.Nullable;
+
 import net.minecraft.item.ItemStack;
 
+import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
 import appeng.api.config.IncludeExclude;
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.IMEInventory;
@@ -23,10 +29,17 @@ import net.minecraftforge.items.IItemHandler;
 /**
  * Inventory handler wrapper for hyper-density compacting cells.
  * Handles partition filtering and upgrade processing.
+ * Also propagates cross-tier changes for ME Chest UI updates.
  */
 public class HyperDensityCompactingCellInventoryHandler extends MEInventoryHandler<IAEItemStack> implements ICellInventoryHandler<IAEItemStack> {
 
     private IncludeExclude myWhitelist = IncludeExclude.WHITELIST;
+
+    /**
+     * Pending cross-tier changes from the last inject/extract operation.
+     * Retrieved from the cell inventory and stored here for the monitor handler to access.
+     */
+    private List<IAEItemStack> pendingCrossTierChanges = null;
 
     public HyperDensityCompactingCellInventoryHandler(IMEInventory<IAEItemStack> inventory, IStorageChannel<IAEItemStack> channel) {
         super(inventory, channel);
@@ -126,5 +139,63 @@ public class HyperDensityCompactingCellInventoryHandler extends MEInventoryHandl
         HyperDensityCompactingCellInventory hdCompacting = (HyperDensityCompactingCellInventory) ci;
 
         return hdCompacting.isInCompressionChain(input);
+    }
+
+    /**
+     * Gets the HD compacting cell inventory, if available.
+     */
+    @Nullable
+    private HyperDensityCompactingCellInventory getHDCompactingCellInv() {
+        ICellInventory<IAEItemStack> ci = getCellInv();
+
+        return ci instanceof HyperDensityCompactingCellInventory ? (HyperDensityCompactingCellInventory) ci : null;
+    }
+
+    @Override
+    public IAEItemStack injectItems(IAEItemStack input, Actionable type, IActionSource src) {
+        IAEItemStack result = super.injectItems(input, type, src);
+
+        // Capture pending cross-tier changes after a modulate operation
+        if (type == Actionable.MODULATE) {
+            HyperDensityCompactingCellInventory inv = getHDCompactingCellInv();
+            if (inv != null) {
+                List<IAEItemStack> changes = inv.popPendingCrossTierChanges();
+                if (changes != null && !changes.isEmpty()) {
+                    this.pendingCrossTierChanges = changes;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    @Override
+    public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
+        IAEItemStack result = super.extractItems(request, mode, src);
+
+        // Capture pending cross-tier changes after a modulate operation
+        if (mode == Actionable.MODULATE) {
+            HyperDensityCompactingCellInventory inv = getHDCompactingCellInv();
+            if (inv != null) {
+                List<IAEItemStack> changes = inv.popPendingCrossTierChanges();
+                if (changes != null && !changes.isEmpty()) {
+                    this.pendingCrossTierChanges = changes;
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Pops the pending cross-tier changes from the last inject/extract operation.
+     * Returns null if no changes are pending.
+     */
+    @Nullable
+    public List<IAEItemStack> popPendingCrossTierChanges() {
+        List<IAEItemStack> changes = this.pendingCrossTierChanges;
+        this.pendingCrossTierChanges = null;
+
+        return changes;
     }
 }

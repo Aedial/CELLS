@@ -65,8 +65,8 @@ public class ItemFluidHyperDensityCell extends ItemFluidHyperDensityCellBase {
 
     public ItemFluidHyperDensityCell() {
         super(TIER_NAMES, DISPLAY_BYTES, DISPLAY_BYTES_PER_TYPE);
-        setRegistryName(Tags.MODID, "fluid_hyper_density_cell");
-        setTranslationKey(Tags.MODID + ".fluid_hyper_density_cell");
+        setRegistryName(Tags.MODID, "hyper_density_fluid_cell");
+        setTranslationKey(Tags.MODID + ".hyper_density_fluid_cell");
     }
 
     @Override

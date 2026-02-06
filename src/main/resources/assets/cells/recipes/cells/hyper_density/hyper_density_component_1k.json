@@ -1,0 +1,26 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "aba",
+        "bcb",
+        "aba"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "dustRedstone"
+        },
+        "b": {
+            "type": "forge:ore_dict",
+            "ore": "crystalCertusQuartz"
+        },
+        "c": {
+            "item": "cells:singularity_processor",
+            "data": 2
+        }
+    },
+    "result": {
+        "item": "cells:hyper_density_component",
+        "data": 0
+    }
+}

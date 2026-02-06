@@ -1,0 +1,6 @@
+{
+    "parent": "item/generated",
+    "textures": {
+        "layer0": "cells:items/cells/hyper_density_compacting/hyper_density_compacting_cell_4m"
+    }
+}

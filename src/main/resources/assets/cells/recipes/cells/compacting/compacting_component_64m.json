@@ -1,0 +1,29 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "aba",
+        "cdc",
+        "aca"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "dustRedstone"
+        },
+        "b": {
+            "item": "cells:overclocked_processor",
+            "data": 0
+        },
+        "c": {
+            "item": "cells:compacting_component",
+            "data": 7
+        },
+        "d": {
+            "item": "appliedenergistics2:quartz_glass"
+        }
+    },
+    "result": {
+        "item": "cells:compacting_component",
+        "data": 8
+    }
+}

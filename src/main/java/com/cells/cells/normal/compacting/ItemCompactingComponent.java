@@ -6,7 +6,7 @@ import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 import net.minecraft.util.NonNullList;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -47,7 +47,7 @@ public class ItemCompactingComponent extends Item {
         setMaxStackSize(64);
         setHasSubtypes(true);
         setMaxDamage(0);
-        setCreativeTab(CreativeTab.instance);
+        setCreativeTab(CellsCreativeTab.instance);
         setRegistryName(Tags.MODID, "compacting_component");
         setTranslationKey(Tags.MODID + ".compacting_component");
     }

@@ -10,7 +10,7 @@ import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
 
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ActionResult;
@@ -63,7 +63,7 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
         setMaxStackSize(64);
         setHasSubtypes(true);
         setMaxDamage(0);
-        setCreativeTab(CreativeTab.instance);
+        setCreativeTab(CellsCreativeTab.instance);
     }
 
     @Override
@@ -106,19 +106,19 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
                     tooltip.add("");
                     tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
                 } else {
-                    // Has items stored - show compression info
-                    ItemStack higherTier = compactingInv.getHigherTierItem();
-                    ItemStack lowerTier = compactingInv.getLowerTierItem();
+                    // Has items stored - show compression info for ALL tiers
+                    List<ItemStack> higherTiers = compactingInv.getAllHigherTierItems();
+                    List<ItemStack> lowerTiers = compactingInv.getAllLowerTierItems();
 
-                    if (!higherTier.isEmpty() || !lowerTier.isEmpty()) {
+                    if (!higherTiers.isEmpty() || !lowerTiers.isEmpty()) {
                         tooltip.add("");
 
-                        if (!higherTier.isEmpty()) {
-                            tooltip.add("\u00a7a" + I18n.format("tooltip.cells.compacting_cell.converts_up", higherTier.getDisplayName()));
+                        for (ItemStack tier : higherTiers) {
+                            tooltip.add("\u00a7a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
                         }
 
-                        if (!lowerTier.isEmpty()) {
-                            tooltip.add("\u00a7b" + I18n.format("tooltip.cells.compacting_cell.converts_down", lowerTier.getDisplayName()));
+                        for (ItemStack tier : lowerTiers) {
+                            tooltip.add("\u00a7b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
                         }
                     } else {
                         // Items stored but no compression found

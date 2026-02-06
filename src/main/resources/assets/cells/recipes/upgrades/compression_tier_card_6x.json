@@ -1,0 +1,30 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "plp",
+        "scs",
+        "psp"
+    ],
+    "key": {
+        "p": {
+            "item": "minecraft:piston"
+        },
+        "l": {
+            "item": "cells:singularity_processor",
+            "data": 2
+        },
+        "s": {
+            "item": "appliedenergistics2:material",
+            "data": 47
+        },
+        "c": {
+            "item": "cells:compression_tier_card",
+            "data": 0
+        }
+    },
+    "result": {
+        "item": "cells:compression_tier_card",
+        "count": 1,
+        "data": 1
+    }
+}

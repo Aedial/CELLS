@@ -14,7 +14,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 
 import com.cells.Tags;
 
@@ -50,7 +50,7 @@ public class ItemHyperDensityComponent extends Item {
         setMaxStackSize(64);
         setHasSubtypes(true);
         setMaxDamage(0);
-        setCreativeTab(CreativeTab.instance);
+        setCreativeTab(CellsCreativeTab.instance);
         setRegistryName(Tags.MODID, "hyper_density_component");
         setTranslationKey(Tags.MODID + ".hyper_density_component");
     }
@@ -84,7 +84,7 @@ public class ItemHyperDensityComponent extends Item {
     public static ItemStack create(int tier) {
         if (tier < 0 || tier >= TIER_NAMES.length) tier = 0;
 
-        return new ItemStack(com.cells.ItemRegistry.HIGH_DENSITY_COMPONENT, 1, tier);
+        return new ItemStack(com.cells.ItemRegistry.HYPER_DENSITY_COMPONENT, 1, tier);
     }
 
     /**

@@ -1,0 +1,22 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "ppp",
+        "pcp",
+        "ppp"
+    ],
+    "key": {
+        "p": {
+            "item": "appliedenergistics2:material",
+            "data": 20
+        },
+        "c": {
+            "item": "minecraft:redstone"
+        }
+    },
+    "result": {
+        "item": "cells:compressed_silicon_print",
+        "count": 1,
+        "data": 0
+    }
+}

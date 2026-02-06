@@ -8,15 +8,20 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import appeng.api.AEApi;
 
 import com.cells.ItemRegistry;
+import com.cells.core.CellsCreativeTab;
 import com.cells.cells.normal.compacting.CompactingCellHandler;
 import com.cells.cells.hyperdensity.fluid.FluidHyperDensityCellHandler;
 import com.cells.cells.hyperdensity.item.HyperDensityCellHandler;
 import com.cells.cells.hyperdensity.compacting.HyperDensityCompactingCellHandler;
+import com.cells.recipes.InscriberRecipeHandler;
 
 
 public class CommonProxy {
 
     public void preInit(FMLPreInitializationEvent event) {
+        // Initialize our creative tab before items so constructors can reference it
+        CellsCreativeTab.init();
+
         ItemRegistry.init();
         MinecraftForge.EVENT_BUS.register(new ItemRegistry());
     }
@@ -33,6 +38,9 @@ public class CommonProxy {
 
         // Register the fluid hyper-density cell handler with AE2
         AEApi.instance().registries().cell().addCellHandler(new FluidHyperDensityCellHandler());
+
+        // Register custom inscriber recipes for compressed prints and processors
+        InscriberRecipeHandler.registerRecipes();
     }
 
     public void postInit(FMLPostInitializationEvent event) {

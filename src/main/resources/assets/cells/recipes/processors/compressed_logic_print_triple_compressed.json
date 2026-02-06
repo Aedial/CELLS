@@ -1,0 +1,22 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "ppp",
+        "pcp",
+        "ppp"
+    ],
+    "key": {
+        "p": {
+            "item": "cells:compressed_logic_print",
+            "data": 1
+        },
+        "c": {
+            "item": "minecraft:nether_star"
+        }
+    },
+    "result": {
+        "item": "cells:compressed_logic_print",
+        "count": 1,
+        "data": 2
+    }
+}

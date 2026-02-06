@@ -32,7 +32,7 @@ import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
-import appeng.core.CreativeTab;
+import com.cells.core.CellsCreativeTab;
 import appeng.core.localization.GuiText;
 import appeng.items.contents.CellConfig;
 import appeng.items.contents.CellUpgrades;
@@ -76,7 +76,7 @@ public abstract class ItemHyperDensityCellBase extends Item implements IItemHype
         setMaxStackSize(64);
         setHasSubtypes(true);
         setMaxDamage(0);
-        setCreativeTab(CreativeTab.instance);
+        setCreativeTab(CellsCreativeTab.instance);
     }
 
     @Override

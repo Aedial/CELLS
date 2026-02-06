@@ -82,7 +82,7 @@ public class ItemHyperDensityCell extends ItemHyperDensityCellBase {
     public static ItemStack create(int tier) {
         if (tier < 0 || tier >= TIER_NAMES.length) tier = 0;
 
-        return new ItemStack(ItemRegistry.HIGH_DENSITY_CELL, 1, tier);
+        return new ItemStack(ItemRegistry.HYPER_DENSITY_CELL, 1, tier);
     }
 
     /**
