@@ -2,6 +2,10 @@
 
 An AE2-UEL addon providing additional storage cells with extended capacities and special features.
 
+## FAQ
+### My Compacting Cells are not refreshing in the ME Chest until I reopen it
+This is a limitation of the ME Chest's implementation, which doesn't listen for changes on the network. It handles everything by itself, which doesn't work well with the virtual items of the Compacting Cells. This issue is purely visual, and the cell is working correctly.
+
 ## Features
 
 ### Compacting Storage Cells
@@ -31,20 +35,6 @@ Storage cells that automatically expose compressed and decompressed forms of ite
 - If a compacting cell contains items, the partition cannot be changed.
 - Empty the cell first before changing what item type it stores.
 
-
-### Normal Storage Cells (Extended Capacity)
-Standard AE2-style storage cells with larger capacities:
-- **64M ME Storage Cell** (67,108,864 bytes)
-- **256M ME Storage Cell** (268,435,456 bytes)
-- **1G ME Storage Cell** (1,073,741,824 bytes)
-- **2G ME Storage Cell** (2,147,483,648 bytes)
-
-### Fluid Storage Cells (Extended Capacity)
-Standard AE2-style fluid storage cells with larger capacities:
-- **64M Fluid Storage Cell** (67,108,864 bytes)
-- **256M Fluid Storage Cell** (268,435,456 bytes)
-- **1G Fluid Storage Cell** (1,073,741,824 bytes)
-- **2G Fluid Storage Cell** (2,147,483,648 bytes)
 
 ### Hyper-Density Storage Cells
 Storage cells with an internal multiplier of ~2.1 billion per displayed byte:
@@ -108,18 +98,14 @@ Configure power drain per tick for each cell type:
 - Compacting Cells
 - Hyper-Density Cells
 - Hyper-Density Compacting Cells
-- Normal Extended Cells
 - Fluid Hyper-Density Cells
-- Fluid Normal Extended Cells
 
 ### Cell Toggles
 Enable or disable entire cell categories:
 - Compacting Cells
 - Hyper-Density Cells
 - Hyper-Density Compacting Cells
-- Normal Extended Cells
 - Fluid Hyper-Density Cells
-- Fluid Normal Extended Cells
 
 ## API
 

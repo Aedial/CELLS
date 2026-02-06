@@ -44,8 +44,6 @@ import com.cells.util.CellUpgradeHelper;
  * 
  * Only the partitioned item tier counts toward storage capacity.
  * Compressed/decompressed forms are virtual utilities for network access.
- *
- * TODO: Add thorough overflow protection for compression/decompression card support
  */
 public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
@@ -56,6 +54,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     private static final String NBT_CACHED_PARTITION = "cachedPartition";
     private static final String NBT_TIERS_UP = "tiersUp";
     private static final String NBT_TIERS_DOWN = "tiersDown";
+    private static final String NBT_CHAIN_VERSION = "chainVersion";
 
     /** Default tiers when no tier card is installed. */
     private static final int DEFAULT_TIERS_UP = 1;
@@ -89,6 +88,25 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     // Cached upgrade card state
     private boolean cachedHasOverflowCard = false;
 
+    /**
+     * Version counter for the compression chain. Incremented when the chain is initialized or replaced.
+     * Used to detect external chain changes (e.g., from API calls on another handler instance).
+     */
+    private int chainVersion = 0;
+
+    /**
+     * Local copy of the chain version from NBT at construction/load time.
+     * Compared against NBT to detect external changes.
+     */
+    private int localChainVersion = 0;
+
+    /**
+     * Pending cross-tier item changes that need to be posted to listeners.
+     * Populated during inject/extract, cleared after retrieval.
+     * Used by the handler to notify ME Chest UI of changes to other tiers.
+     */
+    private List<IAEItemStack> pendingCrossTierChanges = null;
+
     public CompactingCellInventory(IInternalCompactingCell cellType, ItemStack cellStack, ISaveProvider container) {
         this.cellStack = cellStack;
         this.container = container;
@@ -97,14 +115,13 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
         this.tagCompound = Platform.openNbtData(cellStack);
 
-        // Initialize with default tier configuration
-        this.cachedTiersUp = DEFAULT_TIERS_UP;
-        this.cachedTiersDown = DEFAULT_TIERS_DOWN;
+        // Read upgrade state FIRST to determine correct array sizing
+        // This must happen before loadFromNBT() so we allocate enough space
+        updateCachedUpgradeState();
         this.currentMaxTiers = cachedTiersUp + 1 + cachedTiersDown;
         initializeArrays();
 
         loadFromNBT();
-        updateCachedUpgradeState();
     }
 
     /**
@@ -157,26 +174,24 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     }
 
     /**
-     * Notify the grid that all chain tiers have changed.
+     * Notify the grid that all chain tiers have changed and store pending changes
+     * for the handler to notify listeners (needed for ME Chest UI updates).
+     * <p>
      * This is necessary because extracting/injecting one tier affects all tiers.
+     * </p>
      * 
      * @param src The action source
      * @param oldBaseUnits The base units before the operation
-     * @param operatedSlot The slot that was directly operated on (-1 if none to exclude)
+     * @param operatedSlot The slot that was directly operated on (-1 to notify all tiers)
      */
     private void notifyGridOfAllTierChanges(@Nullable IActionSource src, long oldBaseUnits, int operatedSlot) {
-        IGrid grid = CellMathHelper.getGridFromSource(src);
-        if (grid == null) return;
-
-        IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
-        if (storageGrid == null) return;
-
-        // Calculate changes for each tier and post them
-        // Skip the operated slot since the grid already knows about that change
+        // Calculate changes for each tier
+        // Skip the operated slot since AE2's standard injection/extraction already handles that notification
+        // Note: AE2 does NOT deduplicate notifications, so including the operated slot causes double-counting
         List<IAEItemStack> changes = new ArrayList<>();
 
         for (int i = 0; i < currentMaxTiers; i++) {
-            if (i == operatedSlot) continue; // Grid already knows about this one
+            if (i == operatedSlot) continue;
             if (protoStack[i].isEmpty() || convRate[i] <= 0) continue;
 
             long oldCount = oldBaseUnits / convRate[i];
@@ -192,14 +207,55 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             }
         }
 
-        if (!changes.isEmpty()) {
-            storageGrid.postAlterationOfStoredItems(channel, changes, src);
-        }
+        if (changes.isEmpty()) return;
+
+        // Store for handler to retrieve and notify listeners (needed for ME Chest UI)
+        pendingCrossTierChanges = changes;
+
+        // Post cross-tier changes to grid. This is necessary because:
+        // - DriveWatcher/ChestNetNotifier only report the directly operated item
+        // - Cross-tier changes (e.g., block count when ingots are inserted) must be reported separately
+        // - We skip the operated slot, so we're NOT double-reporting that item
+        IGrid grid = CellMathHelper.getGridFromSourceOrContainer(src, container);
+        if (grid == null) return;
+
+        IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
+        if (storageGrid == null) return;
+
+        storageGrid.postAlterationOfStoredItems(channel, changes, src);
+    }
+
+    /**
+     * Retrieves and clears pending cross-tier changes.
+     * <p>
+     * Called by the handler after inject/extract to notify monitor listeners.
+     * This enables ME Chest UI to update when other tiers change.
+     * </p>
+     *
+     * @return List of changes, or null if none pending
+     */
+    @Nullable
+    public List<IAEItemStack> popPendingCrossTierChanges() {
+        List<IAEItemStack> changes = pendingCrossTierChanges;
+        pendingCrossTierChanges = null;
+
+        return changes;
     }
 
     private void loadFromNBT() {
         // Load stored base units
         storedBaseUnits = CellMathHelper.loadLong(tagCompound, NBT_STORED_BASE_UNITS);
+
+        // Load chain version for external change detection
+        chainVersion = tagCompound.hasKey(NBT_CHAIN_VERSION) ? tagCompound.getInteger(NBT_CHAIN_VERSION) : 0;
+        localChainVersion = chainVersion;
+
+        // Clear arrays before loading to ensure old data doesn't persist
+        // when a new, potentially shorter, chain is loaded from NBT
+        for (int i = 0; i < currentMaxTiers; i++) {
+            protoStack[i] = ItemStack.EMPTY;
+            convRate[i] = 0;
+        }
 
         if (tagCompound.hasKey(NBT_CONV_RATES)) {
             int[] rates = tagCompound.getIntArray(NBT_CONV_RATES);
@@ -231,11 +287,16 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     private void saveToNBT() {
         CellMathHelper.saveLong(tagCompound, NBT_STORED_BASE_UNITS, storedBaseUnits);
 
-        // Only save chain data (including mainTier) if we actually have a chain initialized.
-        // This prevents an old handler with empty chain from overwriting
-        // valid chain data that was written by another handler instance.
-        if (!isCompressionChainEmpty()) {
+        // Check if NBT has a newer chain version than us - if so, don't overwrite
+        int nbtChainVersion = tagCompound.hasKey(NBT_CHAIN_VERSION) ? tagCompound.getInteger(NBT_CHAIN_VERSION) : 0;
+        boolean canSaveChain = (chainVersion >= nbtChainVersion);
+
+        // Only save chain data if:
+        // 1. We have a chain initialized
+        // 2. Our chain version is >= NBT version (we're not stale)
+        if (!isCompressionChainEmpty() && canSaveChain) {
             tagCompound.setInteger(NBT_MAIN_TIER, mainTier);
+            tagCompound.setInteger(NBT_CHAIN_VERSION, chainVersion);
             tagCompound.setIntArray(NBT_CONV_RATES, convRate);
 
             NBTTagCompound protoNbt = new NBTTagCompound();
@@ -253,14 +314,15 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
                 cachedPartitionItem.writeToNBT(partNbt);
                 tagCompound.setTag(NBT_CACHED_PARTITION, partNbt);
             }
-        } else if (storedBaseUnits == 0 && !hasPartition()) {
+        } else if (storedBaseUnits == 0 && !hasPartition() && canSaveChain) {
             // Cell is truly empty and unpartitioned - clear chain data
+            // Only clear if we're not stale (another handler might have valid data)
             tagCompound.removeTag(NBT_CONV_RATES);
             tagCompound.removeTag(NBT_PROTO_ITEMS);
             tagCompound.removeTag(NBT_CACHED_PARTITION);
+            tagCompound.removeTag(NBT_CHAIN_VERSION);
         }
-        // If chain is empty but partition exists, don't touch chain NBT -
-        // another handler may have written valid data that we haven't loaded yet
+        // If chain is empty but partition exists, or if we're stale, don't touch chain NBT
     }
 
     private void saveChanges() {
@@ -384,16 +446,32 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     }
 
     /**
-     * Check if NBT has chain data that hasn't been loaded into our local cache.
+     * Check if NBT has chain data that differs from our local cache.
      * This can happen when another handler (e.g., from API call) writes to NBT
      * after this handler was constructed.
+     * <p>
+     * Checks the chain version number to detect external changes, even if
+     * our local cache is not empty.
+     * </p>
      *
-     * @return true if NBT has chain data but local cache is empty
+     * @return true if NBT has chain data that we need to reload
      */
     private boolean hasUnloadedNBTChainData() {
-        if (!isCompressionChainEmpty()) return false;
+        // Check if NBT has chain data
+        if (!tagCompound.hasKey(NBT_PROTO_ITEMS) || !tagCompound.hasKey(NBT_CONV_RATES)) {
+            return false;
+        }
 
-        return tagCompound.hasKey(NBT_PROTO_ITEMS) && tagCompound.hasKey(NBT_CONV_RATES);
+        // If local cache is empty, we definitely need to load
+        if (isCompressionChainEmpty()) {
+            return true;
+        }
+
+        // Check if NBT chain version differs from our local version
+        // This detects when another handler instance has replaced the chain
+        int nbtVersion = tagCompound.hasKey(NBT_CHAIN_VERSION) ? tagCompound.getInteger(NBT_CHAIN_VERSION) : 0;
+
+        return nbtVersion != localChainVersion;
     }
 
     /**
@@ -424,7 +502,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
     /**
      * Reload chain data from NBT if it has been updated externally,
-     * or recompute the chain if tier card configuration has changed.
+     * or resize arrays if tier card configuration has changed.
      * <p>
      * Call this before operations that depend on the compression chain.
      * </p>
@@ -432,45 +510,66 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      * Handles the following cases:
      * <ul>
      *   <li>NBT has chain data that local cache doesn't have</li>
-     *   <li>Tier card was added or removed (chain needs recomputing)</li>
-     *   <li>Partition exists but chain is empty (needs initialization)</li>
+     *   <li>Tier card was added or removed (arrays need resizing, chain needs recomputing)</li>
      * </ul>
+     * </p>
+     * <p>
+     * Note: Does NOT rebuild the chain here - that requires a World and happens in
+     * updateCompressionChainIfNeeded(). This method only resizes arrays and sets
+     * mainTier = -1 to signal that a rebuild is needed.
      * </p>
      */
     private void reloadFromNBTIfNeeded() {
         // Check if NBT has data we haven't loaded
-        if (hasUnloadedNBTChainData()) {
-            loadFromNBT();
-        }
+        if (hasUnloadedNBTChainData()) loadFromNBT();
 
         // Check if tier card configuration has changed
+        // IMPORTANT: Do NOT update cached tier values here - hasTierConfigChanged() compares
+        // current upgrades against cached values. If we update cached values first,
+        // hasTierConfigChanged() will always return false.
         if (!hasTierConfigChanged()) return;
 
-        // Tier config changed - need to recompute chain
-        // This is safe even if cell has items, as we preserve the base unit count
+        // Tier config changed - need to resize arrays and mark for rebuild
+        // The actual chain rebuild happens in updateCompressionChainIfNeeded() which has World access
         if (!cachedPartitionItem.isEmpty()) {
-            // Recompute chain with new tier configuration
-            // Note: We don't have a World here, so we need to defer this
-            // The chain will be recomputed when updateCompressionChainIfNeeded is called
-            // For now, just update the cached tier config
-            updateCachedUpgradeState();
+            // Read the new tier configuration from upgrade cards
+            IItemHandler upgrades = getUpgradesInventory();
+            int compressionTiers = CellUpgradeHelper.getCompressionTiers(upgrades);
+            int decompressionTiers = CellUpgradeHelper.getDecompressionTiers(upgrades);
 
-            // Resize arrays to new tier count
-            int newMaxTiers = cachedTiersUp + 1 + cachedTiersDown;
-            if (newMaxTiers != currentMaxTiers) {
-                // Save current data
-                long savedBaseUnits = storedBaseUnits;
-                ItemStack savedPartition = cachedPartitionItem.copy();
-
-                // Reset and resize
-                currentMaxTiers = newMaxTiers;
-                initializeArrays();
-                storedBaseUnits = savedBaseUnits;
-                cachedPartitionItem = savedPartition;
-
-                // Chain will be rebuilt on next updateCompressionChainIfNeeded call with world access
-                mainTier = -1;
+            int newTiersUp, newTiersDown;
+            if (compressionTiers > 0) {
+                newTiersUp = compressionTiers;
+                newTiersDown = 0;
+            } else if (decompressionTiers > 0) {
+                newTiersUp = 0;
+                newTiersDown = decompressionTiers;
+            } else {
+                newTiersUp = DEFAULT_TIERS_UP;
+                newTiersDown = DEFAULT_TIERS_DOWN;
             }
+
+            // Calculate new max tiers
+            int newMaxTiers = newTiersUp + 1 + newTiersDown;
+
+            // Save current data
+            long savedBaseUnits = storedBaseUnits;
+            ItemStack savedPartition = cachedPartitionItem.copy();
+
+            // Reset and resize arrays
+            currentMaxTiers = newMaxTiers;
+            initializeArrays();
+            storedBaseUnits = savedBaseUnits;
+            cachedPartitionItem = savedPartition;
+
+            // Mark chain for rebuild - mainTier = -1 signals that chain needs rebuilding
+            // The actual rebuild happens in updateCompressionChainIfNeeded() with World access
+            mainTier = -1;
+
+            // Update cached tier values AFTER resizing, so subsequent calls to
+            // hasTierConfigChanged() return false (config is now synced)
+            cachedTiersUp = newTiersUp;
+            cachedTiersDown = newTiersDown;
         }
     }
 
@@ -549,8 +648,22 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         // Force initialize the chain with the given partition item
         reset();
         initializeCompressionChain(partitionItem, world);
+
+        // Fallback: if chain is still empty after initialization (shouldn't happen),
+        // create a single-tier chain with just the partition item
+        if (isCompressionChainEmpty()) {
+            protoStack[0] = partitionItem.copy();
+            protoStack[0].setCount(1);
+            convRate[0] = 1;
+            mainTier = 0;
+        }
+
         cachedPartitionItem = partitionItem.copy();
         cachedPartitionItem.setCount(1);
+
+        // Increment chain version so other handler instances detect the change
+        chainVersion++;
+        localChainVersion = chainVersion;
 
         // Also set the partition in the config inventory so hasPartition() returns true
         setPartitionInConfig(partitionItem);
@@ -586,7 +699,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
     /**
      * Update the compression chain if the partition has changed, tier cards changed,
-     * or if chain needs initialization.
+     * or if chain needs initialization/rebuilding.
      * Call this before any operation that depends on the compression chain.
      * 
      * If the cell contains items, partition changes are blocked to prevent data loss.
@@ -596,17 +709,20 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      */
     private void updateCompressionChainIfNeeded(@Nullable World world) {
         // First, check if NBT has chain data written by another handler (e.g., API call)
-        // that we haven't loaded yet. Also checks for tier card changes.
+        // that we haven't loaded yet. Also checks for tier card changes and resizes arrays.
+        // If tier config changed, mainTier will be set to -1 to signal rebuild needed.
         reloadFromNBTIfNeeded();
 
-        // Check if tier card config changed and we need to rebuild chain
-        boolean needsTierRebuild = hasTierConfigChanged();
+        // Check if chain needs rebuilding due to tier card change
+        // mainTier == -1 with non-empty cachedPartitionItem means reloadFromNBTIfNeeded()
+        // detected a tier config change and resized arrays, but chain needs rebuilding
+        boolean needsTierRebuild = (mainTier < 0) && !cachedPartitionItem.isEmpty();
 
         // Check if chain needs to be built (partition exists but chain is empty)
         boolean needsInitialization = hasPartition() && isCompressionChainEmpty();
 
         // Handle tier card change - rebuild chain even with items
-        if (needsTierRebuild && !cachedPartitionItem.isEmpty()) {
+        if (needsTierRebuild) {
             // Save the base units
             long savedBaseUnits = storedBaseUnits;
 
@@ -646,6 +762,11 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         initializeCompressionChain(currentPartition, world);
         cachedPartitionItem = currentPartition.copy();
         cachedPartitionItem.setCount(1);
+
+        // Increment chain version so other handler instances detect the change
+        chainVersion++;
+        localChainVersion = chainVersion;
+
         saveChanges();
     }
 
@@ -821,6 +942,40 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         return ItemStack.EMPTY;
     }
 
+    /**
+     * Get all higher tier (compressed) items, from closest to main tier to most compressed.
+     *
+     * @return List of compressed tier items, may be empty
+     */
+    @Nonnull
+    public List<ItemStack> getAllHigherTierItems() {
+        List<ItemStack> items = new ArrayList<>();
+        if (mainTier <= 0) return items;
+
+        for (int i = mainTier - 1; i >= 0; i--) {
+            if (!protoStack[i].isEmpty()) items.add(protoStack[i]);
+        }
+
+        return items;
+    }
+
+    /**
+     * Get all lower tier (decompressed) items, from closest to main tier to least compressed.
+     *
+     * @return List of decompressed tier items, may be empty
+     */
+    @Nonnull
+    public List<ItemStack> getAllLowerTierItems() {
+        List<ItemStack> items = new ArrayList<>();
+        if (mainTier < 0) return items;
+
+        for (int i = mainTier + 1; i < currentMaxTiers; i++) {
+            if (!protoStack[i].isEmpty()) items.add(protoStack[i]);
+        }
+
+        return items;
+    }
+
     private void reset() {
         for (int i = 0; i < currentMaxTiers; i++) {
             protoStack[i] = ItemStack.EMPTY;
@@ -845,6 +1000,9 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     @Override
     public IAEItemStack injectItems(IAEItemStack input, Actionable mode, IActionSource src) {
         if (input == null || input.getStackSize() <= 0) return null;
+
+        // Reload from NBT first to detect API-set partitions before checking hasPartition()
+        reloadFromNBTIfNeeded();
 
         // Compacting cells require partitioning
         if (!hasPartition()) return input;

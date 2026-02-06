@@ -105,8 +105,6 @@ import com.cells.util.CellMathHelper;
  *   <li><b>Overflow Card</b>: When installed, excess items are voided instead of rejected</li>
  * </ul>
  *
- * TODO: Add thorough overflow protection for compression/decompression card support
- * 
  * @see IItemHyperDensityCompactingCell
  * @see CompactingHelper
  */
@@ -129,6 +127,9 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
     /** NBT key for cached tiers up value. */
     private static final String NBT_TIERS_UP = "tiersUp";
+
+    /** NBT key for the chain version counter. */
+    private static final String NBT_CHAIN_VERSION = "chainVersion";
 
     /** NBT key for cached tiers down value. */
     private static final String NBT_TIERS_DOWN = "tiersDown";
@@ -217,6 +218,25 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     private boolean cachedHasOverflowCard = false;
 
     /**
+     * Version counter for the compression chain. Incremented when the chain is initialized or replaced.
+     * Used to detect external chain changes (e.g., from API calls on another handler instance).
+     */
+    private int chainVersion = 0;
+
+    /**
+     * Local copy of the chain version from NBT at construction/load time.
+     * Compared against NBT to detect external changes.
+     */
+    private int localChainVersion = 0;
+
+    /**
+     * Pending cross-tier item changes that need to be posted to listeners.
+     * Populated during inject/extract, cleared after retrieval.
+     * Used by the handler to notify ME Chest UI of changes to other tiers.
+     */
+    private List<IAEItemStack> pendingCrossTierChanges = null;
+
+    /**
      * Creates a new inventory wrapper for an HD Compacting Cell.
      * <p>
      * The constructor loads existing data from NBT and initializes the compression
@@ -237,15 +257,14 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         this.tagCompound = Platform.openNbtData(cellStack);
 
-        // Initialize with default tier configuration
-        this.cachedTiersUp = DEFAULT_TIERS_UP;
-        this.cachedTiersDown = DEFAULT_TIERS_DOWN;
+        // Read upgrade state FIRST to determine correct array sizing
+        // This must happen before loadFromNBT() so we allocate enough space
+        updateCachedUpgradeState();
         this.currentMaxTiers = cachedTiersUp + 1 + cachedTiersDown;
         initializeArrays();
 
         // Load any existing data from the cell's NBT
         loadFromNBT();
-        updateCachedUpgradeState();
     }
 
     /**
@@ -324,7 +343,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
-     * Notifies the ME network that item counts have changed across all compression tiers.
+     * Notifies the ME network that item counts have changed across all compression tiers
+     * and stores pending changes for the handler to notify listeners.
      * <p>
      * When items are inserted or extracted at one tier, the available counts at ALL tiers
      * change (since they share a common base unit pool). This method posts those changes
@@ -337,15 +357,12 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      *
      * @param src          The action source for the operation
      * @param oldBaseUnits The base unit count before the operation
-     * @param operatedSlot The tier that was directly operated on (-1 to notify all)
+     * @param operatedSlot The tier that was directly operated on (-1 to notify all tiers)
      */
     private void notifyGridOfAllTierChanges(@Nullable IActionSource src, long oldBaseUnits, int operatedSlot) {
-        IGrid grid = CellMathHelper.getGridFromSource(src);
-        if (grid == null) return;
-
-        IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
-        if (storageGrid == null) return;
-
+        // Calculate changes for each tier
+        // Skip the operated slot since AE2's standard injection/extraction already handles that notification
+        // Note: AE2 does NOT deduplicate notifications, so including the operated slot causes double-counting
         List<IAEItemStack> changes = new ArrayList<>();
 
         for (int i = 0; i < currentMaxTiers; i++) {
@@ -365,7 +382,39 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             }
         }
 
-        if (!changes.isEmpty()) storageGrid.postAlterationOfStoredItems(channel, changes, src);
+        if (changes.isEmpty()) return;
+
+        // Store for handler to retrieve and notify listeners (needed for ME Chest UI)
+        pendingCrossTierChanges = changes;
+
+        // Post cross-tier changes to grid. This is necessary because:
+        // - DriveWatcher/ChestNetNotifier only report the directly operated item
+        // - Cross-tier changes (e.g., block count when ingots are inserted) must be reported separately
+        // - We skip the operated slot, so we're NOT double-reporting that item
+        IGrid grid = CellMathHelper.getGridFromSourceOrContainer(src, container);
+        if (grid == null) return;
+
+        IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
+        if (storageGrid == null) return;
+
+        storageGrid.postAlterationOfStoredItems(channel, changes, src);
+    }
+
+    /**
+     * Retrieves and clears pending cross-tier changes.
+     * <p>
+     * Called by the handler after inject/extract to notify monitor listeners.
+     * This enables ME Chest UI to update when other tiers change.
+     * </p>
+     *
+     * @return List of changes, or null if none pending
+     */
+    @Nullable
+    public List<IAEItemStack> popPendingCrossTierChanges() {
+        List<IAEItemStack> changes = pendingCrossTierChanges;
+        pendingCrossTierChanges = null;
+
+        return changes;
     }
 
     /**
@@ -378,6 +427,17 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     private void loadFromNBT() {
         // Load stored base units
         storedBaseUnits = CellMathHelper.loadLong(tagCompound, NBT_STORED_BASE_UNITS);
+
+        // Load chain version for external change detection
+        chainVersion = tagCompound.hasKey(NBT_CHAIN_VERSION) ? tagCompound.getInteger(NBT_CHAIN_VERSION) : 0;
+        localChainVersion = chainVersion;
+
+        // Clear arrays before loading to ensure old data doesn't persist
+        // when a new, potentially shorter, chain is loaded from NBT
+        for (int i = 0; i < currentMaxTiers; i++) {
+            protoStack[i] = ItemStack.EMPTY;
+            convRate[i] = 0;
+        }
 
         // Load conversion rates array
         if (tagCompound.hasKey(NBT_CONV_RATES)) {
@@ -432,15 +492,24 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * Stores the base units, main tier, compression chain, and cached partition.
      * If the cell is empty and has no chain, cleans up unused NBT keys.
      * </p>
+     * <p>
+     * Chain data is only saved if this handler's chain version matches or exceeds
+     * the NBT version, preventing stale handlers from overwriting newer data.
+     * </p>
      */
     private void saveToNBT() {
         CellMathHelper.saveLong(tagCompound, NBT_STORED_BASE_UNITS, storedBaseUnits);
 
-        // Only save chain data (including mainTier) if we actually have a chain initialized.
-        // This prevents an old handler with empty chain from overwriting
-        // valid chain data that was written by another handler instance.
-        if (!isCompressionChainEmpty()) {
+        // Check if NBT has a newer chain version than us - if so, don't overwrite
+        int nbtChainVersion = tagCompound.hasKey(NBT_CHAIN_VERSION) ? tagCompound.getInteger(NBT_CHAIN_VERSION) : 0;
+        boolean canSaveChain = (chainVersion >= nbtChainVersion);
+
+        // Only save chain data if:
+        // 1. We have a chain initialized
+        // 2. Our chain version is >= NBT version (we're not stale)
+        if (!isCompressionChainEmpty() && canSaveChain) {
             tagCompound.setInteger(NBT_MAIN_TIER, mainTier);
+            tagCompound.setInteger(NBT_CHAIN_VERSION, chainVersion);
             tagCompound.setIntArray(NBT_CONV_RATES, convRate);
 
             NBTTagCompound protoNbt = new NBTTagCompound();
@@ -459,14 +528,15 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
                 cachedPartitionItem.writeToNBT(partNbt);
                 tagCompound.setTag(NBT_CACHED_PARTITION, partNbt);
             }
-        } else if (storedBaseUnits == 0 && !hasPartition()) {
+        } else if (storedBaseUnits == 0 && !hasPartition() && canSaveChain) {
             // Cell is truly empty and unpartitioned - clear chain data
+            // Only clear if we're not stale (another handler might have valid data)
             tagCompound.removeTag(NBT_CONV_RATES);
             tagCompound.removeTag(NBT_PROTO_ITEMS);
             tagCompound.removeTag(NBT_CACHED_PARTITION);
+            tagCompound.removeTag(NBT_CHAIN_VERSION);
         }
-        // If chain is empty but partition exists, don't touch chain NBT -
-        // another handler may have written valid data that we haven't loaded yet
+        // If chain is empty but partition exists, or if we're stale, don't touch chain NBT
     }
 
     /**
@@ -600,16 +670,28 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
-     * Check if NBT has chain data that hasn't been loaded into our local cache.
+     * Check if NBT has chain data that differs from our local cache.
      * This can happen when another handler (e.g., from API call) writes to NBT
      * after this handler was constructed.
+     * <p>
+     * Checks the chain version number to detect external changes, even if
+     * our local cache is not empty.
+     * </p>
      *
-     * @return true if NBT has chain data but local cache is empty
+     * @return true if NBT has chain data that we need to reload
      */
     private boolean hasUnloadedNBTChainData() {
-        if (!isCompressionChainEmpty()) return false;
+        // Check if NBT has chain data
+        if (!tagCompound.hasKey(NBT_PROTO_ITEMS) || !tagCompound.hasKey(NBT_CONV_RATES)) return false;
 
-        return tagCompound.hasKey(NBT_PROTO_ITEMS) && tagCompound.hasKey(NBT_CONV_RATES);
+        // If local cache is empty, we definitely need to load
+        if (isCompressionChainEmpty()) return true;
+
+        // Check if NBT chain version differs from our local version
+        // This detects when another handler instance has replaced the chain
+        int nbtVersion = tagCompound.hasKey(NBT_CHAIN_VERSION) ? tagCompound.getInteger(NBT_CHAIN_VERSION) : 0;
+
+        return nbtVersion != localChainVersion;
     }
 
     /**
@@ -622,45 +704,66 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * Handles the following cases:
      * <ul>
      *   <li>NBT has chain data that local cache doesn't have</li>
-     *   <li>Tier card was added or removed (chain needs recomputing)</li>
-     *   <li>Partition exists but chain is empty (needs initialization)</li>
+     *   <li>Tier card was added or removed (arrays need resizing, chain needs recomputing)</li>
      * </ul>
+     * </p>
+     * <p>
+     * Note: Does NOT rebuild the chain here - that requires a World and happens in
+     * updateCompressionChainIfNeeded(). This method only resizes arrays and sets
+     * mainTier = -1 to signal that a rebuild is needed.
      * </p>
      */
     private void reloadFromNBTIfNeeded() {
         // Check if NBT has data we haven't loaded
-        if (hasUnloadedNBTChainData()) {
-            loadFromNBT();
-        }
+        if (hasUnloadedNBTChainData()) loadFromNBT();
 
         // Check if tier card configuration has changed
+        // IMPORTANT: Do NOT update cached tier values here - hasTierConfigChanged() compares
+        // current upgrades against cached values. If we update cached values first,
+        // hasTierConfigChanged() will always return false.
         if (!hasTierConfigChanged()) return;
 
-        // Tier config changed - need to recompute chain
-        // This is safe even if cell has items, as we preserve the base unit count
+        // Tier config changed - need to resize arrays and mark for rebuild
+        // The actual chain rebuild happens in updateCompressionChainIfNeeded() which has World access
         if (!cachedPartitionItem.isEmpty()) {
-            // Recompute chain with new tier configuration
-            // Note: We don't have a World here, so we need to defer this
-            // The chain will be recomputed when updateCompressionChainIfNeeded is called
-            // For now, just update the cached tier config
-            updateCachedUpgradeState();
+            // Read the new tier configuration from upgrade cards
+            IItemHandler upgrades = getUpgradesInventory();
+            int compressionTiers = CellUpgradeHelper.getCompressionTiers(upgrades);
+            int decompressionTiers = CellUpgradeHelper.getDecompressionTiers(upgrades);
 
-            // Resize arrays to new tier count
-            int newMaxTiers = cachedTiersUp + 1 + cachedTiersDown;
-            if (newMaxTiers != currentMaxTiers) {
-                // Save current data
-                long savedBaseUnits = storedBaseUnits;
-                ItemStack savedPartition = cachedPartitionItem.copy();
-
-                // Reset and resize
-                currentMaxTiers = newMaxTiers;
-                initializeArrays();
-                storedBaseUnits = savedBaseUnits;
-                cachedPartitionItem = savedPartition;
-
-                // Chain will be rebuilt on next updateCompressionChainIfNeeded call with world access
-                mainTier = -1;
+            int newTiersUp, newTiersDown;
+            if (compressionTiers > 0) {
+                newTiersUp = compressionTiers;
+                newTiersDown = 0;
+            } else if (decompressionTiers > 0) {
+                newTiersUp = 0;
+                newTiersDown = decompressionTiers;
+            } else {
+                newTiersUp = DEFAULT_TIERS_UP;
+                newTiersDown = DEFAULT_TIERS_DOWN;
             }
+
+            // Calculate new max tiers
+            int newMaxTiers = newTiersUp + 1 + newTiersDown;
+
+            // Save current data
+            long savedBaseUnits = storedBaseUnits;
+            ItemStack savedPartition = cachedPartitionItem.copy();
+
+            // Reset and resize arrays
+            currentMaxTiers = newMaxTiers;
+            initializeArrays();
+            storedBaseUnits = savedBaseUnits;
+            cachedPartitionItem = savedPartition;
+
+            // Mark chain for rebuild - mainTier = -1 signals that chain needs rebuilding
+            // The actual rebuild happens in updateCompressionChainIfNeeded() with World access
+            mainTier = -1;
+
+            // Update cached tier values AFTER resizing, so subsequent calls to
+            // hasTierConfigChanged() return false (config is now synced)
+            cachedTiersUp = newTiersUp;
+            cachedTiersDown = newTiersDown;
         }
     }
 
@@ -754,8 +857,22 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         reset();
         initializeCompressionChain(partitionItem, world);
+
+        // Fallback: if chain is still empty after initialization (shouldn't happen),
+        // create a single-tier chain with just the partition item
+        if (isCompressionChainEmpty()) {
+            protoStack[0] = partitionItem.copy();
+            protoStack[0].setCount(1);
+            convRate[0] = 1;
+            mainTier = 0;
+        }
+
         cachedPartitionItem = partitionItem.copy();
         cachedPartitionItem.setCount(1);
+
+        // Increment chain version so other handler instances detect the change
+        chainVersion++;
+        localChainVersion = chainVersion;
 
         // Also set the partition in the config inventory so hasPartition() returns true
         setPartitionInConfig(partitionItem);
@@ -788,7 +905,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
-     * Updates the compression chain if needed (partition changed or needs init).
+     * Updates the compression chain if needed (partition changed, tier cards changed, or needs init).
      * <p>
      * If the cell contains items and the partition was changed, the partition
      * is reverted to prevent data loss. This ensures the compression chain
@@ -799,17 +916,20 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      */
     private void updateCompressionChainIfNeeded(@Nullable World world) {
         // First, check if NBT has chain data written by another handler (e.g., API call)
-        // that we haven't loaded yet. Also checks for tier card changes.
+        // that we haven't loaded yet. Also checks for tier card changes and resizes arrays.
+        // If tier config changed, mainTier will be set to -1 to signal rebuild needed.
         reloadFromNBTIfNeeded();
 
-        // Check if tier card config changed and we need to rebuild chain
-        boolean needsTierRebuild = hasTierConfigChanged();
+        // Check if chain needs rebuilding due to tier card change
+        // mainTier == -1 with non-empty cachedPartitionItem means reloadFromNBTIfNeeded()
+        // detected a tier config change and resized arrays, but chain needs rebuilding
+        boolean needsTierRebuild = (mainTier < 0) && !cachedPartitionItem.isEmpty();
 
         // Check if chain needs to be built (partition exists but chain is empty)
         boolean needsInitialization = hasPartition() && isCompressionChainEmpty();
 
         // Handle tier card change - rebuild chain even with items
-        if (needsTierRebuild && !cachedPartitionItem.isEmpty()) {
+        if (needsTierRebuild) {
             // Save the base units
             long savedBaseUnits = storedBaseUnits;
 
@@ -846,6 +966,11 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         initializeCompressionChain(currentPartition, world);
         cachedPartitionItem = currentPartition.copy();
         cachedPartitionItem.setCount(1);
+
+        // Increment chain version so other handler instances detect the change
+        chainVersion++;
+        localChainVersion = chainVersion;
+
         saveChanges();
     }
 
@@ -966,6 +1091,11 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * The conversion chain between bytes <-> items <-> base units uses ceiling
      * divisions for display, so we must be slightly conservative here.
      * </p>
+     * <p>
+     * With decompression cards, the main tier conversion rate can be very large
+     * (e.g., 9^N for N tiers down). We limit capacity based on the <b>lowest tier</b>
+     * to ensure the base unit count never overflows during storage or display.
+     * </p>
      *
      * @return Maximum base units, or Long.MAX_VALUE if overflow
      */
@@ -986,18 +1116,47 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         // Convert to base units - overflow protected
         long maxBaseUnits = CellMathHelper.multiplyWithOverflowProtection(maxMainTierItems, convRate[mainTier]);
-        if (maxBaseUnits == Long.MAX_VALUE) return Long.MAX_VALUE;
 
         // Reserve space for ceiling rounding: at most (convRate - 1) base units
         // plus (itemsPerByte - 1) items worth of rounding
-        long reserveForRounding = (long)(convRate[mainTier] - 1) + (long)(itemsPerByte - 1) * convRate[mainTier];
-        if (maxBaseUnits > reserveForRounding) {
-            maxBaseUnits -= reserveForRounding;
-        } else {
-            maxBaseUnits = 0;
+        if (maxBaseUnits != Long.MAX_VALUE) {
+            long reserveForRounding = (long)(convRate[mainTier] - 1) + (long)(itemsPerByte - 1) * convRate[mainTier];
+            if (maxBaseUnits > reserveForRounding) {
+                maxBaseUnits -= reserveForRounding;
+            } else {
+                maxBaseUnits = 0;
+            }
+        }
+
+        // Limit based on lowest tier to prevent overflow during display calculations.
+        // The lowest tier (highest index with valid convRate) has the smallest rate,
+        // meaning it can hold the most items. We need to ensure that when displaying
+        // the lowest tier count, we don't overflow. Safe limit is Long.MAX_VALUE / 2
+        // to leave headroom for arithmetic.
+        int lowestTier = getLowestTierIndex();
+        if (lowestTier >= 0 && convRate[lowestTier] > 0) {
+            // Max base units such that lowestTierCount = maxBaseUnits / convRate[lowestTier] fits in long
+            // With convRate[lowestTier] = 1 typically, this limits us to ~Long.MAX_VALUE items
+            // We use Long.MAX_VALUE / 2 to have headroom for additions during calculations
+            long safeLimit = Long.MAX_VALUE / 2;
+            maxBaseUnits = Math.min(maxBaseUnits, safeLimit);
         }
 
         return maxBaseUnits;
+    }
+
+    /**
+     * Finds the index of the lowest tier (least compressed, highest index) with a valid conversion rate.
+     * The lowest tier typically has convRate = 1 (the base unit).
+     *
+     * @return The lowest tier index, or -1 if no valid tiers exist
+     */
+    private int getLowestTierIndex() {
+        for (int i = currentMaxTiers - 1; i >= 0; i--) {
+            if (!protoStack[i].isEmpty() && convRate[i] > 0) return i;
+        }
+
+        return -1;
     }
 
     /**
@@ -1009,7 +1168,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         long max = getMaxCapacityInBaseUnits();
         if (max == Long.MAX_VALUE) return Long.MAX_VALUE;
 
-        return Math.max(0, max - storedBaseUnits);
+        return CellMathHelper.subtractWithUnderflowProtection(max, storedBaseUnits);
     }
 
     /**
@@ -1061,6 +1220,40 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
+     * Get all higher tier (compressed) items, from closest to main tier to most compressed.
+     *
+     * @return List of compressed tier items, may be empty
+     */
+    @Nonnull
+    public List<ItemStack> getAllHigherTierItems() {
+        List<ItemStack> items = new ArrayList<>();
+        if (mainTier <= 0 || mainTier >= currentMaxTiers) return items;
+
+        for (int i = mainTier - 1; i >= 0; i--) {
+            if (!protoStack[i].isEmpty()) items.add(protoStack[i]);
+        }
+
+        return items;
+    }
+
+    /**
+     * Get all lower tier (decompressed) items, from closest to main tier to least compressed.
+     *
+     * @return List of decompressed tier items, may be empty
+     */
+    @Nonnull
+    public List<ItemStack> getAllLowerTierItems() {
+        List<ItemStack> items = new ArrayList<>();
+        if (mainTier < 0 || mainTier >= currentMaxTiers) return items;
+
+        for (int i = mainTier + 1; i < currentMaxTiers; i++) {
+            if (!protoStack[i].isEmpty()) items.add(protoStack[i]);
+        }
+
+        return items;
+    }
+
+    /**
      * Resets all cell state to empty/uninitialized.
      */
     private void reset() {
@@ -1105,6 +1298,9 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     @Override
     public IAEItemStack injectItems(IAEItemStack input, Actionable mode, IActionSource src) {
         if (input == null || input.getStackSize() <= 0) return null;
+
+        // Reload from NBT first to detect API-set partitions before checking hasPartition()
+        reloadFromNBTIfNeeded();
 
         if (!hasPartition()) return input;
 
@@ -1265,14 +1461,24 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         return cellType.getUpgradesInventory(cellStack);
     }
 
+    /**
+     * Get bytes per type in display units (before multiplier).
+     * Calculates from cell type's multiplied value to avoid hardcoding.
+     */
+    private long getDisplayBytesPerType() {
+        long multipliedBytesPerType = cellType.getBytesPerType(cellStack);
+        long multiplier = cellType.getByteMultiplier();
+
+        if (multiplier <= 0) return multipliedBytesPerType;
+
+        return multipliedBytesPerType / multiplier;
+    }
+
     @Override
     public int getBytesPerType() {
-        // Return display bytes per type for UI (actual would overflow)
-        int meta = cellStack.getMetadata();
-        long[] displayBpt = {8L, 32L, 128L, 512L, 2048L, 8192L, 32768L, 131072L};
-        long val = (meta >= 0 && meta < displayBpt.length) ? displayBpt[meta] : displayBpt[0];
-
-        return (int) Math.min(val, Integer.MAX_VALUE);
+        // Return display bytes per type for AE2 display purposes
+        // The actual multiplied value would overflow int
+        return (int) Math.min(getDisplayBytesPerType(), Integer.MAX_VALUE);
     }
 
     @Override
@@ -1291,8 +1497,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         long total = getTotalBytes();
         long used = getUsedBytes();
 
-        // Safety: ensure we never return negative free bytes
-        return Math.max(0, total - used);
+        // Safety: use overflow-safe subtraction
+        return CellMathHelper.subtractWithUnderflowProtection(total, used);
     }
 
     @Override
@@ -1317,6 +1523,27 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
     @Override
     public long getUsedBytes() {
+        if (storedBaseUnits == 0 && isCompressionChainEmpty()) return 0;
+
+        long totalBytes = getTotalBytes();
+        long typeBytes = isCompressionChainEmpty() ? 0 : getBytesPerType();
+        long availableBytes = totalBytes - typeBytes;
+
+        if (availableBytes <= 0) return typeBytes;
+
+        // Get capacity to check for overflow state
+        long capacity = getMaxCapacityInBaseUnits();
+
+        // If capacity overflowed to Long.MAX_VALUE, scale bytes proportionally
+        // This ensures the cell shows as full when we've stored the max trackable amount
+        if (capacity == Long.MAX_VALUE) {
+            double ratio = (double) storedBaseUnits / (double) Long.MAX_VALUE;
+            long usedForItems = Math.max(storedBaseUnits > 0 ? 1 : 0, (long) (availableBytes * ratio));
+
+            return CellMathHelper.addWithOverflowProtection(usedForItems, typeBytes);
+        }
+
+        // Normal case: calculate bytes from items
         int itemsPerByte = channel.getUnitsPerByte();
         long multiplier = cellType.getByteMultiplier();
 
@@ -1326,11 +1553,10 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         long itemsPerDisplayByte = CellMathHelper.multiplyWithOverflowProtection(itemsPerByte, multiplier);
         if (itemsPerDisplayByte == 0) itemsPerDisplayByte = 1;
 
-        // usedDisplayBytes = storedItemsCeiling / itemsPerDisplayByte (ceiling)
-        long usedForItems = (storedItemsCeiling + itemsPerDisplayByte - 1) / itemsPerDisplayByte;
-        long typeBytes = isCompressionChainEmpty() ? 0 : getBytesPerType();
+        // Overflow-safe ceiling division for items
+        long usedForItems = (storedItemsCeiling == 0) ? 0 : (storedItemsCeiling - 1) / itemsPerDisplayByte + 1;
 
-        return typeBytes + usedForItems;
+        return CellMathHelper.addWithOverflowProtection(usedForItems, typeBytes);
     }
 
     @Override
@@ -1343,6 +1569,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
     @Override
     public int getUnusedItemCount() {
+        // Fractional items that don't fill a byte (in display scale)
+        // This represents how many more items can fit before consuming another display byte
         int itemsPerByte = channel.getUnitsPerByte();
         long multiplier = cellType.getByteMultiplier();
         long storedCeiling = getStoredInMainTierCeiling();
@@ -1350,24 +1578,26 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         long itemsPerDisplayByte = CellMathHelper.multiplyWithOverflowProtection(itemsPerByte, multiplier);
         if (itemsPerDisplayByte == 0) return 0;
 
-        long usedBytes = getUsedBytes() - (isCompressionChainEmpty() ? 0 : getBytesPerType());
-        if (usedBytes <= 0) return 0;
+        // Calculate how many items would round up to the current used bytes
+        // usedBytes (for items only) = ceil(storedItemCount / itemsPerDisplayByte)
+        long typeBytes = isCompressionChainEmpty() ? 0 : getBytesPerType();
+        long usedBytesForItems = CellMathHelper.subtractWithUnderflowProtection(getUsedBytes(), typeBytes);
+        if (usedBytesForItems <= 0) return 0;
 
-        // Safety: ensure we don't return negative values
-        long fullItems = CellMathHelper.multiplyWithOverflowProtection(usedBytes, itemsPerDisplayByte);
-        long unused = fullItems - storedCeiling;
-        if (unused < 0) unused = 0;
+        // Unused = capacity - actual stored
+        long fullItems = CellMathHelper.multiplyWithOverflowProtection(usedBytesForItems, itemsPerDisplayByte);
+        long unused = CellMathHelper.subtractWithUnderflowProtection(fullItems, storedCeiling);
 
         return (int) Math.min(unused, Integer.MAX_VALUE);
     }
 
     @Override
     public int getStatusForCell() {
-        if (getUsedBytes() == 0) return 4;
-        if (canHoldNewItem()) return 1;
-        if (getRemainingItemCount() > 0) return 2;
+        if (storedBaseUnits == 0 && isCompressionChainEmpty()) return 4; // Empty
+        if (canHoldNewItem()) return 1;                                   // Has space for new types
+        if (getRemainingItemCount() > 0) return 2;                        // Has space for more of existing
 
-        return 3;
+        return 3; // Full
     }
 
     @Override

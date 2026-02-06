@@ -114,18 +114,18 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
                     tooltip.add("");
                     tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
                 } else {
-                    ItemStack higherTier = hdCompInv.getHigherTierItem();
-                    ItemStack lowerTier = hdCompInv.getLowerTierItem();
+                    List<ItemStack> higherTiers = hdCompInv.getAllHigherTierItems();
+                    List<ItemStack> lowerTiers = hdCompInv.getAllLowerTierItems();
 
-                    if (!higherTier.isEmpty() || !lowerTier.isEmpty()) {
+                    if (!higherTiers.isEmpty() || !lowerTiers.isEmpty()) {
                         tooltip.add("");
 
-                        if (!higherTier.isEmpty()) {
-                            tooltip.add("\u00a7a" + I18n.format("tooltip.cells.compacting_cell.converts_up", higherTier.getDisplayName()));
+                        for (ItemStack tier : higherTiers) {
+                            tooltip.add("\u00a7a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
                         }
 
-                        if (!lowerTier.isEmpty()) {
-                            tooltip.add("\u00a7b" + I18n.format("tooltip.cells.compacting_cell.converts_down", lowerTier.getDisplayName()));
+                        for (ItemStack tier : lowerTiers) {
+                            tooltip.add("\u00a7b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
                         }
                     } else {
                         tooltip.add("");

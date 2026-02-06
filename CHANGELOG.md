@@ -20,8 +20,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   - 12x card allows compressing/decompressing up to 12 tiers
   - 15x card allows compressing/decompressing up to 15 tiers
 
+### Fixed
+- Fix Compacting Chain not replacing the previous one when partitioned via API
+- Fix (?) some issues with Compacting Cells not properly reporting changes in virtual items to the network, until refreshed (e.g., by reinserting the cell)
+
 ### Changed
-- Remove normal cells, as they don't bring much value. Other mods already provide larger normal storage cells, and even 1k Hyper-Density Cells are better than 2G normal cells. It has been decided to not use the normal cell components in the crafting recipes for Hyper-Density Cells.
+- Remove normal cells, as they didn't bring much value. Other mods already provide larger normal storage cells, and even 1k Hyper-Density Cells are better than 2G normal cells. It has been decided to not use the normal cell components in the crafting recipes for Hyper-Density Cells.
 
 
 ## [0.2.0] - 2026-02-04

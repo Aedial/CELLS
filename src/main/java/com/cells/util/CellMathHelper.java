@@ -10,6 +10,7 @@ import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
+import appeng.api.storage.ISaveProvider;
 
 
 /**
@@ -242,5 +243,47 @@ public final class CellMathHelper {
         }
 
         return null;
+    }
+
+    /**
+     * Extracts the ME Grid from an ISaveProvider (typically a drive or chest).
+     * <p>
+     * Used as a fallback when the action source doesn't provide a valid grid.
+     * </p>
+     *
+     * @param container The save provider (typically TileDrive or TileChest)
+     * @return The grid, or null if unavailable
+     */
+    @Nullable
+    public static IGrid getGridFromContainer(@Nullable ISaveProvider container) {
+        if (container == null) return null;
+
+        if (container instanceof IActionHost) {
+            IActionHost host = (IActionHost) container;
+            IGridNode node = host.getActionableNode();
+            if (node != null) return node.getGrid();
+        }
+
+        return null;
+    }
+
+    /**
+     * Extracts the ME Grid from either the action source or the container.
+     * <p>
+     * Tries the action source first (preferred), then falls back to the container.
+     * This ensures grid notifications work even when the action source doesn't
+     * have a valid machine reference (e.g., certain crafting scenarios).
+     * </p>
+     *
+     * @param src       The action source (may be null or missing machine)
+     * @param container The save provider (typically TileDrive or TileChest)
+     * @return The grid, or null if unavailable from both sources
+     */
+    @Nullable
+    public static IGrid getGridFromSourceOrContainer(@Nullable IActionSource src, @Nullable ISaveProvider container) {
+        IGrid grid = getGridFromSource(src);
+        if (grid != null) return grid;
+
+        return getGridFromContainer(container);
     }
 }

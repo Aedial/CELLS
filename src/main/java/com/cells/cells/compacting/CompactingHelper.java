@@ -208,6 +208,9 @@ public class CompactingHelper {
      * 
      * Strategy: Check what the item alone crafts to (decomposition), then verify
      * that the result can compress back. This avoids iterating the entire recipe registry.
+     * 
+     * Also checks for recipes that produce 1 output (common in mods) where 9 or 4
+     * of the output compress back to the original.
      */
     @Nonnull
     public Result findLowerTier(@Nonnull ItemStack stack) {
@@ -222,20 +225,40 @@ public class CompactingHelper {
             if (areItemsEqual(candidate, stack)) continue;
 
             int outputCount = candidate.getCount();
-            if (outputCount != 4 && outputCount != 9) continue;
 
-            // Create a single-item version for compression check
-            ItemStack singleCandidate = candidate.copy();
-            singleCandidate.setCount(1);
+            // Standard case: recipe outputs 4 or 9 items directly
+            if (outputCount == 4 || outputCount == 9) {
+                // Create a single-item version for compression check
+                ItemStack singleCandidate = candidate.copy();
+                singleCandidate.setCount(1);
 
-            // Verify: N of the candidate should compress back to the original
-            InventoryLookup lookup = (outputCount == 9) ? lookup3 : lookup2;
-            setupLookup(lookup, singleCandidate);
-            List<ItemStack> compResults = findAllMatchingRecipes(lookup);
+                // Verify: N of the candidate should compress back to the original
+                InventoryLookup lookup = (outputCount == 9) ? lookup3 : lookup2;
+                setupLookup(lookup, singleCandidate);
+                List<ItemStack> compResults = findAllMatchingRecipes(lookup);
 
-            for (ItemStack comp : compResults) {
-                if (areItemsEqual(comp, stack)) {
-                    return new Result(singleCandidate, outputCount);
+                for (ItemStack comp : compResults) {
+                    if (areItemsEqual(comp, stack)) return new Result(singleCandidate, outputCount);
+                }
+            }
+
+            // Mod compatibility: recipe outputs 1 item, check if 9 or 4 compress back
+            if (outputCount == 1) {
+                ItemStack singleCandidate = candidate.copy();
+                singleCandidate.setCount(1);
+
+                // Try 3x3 first (rate = 9)
+                setupLookup(lookup3, singleCandidate);
+                List<ItemStack> compResults9 = findAllMatchingRecipes(lookup3);
+                for (ItemStack comp : compResults9) {
+                    if (areItemsEqual(comp, stack)) return new Result(singleCandidate, 9);
+                }
+
+                // Try 2x2 (rate = 4)
+                setupLookup(lookup2, singleCandidate);
+                List<ItemStack> compResults4 = findAllMatchingRecipes(lookup2);
+                for (ItemStack comp : compResults4) {
+                    if (areItemsEqual(comp, stack)) return new Result(singleCandidate, 4);
                 }
             }
         }

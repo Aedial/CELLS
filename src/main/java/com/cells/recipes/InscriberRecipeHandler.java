@@ -47,12 +47,6 @@ public class InscriberRecipeHandler {
         final IInscriberRegistry registry = AEApi.instance().registries().inscriber();
         final IMaterials materials = AEApi.instance().definitions().materials();
 
-        // Get base prints from AE2
-        ItemStack calcPrint = materials.calcProcessorPrint().maybeStack(1).orElse(ItemStack.EMPTY);
-        ItemStack engPrint = materials.engProcessorPrint().maybeStack(1).orElse(ItemStack.EMPTY);
-        ItemStack logicPrint = materials.logicProcessorPrint().maybeStack(1).orElse(ItemStack.EMPTY);
-        ItemStack siliconPrint = materials.siliconPrint().maybeStack(1).orElse(ItemStack.EMPTY);
-
         // Get catalysts
         ItemStack matterBall = materials.matterBall().maybeStack(1).orElse(ItemStack.EMPTY);
         ItemStack singularity = materials.singularity().maybeStack(1).orElse(ItemStack.EMPTY);
