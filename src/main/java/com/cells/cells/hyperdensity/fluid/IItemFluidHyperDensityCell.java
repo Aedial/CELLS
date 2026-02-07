@@ -48,6 +48,11 @@ public interface IItemFluidHyperDensityCell extends ICellWorkbenchItem {
     long getBytesPerType(@Nonnull ItemStack cellItem);
 
     /**
+     * Get the maximum number of fluid types this cell can hold.
+     */
+    int getMaxTypes();
+
+    /**
      * Get the idle power drain of this cell.
      */
     double getIdleDrain();

@@ -45,7 +45,6 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     private static final String NBT_STORED_FLUID_COUNT = "StoredFluidCount";
     private static final String NBT_FLUID_TYPE = "fluidType";
     private static final String NBT_STORED_COUNT = "StoredCount";
-    private static final int MAX_TYPES = 63;
 
     private final ItemStack cellStack;
     private final ISaveProvider container;
@@ -76,9 +75,11 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     }
 
     private int getEffectiveMaxTypes() {
-        if (equalDistributionLimit > 0) return Math.min(equalDistributionLimit, MAX_TYPES);
+        int maxTypes = cellType.getMaxTypes();
 
-        return MAX_TYPES;
+        if (equalDistributionLimit > 0) return Math.min(equalDistributionLimit, maxTypes);
+
+        return maxTypes;
     }
 
     /**

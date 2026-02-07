@@ -16,6 +16,7 @@ import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
 import appeng.api.networking.IGrid;
+import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellInventory;
@@ -29,6 +30,7 @@ import appeng.util.Platform;
 import com.cells.cells.compacting.CompactingHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CellMathHelper;
+import com.cells.util.CrossTierActionSource;
 
 
 /**
@@ -230,13 +232,6 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     private int localChainVersion = 0;
 
     /**
-     * Pending cross-tier item changes that need to be posted to listeners.
-     * Populated during inject/extract, cleared after retrieval.
-     * Used by the handler to notify ME Chest UI of changes to other tiers.
-     */
-    private List<IAEItemStack> pendingCrossTierChanges = null;
-
-    /**
      * Creates a new inventory wrapper for an HD Compacting Cell.
      * <p>
      * The constructor loads existing data from NBT and initializes the compression
@@ -354,8 +349,14 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * The tier that was directly operated on is skipped (operatedSlot) because AE2's
      * standard injection/extraction already handles that notification.
      * </p>
+     * <p>
+     * <b>Important:</b> We use a MachineSource based on the container (Drive/Chest) rather
+     * than the original IActionSource. This avoids AE2's nesting detection in NetworkMonitor
+     * which would drop our cross-tier changes if we used the same source as the primary
+     * operation (DriveWatcher/ChestNetNotifier also posts with the original source).
+     * </p>
      *
-     * @param src          The action source for the operation
+     * @param src          The action source for the operation (used for grid lookup only)
      * @param oldBaseUnits The base unit count before the operation
      * @param operatedSlot The tier that was directly operated on (-1 to notify all tiers)
      */
@@ -384,37 +385,33 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         if (changes.isEmpty()) return;
 
-        // Store for handler to retrieve and notify listeners (needed for ME Chest UI)
-        pendingCrossTierChanges = changes;
-
         // Post cross-tier changes to grid. This is necessary because:
         // - DriveWatcher/ChestNetNotifier only report the directly operated item
         // - Cross-tier changes (e.g., block count when ingots are inserted) must be reported separately
         // - We skip the operated slot, so we're NOT double-reporting that item
-        IGrid grid = CellMathHelper.getGridFromSourceOrContainer(src, container);
+        // IMPORTANT: Always prefer the container's grid over the source's grid!
+        // The container (TileDrive/TileChest) is always on the correct grid where the cell
+        // physically resides. The src might be from a different subnet (e.g., items injected
+        // through a PartStorageBus on a subnet), which would cause cross-tier notifications
+        // to go to the wrong grid, and the main grid would never learn about the changes.
+        IGrid grid = CellMathHelper.getGridFromContainer(container);
+        if (grid == null) grid = CellMathHelper.getGridFromSource(src);
         if (grid == null) return;
 
         IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
         if (storageGrid == null) return;
 
-        storageGrid.postAlterationOfStoredItems(channel, changes, src);
-    }
+        // Use CrossTierActionSource to ensure our notification is NEVER considered equal to
+        // DriveWatcher's MachineSource. AE2's NetworkMonitor uses source equality to detect
+        // nested/re-entrant notifications and drops them. Since DriveWatcher also posts with
+        // a MachineSource from the same container, using MachineSource here would cause our
+        // cross-tier notifications to be dropped as "nested" calls.
+        // CrossTierActionSource has unique instance identity (never equals anything else).
+        IActionSource crossTierSource = (container instanceof IActionHost)
+            ? new CrossTierActionSource((IActionHost) container)
+            : src;
 
-    /**
-     * Retrieves and clears pending cross-tier changes.
-     * <p>
-     * Called by the handler after inject/extract to notify monitor listeners.
-     * This enables ME Chest UI to update when other tiers change.
-     * </p>
-     *
-     * @return List of changes, or null if none pending
-     */
-    @Nullable
-    public List<IAEItemStack> popPendingCrossTierChanges() {
-        List<IAEItemStack> changes = pendingCrossTierChanges;
-        pendingCrossTierChanges = null;
-
-        return changes;
+        storageGrid.postAlterationOfStoredItems(channel, changes, crossTierSource);
     }
 
     /**

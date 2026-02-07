@@ -48,7 +48,6 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
     private static final String NBT_STORED_ITEM_COUNT = "StoredItemCount";
     private static final String NBT_ITEM_TYPE = "itemType";
     private static final String NBT_STORED_COUNT = "StoredCount"; // Per-item count key
-    private static final int MAX_TYPES = 63;
 
     private final ItemStack cellStack;
     private final ISaveProvider container;
@@ -84,9 +83,11 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
      * If Equal Distribution is active, returns that limit; otherwise MAX_TYPES.
      */
     private int getEffectiveMaxTypes() {
-        if (equalDistributionLimit > 0) return Math.min(equalDistributionLimit, MAX_TYPES);
+        int maxTypes = cellType.getMaxTypes();
 
-        return MAX_TYPES;
+        if (equalDistributionLimit > 0) return Math.min(equalDistributionLimit, maxTypes);
+
+        return maxTypes;
     }
 
     /**
