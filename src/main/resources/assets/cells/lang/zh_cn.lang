@@ -191,7 +191,7 @@ tooltip.cells.hyper_density_fluid_component.info=超高密度ME流体存储组�
 # Upgrade Tooltips
 tooltip.cells.upgrade.overflow_active=溢出销毁
 tooltip.cells.upgrade.equal_distribution_active=分割为%d种类型
-tooltip.cells.upgrade.equal_distribution_active.infinite=Equal distribution active
+tooltip.cells.upgrade.equal_distribution_active.infinite=启用均分
 tooltip.cells.upgrade.compression_tier_active=压缩等级：%d
 tooltip.cells.upgrade.decompression_tier_active=解压等级：%d
 
