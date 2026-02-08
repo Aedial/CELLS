@@ -3,37 +3,65 @@ itemGroup.cells=C.E.L.L.S
 tooltip.cells.wip_do_not_use=§c⚠ 未完成——请勿使用 ⚠§r
 tooltip.cells.card.separator=、
 tooltip.cells.card.compatible=兼容：%s
-tooltip.cells.type.compact=压缩ME存储元件
+tooltip.cells.type.compact=ME压缩元件
 tooltip.cells.type.hyperdensity=超高密度ME存储元件
 tooltip.cells.type.hyperdensity_compact=超高密度ME压缩元件
 
+# Config (GUI)
+cells.config.category.general=通用
+cells.config.category.idle_drain=待机能耗
+cells.config.category.enabled_cells=启用的元件
+
+cells.config.hdItemMaxTypes=超高密度物品元件最大类型数
+cells.config.hdFluidMaxTypes=超高密度流体元件最大类型数
+cells.config.hdItemMaxTypes.tooltip=超高密度物品存储元件能容纳的最大物品类型数量（1-16384）。注意：设置过高可能导致NBT数据过大致使崩溃。
+cells.config.hdFluidMaxTypes.tooltip=超高密度流体存储元件能容纳的最大流体类型数量（1-16384）。注意：设置过高可能导致NBT数据过大致使崩溃。
+
+cells.config.compactingIdleDrain=压缩元件的待机能耗
+cells.config.hdIdleDrain=超高密度物品元件的待机能耗
+cells.config.hdCompactingIdleDrain=超高密度压缩元件的待机能耗
+cells.config.fluidHdIdleDrain=超高密度流体元件的待机能耗
+cells.config.compactingIdleDrain.tooltip=压缩元件的待机能耗（被动AE/t消耗）
+cells.config.hdIdleDrain.tooltip=超高密度元件的待机能耗（被动AE/t消耗）
+cells.config.hdCompactingIdleDrain.tooltip=超高密度压缩元件的待机能耗（被动AE/t消耗）
+cells.config.fluidHdIdleDrain.tooltip=超高密度流体元件的待机能耗（被动AE/t消耗）
+
+cells.config.enableCompactingCell=启用压缩元件
+cells.config.enableHDCells=启用超高密度元件
+cells.config.enableHDCompactingCells=启用超高密度压缩元件
+cells.config.enableFluidHDCells=启用超高密度流体元件
+cells.config.enableCompactingCells.tooltip=启用压缩存储元件
+cells.config.enableHDCells.tooltip=启用超高密度物品存储元件
+cells.config.enableHDCompactingCells.tooltip=启用超高密度压缩存储元件
+cells.config.enableFluidHDCells.tooltip=启用超高密度流体存储元件
+
 # Compacting Cells
-item.cells.compacting_cell.1k.name=1k压缩ME存储元件
-item.cells.compacting_cell.4k.name=4k压缩ME存储元件
-item.cells.compacting_cell.16k.name=16k压缩ME存储元件
-item.cells.compacting_cell.64k.name=64k压缩ME存储元件
-item.cells.compacting_cell.256k.name=256k压缩ME存储元件
-item.cells.compacting_cell.1m.name=1M压缩ME存储元件
-item.cells.compacting_cell.4m.name=4M压缩ME存储元件
-item.cells.compacting_cell.16m.name=16M压缩ME存储元件
-item.cells.compacting_cell.64m.name=64M压缩ME存储元件
-item.cells.compacting_cell.256m.name=256M压缩ME存储元件
-item.cells.compacting_cell.1g.name=1G压缩ME存储元件
-item.cells.compacting_cell.2g.name=2G压缩ME存储元件
+item.cells.compacting_cell.1k.name=1k-ME压缩元件
+item.cells.compacting_cell.4k.name=4k-ME压缩元件
+item.cells.compacting_cell.16k.name=16k-ME压缩元件
+item.cells.compacting_cell.64k.name=64k-ME压缩元件
+item.cells.compacting_cell.256k.name=256k-ME压缩元件
+item.cells.compacting_cell.1m.name=1M-ME压缩元件
+item.cells.compacting_cell.4m.name=4M-ME压缩元件
+item.cells.compacting_cell.16m.name=16M-ME压缩元件
+item.cells.compacting_cell.64m.name=64M-ME压缩元件
+item.cells.compacting_cell.256m.name=256M-ME压缩元件
+item.cells.compacting_cell.1g.name=1G-ME压缩元件
+item.cells.compacting_cell.2g.name=2G-ME压缩元件
 
 # Compacting Components
-item.cells.compacting_component.1k.name=1k压缩ME存储组件
-item.cells.compacting_component.4k.name=4k压缩ME存储组件
-item.cells.compacting_component.16k.name=16k压缩ME存储组件
-item.cells.compacting_component.64k.name=64k压缩ME存储组件
-item.cells.compacting_component.256k.name=256k压缩ME存储组件
-item.cells.compacting_component.1m.name=1M压缩ME存储组件
-item.cells.compacting_component.4m.name=4M压缩ME存储组件
-item.cells.compacting_component.16m.name=16M压缩ME存储组件
-item.cells.compacting_component.64m.name=64M压缩ME存储组件
-item.cells.compacting_component.256m.name=256M压缩ME存储组件
-item.cells.compacting_component.1g.name=1G压缩ME存储组件
-item.cells.compacting_component.2g.name=2G压缩ME存储组件
+item.cells.compacting_component.1k.name=1k-ME压缩组件
+item.cells.compacting_component.4k.name=4k-ME压缩组件
+item.cells.compacting_component.16k.name=16k-ME压缩组件
+item.cells.compacting_component.64k.name=64k-ME压缩组件
+item.cells.compacting_component.256k.name=256k-ME压缩组件
+item.cells.compacting_component.1m.name=1M-ME压缩组件
+item.cells.compacting_component.4m.name=4M-ME压缩组件
+item.cells.compacting_component.16m.name=16M-ME压缩组件
+item.cells.compacting_component.64m.name=64M-ME压缩组件
+item.cells.compacting_component.256m.name=256M-ME压缩组件
+item.cells.compacting_component.1g.name=1G-ME压缩组件
+item.cells.compacting_component.2g.name=2G-ME压缩组件
 
 # Overflow Card
 item.cells.overflow_card.name=溢出销毁卡
@@ -48,7 +76,9 @@ item.cells.equal_distribution_card.8x.name=均分卡（8x）
 item.cells.equal_distribution_card.16x.name=均分卡（16x）
 item.cells.equal_distribution_card.32x.name=均分卡（32x）
 item.cells.equal_distribution_card.63x.name=均分卡（63x）
+item.cells.equal_distribution_card.infinite.name=均分卡（无限制）
 tooltip.cells.equal_distribution_card.desc=将元件可容纳类型限制为%d，并均分容量
+tooltip.cells.equal_distribution_card.desc.infinite=将容量均分给所有类型
 
 # Compression Tier Card
 item.cells.compression_tier_card.3x.name=压缩等级卡（3x）
@@ -161,6 +191,7 @@ tooltip.cells.hyper_density_fluid_component.info=超高密度ME流体存储组�
 # Upgrade Tooltips
 tooltip.cells.upgrade.overflow_active=溢出销毁
 tooltip.cells.upgrade.equal_distribution_active=分割为%d种类型
+tooltip.cells.upgrade.equal_distribution_active.infinite=Equal distribution active
 tooltip.cells.upgrade.compression_tier_active=压缩等级：%d
 tooltip.cells.upgrade.decompression_tier_active=解压等级：%d
 
