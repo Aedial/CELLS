@@ -352,28 +352,25 @@ public class CompactingHelper {
         }
 
         // Calculate rates relative to lowest tier (base = 1)
-        // Work backwards from lowest tier
-        int cumulativeRate = 1;
-        for (int i = totalTiers - 1; i >= 0; i--) {
-            rates[i] = cumulativeRate;
+        // The ratio between adjacent tiers is stored in upRatios/downRatios:
+        // - upRatios[k] = ratio between tier (mainTierIndex - k - 1) and tier (mainTierIndex - k)
+        // - downRatios[k] = ratio between tier (mainTierIndex + k) and tier (mainTierIndex + k + 1)
+        rates[totalTiers - 1] = 1; // Lowest tier is always 1
 
-            // Determine the ratio to the next tier up
-            if (i > mainTierIndex) {
-                // We're below main tier, use downRatios
-                int downIdx = i - mainTierIndex - 1;
-                if (downIdx < downRatios.size()) {
-                    cumulativeRate *= downRatios.get(downIdx);
-                }
-            } else if (i == mainTierIndex && !downStacks.isEmpty()) {
-                // Main tier - multiply by first down ratio
-                cumulativeRate *= downRatios.get(0);
-            } else if (i < mainTierIndex) {
-                // Above main tier, use upRatios (in reverse order)
+        for (int i = totalTiers - 2; i >= 0; i--) {
+            int ratio;
+
+            if (i >= mainTierIndex) {
+                // At or below main tier: use downRatios
+                int downIdx = i - mainTierIndex;
+                ratio = (downIdx < downRatios.size()) ? downRatios.get(downIdx) : 1;
+            } else {
+                // Above main tier: use upRatios (indexed from main going up)
                 int upIdx = mainTierIndex - i - 1;
-                if (upIdx < upRatios.size()) {
-                    cumulativeRate *= upRatios.get(upIdx);
-                }
+                ratio = (upIdx < upRatios.size()) ? upRatios.get(upIdx) : 1;
             }
+
+            rates[i] = rates[i + 1] * ratio;
         }
 
         return new CompressionChain(chain, rates, mainTierIndex, totalTiers);

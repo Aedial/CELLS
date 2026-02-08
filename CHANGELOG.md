@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.2.3] - 2026-02-09
+### Fixed
+- Fix compacting cells not properly computing the chain when paritioned with the lowest tier, causing the compression ratio to be 1 instead of 4 or 9.
+
+
 ## [0.2.2] - 2026-02-08
 ### Added
 - Add Equal Distribution Card without type limit (unbounded card), meaning it inherits the max types from the cell itself. This is useful if you want equal distribution with higher than 63 types (via config).
