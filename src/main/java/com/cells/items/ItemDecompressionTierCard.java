@@ -67,9 +67,7 @@ public class ItemDecompressionTierCard extends Item implements IUpgradeModule {
     @Override
     public String getTranslationKey(ItemStack stack) {
         int meta = stack.getMetadata();
-        if (meta >= 0 && meta < TIER_NAMES.length) {
-            return getTranslationKey() + "." + TIER_NAMES[meta];
-        }
+        if (meta >= 0 && meta < TIER_NAMES.length) return getTranslationKey() + "." + TIER_NAMES[meta];
 
         return getTranslationKey();
     }
@@ -79,9 +77,7 @@ public class ItemDecompressionTierCard extends Item implements IUpgradeModule {
     public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
         if (!isInCreativeTab(tab)) return;
 
-        for (int i = 0; i < TIER_NAMES.length; i++) {
-            items.add(new ItemStack(this, 1, i));
-        }
+        for (int i = 0; i < TIER_NAMES.length; i++) items.add(new ItemStack(this, 1, i));
     }
 
     @Override
@@ -96,9 +92,6 @@ public class ItemDecompressionTierCard extends Item implements IUpgradeModule {
             I18n.format("tooltip.cells.type.hyperdensity_compact")
         );
         tooltip.add("\u00a78" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
-
-        tooltip.add("");
-        tooltip.add(I18n.format("tooltip.cells.wip_do_not_use"));
     }
 
     /**

@@ -3,6 +3,7 @@ package com.cells.config;
 import java.io.File;
 
 import net.minecraftforge.common.config.Configuration;
+import net.minecraftforge.common.config.Property;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
@@ -15,7 +16,7 @@ import com.cells.Tags;
  * Provides configurable values for:
  * <ul>
  *   <li>Idle drain rates for each cell type</li>
- *   <li>Maximum types for standard cells</li>
+ *   <li>Maximum types per cell type</li>
  *   <li>Enabling/disabling individual cell types</li>
  * </ul>
  * </p>
@@ -32,11 +33,11 @@ public class CellsConfig {
 
     private static Configuration config;
 
-    /** Maximum item types for standard (non-compacting) cells */
-    public static int maxTypes = 63;
+    /** Maximum item types for hyper-density item cells */
+    public static int hdItemMaxTypes = 63;
 
-    /** Maximum item types for hyper-density cells */
-    public static int hdMaxTypes = 63;
+    /** Maximum item types for hyper-density fluid cells */
+    public static int hdFluidMaxTypes = 63;
 
     /** Idle drain for compacting cells */
     public static double compactingIdleDrain = 6.0;
@@ -87,66 +88,91 @@ public class CellsConfig {
      * Loads all configuration values from file.
      */
     public static void loadConfig() {
+        // Category language keys
+        config.getCategory(CATEGORY_GENERAL).setLanguageKey(Tags.MODID + ".config.category.general");
+        config.getCategory(CATEGORY_IDLE_DRAIN).setLanguageKey(Tags.MODID + ".config.category.idle_drain");
+        config.getCategory(CATEGORY_ENABLED).setLanguageKey(Tags.MODID + ".config.category.enabled_cells");
+
         // General category
         config.addCustomCategoryComment(CATEGORY_GENERAL, "General settings for cell behavior");
 
-        maxTypes = config.getInt(
-            "maxTypes", CATEGORY_GENERAL, 63, 1, 63,
-            "Maximum item types for standard storage cells (1-63)"
+        Property p = config.get(CATEGORY_GENERAL,
+            "hdItemMaxTypes", 63,
+            "Maximum item types for hyper-density item storage cells (1-16384)", 1, 16384
         );
+        p.setLanguageKey(Tags.MODID + ".config.hdItemMaxTypes");
+        hdItemMaxTypes = p.getInt();
 
-        hdMaxTypes = config.getInt(
-            "hdMaxTypes", CATEGORY_GENERAL, 63, 1, 63,
-            "Maximum item types for hyper-density storage cells (1-63)"
+        p = config.get(CATEGORY_GENERAL,
+            "hdFluidMaxTypes", 63,
+            "Maximum item types for hyper-density fluid storage cells (1-16384)", 1, 16384
         );
+        p.setLanguageKey(Tags.MODID + ".config.hdFluidMaxTypes");
+        hdFluidMaxTypes = p.getInt();
 
         // Idle drain category
         config.addCustomCategoryComment(CATEGORY_IDLE_DRAIN,
             "Idle power drain settings (AE power per tick). Higher values = more power consumption.");
 
-        compactingIdleDrain = config.getFloat(
-            "compactingIdleDrain", CATEGORY_IDLE_DRAIN, 0.5f, 0.0f, 100.0f,
-            "Idle drain for compacting cells"
+        p = config.get(CATEGORY_IDLE_DRAIN,
+            "compactingIdleDrain", 6.0D,
+            "Idle drain for compacting cells", 0.0D, 100.0D
         );
+        p.setLanguageKey(Tags.MODID + ".config.compactingIdleDrain");
+        compactingIdleDrain = p.getDouble();
 
-        hdIdleDrain = config.getFloat(
-            "hdIdleDrain", CATEGORY_IDLE_DRAIN, 1.0f, 0.0f, 100.0f,
-            "Idle drain for hyper-density cells"
+        p = config.get(CATEGORY_IDLE_DRAIN,
+            "hdIdleDrain", 10.0D,
+            "Idle drain for hyper-density cells", 0.0D, 100.0D
         );
+        p.setLanguageKey(Tags.MODID + ".config.hdIdleDrain");
+        hdIdleDrain = p.getDouble();
 
-        hdCompactingIdleDrain = config.getFloat(
-            "hdCompactingIdleDrain", CATEGORY_IDLE_DRAIN, 1.0f, 0.0f, 100.0f,
-            "Idle drain for hyper-density compacting cells"
+        p = config.get(CATEGORY_IDLE_DRAIN,
+            "hdCompactingIdleDrain", 20.0D,
+            "Idle drain for hyper-density compacting cells", 0.0D, 100.0D
         );
+        p.setLanguageKey(Tags.MODID + ".config.hdCompactingIdleDrain");
+        hdCompactingIdleDrain = p.getDouble();
 
-        fluidHdIdleDrain = config.getFloat(
-            "fluidHdIdleDrain", CATEGORY_IDLE_DRAIN, 1.0f, 0.0f, 100.0f,
-            "Idle drain for fluid hyper-density cells"
+        p = config.get(CATEGORY_IDLE_DRAIN,
+            "fluidHdIdleDrain", 10.0D,
+            "Idle drain for fluid hyper-density cells", 0.0D, 100.0D
         );
+        p.setLanguageKey(Tags.MODID + ".config.fluidHdIdleDrain");
+        fluidHdIdleDrain = p.getDouble();
 
         // Enabled cells category
         config.addCustomCategoryComment(CATEGORY_ENABLED,
             "Enable or disable specific cell types. Disabled cells will not be registered.");
 
-        enableCompactingCells = config.getBoolean(
-            "enableCompactingCells", CATEGORY_ENABLED, true,
+        p = config.get(CATEGORY_ENABLED,
+            "enableCompactingCells", true,
             "Enable compacting storage cells"
         );
+        p.setLanguageKey(Tags.MODID + ".config.enableCompactingCells");
+        enableCompactingCells = p.getBoolean();
 
-        enableHDCells = config.getBoolean(
-            "enableHDCells", CATEGORY_ENABLED, true,
+        p = config.get(CATEGORY_ENABLED,
+            "enableHDCells", true,
             "Enable hyper-density storage cells"
         );
+        p.setLanguageKey(Tags.MODID + ".config.enableHDCells");
+        enableHDCells = p.getBoolean();
 
-        enableHDCompactingCells = config.getBoolean(
-            "enableHDCompactingCells", CATEGORY_ENABLED, true,
+        p = config.get(CATEGORY_ENABLED,
+            "enableHDCompactingCells", true,
             "Enable hyper-density compacting storage cells"
         );
+        p.setLanguageKey(Tags.MODID + ".config.enableHDCompactingCells");
+        enableHDCompactingCells = p.getBoolean();
 
-        enableFluidHDCells = config.getBoolean(
-            "enableFluidHDCells", CATEGORY_ENABLED, true,
+        p = config.get(CATEGORY_ENABLED,
+            "enableFluidHDCells", true,
             "Enable fluid hyper-density storage cells"
         );
+        p.setLanguageKey(Tags.MODID + ".config.enableFluidHDCells");
+        enableFluidHDCells = p.getBoolean();
 
         // Save if config was created or changed
         if (config.hasChanged()) config.save();

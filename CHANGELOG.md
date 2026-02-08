@@ -8,6 +8,16 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.2.2] - 2026-02-08
+### Added
+- Add Equal Distribution Card without type limit (unbounded card), meaning it inherits the max types from the cell itself. This is useful if you want equal distribution with higher than 63 types (via config).
+- Add textures for Hyper-Density Cells (courtesy of archezechiel)
+
+### Fixed
+- Fix type limit config not being applied to Hyper-Density Cells.
+- Fix Compacting Cell sometimes not properly reporting a change to the network, when used across subnets.
+
+
 ## [0.2.1] - 2026-02-05
 ### Added
 - Add recipes for all processors, cell components, and upgrades

@@ -3,37 +3,65 @@ itemGroup.cells=C.E.L.L.S
 tooltip.cells.wip_do_not_use=§c⚠ Work in Progress - Do Not Use ⚠§r
 tooltip.cells.card.separator=, 
 tooltip.cells.card.compatible=Compatible with: %s
-tooltip.cells.type.compact=Compacting ME Storage Cell
+tooltip.cells.type.compact=ME Compacting Cell
 tooltip.cells.type.hyperdensity=Hyper-Density ME Storage Cell
-tooltip.cells.type.hyperdensity_compact=Hyper-Density Compacting ME Storage Cell
+tooltip.cells.type.hyperdensity_compact=Hyper-Density ME Compacting Cell
+
+# Config (GUI)
+cells.config.category.general=General
+cells.config.category.idle_drain=Idle Drain
+cells.config.category.enabled_cells=Enabled Cells
+
+cells.config.hdItemMaxTypes=HD Item Cells Max Types
+cells.config.hdFluidMaxTypes=HD Fluid Cells Max Types
+cells.config.hdItemMaxTypes.tooltip=Maximum item types for hyper-density item storage cells (1-16384). CAUTION: Setting this too high can result in NBT size issues and potential crashloops.
+cells.config.hdFluidMaxTypes.tooltip=Maximum item types for hyper-density fluid storage cells (1-16384). CAUTION: Setting this too high can result in NBT size issues and potential crashloops.
+
+cells.config.compactingIdleDrain=Compacting Cells Idle drain
+cells.config.hdIdleDrain=HD Item Cells Idle drain
+cells.config.hdCompactingIdleDrain=HD Compacting Cells Idle drain
+cells.config.fluidHdIdleDrain=HD Fluid Cells Idle drain
+cells.config.compactingIdleDrain.tooltip=Idle drain for compacting cells (passive AE/t consumption)
+cells.config.hdIdleDrain.tooltip=Idle drain for hyper-density cells (passive AE/t consumption)
+cells.config.hdCompactingIdleDrain.tooltip=Idle drain for hyper-density compacting cells (passive AE/t consumption)
+cells.config.fluidHdIdleDrain.tooltip=Idle drain for fluid hyper-density cells (passive AE/t consumption)
+
+cells.config.enableCompactingCell=Enable Compacting Cell
+cells.config.enableHDCells=Enable HD Cell
+cells.config.enableHDCompactingCells=Enable HD Compacting Cell
+cells.config.enableFluidHDCells=Enable HD Fluid Cell
+cells.config.enableCompactingCells.tooltip=Enable Compacting storage cells
+cells.config.enableHDCells.tooltip=Enable Hyper-Density Item storage cells
+cells.config.enableHDCompactingCells.tooltip=Enable Hyper-Density Compacting storage cells
+cells.config.enableFluidHDCells.tooltip=Enable Hyper-Density Fluid storage cells
 
 # Compacting Cells
-item.cells.compacting_cell.1k.name=1k Compacting ME Storage Cell
-item.cells.compacting_cell.4k.name=4k Compacting ME Storage Cell
-item.cells.compacting_cell.16k.name=16k Compacting ME Storage Cell
-item.cells.compacting_cell.64k.name=64k Compacting ME Storage Cell
-item.cells.compacting_cell.256k.name=256k Compacting ME Storage Cell
-item.cells.compacting_cell.1m.name=1M Compacting ME Storage Cell
-item.cells.compacting_cell.4m.name=4M Compacting ME Storage Cell
-item.cells.compacting_cell.16m.name=16M Compacting ME Storage Cell
-item.cells.compacting_cell.64m.name=64M Compacting ME Storage Cell
-item.cells.compacting_cell.256m.name=256M Compacting ME Storage Cell
-item.cells.compacting_cell.1g.name=1G Compacting ME Storage Cell
-item.cells.compacting_cell.2g.name=2G Compacting ME Storage Cell
+item.cells.compacting_cell.1k.name=1k ME Compacting Cell
+item.cells.compacting_cell.4k.name=4k ME Compacting Cell
+item.cells.compacting_cell.16k.name=16k ME Compacting Cell
+item.cells.compacting_cell.64k.name=64k ME Compacting Cell
+item.cells.compacting_cell.256k.name=256k ME Compacting Cell
+item.cells.compacting_cell.1m.name=1M ME Compacting Cell
+item.cells.compacting_cell.4m.name=4M ME Compacting Cell
+item.cells.compacting_cell.16m.name=16M ME Compacting Cell
+item.cells.compacting_cell.64m.name=64M ME Compacting Cell
+item.cells.compacting_cell.256m.name=256M ME Compacting Cell
+item.cells.compacting_cell.1g.name=1G ME Compacting Cell
+item.cells.compacting_cell.2g.name=2G ME Compacting Cell
 
 # Compacting Components
-item.cells.compacting_component.1k.name=1k Compacting ME Storage Component
-item.cells.compacting_component.4k.name=4k Compacting ME Storage Component
-item.cells.compacting_component.16k.name=16k Compacting ME Storage Component
-item.cells.compacting_component.64k.name=64k Compacting ME Storage Component
-item.cells.compacting_component.256k.name=256k Compacting ME Storage Component
-item.cells.compacting_component.1m.name=1M Compacting ME Storage Component
-item.cells.compacting_component.4m.name=4M Compacting ME Storage Component
-item.cells.compacting_component.16m.name=16M Compacting ME Storage Component
-item.cells.compacting_component.64m.name=64M Compacting ME Storage Component
-item.cells.compacting_component.256m.name=256M Compacting ME Storage Component
-item.cells.compacting_component.1g.name=1G Compacting ME Storage Component
-item.cells.compacting_component.2g.name=2G Compacting ME Storage Component
+item.cells.compacting_component.1k.name=1k ME Compacting Component
+item.cells.compacting_component.4k.name=4k ME Compacting Component
+item.cells.compacting_component.16k.name=16k ME Compacting Component
+item.cells.compacting_component.64k.name=64k ME Compacting Component
+item.cells.compacting_component.256k.name=256k ME Compacting Component
+item.cells.compacting_component.1m.name=1M ME Compacting Component
+item.cells.compacting_component.4m.name=4M ME Compacting Component
+item.cells.compacting_component.16m.name=16M ME Compacting Component
+item.cells.compacting_component.64m.name=64M ME Compacting Component
+item.cells.compacting_component.256m.name=256M ME Compacting Component
+item.cells.compacting_component.1g.name=1G ME Compacting Component
+item.cells.compacting_component.2g.name=2G ME Compacting Component
 
 # Overflow Card
 item.cells.overflow_card.name=Overflow Card
@@ -48,7 +76,9 @@ item.cells.equal_distribution_card.8x.name=Equal Distribution Card (8x)
 item.cells.equal_distribution_card.16x.name=Equal Distribution Card (16x)
 item.cells.equal_distribution_card.32x.name=Equal Distribution Card (32x)
 item.cells.equal_distribution_card.63x.name=Equal Distribution Card (63x)
+item.cells.equal_distribution_card.infinite.name=Equal Distribution Card (unbounded)
 tooltip.cells.equal_distribution_card.desc=Limits cell to %d types, dividing capacity equally
+tooltip.cells.equal_distribution_card.desc.infinite=Divides capacity equally among all types
 
 # Compression Tier Card
 item.cells.compression_tier_card.3x.name=Compression Tier Card (3x)
@@ -161,6 +191,7 @@ tooltip.cells.hyper_density_fluid_component.info=Hyper-Density fluid storage com
 # Upgrade Tooltips
 tooltip.cells.upgrade.overflow_active=Voids overflow
 tooltip.cells.upgrade.equal_distribution_active=Split in %d types
+tooltip.cells.upgrade.equal_distribution_active.infinite=Equal distribution active
 tooltip.cells.upgrade.compression_tier_active=Compression tiers: %d
 tooltip.cells.upgrade.decompression_tier_active=Decompression tiers: %d
 

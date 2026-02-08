@@ -155,7 +155,12 @@ public final class CellUpgradeHelper {
 
             if (stack.getItem() instanceof ItemEqualDistributionCard) {
                 int limit = ItemEqualDistributionCard.getTierValue(stack);
-                tooltip.add("\u00a7b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active", limit));
+
+                if (limit == Integer.MAX_VALUE) {
+                    tooltip.add("\u00a7b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active.infinite"));
+                } else {
+                    tooltip.add("\u00a7b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active", limit));
+                }
             }
 
             if (stack.getItem() instanceof ItemCompressionTierCard) {

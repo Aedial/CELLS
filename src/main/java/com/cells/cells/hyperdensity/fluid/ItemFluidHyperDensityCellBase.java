@@ -141,6 +141,11 @@ public abstract class ItemFluidHyperDensityCellBase extends Item implements IIte
     }
 
     @Override
+    public int getMaxTypes() {
+        return CellsConfig.hdFluidMaxTypes;
+    }
+
+    @Override
     public double getIdleDrain() {
         return CellsConfig.fluidHdIdleDrain;
     }

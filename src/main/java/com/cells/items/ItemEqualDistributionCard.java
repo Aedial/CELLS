@@ -27,12 +27,13 @@ import com.cells.Tags;
  * preventing any single item from dominating the storage.
  * </p>
  * <p>
- * Available in variants: 1x, 2x, 4x, 8x, 16x, 32x, 63x
+ * Available in variants: 1x, 2x, 4x, 8x, 16x, 32x, 63x, unbounded
  * <ul>
  *   <li>1x: 1 type, full capacity (effectively a partition)</li>
  *   <li>2x: 2 types, capacity/2 per type</li>
  *   <li>4x: 4 types, capacity/4 per type</li>
  *   <li>... and so on</li>
+ *   <li>unbounded: no limit, inherits the max types from the cell itself</li>
  * </ul>
  * The actual type limit is min(card value, config slots used).
  * </p>
@@ -47,9 +48,9 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
      * Tier values representing the type limits.
      * Metadata 0-6 maps to 1, 2, 4, 8, 16, 32, 63.
      */
-    public static final int[] TIER_VALUES = {1, 2, 4, 8, 16, 32, 63};
+    public static final int[] TIER_VALUES = {1, 2, 4, 8, 16, 32, 63, Integer.MAX_VALUE};
 
-    private static final String[] TIER_NAMES = {"1x", "2x", "4x", "8x", "16x", "32x", "63x"};
+    private static final String[] TIER_NAMES = {"1x", "2x", "4x", "8x", "16x", "32x", "63x", "infinite"};
 
     public ItemEqualDistributionCard() {
         setRegistryName(Tags.MODID, "equal_distribution_card");
@@ -84,7 +85,12 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
         int tier = getTierValue(stack);
-        tooltip.add("\u00a77" + I18n.format("tooltip.cells.equal_distribution_card.desc", tier));
+
+        if (tier == Integer.MAX_VALUE) {
+            tooltip.add("\u00a77" + I18n.format("tooltip.cells.equal_distribution_card.desc.infinite"));
+        } else {
+            tooltip.add("\u00a77" + I18n.format("tooltip.cells.equal_distribution_card.desc", tier));
+        }
 
         String compatibleTypes = I18n.format("tooltip.cells.type.hyperdensity");
         tooltip.add("\u00a78" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
@@ -128,7 +134,7 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
     /**
      * Creates an Equal Distribution Card for the given tier.
      *
-     * @param tier 0=1x, 1=2x, 2=4x, 3=8x, 4=16x, 5=32x, 6=63x
+     * @param tier 0=1x, 1=2x, 2=4x, 3=8x, 4=16x, 5=32x, 6=63x, 7=unbounded
      * @return The card ItemStack
      */
     public static ItemStack create(int tier) {

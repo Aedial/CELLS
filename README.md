@@ -66,6 +66,7 @@ Limits the number of types a cell can hold and divides capacity equally among th
 - **16x**: 16 types
 - **32x**: 32 types
 - **63x**: 63 types (default max)
+- **unbounded**: inherits max types from the cell
 
 Use cases:
 - Force a cell to hold exactly one item type with maximum capacity (1x)

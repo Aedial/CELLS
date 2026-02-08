@@ -1,17 +1,11 @@
 package com.cells.cells.normal.compacting;
 
-import java.util.List;
-
-import javax.annotation.Nullable;
-
 import net.minecraft.item.ItemStack;
 
-import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
 import appeng.api.config.IncludeExclude;
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.IMEInventory;
@@ -29,17 +23,10 @@ import net.minecraftforge.items.IItemHandler;
 /**
  * Inventory handler wrapper for compacting cells.
  * Handles partition filtering and upgrade processing.
- * Also propagates cross-tier changes for ME Chest UI updates.
  */
 public class CompactingCellInventoryHandler extends MEInventoryHandler<IAEItemStack> implements ICellInventoryHandler<IAEItemStack> {
 
     private IncludeExclude myWhitelist = IncludeExclude.WHITELIST;
-
-    /**
-     * Pending cross-tier changes from the last inject/extract operation.
-     * Retrieved from the cell inventory and stored here for the monitor handler to access.
-     */
-    private List<IAEItemStack> pendingCrossTierChanges = null;
 
     public CompactingCellInventoryHandler(IMEInventory<IAEItemStack> inventory, IStorageChannel<IAEItemStack> channel) {
         super(inventory, channel);
@@ -98,65 +85,6 @@ public class CompactingCellInventoryHandler extends MEInventoryHandler<IAEItemSt
                 this.setPartitionList(new PrecisePriorityList<>(priorityList));
             }
         }
-    }
-
-    /**
-     * Gets the compacting cell inventory, if available.
-     */
-    @Nullable
-    private CompactingCellInventory getCompactingCellInv() {
-        ICellInventory<IAEItemStack> ci = getCellInv();
-
-        return (ci instanceof CompactingCellInventory) ? (CompactingCellInventory) ci : null;
-    }
-
-    @Override
-    public IAEItemStack injectItems(IAEItemStack input, Actionable type, IActionSource src) {
-        IAEItemStack result = super.injectItems(input, type, src);
-
-        // After injection, retrieve pending cross-tier changes from the cell inventory
-        if (type == Actionable.MODULATE) {
-            CompactingCellInventory inv = getCompactingCellInv();
-            if (inv != null) {
-                pendingCrossTierChanges = inv.popPendingCrossTierChanges();
-            }
-        }
-
-        return result;
-    }
-
-    @Override
-    public IAEItemStack extractItems(IAEItemStack request, Actionable type, IActionSource src) {
-        IAEItemStack result = super.extractItems(request, type, src);
-
-        // After extraction, retrieve pending cross-tier changes from the cell inventory
-        if (type == Actionable.MODULATE) {
-            CompactingCellInventory inv = getCompactingCellInv();
-            if (inv != null) {
-                pendingCrossTierChanges = inv.popPendingCrossTierChanges();
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Retrieves and clears pending cross-tier changes.
-     * <p>
-     * Called by monitor handlers (like ChestMonitorHandler) after inject/extract
-     * to notify listeners about changes to other compression tiers.
-     * This enables ME Chest UI to update when inserting/extracting one tier
-     * causes counts of other tiers to change.
-     * </p>
-     *
-     * @return List of cross-tier changes, or null if none pending
-     */
-    @Nullable
-    public List<IAEItemStack> popPendingCrossTierChanges() {
-        List<IAEItemStack> changes = pendingCrossTierChanges;
-        pendingCrossTierChanges = null;
-
-        return changes;
     }
 
     @Override

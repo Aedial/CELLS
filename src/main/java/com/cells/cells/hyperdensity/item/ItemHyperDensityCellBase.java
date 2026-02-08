@@ -145,6 +145,11 @@ public abstract class ItemHyperDensityCellBase extends Item implements IItemHype
     }
 
     @Override
+    public int getMaxTypes() {
+        return CellsConfig.hdItemMaxTypes;
+    }
+
+    @Override
     public double getIdleDrain() {
         return CellsConfig.hdIdleDrain;
     }
