@@ -29,6 +29,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.util.Platform;
 
 import com.cells.cells.compacting.CompactingHelper;
+import com.cells.util.CellBenchmark;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CrossTierActionSource;
@@ -91,6 +92,11 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     // Cached upgrade card state
     private boolean cachedHasOverflowCard = false;
 
+    // Cached state to avoid repeated checks during normal operation
+    // These are set after initialization and don't change until the cell is removed from the drive
+    private boolean cachedHasPartition = false;
+    private boolean chainFullyInitialized = false;
+
     /**
      * Version counter for the compression chain. Incremented when the chain is initialized or replaced.
      * Used to detect external chain changes (e.g., from API calls on another handler instance).
@@ -119,6 +125,10 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         initializeArrays();
 
         loadFromNBT();
+
+        // Cache partition state after loading NBT
+        cachedHasPartition = checkHasPartition();
+        chainFullyInitialized = cachedHasPartition && !isCompressionChainEmpty() && mainTier >= 0;
     }
 
     /**
@@ -514,7 +524,12 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      */
     private void reloadFromNBTIfNeeded() {
         // Check if NBT has data we haven't loaded
-        if (hasUnloadedNBTChainData()) loadFromNBT();
+        if (hasUnloadedNBTChainData()) {
+            loadFromNBT();
+            // Update cached state after reloading
+            cachedHasPartition = checkHasPartition();
+            chainFullyInitialized = cachedHasPartition && !isCompressionChainEmpty() && mainTier >= 0;
+        }
 
         // Check if tier card configuration has changed
         // IMPORTANT: Do NOT update cached tier values here - hasTierConfigChanged() compares
@@ -558,6 +573,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             // Mark chain for rebuild - mainTier = -1 signals that chain needs rebuilding
             // The actual rebuild happens in updateCompressionChainIfNeeded() with World access
             mainTier = -1;
+            chainFullyInitialized = false;
 
             // Update cached tier values AFTER resizing, so subsequent calls to
             // hasTierConfigChanged() return false (config is now synced)
@@ -584,8 +600,17 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
     /**
      * Check if the cell has a partition configured.
+     * Uses cached value for performance during normal operation.
      */
     public boolean hasPartition() {
+        return cachedHasPartition;
+    }
+
+    /**
+     * Actually check if the cell has a partition configured by reading the config inventory.
+     * Used during initialization and when the cache needs to be refreshed.
+     */
+    private boolean checkHasPartition() {
         IItemHandler configInv = getConfigInventory();
         if (configInv == null) return false;
 
@@ -653,6 +678,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
         cachedPartitionItem = partitionItem.copy();
         cachedPartitionItem.setCount(1);
+        cachedHasPartition = true;
+        chainFullyInitialized = mainTier >= 0;
 
         // Increment chain version so other handler instances detect the change
         chainVersion++;
@@ -723,6 +750,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             reset();
             storedBaseUnits = savedBaseUnits;
             initializeCompressionChain(cachedPartitionItem, world);
+            chainFullyInitialized = mainTier >= 0 && !isCompressionChainEmpty();
             saveChanges();
 
             return;
@@ -745,6 +773,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         if (currentPartition == null || currentPartition.isEmpty()) {
             reset();
             cachedPartitionItem = ItemStack.EMPTY;
+            cachedHasPartition = false;
+            chainFullyInitialized = false;
             saveChanges();
 
             return;
@@ -755,6 +785,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         initializeCompressionChain(currentPartition, world);
         cachedPartitionItem = currentPartition.copy();
         cachedPartitionItem.setCount(1);
+        cachedHasPartition = true;
+        chainFullyInitialized = mainTier >= 0 && !isCompressionChainEmpty();
 
         // Increment chain version so other handler instances detect the change
         chainVersion++;
@@ -974,8 +1006,10 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             protoStack[i] = ItemStack.EMPTY;
             convRate[i] = 0;
         }
+
         storedBaseUnits = 0;
         mainTier = -1;
+        chainFullyInitialized = false;
     }
 
     /**
@@ -992,116 +1026,223 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
     @Override
     public IAEItemStack injectItems(IAEItemStack input, Actionable mode, IActionSource src) {
-        if (input == null || input.getStackSize() <= 0) return null;
+        long benchStart = CellBenchmark.start();
+        long subStart;
 
-        // Reload from NBT first to detect API-set partitions before checking hasPartition()
-        reloadFromNBTIfNeeded();
+        if (input == null || input.getStackSize() <= 0) {
+            CellBenchmark.COMPACTING_INJECT.record(benchStart);
 
-        // Compacting cells require partitioning
-        if (!hasPartition()) return input;
+            return null;
+        }
 
-        // Check for partition changes and update compression chain if needed
-        World world = CellMathHelper.getWorldFromSource(src);
-        updateCompressionChainIfNeeded(world);
+        // Fast path: if chain is fully initialized, skip all the validation checks
+        // The chain can only change if the cell is removed from the drive
+        int slot;
+        if (chainFullyInitialized) {
+            subStart = CellBenchmark.start();
+            slot = getSlotForItem(input);
+            CellBenchmark.COMPACTING_GET_SLOT.record(subStart);
+        } else {
+            // Slow path: need to initialize or validate the chain
+            subStart = CellBenchmark.start();
+            reloadFromNBTIfNeeded();
+            CellBenchmark.COMPACTING_RELOAD_NBT.record(subStart);
 
-        int slot = canAcceptItem(input);
+            subStart = CellBenchmark.start();
+            if (!hasPartition()) {
+                CellBenchmark.COMPACTING_HAS_PARTITION.record(subStart);
+                CellBenchmark.COMPACTING_INJECT.record(benchStart);
+
+                return input;
+            }
+            CellBenchmark.COMPACTING_HAS_PARTITION.record(subStart);
+
+            subStart = CellBenchmark.start();
+            World world = CellMathHelper.getWorldFromSource(src);
+            updateCompressionChainIfNeeded(world);
+            CellBenchmark.COMPACTING_UPDATE_CHAIN.record(subStart);
+
+            subStart = CellBenchmark.start();
+            slot = canAcceptItem(input);
+            CellBenchmark.COMPACTING_CAN_ACCEPT.record(subStart);
+        }
 
         // Item not in compression chain - reject
-        if (slot < 0 || convRate[slot] <= 0) return input;
-
-        // Overflow card voids items that are in the compression chain
-        boolean canVoidOverflow = hasOverflowCard();
-
-        // Calculate how many items can fit
-        // Storage is in base units; convert input to base units with overflow protection
-        long inputCount = input.getStackSize();
-        long inputInBaseUnits = CellMathHelper.multiplyWithOverflowProtection(inputCount, convRate[slot]);
-
-        // Get remaining capacity directly in base units
-        long remainingCapacityBaseUnits = getRemainingCapacityInBaseUnits();
-
-        long canInsertBaseUnits = Math.min(inputInBaseUnits, remainingCapacityBaseUnits);
-
-        // Convert back to input tier to get how many items we can accept
-        long canInsert = canInsertBaseUnits / convRate[slot];
-
-        // If cell is full, check for overflow card
-        if (canInsert <= 0) {
-            if (canVoidOverflow) return null;
+        if (slot < 0) {
+            CellBenchmark.COMPACTING_INJECT.record(benchStart);
 
             return input;
         }
 
-        // Recalculate actual base units to add (may be less due to rounding)
-        long actualBaseUnits = canInsert * convRate[slot];
+        int rate = convRate[slot];
+        if (rate <= 0) {
+            CellBenchmark.COMPACTING_INJECT.record(benchStart);
+
+            return input;
+        }
+
+        // Calculate how many items can fit
+        subStart = CellBenchmark.start();
+        // For normal compacting cells, convRates are small (max ~729 for 3 compression tiers)
+        // so inputCount * rate won't overflow for reasonable item counts
+        long inputCount = input.getStackSize();
+        long inputInBaseUnits = inputCount * rate;
+
+        // Get remaining capacity - this is the expensive call, so we do it once
+        long remainingCapacity = getMaxCapacityInBaseUnits() - storedBaseUnits;
+        if (remainingCapacity < 0) remainingCapacity = 0;
+        CellBenchmark.COMPACTING_CAPACITY_CALC.record(subStart);
+
+        // Fast path: all items fit
+        if (inputInBaseUnits <= remainingCapacity) {
+            if (mode == Actionable.MODULATE) {
+                long oldBaseUnits = storedBaseUnits;
+                storedBaseUnits += inputInBaseUnits;
+
+                subStart = CellBenchmark.start();
+                saveChanges();
+                CellBenchmark.COMPACTING_SAVE_CHANGES.record(subStart);
+
+                subStart = CellBenchmark.start();
+                notifyGridOfAllTierChanges(src, oldBaseUnits, slot);
+                CellBenchmark.COMPACTING_NOTIFY_GRID.record(subStart);
+            }
+
+            CellBenchmark.COMPACTING_INJECT.record(benchStart);
+
+            return null;
+        }
+
+        // Partial insert or cell full
+        long canInsert = remainingCapacity / rate;
+
+        if (canInsert <= 0) {
+            // Cell is full - check overflow card
+            CellBenchmark.COMPACTING_INJECT.record(benchStart);
+
+            if (cachedHasOverflowCard) return null;
+
+            return input;
+        }
+
+        long actualBaseUnits = canInsert * rate;
 
         if (mode == Actionable.MODULATE) {
             long oldBaseUnits = storedBaseUnits;
+            storedBaseUnits += actualBaseUnits;
 
-            // Overflow protection for storage
-            storedBaseUnits = CellMathHelper.addWithOverflowProtection(storedBaseUnits, actualBaseUnits);
+            subStart = CellBenchmark.start();
             saveChanges();
+            CellBenchmark.COMPACTING_SAVE_CHANGES.record(subStart);
 
-            // Notify grid about all tier changes (not just the inserted item)
+            subStart = CellBenchmark.start();
             notifyGridOfAllTierChanges(src, oldBaseUnits, slot);
+            CellBenchmark.COMPACTING_NOTIFY_GRID.record(subStart);
         }
 
-        // All items fit
-        if (canInsert >= inputCount) return null;
+        // Overflow card voids the remainder
+        if (cachedHasOverflowCard) {
+            CellBenchmark.COMPACTING_INJECT.record(benchStart);
 
-        // Overflow card: void the remainder
-        if (canVoidOverflow) return null;
+            return null;
+        }
 
         IAEItemStack remainder = input.copy();
         remainder.setStackSize(inputCount - canInsert);
+
+        CellBenchmark.COMPACTING_INJECT.record(benchStart);
 
         return remainder;
     }
 
     @Override
     public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
-        if (request == null || request.getStackSize() <= 0) return null;
+        long benchStart = CellBenchmark.start();
+        long subStart;
 
-        // Check if NBT has chain data written by another handler (e.g., API call)
-        reloadFromNBTIfNeeded();
+        if (request == null || request.getStackSize() <= 0) {
+            CellBenchmark.COMPACTING_EXTRACT.record(benchStart);
 
-        // Check for partition changes
-        updateCompressionChainIfNeeded(CellMathHelper.getWorldFromSource(src));
+            return null;
+        }
 
-        int slot = getSlotForItem(request);
-        if (slot < 0) return null;
-        if (convRate[slot] <= 0) return null;
+        // Fast path: if chain is fully initialized, skip validation checks
+        int slot;
+        if (chainFullyInitialized) {
+            subStart = CellBenchmark.start();
+            slot = getSlotForItem(request);
+            CellBenchmark.COMPACTING_GET_SLOT.record(subStart);
+        } else {
+            // Slow path: need to initialize or validate the chain
+            subStart = CellBenchmark.start();
+            reloadFromNBTIfNeeded();
+            CellBenchmark.COMPACTING_RELOAD_NBT.record(subStart);
 
-        // Calculate how many of this tier we can extract from the pool
-        // Each item of this tier costs convRate[slot] base units
-        long requestedCount = request.getStackSize();
-        long availableInThisTier = storedBaseUnits / convRate[slot];
-        long toExtract = Math.min(requestedCount, availableInThisTier);
+            subStart = CellBenchmark.start();
+            updateCompressionChainIfNeeded(CellMathHelper.getWorldFromSource(src));
+            CellBenchmark.COMPACTING_UPDATE_CHAIN.record(subStart);
 
-        if (toExtract <= 0) return null;
+            subStart = CellBenchmark.start();
+            slot = getSlotForItem(request);
+            CellBenchmark.COMPACTING_GET_SLOT.record(subStart);
+        }
+
+        if (slot < 0) {
+            CellBenchmark.COMPACTING_EXTRACT.record(benchStart);
+
+            return null;
+        }
+
+        int rate = convRate[slot];
+        if (rate <= 0) {
+            CellBenchmark.COMPACTING_EXTRACT.record(benchStart);
+
+            return null;
+        }
+
+        // Calculate available at this tier using integer division
+        long availableInThisTier = storedBaseUnits / rate;
+        if (availableInThisTier <= 0) {
+            CellBenchmark.COMPACTING_EXTRACT.record(benchStart);
+
+            return null;
+        }
+
+        long toExtract = Math.min(request.getStackSize(), availableInThisTier);
 
         if (mode == Actionable.MODULATE) {
             long oldBaseUnits = storedBaseUnits;
+            storedBaseUnits -= toExtract * rate;
 
-            storedBaseUnits -= toExtract * convRate[slot];
+            subStart = CellBenchmark.start();
             saveChanges();
+            CellBenchmark.COMPACTING_SAVE_CHANGES.record(subStart);
 
-            // Notify grid about all tier changes (not just the extracted item)
+            subStart = CellBenchmark.start();
             notifyGridOfAllTierChanges(src, oldBaseUnits, slot);
+            CellBenchmark.COMPACTING_NOTIFY_GRID.record(subStart);
         }
 
         IAEItemStack result = request.copy();
         result.setStackSize(toExtract);
+
+        CellBenchmark.COMPACTING_EXTRACT.record(benchStart);
 
         return result;
     }
 
     @Override
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
-        // Check if NBT has chain data written by another handler (e.g., API call)
-        reloadFromNBTIfNeeded();
+        long benchStart = CellBenchmark.start();
 
-        if (storedBaseUnits <= 0) return out;
+        // Only reload from NBT if chain is not yet initialized
+        if (!chainFullyInitialized) reloadFromNBTIfNeeded();
+
+        if (storedBaseUnits <= 0) {
+            CellBenchmark.COMPACTING_GET_AVAILABLE.record(benchStart);
+
+            return out;
+        }
 
         // Report available items for each tier based on the shared pool
         // Each tier shows how many of that item could be fully extracted
@@ -1118,6 +1259,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
                 out.add(stack);
             }
         }
+
+        CellBenchmark.COMPACTING_GET_AVAILABLE.record(benchStart);
 
         return out;
     }

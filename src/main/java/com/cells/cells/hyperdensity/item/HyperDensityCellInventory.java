@@ -18,6 +18,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.api.networking.security.IActionSource;
 import appeng.util.Platform;
 
+import com.cells.util.CellBenchmark;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 
@@ -282,28 +283,55 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
 
     @Override
     public IAEItemStack injectItems(IAEItemStack input, Actionable mode, IActionSource src) {
-        if (input == null || input.getStackSize() <= 0) return null;
+        long benchStart = CellBenchmark.start();
+        long subStart;
+
+        if (input == null || input.getStackSize() <= 0) {
+            CellBenchmark.HYPER_INJECT.record(benchStart);
+
+            return null;
+        }
 
         // Blacklisted items are always rejected
-        if (!canAcceptItem(input)) return input;
+        subStart = CellBenchmark.start();
+        boolean canAccept = canAcceptItem(input);
+        CellBenchmark.HYPER_CAN_ACCEPT.record(subStart);
 
+        if (!canAccept) {
+            CellBenchmark.HYPER_INJECT.record(benchStart);
+
+            return input;
+        }
+
+        subStart = CellBenchmark.start();
         long existingCount = getStoredCount(input);
+        CellBenchmark.HYPER_GET_STORED_COUNT.record(subStart);
+
         boolean isNewType = existingCount == 0;
 
         // Check if we can add a new type (respecting Equal Distribution limit)
         // New types beyond limit are rejected
         int maxTypes = getEffectiveMaxTypes();
-        if (isNewType && storedTypes >= maxTypes) return input;
+
+        if (isNewType && storedTypes >= maxTypes) {
+            CellBenchmark.HYPER_INJECT.record(benchStart);
+
+            return input;
+        }
 
         // Calculate available capacity
+        subStart = CellBenchmark.start();
         // If this is a new type, we need to account for its overhead upfront
         long capacity = isNewType ? getTotalItemCapacityWithExtraType() : getTotalItemCapacity();
         long available = capacity - storedItemCount;
+        CellBenchmark.HYPER_CAPACITY_CALC.record(subStart);
 
         // Overflow card voids items of types already stored in the cell
         boolean canVoidOverflow = hasOverflowCard() && !isNewType;
 
         if (available <= 0) {
+            CellBenchmark.HYPER_INJECT.record(benchStart);
+
             if (canVoidOverflow) return null;
 
             return input;
@@ -317,6 +345,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
             long typeAvailable = perTypeLimit - existingCount;
 
             if (typeAvailable <= 0) {
+                CellBenchmark.HYPER_INJECT.record(benchStart);
+
                 if (canVoidOverflow) return null;
 
                 return input;
@@ -328,50 +358,90 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
         if (mode == Actionable.MODULATE) {
             if (isNewType) storedTypes++;
 
+            subStart = CellBenchmark.start();
             setStoredCount(input, CellMathHelper.addWithOverflowProtection(existingCount, toInsert));
+            CellBenchmark.HYPER_SET_STORED_COUNT.record(subStart);
+
             storedItemCount = CellMathHelper.addWithOverflowProtection(storedItemCount, toInsert);
+
+            subStart = CellBenchmark.start();
             saveChanges();
+            CellBenchmark.HYPER_SAVE_CHANGES.record(subStart);
         }
 
         // All items inserted successfully
-        if (toInsert >= input.getStackSize()) return null;
+        if (toInsert >= input.getStackSize()) {
+            CellBenchmark.HYPER_INJECT.record(benchStart);
+
+            return null;
+        }
 
         // Overflow card voids the remainder
-        if (canVoidOverflow) return null;
+        if (canVoidOverflow) {
+            CellBenchmark.HYPER_INJECT.record(benchStart);
+
+            return null;
+        }
 
         IAEItemStack remainder = input.copy();
         remainder.setStackSize(CellMathHelper.subtractWithUnderflowProtection(input.getStackSize(), toInsert));
+
+        CellBenchmark.HYPER_INJECT.record(benchStart);
 
         return remainder;
     }
 
     @Override
     public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
-        if (request == null || request.getStackSize() <= 0) return null;
+        long benchStart = CellBenchmark.start();
+        long subStart;
 
+        if (request == null || request.getStackSize() <= 0) {
+            CellBenchmark.HYPER_EXTRACT.record(benchStart);
+
+            return null;
+        }
+
+        subStart = CellBenchmark.start();
         long existingCount = getStoredCount(request);
-        if (existingCount <= 0) return null;
+        CellBenchmark.HYPER_GET_STORED_COUNT.record(subStart);
+
+        if (existingCount <= 0) {
+            CellBenchmark.HYPER_EXTRACT.record(benchStart);
+
+            return null;
+        }
 
         long toExtract = Math.min(request.getStackSize(), existingCount);
 
         if (mode == Actionable.MODULATE) {
             long newCount = existingCount - toExtract;
+
+            subStart = CellBenchmark.start();
             setStoredCount(request, newCount);
+            CellBenchmark.HYPER_SET_STORED_COUNT.record(subStart);
 
             if (newCount <= 0) storedTypes = Math.max(0, storedTypes - 1);
 
             storedItemCount = Math.max(0, storedItemCount - toExtract);
+
+            subStart = CellBenchmark.start();
             saveChanges();
+            CellBenchmark.HYPER_SAVE_CHANGES.record(subStart);
         }
 
         IAEItemStack result = request.copy();
         result.setStackSize(toExtract);
+
+        CellBenchmark.HYPER_EXTRACT.record(benchStart);
 
         return result;
     }
 
     @Override
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
+        long benchStart = CellBenchmark.start();
+
         NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
 
         for (String key : itemsTag.getKeySet()) {
@@ -388,6 +458,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
                 out.add(aeStack);
             }
         }
+
+        CellBenchmark.HYPER_GET_AVAILABLE.record(benchStart);
 
         return out;
     }
