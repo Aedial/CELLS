@@ -20,6 +20,7 @@ import appeng.util.Platform;
 
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
+import com.cells.util.DeferredCellOperations;
 
 
 /**
@@ -147,6 +148,19 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
         tagCompound.setLong(NBT_STORED_ITEM_COUNT, storedItemCount);
     }
 
+    /**
+     * Save changes and notify container - deferred to end of tick for efficiency.
+     * This is the hot path for inject/extract operations.
+     */
+    private void saveChangesDeferred() {
+        saveToNBT();
+        DeferredCellOperations.markDirty(this, container);
+    }
+
+    /**
+     * Save all changes immediately.
+     * Used for initialization or when immediate persistence is required.
+     */
     private void saveChanges() {
         saveToNBT();
         if (container != null) container.saveChanges(this);
@@ -330,7 +344,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
 
             setStoredCount(input, CellMathHelper.addWithOverflowProtection(existingCount, toInsert));
             storedItemCount = CellMathHelper.addWithOverflowProtection(storedItemCount, toInsert);
-            saveChanges();
+            saveChangesDeferred();
         }
 
         // All items inserted successfully
@@ -361,7 +375,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
             if (newCount <= 0) storedTypes = Math.max(0, storedTypes - 1);
 
             storedItemCount = Math.max(0, storedItemCount - toExtract);
-            saveChanges();
+            saveChangesDeferred();
         }
 
         IAEItemStack result = request.copy();

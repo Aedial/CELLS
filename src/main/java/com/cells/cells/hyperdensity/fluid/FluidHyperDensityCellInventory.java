@@ -21,6 +21,7 @@ import appeng.util.Platform;
 
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
+import com.cells.util.DeferredCellOperations;
 
 
 /**
@@ -134,6 +135,19 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         tagCompound.setLong(NBT_STORED_FLUID_COUNT, storedFluidCount);
     }
 
+    /**
+     * Save changes and notify container - deferred to end of tick for efficiency.
+     * This is the hot path for inject/extract operations.
+     */
+    private void saveChangesDeferred() {
+        saveToNBT();
+        DeferredCellOperations.markDirty(this, container);
+    }
+
+    /**
+     * Save all changes immediately.
+     * Used for initialization or when immediate persistence is required.
+     */
     private void saveChanges() {
         saveToNBT();
         if (container != null) container.saveChanges(this);
@@ -281,7 +295,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
 
             setStoredCount(input, CellMathHelper.addWithOverflowProtection(existingCount, toInsert));
             storedFluidCount = CellMathHelper.addWithOverflowProtection(storedFluidCount, toInsert);
-            saveChanges();
+            saveChangesDeferred();
         }
 
         if (toInsert >= input.getStackSize()) return null;
@@ -311,7 +325,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
             if (newCount <= 0) storedTypes = Math.max(0, storedTypes - 1);
 
             storedFluidCount = Math.max(0, storedFluidCount - toExtract);
-            saveChanges();
+            saveChangesDeferred();
         }
 
         IAEFluidStack result = request.copy();

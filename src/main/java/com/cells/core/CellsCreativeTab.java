@@ -30,7 +30,8 @@ public final class CellsCreativeTab extends CreativeTabs {
     public ItemStack createIcon() {
         try {
             if (ItemRegistry.HYPER_DENSITY_COMPONENT != null) {
-                return new ItemStack(ItemRegistry.HYPER_DENSITY_COMPONENT, 1, 4);
+                // return new ItemStack(ItemRegistry.HYPER_DENSITY_COMPONENT, 1, 4);
+                return new ItemStack(ItemRegistry.HYPER_DENSITY_COMPACTING_CELL, 1, 10);
             }
         } catch (Throwable t) {
             // fall through to fallback
