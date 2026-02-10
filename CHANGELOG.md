@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.2.5] - 2026-02-10
+### Added
+- Further optimize all cells by 2-3x, specifically in very high load scenarios (multiple operations in the same tick). /!\ This optimization assumes the network is not doing hacky things and lacks some proper synchronization, so it might cause issues with mods that do that.
+
+
 ## [0.2.4] - 2026-02-09
 ### Added
 - Improve the performance of compacting cells by a factor 4x.

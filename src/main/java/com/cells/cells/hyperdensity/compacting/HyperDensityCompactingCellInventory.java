@@ -31,6 +31,7 @@ import com.cells.cells.compacting.CompactingHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CrossTierActionSource;
+import com.cells.util.DeferredCellOperations;
 
 
 /**
@@ -359,17 +360,15 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * standard injection/extraction already handles that notification.
      * </p>
      * <p>
-     * <b>Important:</b> We use a MachineSource based on the container (Drive/Chest) rather
-     * than the original IActionSource. This avoids AE2's nesting detection in NetworkMonitor
-     * which would drop our cross-tier changes if we used the same source as the primary
-     * operation (DriveWatcher/ChestNetNotifier also posts with the original source).
+     * <b>Important:</b> Uses deferred notification system to batch notifications
+     * and reduce grid overhead.
      * </p>
      *
      * @param src          The action source for the operation (used for grid lookup only)
      * @param oldBaseUnits The base unit count before the operation
      * @param operatedSlot The tier that was directly operated on (-1 to notify all tiers)
      */
-    private void notifyGridOfAllTierChanges(@Nullable IActionSource src, long oldBaseUnits, int operatedSlot) {
+    private void queueCrossTierNotification(@Nullable IActionSource src, long oldBaseUnits, int operatedSlot) {
         // Calculate changes for each tier
         // Skip the operated slot since AE2's standard injection/extraction already handles that notification
         // Note: AE2 does NOT deduplicate notifications, so including the operated slot causes double-counting
@@ -394,33 +393,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         if (changes.isEmpty()) return;
 
-        // Post cross-tier changes to grid. This is necessary because:
-        // - DriveWatcher/ChestNetNotifier only report the directly operated item
-        // - Cross-tier changes (e.g., block count when ingots are inserted) must be reported separately
-        // - We skip the operated slot, so we're NOT double-reporting that item
-        // IMPORTANT: Always prefer the container's grid over the source's grid!
-        // The container (TileDrive/TileChest) is always on the correct grid where the cell
-        // physically resides. The src might be from a different subnet (e.g., items injected
-        // through a PartStorageBus on a subnet), which would cause cross-tier notifications
-        // to go to the wrong grid, and the main grid would never learn about the changes.
-        IGrid grid = CellMathHelper.getGridFromContainer(container);
-        if (grid == null) grid = CellMathHelper.getGridFromSource(src);
-        if (grid == null) return;
-
-        IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
-        if (storageGrid == null) return;
-
-        // Use CrossTierActionSource to ensure our notification is NEVER considered equal to
-        // DriveWatcher's MachineSource. AE2's NetworkMonitor uses source equality to detect
-        // nested/re-entrant notifications and drops them. Since DriveWatcher also posts with
-        // a MachineSource from the same container, using MachineSource here would cause our
-        // cross-tier notifications to be dropped as "nested" calls.
-        // CrossTierActionSource has unique instance identity (never equals anything else).
-        IActionSource crossTierSource = (container instanceof IActionHost)
-            ? new CrossTierActionSource((IActionHost) container)
-            : src;
-
-        storageGrid.postAlterationOfStoredItems(channel, changes, crossTierSource);
+        // Queue for deferred execution - merges with other notifications for same cell
+        DeferredCellOperations.queueCrossTierNotification(this, container, channel, changes, src);
     }
 
     /**
@@ -493,6 +467,14 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
+     * Save only the stored base units to NBT.
+     * This is the hot path - called on every inject/extract operation.
+     */
+    private void saveBaseUnitsOnly() {
+        CellMathHelper.saveLong(tagCompound, NBT_STORED_BASE_UNITS, storedBaseUnits);
+    }
+
+    /**
      * Saves all cell state to NBT data.
      * <p>
      * Stores the base units, main tier, compression chain, and cached partition.
@@ -504,7 +486,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * </p>
      */
     private void saveToNBT() {
-        CellMathHelper.saveLong(tagCompound, NBT_STORED_BASE_UNITS, storedBaseUnits);
+        saveBaseUnitsOnly();
 
         // Check if NBT has a newer chain version than us - if so, don't overwrite
         int nbtChainVersion = tagCompound.hasKey(NBT_CHAIN_VERSION) ? tagCompound.getInteger(NBT_CHAIN_VERSION) : 0;
@@ -546,7 +528,17 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
-     * Saves cell state and notifies the container (ME Drive) of changes.
+     * Save changes and notify container - deferred to end of tick for efficiency.
+     * This is the hot path for inject/extract operations.
+     */
+    private void saveChangesDeferred() {
+        saveBaseUnitsOnly();
+        DeferredCellOperations.markDirty(this, container);
+    }
+
+    /**
+     * Save all changes immediately including chain data.
+     * Used when chain is modified (initialization, tier card changes).
      */
     private void saveChanges() {
         saveToNBT();
@@ -1360,8 +1352,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             if (mode == Actionable.MODULATE) {
                 long oldBaseUnits = storedBaseUnits;
                 storedBaseUnits = CellMathHelper.addWithOverflowProtection(storedBaseUnits, inputInBaseUnits);
-                saveChanges();
-                notifyGridOfAllTierChanges(src, oldBaseUnits, slot);
+                saveChangesDeferred();
+                queueCrossTierNotification(src, oldBaseUnits, slot);
             }
 
             return null;
@@ -1382,8 +1374,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         if (mode == Actionable.MODULATE) {
             long oldBaseUnits = storedBaseUnits;
             storedBaseUnits = CellMathHelper.addWithOverflowProtection(storedBaseUnits, actualBaseUnits);
-            saveChanges();
-            notifyGridOfAllTierChanges(src, oldBaseUnits, slot);
+            saveChangesDeferred();
+            queueCrossTierNotification(src, oldBaseUnits, slot);
         }
 
         // Overflow card voids the remainder
@@ -1437,8 +1429,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         if (mode == Actionable.MODULATE) {
             long oldBaseUnits = storedBaseUnits;
             storedBaseUnits -= toExtract * rate;
-            saveChanges();
-            notifyGridOfAllTierChanges(src, oldBaseUnits, slot);
+            saveChangesDeferred();
+            queueCrossTierNotification(src, oldBaseUnits, slot);
         }
 
         IAEItemStack result = request.copy();
