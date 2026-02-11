@@ -8,6 +8,9 @@ This is a limitation of the ME Chest's implementation, which doesn't listen for 
 
 ## Features
 
+### Import Interface
+A block that acts as a filtered interface for importing items into the ME network. It needs to be configured to allow specific items, and can be used to import items into the network from machines that don't necessarily have a filtered export capability (Woot, Ultimate Mob Farm, etc). It does not have any exporting/stocking or crafting capabilities, and only works as an import interface. The top part of each slot is used for the filter, while the bottom part is used for the actual import. The size of the slots can be configured in the GUI, allowing more or less items to be kept in the interface if the export targets are full.
+
 ### Compacting Storage Cells
 Storage cells that automatically expose compressed and decompressed forms of items to the ME network, similar to Storage Drawers' Compacting Drawer.
 

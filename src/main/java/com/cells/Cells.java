@@ -13,9 +13,12 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
-import com.cells.commands.FillCellCommand;
+import net.minecraftforge.fml.common.network.NetworkRegistry;
 
+import com.cells.commands.FillCellCommand;
 import com.cells.config.CellsConfig;
+import com.cells.gui.CellsGuiHandler;
+import com.cells.network.CellsNetworkHandler;
 import com.cells.proxy.CommonProxy;
 
 
@@ -47,11 +50,17 @@ public class Cells {
         CellsConfig.init(new File(configDir, Tags.MODID + ".cfg"));
         MinecraftForge.EVENT_BUS.register(new CellsConfig());
 
+        // Initialize network
+        CellsNetworkHandler.init();
+
         proxy.preInit(event);
     }
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
+        // Register GUI handler
+        NetworkRegistry.INSTANCE.registerGuiHandler(this, new CellsGuiHandler());
+
         proxy.init(event);
     }
 
