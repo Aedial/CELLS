@@ -506,9 +506,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
             long typeBytesDisplay = (long) n * getDisplayBytesPerType();
             long availableBytes = totalBytes - typeBytesDisplay;
 
-            if (availableBytes <= 0 || perType <= 0) {
-                return usedForTypes;
-            }
+            if (availableBytes <= 0 || perType <= 0) return usedForTypes;
 
             // Calculate usedForItems = storedItemCount * availableBytes / (perType * n)
             // Rewrite as: (storedItemCount / n) * availableBytes / perType
