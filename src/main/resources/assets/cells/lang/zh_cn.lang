@@ -228,3 +228,10 @@ item.cells.overclocked_processor.logic.name=超频逻辑处理器
 item.cells.singularity_processor.calculation.name=奇点运算处理器
 item.cells.singularity_processor.engineering.name=奇点工程处理器
 item.cells.singularity_processor.logic.name=奇点逻辑处理器
+
+# Import Interface
+tile.cells.import_interface.name=输入接口
+gui.cells.import_interface.title=输入接口
+gui.cells.import_interface.max_size=最大：
+gui.cells.import_interface.set=设置
+tooltip.cells.import_interface.desc=用于ME网络的过滤式输入接口
