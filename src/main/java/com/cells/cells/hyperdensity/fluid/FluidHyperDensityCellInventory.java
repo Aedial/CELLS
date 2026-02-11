@@ -43,7 +43,6 @@ import com.cells.util.DeferredCellOperations;
  */
 public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidStack> {
 
-    private static final String NBT_STORED_FLUID_COUNT = "StoredFluidCount";
     private static final String NBT_FLUID_TYPE = "fluidType";
     private static final String NBT_STORED_COUNT = "StoredCount";
 
@@ -113,13 +112,19 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     }
 
     private void loadFromNBT() {
-        storedFluidCount = tagCompound.getLong(NBT_STORED_FLUID_COUNT);
-
+        // Derive counts from actual stored fluids to avoid desync bugs
         NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
+        storedFluidCount = 0;
         storedTypes = 0;
+
         for (String key : fluidsTag.getKeySet()) {
             NBTTagCompound fluidTag = fluidsTag.getCompoundTag(key);
-            if (fluidTag.getLong(NBT_STORED_COUNT) > 0) storedTypes++;
+            long count = fluidTag.getLong(NBT_STORED_COUNT);
+
+            if (count > 0) {
+                storedFluidCount = CellMathHelper.addWithOverflowProtection(storedFluidCount, count);
+                storedTypes++;
+            }
         }
     }
 
@@ -132,7 +137,8 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     }
 
     private void saveToNBT() {
-        tagCompound.setLong(NBT_STORED_FLUID_COUNT, storedFluidCount);
+        // Individual fluid counts are saved in setStoredCount()
+        // Total count is derived on load - no separate tracking needed
     }
 
     /**

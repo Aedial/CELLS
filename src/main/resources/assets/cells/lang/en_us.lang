@@ -228,3 +228,10 @@ item.cells.overclocked_processor.logic.name=Overclocked Logic Processor
 item.cells.singularity_processor.calculation.name=Singularity Calculation Processor
 item.cells.singularity_processor.engineering.name=Singularity Engineering Processor
 item.cells.singularity_processor.logic.name=Singularity Logic Processor
+
+# Import Interface
+tile.cells.import_interface.name=Import Interface
+gui.cells.import_interface.title=Import Interface
+gui.cells.import_interface.max_size=Max:
+gui.cells.import_interface.set=Set
+tooltip.cells.import_interface.desc=Filtered import interface for the ME network

@@ -12,6 +12,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Added
 - Add Import Interface, a block that act as a filtered interface for importing items into the ME network. It needs to be configured to allow specific items, and can be used to export items into the network from machines that don't necessarily have a filtered export capability (Woot, Ultimate Mob Farm, etc). It does not have any exporting or crafting capabilities, and only works as an import interface.
 
+### Fixed
+- Fix Hyper-Density Cells being both "full" and "empty" at the same time, due to NBT desync.
+
 
 ## [0.2.5] - 2026-02-10
 ### Added

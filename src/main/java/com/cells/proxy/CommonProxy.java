@@ -7,6 +7,7 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
 import appeng.api.AEApi;
 
+import com.cells.BlockRegistry;
 import com.cells.ItemRegistry;
 import com.cells.core.CellsCreativeTab;
 import com.cells.cells.normal.compacting.CompactingCellHandler;
@@ -22,6 +23,11 @@ public class CommonProxy {
         // Initialize our creative tab before items so constructors can reference it
         CellsCreativeTab.init();
 
+        // Initialize blocks
+        BlockRegistry.init();
+        MinecraftForge.EVENT_BUS.register(new BlockRegistry());
+
+        // Initialize items
         ItemRegistry.init();
         MinecraftForge.EVENT_BUS.register(new ItemRegistry());
     }
