@@ -46,7 +46,6 @@ import com.cells.util.DeferredCellOperations;
 public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
 
     // NBT keys - use "Stored" prefix to avoid conflicts with ItemStack's "Count" tag
-    private static final String NBT_STORED_ITEM_COUNT = "StoredItemCount";
     private static final String NBT_ITEM_TYPE = "itemType";
     private static final String NBT_STORED_COUNT = "StoredCount"; // Per-item count key
 
@@ -123,14 +122,19 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
     }
 
     private void loadFromNBT() {
-        storedItemCount = tagCompound.getLong(NBT_STORED_ITEM_COUNT);
-
-        // Count stored types from NBT
+        // Derive counts from actual stored items to avoid desync bugs
         NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
+        storedItemCount = 0;
         storedTypes = 0;
+
         for (String key : itemsTag.getKeySet()) {
             NBTTagCompound itemTag = itemsTag.getCompoundTag(key);
-            if (itemTag.getLong(NBT_STORED_COUNT) > 0) storedTypes++;
+            long count = itemTag.getLong(NBT_STORED_COUNT);
+
+            if (count > 0) {
+                storedItemCount = CellMathHelper.addWithOverflowProtection(storedItemCount, count);
+                storedTypes++;
+            }
         }
     }
 
@@ -144,8 +148,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
     }
 
     private void saveToNBT() {
-        // Save using native long
-        tagCompound.setLong(NBT_STORED_ITEM_COUNT, storedItemCount);
+        // Individual item counts are saved in setStoredCount()
+        // Total count is derived on load - no separate tracking needed
     }
 
     /**
