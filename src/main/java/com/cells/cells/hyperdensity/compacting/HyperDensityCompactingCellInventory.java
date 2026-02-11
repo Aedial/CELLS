@@ -31,6 +31,7 @@ import com.cells.cells.compacting.CompactingHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CrossTierActionSource;
+import com.cells.util.DeferredCellOperations;
 
 
 /**
@@ -219,6 +220,11 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     /** Cached value for whether the Overflow Card is installed. */
     private boolean cachedHasOverflowCard = false;
 
+    // Cached state to avoid repeated checks during normal operation
+    // These are set after initialization and don't change until the cell is removed from the drive
+    private boolean cachedHasPartition = false;
+    private boolean chainFullyInitialized = false;
+
     /**
      * Version counter for the compression chain. Incremented when the chain is initialized or replaced.
      * Used to detect external chain changes (e.g., from API calls on another handler instance).
@@ -260,6 +266,10 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         // Load any existing data from the cell's NBT
         loadFromNBT();
+
+        // Cache partition state after loading NBT
+        cachedHasPartition = checkHasPartition();
+        chainFullyInitialized = cachedHasPartition && !isCompressionChainEmpty() && mainTier >= 0;
     }
 
     /**
@@ -350,17 +360,15 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * standard injection/extraction already handles that notification.
      * </p>
      * <p>
-     * <b>Important:</b> We use a MachineSource based on the container (Drive/Chest) rather
-     * than the original IActionSource. This avoids AE2's nesting detection in NetworkMonitor
-     * which would drop our cross-tier changes if we used the same source as the primary
-     * operation (DriveWatcher/ChestNetNotifier also posts with the original source).
+     * <b>Important:</b> Uses deferred notification system to batch notifications
+     * and reduce grid overhead.
      * </p>
      *
      * @param src          The action source for the operation (used for grid lookup only)
      * @param oldBaseUnits The base unit count before the operation
      * @param operatedSlot The tier that was directly operated on (-1 to notify all tiers)
      */
-    private void notifyGridOfAllTierChanges(@Nullable IActionSource src, long oldBaseUnits, int operatedSlot) {
+    private void queueCrossTierNotification(@Nullable IActionSource src, long oldBaseUnits, int operatedSlot) {
         // Calculate changes for each tier
         // Skip the operated slot since AE2's standard injection/extraction already handles that notification
         // Note: AE2 does NOT deduplicate notifications, so including the operated slot causes double-counting
@@ -385,33 +393,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         if (changes.isEmpty()) return;
 
-        // Post cross-tier changes to grid. This is necessary because:
-        // - DriveWatcher/ChestNetNotifier only report the directly operated item
-        // - Cross-tier changes (e.g., block count when ingots are inserted) must be reported separately
-        // - We skip the operated slot, so we're NOT double-reporting that item
-        // IMPORTANT: Always prefer the container's grid over the source's grid!
-        // The container (TileDrive/TileChest) is always on the correct grid where the cell
-        // physically resides. The src might be from a different subnet (e.g., items injected
-        // through a PartStorageBus on a subnet), which would cause cross-tier notifications
-        // to go to the wrong grid, and the main grid would never learn about the changes.
-        IGrid grid = CellMathHelper.getGridFromContainer(container);
-        if (grid == null) grid = CellMathHelper.getGridFromSource(src);
-        if (grid == null) return;
-
-        IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
-        if (storageGrid == null) return;
-
-        // Use CrossTierActionSource to ensure our notification is NEVER considered equal to
-        // DriveWatcher's MachineSource. AE2's NetworkMonitor uses source equality to detect
-        // nested/re-entrant notifications and drops them. Since DriveWatcher also posts with
-        // a MachineSource from the same container, using MachineSource here would cause our
-        // cross-tier notifications to be dropped as "nested" calls.
-        // CrossTierActionSource has unique instance identity (never equals anything else).
-        IActionSource crossTierSource = (container instanceof IActionHost)
-            ? new CrossTierActionSource((IActionHost) container)
-            : src;
-
-        storageGrid.postAlterationOfStoredItems(channel, changes, crossTierSource);
+        // Queue for deferred execution - merges with other notifications for same cell
+        DeferredCellOperations.queueCrossTierNotification(this, container, channel, changes, src);
     }
 
     /**
@@ -484,6 +467,14 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
+     * Save only the stored base units to NBT.
+     * This is the hot path - called on every inject/extract operation.
+     */
+    private void saveBaseUnitsOnly() {
+        CellMathHelper.saveLong(tagCompound, NBT_STORED_BASE_UNITS, storedBaseUnits);
+    }
+
+    /**
      * Saves all cell state to NBT data.
      * <p>
      * Stores the base units, main tier, compression chain, and cached partition.
@@ -495,7 +486,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * </p>
      */
     private void saveToNBT() {
-        CellMathHelper.saveLong(tagCompound, NBT_STORED_BASE_UNITS, storedBaseUnits);
+        saveBaseUnitsOnly();
 
         // Check if NBT has a newer chain version than us - if so, don't overwrite
         int nbtChainVersion = tagCompound.hasKey(NBT_CHAIN_VERSION) ? tagCompound.getInteger(NBT_CHAIN_VERSION) : 0;
@@ -537,7 +528,17 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
-     * Saves cell state and notifies the container (ME Drive) of changes.
+     * Save changes and notify container - deferred to end of tick for efficiency.
+     * This is the hot path for inject/extract operations.
+     */
+    private void saveChangesDeferred() {
+        saveBaseUnitsOnly();
+        DeferredCellOperations.markDirty(this, container);
+    }
+
+    /**
+     * Save all changes immediately including chain data.
+     * Used when chain is modified (initialization, tier card changes).
      */
     private void saveChanges() {
         saveToNBT();
@@ -712,7 +713,12 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      */
     private void reloadFromNBTIfNeeded() {
         // Check if NBT has data we haven't loaded
-        if (hasUnloadedNBTChainData()) loadFromNBT();
+        if (hasUnloadedNBTChainData()) {
+            loadFromNBT();
+            // Update cached state after reloading
+            cachedHasPartition = checkHasPartition();
+            chainFullyInitialized = cachedHasPartition && !isCompressionChainEmpty() && mainTier >= 0;
+        }
 
         // Check if tier card configuration has changed
         // IMPORTANT: Do NOT update cached tier values here - hasTierConfigChanged() compares
@@ -756,6 +762,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             // Mark chain for rebuild - mainTier = -1 signals that chain needs rebuilding
             // The actual rebuild happens in updateCompressionChainIfNeeded() with World access
             mainTier = -1;
+            chainFullyInitialized = false;
 
             // Update cached tier values AFTER resizing, so subsequent calls to
             // hasTierConfigChanged() return false (config is now synced)
@@ -784,13 +791,19 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
     /**
      * Checks if this cell has a partition configured.
-     * <p>
-     * Compacting cells REQUIRE a partition to accept items.
-     * </p>
+     * Uses cached value for performance during normal operation.
      *
      * @return true if at least one config slot contains an item
      */
     public boolean hasPartition() {
+        return cachedHasPartition;
+    }
+
+    /**
+     * Actually check if the cell has a partition configured by reading the config inventory.
+     * Used during initialization and when the cache needs to be refreshed.
+     */
+    private boolean checkHasPartition() {
         IItemHandler configInv = getConfigInventory();
         if (configInv == null) return false;
 
@@ -866,6 +879,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         cachedPartitionItem = partitionItem.copy();
         cachedPartitionItem.setCount(1);
+        cachedHasPartition = true;
+        chainFullyInitialized = mainTier >= 0;
 
         // Increment chain version so other handler instances detect the change
         chainVersion++;
@@ -934,6 +949,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             reset();
             storedBaseUnits = savedBaseUnits;
             initializeCompressionChain(cachedPartitionItem, world);
+            chainFullyInitialized = mainTier >= 0 && !isCompressionChainEmpty();
             saveChanges();
 
             return;
@@ -954,6 +970,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         if (currentPartition == null || currentPartition.isEmpty()) {
             reset();
             cachedPartitionItem = ItemStack.EMPTY;
+            cachedHasPartition = false;
+            chainFullyInitialized = false;
             saveChanges();
 
             return;
@@ -963,6 +981,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         initializeCompressionChain(currentPartition, world);
         cachedPartitionItem = currentPartition.copy();
         cachedPartitionItem.setCount(1);
+        cachedHasPartition = true;
+        chainFullyInitialized = mainTier >= 0 && !isCompressionChainEmpty();
 
         // Increment chain version so other handler instances detect the change
         chainVersion++;
@@ -1261,6 +1281,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         storedBaseUnits = 0;
         mainTier = -1;
+        chainFullyInitialized = false;
     }
 
     /**
@@ -1296,48 +1317,69 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     public IAEItemStack injectItems(IAEItemStack input, Actionable mode, IActionSource src) {
         if (input == null || input.getStackSize() <= 0) return null;
 
-        // Reload from NBT first to detect API-set partitions before checking hasPartition()
-        reloadFromNBTIfNeeded();
+        // Fast path: if chain is fully initialized, skip all the validation checks
+        // The chain can only change if the cell is removed from the drive
+        int slot;
+        if (chainFullyInitialized) {
+            slot = getSlotForItem(input);
+        } else {
+            // Slow path: need to initialize or validate the chain
+            reloadFromNBTIfNeeded();
 
-        if (!hasPartition()) return input;
+            if (!hasPartition()) return input;
 
-        World world = CellMathHelper.getWorldFromSource(src);
-        updateCompressionChainIfNeeded(world);
+            World world = CellMathHelper.getWorldFromSource(src);
+            updateCompressionChainIfNeeded(world);
 
-        int slot = canAcceptItem(input);
+            slot = canAcceptItem(input);
+        }
 
         // Item not in compression chain - reject
-        if (slot < 0 || convRate[slot] <= 0) return input;
+        if (slot < 0) return input;
 
-        // Overflow card voids items that are in the compression chain
-        boolean canVoidOverflow = hasOverflowCard();
+        int rate = convRate[slot];
+        if (rate <= 0) return input;
 
-        // Convert input count to base units
+        // Convert input count to base units - overflow protection needed for HD cells
         long inputCount = input.getStackSize();
-        long inputInBaseUnits = CellMathHelper.multiplyWithOverflowProtection(inputCount, convRate[slot]);
-        long remainingCapacityBaseUnits = getRemainingCapacityInBaseUnits();
-        long canInsertBaseUnits = Math.min(inputInBaseUnits, remainingCapacityBaseUnits);
-        long canInsert = canInsertBaseUnits / convRate[slot];
+        long inputInBaseUnits = CellMathHelper.multiplyWithOverflowProtection(inputCount, rate);
+
+        // Get remaining capacity - expensive call, do it once
+        long remainingCapacity = getRemainingCapacityInBaseUnits();
+
+        // Fast path: all items fit
+        if (inputInBaseUnits <= remainingCapacity) {
+            if (mode == Actionable.MODULATE) {
+                long oldBaseUnits = storedBaseUnits;
+                storedBaseUnits = CellMathHelper.addWithOverflowProtection(storedBaseUnits, inputInBaseUnits);
+                saveChangesDeferred();
+                queueCrossTierNotification(src, oldBaseUnits, slot);
+            }
+
+            return null;
+        }
+
+        // Partial insert or cell full
+        long canInsert = remainingCapacity / rate;
 
         if (canInsert <= 0) {
-            if (canVoidOverflow) return null;
+            // Cell is full - check overflow card
+            if (cachedHasOverflowCard) return null;
 
             return input;
         }
 
-        long actualBaseUnits = canInsert * convRate[slot];
+        long actualBaseUnits = canInsert * rate;
 
         if (mode == Actionable.MODULATE) {
             long oldBaseUnits = storedBaseUnits;
-
             storedBaseUnits = CellMathHelper.addWithOverflowProtection(storedBaseUnits, actualBaseUnits);
-            saveChanges();
-
-            notifyGridOfAllTierChanges(src, oldBaseUnits, slot);
+            saveChangesDeferred();
+            queueCrossTierNotification(src, oldBaseUnits, slot);
         }
 
-        if (canInsert >= inputCount) return null;
-        if (canVoidOverflow) return null;
+        // Overflow card voids the remainder
+        if (cachedHasOverflowCard) return null;
 
         IAEItemStack remainder = input.copy();
         remainder.setStackSize(inputCount - canInsert);
@@ -1362,29 +1404,33 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) return null;
 
-        // Check if NBT has chain data written by another handler (e.g., API call)
-        reloadFromNBTIfNeeded();
+        // Fast path: if chain is fully initialized, skip validation checks
+        int slot;
+        if (chainFullyInitialized) {
+            slot = getSlotForItem(request);
+        } else {
+            // Slow path: need to initialize or validate the chain
+            reloadFromNBTIfNeeded();
+            updateCompressionChainIfNeeded(CellMathHelper.getWorldFromSource(src));
+            slot = getSlotForItem(request);
+        }
 
-        updateCompressionChainIfNeeded(CellMathHelper.getWorldFromSource(src));
-
-        int slot = getSlotForItem(request);
         if (slot < 0) return null;
-        if (convRate[slot] <= 0) return null;
 
-        // Calculate available count at this tier
-        long requestedCount = request.getStackSize();
-        long availableInThisTier = storedBaseUnits / convRate[slot];
-        long toExtract = Math.min(requestedCount, availableInThisTier);
+        int rate = convRate[slot];
+        if (rate <= 0) return null;
 
-        if (toExtract <= 0) return null;
+        // Calculate available at this tier using integer division
+        long availableInThisTier = storedBaseUnits / rate;
+        if (availableInThisTier <= 0) return null;
+
+        long toExtract = Math.min(request.getStackSize(), availableInThisTier);
 
         if (mode == Actionable.MODULATE) {
             long oldBaseUnits = storedBaseUnits;
-
-            storedBaseUnits -= toExtract * convRate[slot];
-            saveChanges();
-
-            notifyGridOfAllTierChanges(src, oldBaseUnits, slot);
+            storedBaseUnits -= toExtract * rate;
+            saveChangesDeferred();
+            queueCrossTierNotification(src, oldBaseUnits, slot);
         }
 
         IAEItemStack result = request.copy();
@@ -1406,16 +1452,19 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      */
     @Override
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
-        // Check if NBT has chain data written by another handler (e.g., API call)
-        reloadFromNBTIfNeeded();
+        // Only reload from NBT if chain is not yet initialized
+        if (!chainFullyInitialized) reloadFromNBTIfNeeded();
 
         if (storedBaseUnits <= 0) return out;
 
         // Add each tier's available count
         for (int i = 0; i < currentMaxTiers; i++) {
-            if (protoStack[i].isEmpty() || convRate[i] <= 0) continue;
+            if (protoStack[i].isEmpty()) continue;
 
-            long availableCount = storedBaseUnits / convRate[i];
+            int rate = convRate[i];
+            if (rate <= 0) continue;
+
+            long availableCount = storedBaseUnits / rate;
             if (availableCount <= 0) continue;
 
             IAEItemStack stack = channel.createStack(protoStack[i]);

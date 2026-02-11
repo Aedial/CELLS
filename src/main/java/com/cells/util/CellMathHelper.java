@@ -200,10 +200,6 @@ public final class CellMathHelper {
      */
     public static void saveLong(NBTTagCompound tag, String key, long value) {
         tag.setLong(key, value);
-
-        // Clean up legacy _hi/_lo keys if present
-        tag.removeTag(key + "_hi");
-        tag.removeTag(key + "_lo");
     }
 
     /**

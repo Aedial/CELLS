@@ -8,6 +8,26 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.3.0] - 2026-02-11
+### Added
+- Add Import Interface, a block that act as a filtered interface for importing items into the ME network. It needs to be configured to allow specific items, and can be used to export items into the network from machines that don't necessarily have a filtered export capability (Woot, Ultimate Mob Farm, etc). It does not have any exporting or crafting capabilities, and only works as an import interface.
+
+
+## [0.2.5] - 2026-02-10
+### Added
+- Further optimize all cells by 2-3x, specifically in very high load scenarios (multiple operations in the same tick). /!\ This optimization assumes the network is not doing hacky things and lacks some proper synchronization, so it might cause issues with mods that do that.
+
+
+## [0.2.4] - 2026-02-09
+### Added
+- Improve the performance of compacting cells by a factor 4x.
+
+
+## [0.2.3] - 2026-02-09
+### Fixed
+- Fix compacting cells not properly computing the chain when paritioned with the lowest tier, causing the compression ratio to be 1 instead of 4 or 9.
+
+
 ## [0.2.2] - 2026-02-08
 ### Added
 - Add Equal Distribution Card without type limit (unbounded card), meaning it inherits the max types from the cell itself. This is useful if you want equal distribution with higher than 63 types (via config).
