@@ -25,11 +25,19 @@ public class ContainerImportInterface extends AEBaseContainer {
         super(ip, tile, null);
         this.tile = tile;
 
+        // Create slot pairs only up to the smallest inventory size to avoid creating
+        // out-of-range slots (some tiles may expose fewer than 36 slots).
+        final int filterSlots = tile.getFilterInventory().getSlots();
+        final int storageSlots = tile.getStorageInventory().getSlots();
+        final int maxSlots = Math.min(filterSlots, storageSlots);
+
         // Add filter slots (ghost/fake slots) and storage slots
         // 4 rows of 9 pairs (filter on top, storage below)
         int slotIndex = 0;
-        for (int row = 0; row < 4; row++) {
+        outer: for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 9; col++) {
+                if (slotIndex >= maxSlots) break outer;
+
                 int xPos = 8 + col * 18;
                 int filterY = 25 + row * 36;
                 int storageY = filterY + 18;
