@@ -28,6 +28,7 @@ import com.cells.items.ItemEqualDistributionCard;
 import com.cells.items.ItemOverclockedProcessor;
 import com.cells.items.ItemOverflowCard;
 import com.cells.items.ItemSingularityProcessor;
+import com.cells.items.ItemTrashUnselectedCard;
 
 
 public class ItemRegistry {
@@ -41,6 +42,7 @@ public class ItemRegistry {
     public static ItemFluidHyperDensityCell FLUID_HYPER_DENSITY_CELL;
     public static ItemFluidHyperDensityComponent FLUID_HYPER_DENSITY_COMPONENT;
     public static ItemOverflowCard OVERFLOW_CARD;
+    public static ItemTrashUnselectedCard TRASH_UNSELECTED_CARD;
     public static ItemEqualDistributionCard EQUAL_DISTRIBUTION_CARD;
     public static ItemCompressionTierCard COMPRESSION_TIER_CARD;
     public static ItemDecompressionTierCard DECOMPRESSION_TIER_CARD;
@@ -75,6 +77,7 @@ public class ItemRegistry {
 
         // Upgrades are always available
         OVERFLOW_CARD = new ItemOverflowCard();
+        TRASH_UNSELECTED_CARD = new ItemTrashUnselectedCard();
         EQUAL_DISTRIBUTION_CARD = new ItemEqualDistributionCard();
         COMPRESSION_TIER_CARD = new ItemCompressionTierCard();
         DECOMPRESSION_TIER_CARD = new ItemDecompressionTierCard();
@@ -111,6 +114,7 @@ public class ItemRegistry {
         }
 
         event.getRegistry().register(OVERFLOW_CARD);
+        event.getRegistry().register(TRASH_UNSELECTED_CARD);
         event.getRegistry().register(EQUAL_DISTRIBUTION_CARD);
         event.getRegistry().register(COMPRESSION_TIER_CARD);
         event.getRegistry().register(DECOMPRESSION_TIER_CARD);
@@ -128,6 +132,10 @@ public class ItemRegistry {
         // Overflow card lives under upgrades
         ModelLoader.setCustomModelResourceLocation(OVERFLOW_CARD, 0,
             makeModelLocation(OVERFLOW_CARD, "upgrades"));
+
+        // Trash unselected card also lives under upgrades
+        ModelLoader.setCustomModelResourceLocation(TRASH_UNSELECTED_CARD, 0,
+            makeModelLocation(TRASH_UNSELECTED_CARD, "upgrades"));
 
         // Register equal distribution card models for each tier (upgrades)
         String[] equalDistTiers = ItemEqualDistributionCard.getTierNames();
@@ -278,7 +286,8 @@ public class ItemRegistry {
             folder = "cells/hyper_density_fluid";
         } else if (item instanceof ItemHyperDensityCompactingCell || item instanceof ItemHyperDensityCompactingComponent) {
             folder = "cells/hyper_density_compacting";
-        } else if (item instanceof ItemOverflowCard || item instanceof ItemEqualDistributionCard
+        } else if (item instanceof ItemOverflowCard || item instanceof ItemTrashUnselectedCard
+            || item instanceof ItemEqualDistributionCard
             || item instanceof ItemCompressionTierCard || item instanceof ItemDecompressionTierCard) {
             folder = "upgrades";
         } else {

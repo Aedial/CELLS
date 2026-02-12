@@ -49,7 +49,7 @@ Fluid storage cells with the same massive multiplier:
 
 ### Hyper-Density Compacting Cells
 Combining hyper-density storage with compacting functionality:
-- **1k - 16M Hyper-Density Compacting Cells** (limited due to overflow protection)
+- **1k - 1G Hyper-Density Compacting Storage Cells** (each "byte" holds ~17.2B items, with compression capabilities)
 
 
 ### Upgrades
@@ -58,7 +58,12 @@ Combining hyper-density storage with compacting functionality:
 Install in a cell's upgrade slots to void excess items when full.
 Useful for automated systems where overflow should be destroyed.
 
-**Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells
+**Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells, Import Interface
+
+### Trash Unselected Card
+Install in an Import Interface to void items that don't match any filter. This is useful to prevent clogging the interface with unwanted items, especially when used with machines that export items without filtering capabilities.
+
+**Compatible with**: Import Interface
 
 #### Equal Distribution Card
 Limits the number of types a cell can hold and divides capacity equally among them. Available in 7 variants:

@@ -57,12 +57,14 @@ public class ItemOverflowCard extends Item implements IUpgradeModule {
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
         tooltip.add("\u00a77" + I18n.format("tooltip.cells.overflow_card.desc"));
+        tooltip.add("");
 
         String compatibleTypes = String.join(
             I18n.format("tooltip.cells.card.separator"),
             I18n.format("tooltip.cells.type.compact"),
             I18n.format("tooltip.cells.type.hyperdensity"),
-            I18n.format("tooltip.cells.type.hyperdensity_compact")
+            I18n.format("tooltip.cells.type.hyperdensity_compact"),
+            I18n.format("tooltip.cells.type.import_interface")
         );
         tooltip.add("\u00a78" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
     }

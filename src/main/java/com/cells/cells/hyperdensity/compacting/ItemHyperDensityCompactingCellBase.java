@@ -129,7 +129,7 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
                         }
                     } else {
                         tooltip.add("");
-                        tooltip.add("\u00a78" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
+                        tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
                     }
                 }
             }

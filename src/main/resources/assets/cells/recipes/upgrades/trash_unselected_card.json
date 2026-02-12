@@ -6,14 +6,14 @@
             "data": 28
         },
         {
-            "item": "minecraft:obsidian"
+            "item": "minecraft:cactus"
         },
         {
-            "item": "minecraft:lava_bucket"
+            "item": "minecraft:hopper"
         }
     ],
     "result": {
-        "item": "cells:overflow_card",
+        "item": "cells:trash_unselected_card",
         "count": 1
     }
 }

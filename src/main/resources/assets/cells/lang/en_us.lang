@@ -6,6 +6,7 @@ tooltip.cells.card.compatible=Compatible with: %s
 tooltip.cells.type.compact=ME Compacting Cell
 tooltip.cells.type.hyperdensity=Hyper-Density ME Storage Cell
 tooltip.cells.type.hyperdensity_compact=Hyper-Density ME Compacting Cell
+tooltip.cells.type.import_interface=Import Interface
 
 # Config (GUI)
 cells.config.category.general=General
@@ -64,9 +65,13 @@ item.cells.compacting_component.1g.name=1G ME Compacting Component
 item.cells.compacting_component.2g.name=2G ME Compacting Component
 
 # Overflow Card
-item.cells.overflow_card.name=Overflow Card
+item.cells.overflow_card.name=Overflow Voiding Card
 tooltip.cells.overflow_card.desc=Voids overflow items when cell is full
-tooltip.cells.overflow_card.use=Use in Compacting/HD Storage Cells
+
+# Trash Unselected Card
+item.cells.trash_unselected_card.name=Trash Unselected Card
+tooltip.cells.trash_unselected_card.desc=Voids items that do not match the filter
+tooltip.cells.trash_unselected_card.warning=Warning: This card does not come with any protection! Use with caution.
 
 # Equal Distribution Card
 item.cells.equal_distribution_card.1x.name=Equal Distribution Card (1x)
@@ -180,7 +185,7 @@ tooltip.cells.compacting_cell.stores_one_type=Stores one item type with compress
 tooltip.cells.compacting_cell.insert_to_set_compression=Insert the partitioned item to set compression chain
 tooltip.cells.compacting_cell.converts_up=Compresses to: %s
 tooltip.cells.compacting_cell.converts_down=Decompresses to: %s
-tooltip.cells.compacting_cell.no_compression=No compression available for this item
+tooltip.cells.compacting_cell.no_compression=No compression available for this item. Make sure the partitioned item has a valid 2x2 or 3x3 crafting recipe in both directions.
 
 # Hyper-Density Tooltips
 tooltip.cells.hyper_density_cell.info=Hyper-Density: ~17.2B items per Byte
@@ -232,6 +237,5 @@ item.cells.singularity_processor.logic.name=Singularity Logic Processor
 # Import Interface
 tile.cells.import_interface.name=Import Interface
 gui.cells.import_interface.title=Import Interface
-gui.cells.import_interface.max_size=Max:
-gui.cells.import_interface.set=Set
-tooltip.cells.import_interface.desc=Filtered import interface for the ME network
+gui.cells.import_interface.max_slot_size=Max Slot Size
+tooltip.cells.import_interface.info=Import items into the ME network through filtered slots.\nDoes not support stocking or crafting.

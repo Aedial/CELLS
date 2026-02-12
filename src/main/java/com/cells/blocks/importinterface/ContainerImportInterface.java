@@ -1,6 +1,7 @@
 package com.cells.blocks.importinterface;
 
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 
@@ -13,6 +14,7 @@ import appeng.container.slot.SlotNormal;
 /**
  * Container for the Import Interface GUI.
  * Layout: 4 rows of (9 filter slots on top + 9 storage slots below)
+ * Plus 4 upgrade slots on the right side.
  */
 public class ContainerImportInterface extends AEBaseContainer {
 
@@ -52,6 +54,17 @@ public class ContainerImportInterface extends AEBaseContainer {
             }
         }
 
+        // Add 4 upgrade slots at the right side of the GUI
+        for (int i = 0; i < TileImportInterface.UPGRADE_SLOTS; i++) {
+            this.addSlotToContainer(new SlotUpgrade(
+                tile.getUpgradeInventory(),
+                i,
+                186,
+                25 + i * 18,
+                tile
+            ));
+        }
+
         // Bind player inventory
         this.bindPlayerInventory(ip, 0, 174);
     }
@@ -69,6 +82,17 @@ public class ContainerImportInterface extends AEBaseContainer {
 
     public void setMaxSlotSize(int size) {
         this.tile.setMaxSlotSize(size);
+    }
+
+    @Override
+    public void onSlotChange(final Slot s) {
+        super.onSlotChange(s);
+
+        // Refresh upgrade status when an upgrade slot changes
+        if (s instanceof SlotUpgrade) tile.refreshUpgrades();
+
+        // Refresh filter map when a filter slot changes (for slotless storage lookups)
+        if (s instanceof SlotFilterLocked) tile.refreshFilterMap();
     }
 
     /**
@@ -91,6 +115,16 @@ public class ContainerImportInterface extends AEBaseContainer {
             // Prevent filter changes if there are items in the corresponding storage slot
             ItemStack storageStack = tile.getStorageInventory().getStackInSlot(this.storageSlot);
             if (!storageStack.isEmpty()) return;
+
+            // Prevent duplicate filters by checking if the new filter item already exists in another slot
+            for (int i = 0; i < tile.getFilterInventory().getSlots(); i++) {
+                if (i == this.getSlotIndex()) continue; // Skip current slot
+
+                ItemStack otherStack = tile.getFilterInventory().getStackInSlot(i);
+                if (!otherStack.isEmpty() && ItemStack.areItemsEqual(otherStack, stack)) {
+                    return; // Duplicate found, do not allow
+                }
+            }
 
             super.putStack(stack);
         }
@@ -118,6 +152,28 @@ public class ContainerImportInterface extends AEBaseContainer {
         @Override
         public int getSlotStackLimit() {
             return tile.getMaxSlotSize();
+        }
+    }
+
+    /**
+     * Custom slot for upgrades that only accepts specific upgrade cards.
+     */
+    private static class SlotUpgrade extends SlotNormal {
+        private final TileImportInterface tile;
+
+        public SlotUpgrade(IItemHandler inv, int idx, int x, int y, TileImportInterface tile) {
+            super(inv, idx, x, y);
+            this.tile = tile;
+        }
+
+        @Override
+        public boolean isItemValid(ItemStack stack) {
+            return tile.isValidUpgrade(stack);
+        }
+
+        @Override
+        public int getSlotStackLimit() {
+            return 1;
         }
     }
 }

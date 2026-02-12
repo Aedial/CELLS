@@ -11,6 +11,7 @@ import java.util.Map;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
@@ -46,16 +47,12 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
     private GuiTabButton configButton;
     private final Map<IGhostIngredientHandler.Target<?>, Object> mapTargetSlot = new HashMap<>();
 
-    // TODO: might want to add upgrade slots:
-    // - Void Overflow Upgrade (void excess items instead of rejecting)
-    // - Trash upgrade (void all items not matching filters, for more of a "dumb" trash filter block)
-
     public GuiImportInterface(final InventoryPlayer inventoryPlayer, final TileImportInterface tile) {
         super(new ContainerImportInterface(inventoryPlayer, tile));
         this.container = (ContainerImportInterface) this.inventorySlots;
         this.tile = tile;
         this.ySize = 256;
-        this.xSize = 176;
+        this.xSize = 210;  // 176 for the main area + 34 for the upgrades area
     }
 
     @Override
@@ -68,7 +65,7 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
             this.guiLeft + 154,
             this.guiTop,
             2 + 4 * 16,
-            "Max Slot Size",
+            I18n.format("gui.cells.import_interface.max_slot_size"),
             this.itemRender
         );
         this.buttonList.add(this.configButton);
@@ -76,7 +73,7 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
 
     @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        this.fontRenderer.drawString("Import Interface", 8, 6, 0x404040);
+        this.fontRenderer.drawString(I18n.format("gui.cells.import_interface.title"), 8, 6, 0x404040);
     }
 
     @Override

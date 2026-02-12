@@ -85,6 +85,7 @@ public class ItemCompressionTierCard extends Item implements IUpgradeModule {
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
         int tier = getTierValue(stack);
         tooltip.add("\u00a77" + I18n.format("tooltip.cells.compression_tier_card.desc", tier));
+        tooltip.add("");
 
         String compatibleTypes = String.join(
             I18n.format("tooltip.cells.card.separator"),
