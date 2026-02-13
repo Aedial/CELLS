@@ -8,6 +8,27 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.3.3] - 2026-02-13
+### Added
+- Add upgrades support for Import Interface: Trash Unselected (voids items that don't match any filter) and Overflow (voids excess items that don't fit in the slot).
+
+### Fixed
+- Fix Cells accepting any upgrade, instead of just the custom + standard AE2 ones.
+
+### Changed
+- Apply stricter checks for valid filters in the Import Interface. Filters cannot be duplicated or orphaned (having items in the storage slot without a filter).
+
+
+## [0.3.2] - 2026-02-12
+### Fixed
+- Fix Cell disassembly overwriting the whole stack to empty, instead of just one cell.
+
+
+## [0.3.1] - 2026-02-11
+### Added
+- Add Import Interface texture and fix the recipe.
+
+
 ## [0.3.0] - 2026-02-11
 ### Added
 - Add Import Interface, a block that act as a filtered interface for importing items into the ME network. It needs to be configured to allow specific items, and can be used to export items into the network from machines that don't necessarily have a filtered export capability (Woot, Ultimate Mob Farm, etc). It does not have any exporting or crafting capabilities, and only works as an import interface.

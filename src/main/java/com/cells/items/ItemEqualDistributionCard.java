@@ -91,6 +91,7 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
         } else {
             tooltip.add("\u00a77" + I18n.format("tooltip.cells.equal_distribution_card.desc", tier));
         }
+        tooltip.add("");
 
         String compatibleTypes = I18n.format("tooltip.cells.type.hyperdensity");
         tooltip.add("\u00a78" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));

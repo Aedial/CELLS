@@ -123,7 +123,7 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
                     } else {
                         // Items stored but no compression found
                         tooltip.add("");
-                        tooltip.add("\u00a78" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
+                        tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
                     }
                 }
 
@@ -268,8 +268,19 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         if (ia == null) return false;
 
-        // Clear the cell from hand
-        player.inventory.setInventorySlotContents(player.inventory.currentItem, ItemStack.EMPTY);
+        // Remove one cell from the stack.
+        // If the held stack has more than one item, shrink it by one.
+        if (stack.getCount() > 1) {
+            stack.shrink(1);
+        } else {
+            // Main hand
+            if (stack == player.getHeldItemMainhand()) {
+                player.inventory.setInventorySlotContents(player.inventory.currentItem, ItemStack.EMPTY);
+            // Off hand
+            } else if (stack == player.getHeldItemOffhand()) {
+                player.setHeldItem(EnumHand.OFF_HAND, ItemStack.EMPTY);
+            }
+        }
 
         // Return upgrades
         IItemHandler upgradesInventory = getUpgradesInventory(stack);

@@ -129,7 +129,7 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
                         }
                     } else {
                         tooltip.add("");
-                        tooltip.add("\u00a78" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
+                        tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
                     }
                 }
             }
@@ -287,7 +287,19 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         if (ia == null) return false;
 
-        player.inventory.setInventorySlotContents(player.inventory.currentItem, ItemStack.EMPTY);
+        // Remove one cell from the stack.
+        // If the held stack has more than one item, shrink it by one.
+        if (stack.getCount() > 1) {
+            stack.shrink(1);
+        } else {
+            // Main hand
+            if (stack == player.getHeldItemMainhand()) {
+                player.inventory.setInventorySlotContents(player.inventory.currentItem, ItemStack.EMPTY);
+            // Off hand
+            } else if (stack == player.getHeldItemOffhand()) {
+                player.setHeldItem(EnumHand.OFF_HAND, ItemStack.EMPTY);
+            }
+        }
 
         // Return upgrades
         IItemHandler upgradesInventory = getUpgradesInventory(stack);

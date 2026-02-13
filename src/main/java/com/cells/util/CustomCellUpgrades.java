@@ -36,13 +36,25 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
     }
 
     @Override
-    public int getMaxInstalled(final Upgrades upgrades) {
-        return 4;
-    }
-
-    @Override
     protected void onContentsChanged(int slot) {
         this.writeToNBT(Platform.openNbtData(this.cellStack), "upgrades");
+    }
+
+    /**
+     * Override to support standard AE2 cell upgrades (FUZZY, INVERTER, STICKY).
+     * The parent class checks AE2's upgrade registry, but our custom cells aren't registered there.
+     * We explicitly allow the same upgrades that standard AE2 cells support.
+     */
+    @Override
+    public int getMaxInstalled(final Upgrades upgrades) {
+        switch (upgrades) {
+            case FUZZY:
+            case INVERTER:
+            case STICKY:
+                return 1; // Standard AE2 cells support 1 of each
+            default:
+                return super.getMaxInstalled(upgrades);
+        }
     }
 
     /**
