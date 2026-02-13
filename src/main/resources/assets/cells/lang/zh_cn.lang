@@ -6,6 +6,7 @@ tooltip.cells.card.compatible=兼容：%s
 tooltip.cells.type.compact=ME压缩元件
 tooltip.cells.type.hyperdensity=超高密度ME存储元件
 tooltip.cells.type.hyperdensity_compact=超高密度ME压缩元件
+tooltip.cells.type.import_interface=输入接口
 
 # Config (GUI)
 cells.config.category.general=通用
@@ -66,7 +67,11 @@ item.cells.compacting_component.2g.name=2G-ME压缩组件
 # Overflow Card
 item.cells.overflow_card.name=溢出销毁卡
 tooltip.cells.overflow_card.desc=在元件已满时销毁溢出的物品
-tooltip.cells.overflow_card.use=用于压缩/超高密度ME压缩元件
+
+# Trash Unselected Card
+item.cells.trash_unselected_card.name=过滤销毁卡
+tooltip.cells.trash_unselected_card.desc=销毁不匹配过滤设置的物品
+tooltip.cells.trash_unselected_card.warning=警告：该卡没有任何保护措施！请谨慎使用。
 
 # Equal Distribution Card
 item.cells.equal_distribution_card.1x.name=均分卡（1x）
@@ -180,7 +185,7 @@ tooltip.cells.compacting_cell.stores_one_type=以压缩形式存储一种物品�
 tooltip.cells.compacting_cell.insert_to_set_compression=放入分区设定的物品以设置压缩链
 tooltip.cells.compacting_cell.converts_up=压缩为：%s
 tooltip.cells.compacting_cell.converts_down=解压为：%s
-tooltip.cells.compacting_cell.no_compression=该物品无可用的压缩形式
+tooltip.cells.compacting_cell.no_compression=该物品无可用的压缩形式。确保分区的物品存在有效的2x2或3x3可逆合成配方。
 
 # Hyper-Density Tooltips
 tooltip.cells.hyper_density_cell.info=超高密度：每字节约17.2B物品
@@ -232,6 +237,5 @@ item.cells.singularity_processor.logic.name=奇点逻辑处理器
 # Import Interface
 tile.cells.import_interface.name=输入接口
 gui.cells.import_interface.title=输入接口
-gui.cells.import_interface.max_size=最大：
-gui.cells.import_interface.set=设置
-tooltip.cells.import_interface.desc=用于ME网络的过滤式输入接口
+gui.cells.import_interface.max_slot_size=槽位最大容量
+tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络。\n不支持补货或合成。
