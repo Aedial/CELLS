@@ -45,6 +45,7 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
     private final ContainerImportInterface container;
     private final TileImportInterface tile;
     private GuiTabButton configButton;
+    private GuiTabButton pollingRateButton;
     private final Map<IGhostIngredientHandler.Target<?>, Object> mapTargetSlot = new HashMap<>();
 
     public GuiImportInterface(final InventoryPlayer inventoryPlayer, final TileImportInterface tile) {
@@ -69,6 +70,17 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
             this.itemRender
         );
         this.buttonList.add(this.configButton);
+
+        // Polling rate button (below the max slot size button)
+        // Uses icon index for time/clock-like appearance
+        this.pollingRateButton = new GuiTabButton(
+            this.guiLeft + 154 - 22,
+            this.guiTop,
+            2 + 5 * 16,
+            I18n.format("gui.cells.polling_rate.title"),
+            this.itemRender
+        );
+        this.buttonList.add(this.pollingRateButton);
     }
 
     @Override
@@ -93,6 +105,17 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
                 this.tile.getPos().getY(),
                 this.tile.getPos().getZ(),
                 CellsGuiHandler.GUI_MAX_SLOT_SIZE
+            ));
+            return;
+        }
+
+        if (btn == this.pollingRateButton) {
+            // Open the polling rate configuration GUI
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                this.tile.getPos().getX(),
+                this.tile.getPos().getY(),
+                this.tile.getPos().getZ(),
+                CellsGuiHandler.GUI_POLLING_RATE
             ));
         }
     }

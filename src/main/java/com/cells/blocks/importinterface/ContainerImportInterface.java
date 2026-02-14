@@ -23,6 +23,9 @@ public class ContainerImportInterface extends AEBaseContainer {
     @GuiSync(0)
     public int maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
 
+    @GuiSync(1)
+    public int pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
+
     public ContainerImportInterface(final InventoryPlayer ip, final TileImportInterface tile) {
         super(ip, tile, null);
         this.tile = tile;
@@ -74,6 +77,7 @@ public class ContainerImportInterface extends AEBaseContainer {
         super.detectAndSendChanges();
 
         if (this.maxSlotSize != this.tile.getMaxSlotSize()) this.maxSlotSize = this.tile.getMaxSlotSize();
+        if (this.pollingRate != this.tile.getPollingRate()) this.pollingRate = this.tile.getPollingRate();
     }
 
     public TileImportInterface getTile() {
@@ -82,6 +86,10 @@ public class ContainerImportInterface extends AEBaseContainer {
 
     public void setMaxSlotSize(int size) {
         this.tile.setMaxSlotSize(size);
+    }
+
+    public void setPollingRate(int ticks) {
+        this.tile.setPollingRate(ticks);
     }
 
     @Override

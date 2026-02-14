@@ -238,4 +238,6 @@ item.cells.singularity_processor.logic.name=Singularity Logic Processor
 tile.cells.import_interface.name=Import Interface
 gui.cells.import_interface.title=Import Interface
 gui.cells.import_interface.max_slot_size=Max Slot Size
+gui.cells.polling_rate.title=Polling Rate
+gui.cells.polling_rate.tooltip=Fixed interval for importing items (0 = AE2's default)
 tooltip.cells.import_interface.info=Import items into the ME network through filtered slots.\nDoes not support stocking or crafting.

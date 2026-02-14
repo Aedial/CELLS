@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.3.4] - 2026-02-14
+### Added
+- Add configurable polling rate to Import Interface, allowing users to set a fixed interval for importing items instead of relying on AE2's adaptive rates. This way, you can stock 100k items to send to the network every hour, for example.
+
+### Fixed
+- Fix some stale filter on world load for the Import Interface, which caused it to not import items until the filter was updated.
+
+
 ## [0.3.3] - 2026-02-13
 ### Added
 - Add upgrades support for Import Interface: Trash Unselected (voids items that don't match any filter) and Overflow (voids excess items that don't fit in the slot).
