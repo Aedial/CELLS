@@ -1,6 +1,8 @@
 {
-    "parent": "block/cube_all",
+    "parent": "block/cube_bottom_top",
     "textures": {
-        "all": "cells:blocks/import_interface"
+        "top": "cells:blocks/import_interface",
+        "side": "cells:blocks/import_interface_side",
+        "bottom": "cells:blocks/import_interface"
     }
 }

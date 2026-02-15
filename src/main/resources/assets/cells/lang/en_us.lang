@@ -83,7 +83,7 @@ item.cells.equal_distribution_card.32x.name=Equal Distribution Card (32x)
 item.cells.equal_distribution_card.63x.name=Equal Distribution Card (63x)
 item.cells.equal_distribution_card.infinite.name=Equal Distribution Card (unbounded)
 tooltip.cells.equal_distribution_card.desc=Limits cell to %d types, dividing capacity equally
-tooltip.cells.equal_distribution_card.desc.infinite=Divides capacity equally among all types
+tooltip.cells.equal_distribution_card.desc.infinite=Divides capacity equally among all types. Use it if you increased the 'max types' in config.
 
 # Compression Tier Card
 item.cells.compression_tier_card.3x.name=Compression Tier Card (3x)
@@ -91,7 +91,7 @@ item.cells.compression_tier_card.6x.name=Compression Tier Card (6x)
 item.cells.compression_tier_card.9x.name=Compression Tier Card (9x)
 item.cells.compression_tier_card.12x.name=Compression Tier Card (12x)
 item.cells.compression_tier_card.15x.name=Compression Tier Card (15x)
-tooltip.cells.compression_tier_card.desc=Enables up to %d compression tiers
+tooltip.cells.compression_tier_card.desc=Enables up to %d compression tiers. Place it before partitioning the Compacting Cell!
 
 # Decompression Tier Card
 item.cells.decompression_tier_card.3x.name=Decompression Tier Card (3x)
@@ -99,7 +99,7 @@ item.cells.decompression_tier_card.6x.name=Decompression Tier Card (6x)
 item.cells.decompression_tier_card.9x.name=Decompression Tier Card (9x)
 item.cells.decompression_tier_card.12x.name=Decompression Tier Card (12x)
 item.cells.decompression_tier_card.15x.name=Decompression Tier Card (15x)
-tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers
+tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers. Place it after partitioning the Compacting Cell!
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k Hyper-Density ME Storage Cell
@@ -186,6 +186,7 @@ tooltip.cells.compacting_cell.insert_to_set_compression=Insert the partitioned i
 tooltip.cells.compacting_cell.converts_up=Compresses to: %s
 tooltip.cells.compacting_cell.converts_down=Decompresses to: %s
 tooltip.cells.compacting_cell.no_compression=No compression available for this item. Make sure the partitioned item has a valid 2x2 or 3x3 crafting recipe in both directions.
+tooltip.cells.compacting_cell.ioport_warning=Using them in a IO Port might cause "ghost item" on the AE2 network it is in. A server restart resolves the issue.
 
 # Hyper-Density Tooltips
 tooltip.cells.hyper_density_cell.info=Hyper-Density: ~17.2B items per Byte

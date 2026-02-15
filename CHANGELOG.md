@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.3.5] - 2026-02-14
+### Changed
+- Improve the tooltips to clarify some behaviors.
+- Tweak the Import Interface top and bottom.
+
+
 ## [0.3.4] - 2026-02-14
 ### Added
 - Add configurable polling rate to Import Interface, allowing users to set a fixed interval for importing items instead of relying on AE2's adaptive rates. This way, you can stock 100k items to send to the network every hour, for example.
