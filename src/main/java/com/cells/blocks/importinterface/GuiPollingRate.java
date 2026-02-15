@@ -38,7 +38,7 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
     private GuiButton minusDay;
 
     private final TileImportInterface tile;
-    private int currentPollingRate = 0;
+    private long currentPollingRate = 0;
 
     public GuiPollingRate(final InventoryPlayer inventoryPlayer, final TileImportInterface tile) {
         super(new ContainerPollingRate(inventoryPlayer, tile));
@@ -77,7 +77,7 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
     }
 
     @Override
-    public void onPollingRateChanged(int pollingRate) {
+    public void onPollingRateChanged(long pollingRate) {
         this.currentPollingRate = pollingRate;
     }
 
@@ -136,10 +136,10 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
     }
 
     private void addPollingRate(final int delta) {
-        int result = this.currentPollingRate + delta;
-        result = Math.max(0, result);
+        long result = this.currentPollingRate + delta;
+        result = Math.max(0, Math.min(Integer.MAX_VALUE, result));
         this.currentPollingRate = result;
-        CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetPollingRate(result));
+        CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetPollingRate((int) result));
     }
 
     @Override

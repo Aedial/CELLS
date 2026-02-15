@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.3.6] - 2026-02-15
+### Fixed
+- Fix Import Interface's Polling Rate and Max Slot Size using short int instead of int, causing overflow and negative values when set above 32767.
+
+
 ## [0.3.5] - 2026-02-14
 ### Changed
 - Improve the tooltips to clarify some behaviors.

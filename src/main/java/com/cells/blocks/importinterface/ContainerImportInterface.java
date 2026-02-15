@@ -21,10 +21,10 @@ public class ContainerImportInterface extends AEBaseContainer {
     private final TileImportInterface tile;
 
     @GuiSync(0)
-    public int maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
+    public long maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
 
     @GuiSync(1)
-    public int pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
+    public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
 
     public ContainerImportInterface(final InventoryPlayer ip, final TileImportInterface tile) {
         super(ip, tile, null);

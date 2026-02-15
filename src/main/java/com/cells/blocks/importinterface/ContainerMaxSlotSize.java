@@ -24,7 +24,7 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     private GuiTextField textField;
 
     @GuiSync(0)
-    public int maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
+    public long maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
 
     public ContainerMaxSlotSize(final InventoryPlayer ip, final TileImportInterface tile) {
         super(ip, tile, null);

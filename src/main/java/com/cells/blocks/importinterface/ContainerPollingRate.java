@@ -22,7 +22,7 @@ public class ContainerPollingRate extends AEBaseContainer {
     private IPollingRateListener listener;
 
     @GuiSync(0)
-    public int pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
+    public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
 
     public ContainerPollingRate(final InventoryPlayer ip, final TileImportInterface tile) {
         super(ip, tile, null);
@@ -66,6 +66,6 @@ public class ContainerPollingRate extends AEBaseContainer {
      */
     @SideOnly(Side.CLIENT)
     public interface IPollingRateListener {
-        void onPollingRateChanged(int pollingRate);
+        void onPollingRateChanged(long pollingRate);
     }
 }
