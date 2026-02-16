@@ -1,6 +1,9 @@
 package com.cells.cells.hyperdensity.item;
 
-import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -21,6 +24,7 @@ import appeng.util.Platform;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.DeferredCellOperations;
+import com.cells.util.ItemStackKey;
 
 
 /**
@@ -55,6 +59,13 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
     private final IItemHyperDensityCell cellType;
 
     private final NBTTagCompound tagCompound;
+
+    // In-memory cache: ItemStackKey -> NBT index for O(1) lookups
+    // Built on load, updated on insert/remove. Avoids string key generation per operation.
+    private final Map<ItemStackKey, Integer> keyToNbtIndex = new HashMap<>();
+
+    // Next available NBT index for new items (computed on load, updated on insert)
+    private int cachedNextIndex = 0;
 
     // Storage tracking - count of stored items (not bytes)
     private long storedItemCount = 0;
@@ -122,20 +133,78 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
     }
 
     private void loadFromNBT() {
-        // Derive counts from actual stored items to avoid desync bugs
+        // Derive counts from actual stored items and build in-memory cache
         NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
         storedItemCount = 0;
         storedTypes = 0;
+        keyToNbtIndex.clear();
+        cachedNextIndex = 0;
 
-        for (String key : itemsTag.getKeySet()) {
-            NBTTagCompound itemTag = itemsTag.getCompoundTag(key);
+        // Collect all keys upfront to avoid ConcurrentModificationException
+        List<String> allKeys = new ArrayList<>(itemsTag.getKeySet());
+
+        // First pass: find highest numeric index to avoid collisions during migration
+        for (String nbtKey : allKeys) {
+            if (isNumericKey(nbtKey)) {
+                int index = Integer.parseInt(nbtKey);
+                if (index >= cachedNextIndex) cachedNextIndex = index + 1;
+            }
+        }
+
+        // Track legacy keys that need migration
+        List<String> legacyKeys = new ArrayList<>();
+
+        // Second pass: load items and migrate legacy keys
+        for (String nbtKey : allKeys) {
+            NBTTagCompound itemTag = itemsTag.getCompoundTag(nbtKey);
             long count = itemTag.getLong(NBT_STORED_COUNT);
 
             if (count > 0) {
-                storedItemCount = CellMathHelper.addWithOverflowProtection(storedItemCount, count);
-                storedTypes++;
+                // Reconstruct the ItemStack and create a key for the cache
+                ItemStack stack = new ItemStack(itemTag);
+                ItemStackKey key = ItemStackKey.of(stack);
+
+                if (key != null) {
+                    // Check if this is a legacy string key that needs migration
+                    boolean isLegacy = !isNumericKey(nbtKey);
+                    int index;
+
+                    if (isLegacy) {
+                        // Assign new numeric index and mark for migration
+                        index = cachedNextIndex++;
+                        legacyKeys.add(nbtKey);
+
+                        // Write item under new numeric key
+                        itemsTag.setTag(String.valueOf(index), itemTag.copy());
+                    } else {
+                        index = Integer.parseInt(nbtKey);
+                    }
+
+                    keyToNbtIndex.put(key, index);
+                    storedItemCount = CellMathHelper.addWithOverflowProtection(storedItemCount, count);
+                    storedTypes++;
+                }
             }
         }
+
+        // Remove legacy keys after migration
+        for (String legacyKey : legacyKeys) itemsTag.removeTag(legacyKey);
+
+        // Persist migration if any keys were converted
+        if (!legacyKeys.isEmpty()) tagCompound.setTag(NBT_ITEM_TYPE, itemsTag);
+    }
+
+    /**
+     * Check if a key is a valid numeric index (new format).
+     */
+    private boolean isNumericKey(String key) {
+        if (key == null || key.isEmpty()) return false;
+
+        for (int i = 0; i < key.length(); i++) {
+            if (!Character.isDigit(key.charAt(i))) return false;
+        }
+
+        return true;
     }
 
     private long loadLongFromTag(NBTTagCompound tag) {
@@ -241,42 +310,54 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
 
     /**
      * Get the stored item data for a specific item from NBT.
+     * Uses ItemStackKey cache for O(1) lookup.
      */
     private long getStoredCount(IAEItemStack item) {
+        ItemStackKey key = ItemStackKey.of(item.getDefinition());
+        if (key == null) return 0;
+
+        Integer index = keyToNbtIndex.get(key);
+        if (index == null) return 0;
+
         NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
-        String key = getItemKey(item);
-
-        if (!itemsTag.hasKey(key)) return 0;
-
-        return loadLongFromTag(itemsTag.getCompoundTag(key));
+        return loadLongFromTag(itemsTag.getCompoundTag(String.valueOf(index)));
     }
 
     /**
      * Set the stored count for a specific item in NBT.
+     * Only serializes the full item on first insert; subsequent updates only change the count.
      */
     private void setStoredCount(IAEItemStack item, long count) {
+        ItemStackKey key = ItemStackKey.of(item.getDefinition());
+        if (key == null) return;
+
         NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
-        String key = getItemKey(item);
+        Integer index = keyToNbtIndex.get(key);
 
         if (count <= 0) {
-            itemsTag.removeTag(key);
+            // Remove the item entirely
+            if (index != null) {
+                itemsTag.removeTag(String.valueOf(index));
+                keyToNbtIndex.remove(key);
+            }
+        } else if (index != null) {
+            // Item already exists - just update the count (no re-serialization needed)
+            NBTTagCompound itemTag = itemsTag.getCompoundTag(String.valueOf(index));
+            saveLongToTag(itemTag, count);
         } else {
+            // New item - serialize fully and assign a new sequential index
+            index = cachedNextIndex++;
+            String nbtKey = String.valueOf(index);
+
             NBTTagCompound itemTag = new NBTTagCompound();
             item.getDefinition().writeToNBT(itemTag);
             saveLongToTag(itemTag, count);
-            itemsTag.setTag(key, itemTag);
+            itemsTag.setTag(nbtKey, itemTag);
+
+            keyToNbtIndex.put(key, index);
         }
 
         tagCompound.setTag(NBT_ITEM_TYPE, itemsTag);
-    }
-
-    /**
-     * Generate a unique key for an item stack.
-     */
-    private String getItemKey(IAEItemStack item) {
-        ItemStack def = item.getDefinition();
-
-        return def.getItem().getRegistryName() + "@" + def.getMetadata();
     }
 
     /**

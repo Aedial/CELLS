@@ -1,6 +1,9 @@
 package com.cells.cells.hyperdensity.fluid;
 
-import javax.annotation.Nonnull;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -22,6 +25,7 @@ import appeng.util.Platform;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.DeferredCellOperations;
+import com.cells.util.FluidStackKey;
 
 
 /**
@@ -52,6 +56,12 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     private final IItemFluidHyperDensityCell cellType;
 
     private final NBTTagCompound tagCompound;
+
+    // In-memory cache: FluidStackKey -> NBT index for O(1) lookups
+    private final Map<FluidStackKey, Integer> keyToNbtIndex = new HashMap<>();
+
+    // Next available NBT index for new fluids (computed on load, updated on insert)
+    private int cachedNextIndex = 0;
 
     private long storedFluidCount = 0;
     private int storedTypes = 0;
@@ -112,20 +122,78 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     }
 
     private void loadFromNBT() {
-        // Derive counts from actual stored fluids to avoid desync bugs
+        // Derive counts from actual stored fluids and build in-memory cache
         NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
         storedFluidCount = 0;
         storedTypes = 0;
+        keyToNbtIndex.clear();
+        cachedNextIndex = 0;
 
-        for (String key : fluidsTag.getKeySet()) {
-            NBTTagCompound fluidTag = fluidsTag.getCompoundTag(key);
+        // Collect all keys upfront to avoid ConcurrentModificationException
+        List<String> allKeys = new ArrayList<>(fluidsTag.getKeySet());
+
+        // First pass: find highest numeric index to avoid collisions during migration
+        for (String nbtKey : allKeys) {
+            if (isNumericKey(nbtKey)) {
+                int index = Integer.parseInt(nbtKey);
+                if (index >= cachedNextIndex) cachedNextIndex = index + 1;
+            }
+        }
+
+        // Track legacy keys that need migration
+        List<String> legacyKeys = new ArrayList<>();
+
+        // Second pass: load fluids and migrate legacy keys
+        for (String nbtKey : allKeys) {
+            NBTTagCompound fluidTag = fluidsTag.getCompoundTag(nbtKey);
             long count = fluidTag.getLong(NBT_STORED_COUNT);
 
             if (count > 0) {
-                storedFluidCount = CellMathHelper.addWithOverflowProtection(storedFluidCount, count);
-                storedTypes++;
+                // Reconstruct the FluidStack and create a key for the cache
+                FluidStack stack = FluidStack.loadFluidStackFromNBT(fluidTag);
+                FluidStackKey key = FluidStackKey.of(stack);
+
+                if (key != null) {
+                    // Check if this is a legacy string key that needs migration
+                    boolean isLegacy = !isNumericKey(nbtKey);
+                    int index;
+
+                    if (isLegacy) {
+                        // Assign new numeric index and mark for migration
+                        index = cachedNextIndex++;
+                        legacyKeys.add(nbtKey);
+
+                        // Write fluid under new numeric key
+                        fluidsTag.setTag(String.valueOf(index), fluidTag.copy());
+                    } else {
+                        index = Integer.parseInt(nbtKey);
+                    }
+
+                    keyToNbtIndex.put(key, index);
+                    storedFluidCount = CellMathHelper.addWithOverflowProtection(storedFluidCount, count);
+                    storedTypes++;
+                }
             }
         }
+
+        // Remove legacy keys after migration
+        for (String legacyKey : legacyKeys) fluidsTag.removeTag(legacyKey);
+
+        // Persist migration if any keys were converted
+        if (!legacyKeys.isEmpty()) tagCompound.setTag(NBT_FLUID_TYPE, fluidsTag);
+    }
+
+    /**
+     * Check if a key is a valid numeric index (new format).
+     */
+    private boolean isNumericKey(String key) {
+        if (key == null || key.isEmpty()) return false;
+
+        for (int i = 0; i < key.length(); i++) {
+            if (!Character.isDigit(key.charAt(i))) return false;
+        }
+
+        return true;
     }
 
     private long loadLongFromTag(NBTTagCompound tag) {
@@ -212,35 +280,56 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         return multipliedBytesPerType / multiplier;
     }
 
+    /**
+     * Get the stored fluid data for a specific fluid from NBT.
+     * Uses FluidStackKey cache for O(1) lookup.
+     */
     private long getStoredCount(IAEFluidStack fluid) {
+        FluidStackKey key = FluidStackKey.of(fluid.getFluidStack());
+        if (key == null) return 0;
+
+        Integer index = keyToNbtIndex.get(key);
+        if (index == null) return 0;
+
         NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
-        String key = getFluidKey(fluid);
-
-        if (!fluidsTag.hasKey(key)) return 0;
-
-        return loadLongFromTag(fluidsTag.getCompoundTag(key));
+        return loadLongFromTag(fluidsTag.getCompoundTag(String.valueOf(index)));
     }
 
+    /**
+     * Set the stored count for a specific fluid in NBT.
+     * Only serializes the full fluid on first insert; subsequent updates only change the count.
+     */
     private void setStoredCount(IAEFluidStack fluid, long count) {
+        FluidStackKey key = FluidStackKey.of(fluid.getFluidStack());
+        if (key == null) return;
+
         NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
-        String key = getFluidKey(fluid);
+        Integer index = keyToNbtIndex.get(key);
 
         if (count <= 0) {
-            fluidsTag.removeTag(key);
+            // Remove the fluid entirely
+            if (index != null) {
+                fluidsTag.removeTag(String.valueOf(index));
+                keyToNbtIndex.remove(key);
+            }
+        } else if (index != null) {
+            // Fluid already exists - just update the count (no re-serialization needed)
+            NBTTagCompound fluidTag = fluidsTag.getCompoundTag(String.valueOf(index));
+            saveLongToTag(fluidTag, count);
         } else {
+            // New fluid - serialize fully and assign a new sequential index
+            index = cachedNextIndex++;
+            String nbtKey = String.valueOf(index);
+
             NBTTagCompound fluidTag = new NBTTagCompound();
             fluid.getFluidStack().writeToNBT(fluidTag);
             saveLongToTag(fluidTag, count);
-            fluidsTag.setTag(key, fluidTag);
+            fluidsTag.setTag(nbtKey, fluidTag);
+
+            keyToNbtIndex.put(key, index);
         }
 
         tagCompound.setTag(NBT_FLUID_TYPE, fluidsTag);
-    }
-
-    private String getFluidKey(IAEFluidStack fluid) {
-        FluidStack fs = fluid.getFluidStack();
-
-        return fs.getFluid().getName();
     }
 
     private boolean canAcceptFluid(IAEFluidStack fluid) {
