@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.3.8] - 2026-02-18
+### Fixed
+- Fix Import Interface not allowing items with the same ID and metadata but different NBT in filters, due NBT collision when checking for duplicates.
+
+
 ## [0.3.7] - 2026-02-16
 ### Fixed
 - Fix items with the same ID and metadata but different NBT, incorrectly merging in hyper-density cells (e.g., Thaumcraft vis crystals).

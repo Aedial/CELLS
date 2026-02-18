@@ -10,6 +10,8 @@ import appeng.container.guisync.GuiSync;
 import appeng.container.slot.SlotFake;
 import appeng.container.slot.SlotNormal;
 
+import com.cells.util.ItemStackKey;
+
 
 /**
  * Container for the Import Interface GUI.
@@ -124,14 +126,23 @@ public class ContainerImportInterface extends AEBaseContainer {
             ItemStack storageStack = tile.getStorageInventory().getStackInSlot(this.storageSlot);
             if (!storageStack.isEmpty()) return;
 
+            // Allow clearing the filter slot by clicking with an empty hand
+            if (stack.isEmpty()) {
+                super.putStack(stack);
+                return;
+            }
+
             // Prevent duplicate filters by checking if the new filter item already exists in another slot
+            // Must use ItemStackKey (item + meta + NBT) rather than ItemStack.areItemsEqual (item + meta only),
+            // otherwise items with the same id/meta but different NBT are incorrectly rejected as duplicates.
+            ItemStackKey newKey = ItemStackKey.of(stack);
+            if (newKey == null) return;
+
             for (int i = 0; i < tile.getFilterInventory().getSlots(); i++) {
                 if (i == this.getSlotIndex()) continue; // Skip current slot
 
-                ItemStack otherStack = tile.getFilterInventory().getStackInSlot(i);
-                if (!otherStack.isEmpty() && ItemStack.areItemsEqual(otherStack, stack)) {
-                    return; // Duplicate found, do not allow
-                }
+                ItemStackKey otherKey = ItemStackKey.of(tile.getFilterInventory().getStackInSlot(i));
+                if (otherKey != null && otherKey.equals(newKey)) return; // Duplicate found, do not allow
             }
 
             super.putStack(stack);
