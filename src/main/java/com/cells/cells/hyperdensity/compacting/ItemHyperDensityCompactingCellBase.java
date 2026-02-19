@@ -141,6 +141,8 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
         // Add hyper-density explanation - simple one-liner
         tooltip.add("");
         tooltip.add("\u00a7d" + I18n.format("tooltip.cells.hyper_density_cell.info"));
+        tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
+
     }
 
     /**

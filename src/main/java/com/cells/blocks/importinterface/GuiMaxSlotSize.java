@@ -141,9 +141,10 @@ public class GuiMaxSlotSize extends AEBaseGui {
 
             if (out.isEmpty()) out = "1";
 
-            int result = Integer.parseInt(out);
-            result += delta;
-            result = Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, result);
+            // Parse as long to handle values > Integer.MAX_VALUE, then clamp
+            long parsed = Long.parseLong(out);
+            parsed += delta;
+            int result = (int) Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, Math.min(Integer.MAX_VALUE, parsed));
 
             this.sizeField.setText(out = Integer.toString(result));
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetMaxSlotSize(result));
@@ -173,8 +174,9 @@ public class GuiMaxSlotSize extends AEBaseGui {
                 if (out.isEmpty()) out = "1";
 
                 try {
-                    int value = Integer.parseInt(out);
-                    value = Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, value);
+                    // Parse as long to handle values > Integer.MAX_VALUE, then clamp
+                    long parsed = Long.parseLong(out);
+                    int value = (int) Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, Math.min(Integer.MAX_VALUE, parsed));
                     CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetMaxSlotSize(value));
                 } catch (final NumberFormatException e) {
                     // Ignore invalid input

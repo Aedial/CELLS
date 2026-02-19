@@ -2,7 +2,6 @@ package com.cells.blocks.importinterface;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +27,7 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.ITickManager;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.storage.IMEInventory;
@@ -41,7 +41,6 @@ import appeng.me.GridAccessException;
 import appeng.me.helpers.MachineSource;
 import appeng.tile.grid.AENetworkInvTile;
 import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.util.Platform;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import appeng.util.item.AEItemStack;
@@ -66,6 +65,13 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
     public static final int MIN_MAX_SLOT_SIZE = 1;
     public static final int MAX_MAX_SLOT_SIZE = Integer.MAX_VALUE;
 
+    // Polling rate constants (in ticks, 20 ticks = 1 second)
+    public static final int DEFAULT_POLLING_RATE = 0; // 0 means adaptive (AE2 default)
+    public static final int TICKS_PER_SECOND = 20;
+    public static final int TICKS_PER_MINUTE = TICKS_PER_SECOND * 60;
+    public static final int TICKS_PER_HOUR = TICKS_PER_MINUTE * 60;
+    public static final int TICKS_PER_DAY = TICKS_PER_HOUR * 24;
+
     // Filter inventory - ghost items only (1 stack size each)
     private final AppEngInternalInventory filterInventory = new AppEngInternalInventory(this, FILTER_SLOTS, 1);
 
@@ -80,6 +86,9 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
 
     // Max slot size for all storage slots
     private int maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
+
+    // Polling rate in ticks (0 = adaptive AE2 default, nonzero = fixed interval)
+    private int pollingRate = DEFAULT_POLLING_RATE;
 
     // Has Void Overflow Upgrade installed
     private boolean installedOverflowUpgrade = false;
@@ -102,7 +111,7 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
         this.getProxy().setIdlePowerUsage(1.0);
         this.actionSource = new MachineSource(this);
 
-        // Create storage inventory with filter
+        // Create storage inventory with filter and unlimited stack size support
         this.storageInventory = new AppEngInternalInventory(this, STORAGE_SLOTS, DEFAULT_MAX_SLOT_SIZE) {
             @Override
             public int getSlotLimit(int slot) {
@@ -112,6 +121,53 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
             @Override
             public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
                 return TileImportInterface.this.isItemValidForSlot(slot, stack);
+            }
+
+            @Override
+            @Nonnull
+            public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
+                if (stack.isEmpty()) return ItemStack.EMPTY;
+                if (!isItemValid(slot, stack)) return stack;
+
+                // Custom insertion logic that ignores item's maxStackSize
+                // This allows slots to hold more than 64 items of any type
+                ItemStack existing = this.getStackInSlot(slot);
+                int limit = TileImportInterface.this.maxSlotSize;
+
+                if (!existing.isEmpty()) {
+                    if (!ItemStack.areItemsEqual(existing, stack) || !ItemStack.areItemStackTagsEqual(existing, stack)) {
+                        return stack;
+                    }
+
+                    int space = limit - existing.getCount();
+                    if (space <= 0) return stack;
+
+                    int toInsert = Math.min(stack.getCount(), space);
+                    if (!simulate) {
+                        ItemStack newStack = existing.copy();
+                        newStack.grow(toInsert);
+                        this.setStackInSlot(slot, newStack);
+                    }
+
+                    if (toInsert >= stack.getCount()) return ItemStack.EMPTY;
+
+                    ItemStack remainder = stack.copy();
+                    remainder.shrink(toInsert);
+                    return remainder;
+                } else {
+                    int toInsert = Math.min(stack.getCount(), limit);
+                    if (!simulate) {
+                        ItemStack newStack = stack.copy();
+                        newStack.setCount(toInsert);
+                        this.setStackInSlot(slot, newStack);
+                    }
+
+                    if (toInsert >= stack.getCount()) return ItemStack.EMPTY;
+
+                    ItemStack remainder = stack.copy();
+                    remainder.shrink(toInsert);
+                    return remainder;
+                }
             }
         };
 
@@ -218,20 +274,32 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
     public void readFromNBT(final NBTTagCompound data) {
         super.readFromNBT(data);
         this.filterInventory.readFromNBT(data, "filter");
-        this.storageInventory.readFromNBT(data, "storage");
+        // Note: storageInventory is saved by AEBaseInvTile via getInternalInventory() as "inv"
         this.upgradeInventory.readFromNBT(data, "upgrades");
         this.maxSlotSize = data.getInteger("maxSlotSize");
+        this.pollingRate = data.getInteger("pollingRate");
 
         if (this.maxSlotSize < MIN_MAX_SLOT_SIZE) this.maxSlotSize = MIN_MAX_SLOT_SIZE;
+        if (this.pollingRate < 0) this.pollingRate = 0;
+
+        // Update slot limits in the underlying inventory to match maxSlotSize
+        for (int i = 0; i < this.storageInventory.getSlots(); i++) {
+            this.storageInventory.setMaxStackSize(i, this.maxSlotSize);
+        }
+
+        // Rebuild caches after loading inventories
+        this.refreshFilterMap();
+        this.refreshUpgrades();
     }
 
     @Override
     public NBTTagCompound writeToNBT(final NBTTagCompound data) {
         super.writeToNBT(data);
         this.filterInventory.writeToNBT(data, "filter");
-        this.storageInventory.writeToNBT(data, "storage");
+        // Note: storageInventory is saved by AEBaseInvTile via getInternalInventory() as "inv"
         this.upgradeInventory.writeToNBT(data, "upgrades");
         data.setInteger("maxSlotSize", this.maxSlotSize);
+        data.setInteger("pollingRate", this.pollingRate);
 
         return data;
     }
@@ -279,17 +347,79 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
 
     public void setMaxSlotSize(int size) {
         this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, size);
+
+        // Update slot limits in the underlying inventory
+        for (int i = 0; i < this.storageInventory.getSlots(); i++) {
+            this.storageInventory.setMaxStackSize(i, this.maxSlotSize);
+        }
+
         this.markDirty();
+    }
+
+    public int getPollingRate() {
+        return this.pollingRate;
+    }
+
+    public void setPollingRate(int ticks) {
+        this.pollingRate = Math.max(0, ticks);
+        this.markDirty();
+
+        // To apply the new polling rate, we must re-register with the tick manager.
+        // The TickTracker stores the TickingRequest at registration time, so alertDevice
+        // alone won't update the min/max tick rates. We need to remove and re-add the node.
+        // FIXME: it seems to remember multiple requests?
+        //        Which triggers irregular ticking behavior when changing polling rate multiple times.
+        //        Seems to resolve itself on world reload, which clears the tick manager's state.
+        IGridNode node = this.getProxy().getNode();
+        if (node == null || node.getGrid() == null) return;
+
+        ITickManager tickManager = node.getGrid().getCache(ITickManager.class);
+        if (tickManager == null) return;
+
+        // Remove and re-add to force getTickingRequest to be called again
+        tickManager.removeNode(node, this);
+        tickManager.addNode(node, this);
+    }
+
+    /**
+     * Format a tick count as a human-readable time string.
+     * Format: "1d 2h 3m 4s" (skipping zero parts) or "0" if zero.
+     */
+    public static String formatPollingRate(long ticks) {
+        if (ticks <= 0) return "0";
+
+        long days = ticks / TICKS_PER_DAY;
+        ticks %= TICKS_PER_DAY;
+
+        long hours = ticks / TICKS_PER_HOUR;
+        ticks %= TICKS_PER_HOUR;
+
+        long minutes = ticks / TICKS_PER_MINUTE;
+        ticks %= TICKS_PER_MINUTE;
+
+        long seconds = ticks / TICKS_PER_SECOND;
+
+        StringBuilder sb = new StringBuilder();
+        if (days > 0) sb.append(days).append("d ");
+        if (hours > 0) sb.append(hours).append("h ");
+        if (minutes > 0) sb.append(minutes).append("m ");
+        if (seconds > 0) sb.append(seconds).append("s");
+
+        return sb.toString().trim();
     }
 
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
         if (inv == this.storageInventory && !added.isEmpty()) {
-            // Wake up the tile to import items
-            try {
-                this.getProxy().getTick().alertDevice(this.getProxy().getNode());
-            } catch (GridAccessException e) {
-                // Not connected to grid
+            // Wake up the tile to import items, but only if using adaptive polling
+            // Fixed polling rate should not be interrupted by inventory changes
+            if (this.pollingRate <= 0) {
+                // FIXME: may be pretty bad for performance if we have a lot of item changes
+                try {
+                    this.getProxy().getTick().alertDevice(this.getProxy().getNode());
+                } catch (GridAccessException e) {
+                    // Not connected to grid
+                }
             }
         }
 
@@ -324,6 +454,18 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
 
     @Override
     public TickingRequest getTickingRequest(final IGridNode node) {
+        // If polling rate is set, use fixed interval; otherwise use adaptive AE2 rates
+        if (this.pollingRate > 0) {
+            // For fixed polling, never start sleeping - always tick at the fixed rate
+            // This ensures consistent polling regardless of inventory state
+            return new TickingRequest(
+                this.pollingRate,
+                this.pollingRate,
+                false, // Never start sleeping with fixed polling
+                true
+            );
+        }
+
         return new TickingRequest(
             TickRates.Interface.getMin(),
             TickRates.Interface.getMax(),
@@ -337,10 +479,15 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
         if (!this.getProxy().isActive()) return TickRateModulation.SLEEP;
 
         boolean didWork = importItems();
+
+        // If using fixed polling rate, always use SAME to maintain interval
+        if (this.pollingRate > 0) return TickRateModulation.SAME;
+
         return didWork ? TickRateModulation.FASTER : (hasWorkToDo() ? TickRateModulation.SLOWER : TickRateModulation.SLEEP);
     }
 
     private boolean hasWorkToDo() {
+        // TODO: could probably optimize that by adding a dirty flag that's set when storage changes from empty to non-empty and vice versa.
         for (int i : this.filterToSlotMap.values()) {
             if (!this.storageInventory.getStackInSlot(i).isEmpty()) return true;
         }

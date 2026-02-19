@@ -127,6 +127,8 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
                     }
                 }
 
+                tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
+
                 // Add upgrade information (e.g., Overflow Card active)
                 CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
 
