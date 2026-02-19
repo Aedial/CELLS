@@ -83,7 +83,7 @@ item.cells.equal_distribution_card.32x.name=均分卡（32x）
 item.cells.equal_distribution_card.63x.name=均分卡（63x）
 item.cells.equal_distribution_card.infinite.name=均分卡（无限制）
 tooltip.cells.equal_distribution_card.desc=将元件可容纳类型限制为%d，并均分容量
-tooltip.cells.equal_distribution_card.desc.infinite=将容量均分给所有类型
+tooltip.cells.equal_distribution_card.desc.infinite=将容量均分给所有类型。如果你在配置中增加了“最大类型数”，使用该升级卡。
 
 # Compression Tier Card
 item.cells.compression_tier_card.3x.name=压缩等级卡（3x）
@@ -91,7 +91,7 @@ item.cells.compression_tier_card.6x.name=压缩等级卡（6x）
 item.cells.compression_tier_card.9x.name=压缩等级卡（9x）
 item.cells.compression_tier_card.12x.name=压缩等级卡（12x）
 item.cells.compression_tier_card.15x.name=压缩等级卡（15x）
-tooltip.cells.compression_tier_card.desc=支持最多%d级压缩
+tooltip.cells.compression_tier_card.desc=支持最多%d级压缩。需在为压缩元件分区前加装该升级卡！
 
 # Decompression Tier Card
 item.cells.decompression_tier_card.3x.name=解压等级卡（3x）
@@ -99,7 +99,7 @@ item.cells.decompression_tier_card.6x.name=解压等级卡（6x）
 item.cells.decompression_tier_card.9x.name=解压等级卡（9x）
 item.cells.decompression_tier_card.12x.name=解压等级卡（12x）
 item.cells.decompression_tier_card.15x.name=解压等级卡（15x）
-tooltip.cells.decompression_tier_card.desc=支持最多%d级解压
+tooltip.cells.decompression_tier_card.desc=支持最多%d级解压。需在为压缩元件分区后加装该升级卡！
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k超高密度ME存储元件
@@ -186,6 +186,7 @@ tooltip.cells.compacting_cell.insert_to_set_compression=放入分区设定的物
 tooltip.cells.compacting_cell.converts_up=压缩为：%s
 tooltip.cells.compacting_cell.converts_down=解压为：%s
 tooltip.cells.compacting_cell.no_compression=该物品无可用的压缩形式。确保分区的物品存在有效的2x2或3x3可逆合成配方。
+tooltip.cells.compacting_cell.ioport_warning=如果在IO端口中使用它们，可能会导致所在的AE2网络中出现“幽灵物品”。重启服务器即可解决该问题。
 
 # Hyper-Density Tooltips
 tooltip.cells.hyper_density_cell.info=超高密度：每字节约17.2B物品
@@ -238,4 +239,6 @@ item.cells.singularity_processor.logic.name=奇点逻辑处理器
 tile.cells.import_interface.name=输入接口
 gui.cells.import_interface.title=输入接口
 gui.cells.import_interface.max_slot_size=槽位最大容量
+gui.cells.polling_rate.title=轮询率
+gui.cells.polling_rate.tooltip=输入物品的固定时间间隔（0 = AE2的默认值）
 tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络。\n不支持补货或合成。
