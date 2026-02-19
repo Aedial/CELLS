@@ -9,13 +9,13 @@ build/
 out/
 bin/
 
-# Gradle Wrapper - keep the wrapper jar
-!gradle/wrapper/gradle-wrapper.jar
-
-# ForgeGradle
+# ForgeGradle / RetroFuturaGradle
 run/
 logs/
 crash-reports/
+
+# RFG auto-generated Tags class (built from tags.properties)
+src/main/java/com/cellterminal/Tags.java
 
 # Eclipse
 .classpath
