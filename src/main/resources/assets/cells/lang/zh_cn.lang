@@ -8,6 +8,9 @@ tooltip.cells.type.hyperdensity=超高密度ME存储元件
 tooltip.cells.type.hyperdensity_compact=超高密度ME压缩元件
 tooltip.cells.type.import_interface=输入接口
 
+# Messages
+message.cells.disassemble_fail_content=无法拆解存有内容的元件！请先清空元件。
+
 # Config (GUI)
 cells.config.category.general=通用
 cells.config.category.idle_drain=待机能耗
@@ -200,6 +203,28 @@ tooltip.cells.upgrade.equal_distribution_active=分割为%d种类型
 tooltip.cells.upgrade.equal_distribution_active.infinite=启用均分
 tooltip.cells.upgrade.compression_tier_active=压缩等级：%d
 tooltip.cells.upgrade.decompression_tier_active=解压等级：%d
+
+# Configurable Storage Cell
+item.cells.configurable_cell.name=可配置ME存储元件
+item.cells.configurable_cell.name_configured=可配置ME存储元件（%s）
+tooltip.cells.configurable_cell.no_component=未安装组件！放入ME存储组件来定义容量。
+tooltip.cells.configurable_cell.info=可接受任意ME存储组件以定义容量和类型。
+tooltip.cells.configurable_cell.capacity_per_type.items=每种类型限制：%s 物品
+tooltip.cells.configurable_cell.capacity_per_type.mb=每种类型限制：%s mB
+
+# Configurable Cell GUI
+gui.cells.configurable_cell.capacity_title.none=每种类型容量：
+gui.cells.configurable_cell.capacity_title.item=每种类型容量（物品）：
+gui.cells.configurable_cell.capacity_title.fluid=每种类型容量（mB）：
+gui.cells.configurable_cell.no_component=未知
+
+# Configurable Cell Config
+cells.config.configurableCellIdleDrain=可配置元件的待机能耗
+cells.config.configurableCellIdleDrain.tooltip=可配置元件的待机能耗（被动AE/t消耗）
+cells.config.enableConfigurableCells=启用可配置元件
+cells.config.enableConfigurableCells.tooltip=启用可配置存储元件
+cells.config.configurableCellMaxTypes=可配置元件最大类型数
+cells.config.configurableCellMaxTypes.tooltip=可配置元件能容纳的最大物品类型数量（1-63）
 
 # Compressed Calculation Prints
 item.cells.compressed_calculation_print.compressed.name=压缩运算电路板
