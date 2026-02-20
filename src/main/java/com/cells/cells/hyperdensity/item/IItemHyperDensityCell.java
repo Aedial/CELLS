@@ -14,7 +14,7 @@ import com.cells.util.CellMathHelper;
  * Interface for hyper-density storage cell items.
  * Hyper-density cells internally multiply their storage capacity by a large factor,
  * allowing them to store vastly more than their displayed byte count suggests.
- * 
+ * <p>
  * For example, a "1k HD Cell" might display as 1k bytes but actually store
  * 1k * 2,147,483,648 = ~2.1 trillion bytes worth of items.
  */

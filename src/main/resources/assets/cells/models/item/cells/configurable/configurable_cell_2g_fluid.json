@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "cells:items/cells/configurable/configurable_cell_2g_fluid"
+  }
+}

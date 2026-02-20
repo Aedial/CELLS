@@ -8,6 +8,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.4.0] - 2026-02-18
+### Added
+- Add Configurable ME Storage Cell: a universal cell that accepts an item/fluid ME Storage Component (AE2, NAE2, CrazyAE) to define its capacity and storage type. Features built-in equal distribution, configurable per-type capacity limits via GUI, and component hot-swapping.
+- Add player message when trying to disassemble a cell with content, explaining the need to empty it first.
+
+### Fixed
+- Fix HD Item and HD Fluid cells having a fixed bytes-per-type overhead that breaks when max types exceeds 128. Overhead is now dynamically computed as 50% of total bytes, supporting both config and Equal Distribution Card limits.
+
+
 ## [0.3.8] - 2026-02-18
 ### Fixed
 - Fix Import Interface not allowing items with the same ID and metadata but different NBT in filters, due NBT collision when checking for duplicates.

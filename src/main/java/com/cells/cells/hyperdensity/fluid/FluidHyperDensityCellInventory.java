@@ -30,16 +30,16 @@ import com.cells.util.FluidStackKey;
 
 /**
  * Inventory implementation for hyper-density fluid storage cells.
- * 
+ * <p>
  * This inventory handles the internal byte multiplier, ensuring all calculations
  * are overflow-safe. The display shows standard byte values (1k, 4k, etc.)
  * but internally stores vastly more.
- * 
+ * <p>
  * Key overflow protection points:
  * - All capacity calculations use CellMathHelper.multiplyWithOverflowProtection
  * - Storage is tracked in a way that avoids overflow during fluid operations
  * - Division is preferred over multiplication where possible
- * 
+ * <p>
  * When an Equal Distribution Card is installed, this cell operates in a special mode:
  * - The type limit is reduced to the card's value
  * - The total capacity is divided equally among those types
@@ -95,12 +95,12 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     /**
      * Get the per-type capacity limit when Equal Distribution is active.
      * Returns Long.MAX_VALUE if Equal Distribution is not active.
-     * 
+     * <p>
      * When Equal Distribution is active, the total capacity must be divided
      * among N types, and each type consumes bytesPerType overhead. So:
      * - Total available = totalBytes - (N * bytesPerType)
      * - Per-type capacity = (Total available * unitsPerByte * multiplier) / N
-     * 
+     * <p>
      * To avoid overflow while maintaining precision, we use overflow-safe
      * division that handles the case where the numerator would overflow.
      */
@@ -237,7 +237,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
 
     /**
      * Get the total capacity in fluid units for a given number of types.
-     * 
+     * <p>
      * When Equal Distribution is active, we always reserve overhead for ALL N types,
      * regardless of how many are currently stored. This ensures each type gets a fair
      * and consistent share of the capacity. The total is derived from perTypeCapacity * N

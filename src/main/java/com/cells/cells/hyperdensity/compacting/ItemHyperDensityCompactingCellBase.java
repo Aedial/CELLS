@@ -17,6 +17,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -35,7 +36,6 @@ import appeng.api.storage.data.IItemList;
 import com.cells.core.CellsCreativeTab;
 import appeng.core.localization.GuiText;
 import appeng.items.contents.CellConfig;
-import appeng.items.contents.CellUpgrades;
 import appeng.util.InventoryAdaptor;
 import appeng.util.Platform;
 
@@ -47,10 +47,10 @@ import com.cells.util.CustomCellUpgrades;
 
 /**
  * Abstract base class for hyper-density compacting storage cells.
- * 
+ * <p>
  * These cells combine compacting functionality (compression chains) with
  * the hyper-density byte multiplier for massive storage capacity.
- * 
+ * <p>
  * Due to overflow concerns with base unit calculations, HD compacting cells
  * are limited to 16M tier maximum (vs 2G for regular HD cells).
  */
@@ -109,10 +109,10 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
 
                 if (!hdCompInv.hasPartition()) {
                     tooltip.add("");
-                    tooltip.add("\u00a7c" + I18n.format("tooltip.cells.compacting_cell.not_partitioned"));
+                    tooltip.add("§c" + I18n.format("tooltip.cells.compacting_cell.not_partitioned"));
                 } else if (!hdCompInv.isChainInitialized() && !hdCompInv.hasStoredItems()) {
                     tooltip.add("");
-                    tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
+                    tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
                 } else {
                     List<ItemStack> higherTiers = hdCompInv.getAllHigherTierItems();
                     List<ItemStack> lowerTiers = hdCompInv.getAllLowerTierItems();
@@ -121,15 +121,15 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
                         tooltip.add("");
 
                         for (ItemStack tier : higherTiers) {
-                            tooltip.add("\u00a7a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
+                            tooltip.add("§a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
                         }
 
                         for (ItemStack tier : lowerTiers) {
-                            tooltip.add("\u00a7b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
+                            tooltip.add("§b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
                         }
                     } else {
                         tooltip.add("");
-                        tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
+                        tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
                     }
                 }
             }
@@ -140,8 +140,8 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
 
         // Add hyper-density explanation - simple one-liner
         tooltip.add("");
-        tooltip.add("\u00a7d" + I18n.format("tooltip.cells.hyper_density_cell.info"));
-        tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
+        tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_cell.info"));
+        tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
 
     }
 
@@ -284,7 +284,10 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
         if (inv == null) return false;
 
         IItemList<IAEItemStack> list = inv.getAvailableItems(itemChannel.createList());
-        if (!list.isEmpty()) return false;
+        if (!list.isEmpty()) {
+            player.sendStatusMessage(new TextComponentString("§c" + I18n.format("message.cells.disassemble_fail_content")), true);
+            return false;
+        }
 
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         if (ia == null) return false;

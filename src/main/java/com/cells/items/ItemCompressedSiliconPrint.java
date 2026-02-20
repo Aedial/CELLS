@@ -17,13 +17,13 @@ import com.cells.Tags;
 
 /**
  * Compressed Silicon Prints.
- *
+ * <p>
  * Compression levels (metadata):
  * - 0: Compressed (8x base print + redstone)
  * - 1: Double Compressed (8x compressed + redstone)
  * - 2: Triple Compressed (8x double compressed + redstone)
  * - 3: Quadruple Compressed (8x triple compressed = 4096x base print + 585x redstone)
- *
+ * <p>
  * Higher compression levels can be added in future versions.
  */
 public class ItemCompressedSiliconPrint extends Item {

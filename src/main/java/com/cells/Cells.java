@@ -15,6 +15,7 @@ import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 
+import com.cells.cells.configurable.ComponentHelper;
 import com.cells.commands.FillCellCommand;
 import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
@@ -49,6 +50,9 @@ public class Cells {
         File configDir = event.getModConfigurationDirectory();
         CellsConfig.init(new File(configDir, Tags.MODID + ".cfg"));
         MinecraftForge.EVENT_BUS.register(new CellsConfig());
+
+        // Load configurable cell component whitelist (checks config/ for override)
+        ComponentHelper.loadWhitelist(configDir);
 
         // Initialize network
         CellsNetworkHandler.init();

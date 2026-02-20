@@ -1,7 +1,12 @@
 package com.cells;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.cells.cells.configurable.ComponentInfo;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.event.RegistryEvent;
@@ -9,6 +14,8 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.cells.cells.configurable.ComponentHelper;
+import com.cells.cells.configurable.ItemConfigurableCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingComponent;
 import com.cells.cells.hyperdensity.item.ItemHyperDensityCell;
@@ -41,6 +48,7 @@ public class ItemRegistry {
     public static ItemHyperDensityCompactingComponent HYPER_DENSITY_COMPACTING_COMPONENT;
     public static ItemFluidHyperDensityCell FLUID_HYPER_DENSITY_CELL;
     public static ItemFluidHyperDensityComponent FLUID_HYPER_DENSITY_COMPONENT;
+    public static ItemConfigurableCell CONFIGURABLE_CELL;
     public static ItemOverflowCard OVERFLOW_CARD;
     public static ItemTrashUnselectedCard TRASH_UNSELECTED_CARD;
     public static ItemEqualDistributionCard EQUAL_DISTRIBUTION_CARD;
@@ -74,6 +82,8 @@ public class ItemRegistry {
             FLUID_HYPER_DENSITY_CELL = new ItemFluidHyperDensityCell();
             FLUID_HYPER_DENSITY_COMPONENT = new ItemFluidHyperDensityComponent();
         }
+
+        if (CellsConfig.enableConfigurableCells) CONFIGURABLE_CELL = new ItemConfigurableCell();
 
         // Upgrades are always available
         OVERFLOW_CARD = new ItemOverflowCard();
@@ -112,6 +122,8 @@ public class ItemRegistry {
             event.getRegistry().register(FLUID_HYPER_DENSITY_CELL);
             event.getRegistry().register(FLUID_HYPER_DENSITY_COMPONENT);
         }
+
+        if (CONFIGURABLE_CELL != null) event.getRegistry().register(CONFIGURABLE_CELL);
 
         event.getRegistry().register(OVERFLOW_CARD);
         event.getRegistry().register(TRASH_UNSELECTED_CARD);
@@ -242,6 +254,9 @@ public class ItemRegistry {
             }
         }
 
+        // Register configurable cell model (cells/configurable)
+        if (CONFIGURABLE_CELL != null) registerConfigurableCellModels();
+
         // Register fluid hyper-density cell models for each tier (cells/hyper_density)
         if (FLUID_HYPER_DENSITY_CELL != null) {
             String[] fluidHdCellTiers = ItemFluidHyperDensityCell.getTierNames();
@@ -256,6 +271,37 @@ public class ItemRegistry {
                     makeModelLocation(FLUID_HYPER_DENSITY_COMPONENT, "cells/hyper_density_fluid", "_" + fluidHdComponentTiers[i]));
             }
         }
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static void registerConfigurableCellModels() {
+        // Register base model + all tier/fluid variants so the model bakery knows about them
+        ModelResourceLocation base = makeModelLocation(CONFIGURABLE_CELL, "cells/configurable");
+
+        String[] tiers = ComponentHelper.TIER_NAMES;
+
+        List<ModelResourceLocation> variants = new ArrayList<>();
+        variants.add(base);
+
+        for (String t : tiers) {
+            variants.add(makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", "_" + t));
+            variants.add(makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", "_" + t + "_fluid"));
+        }
+
+        // Register all variants with the model loader
+        ModelLoader.registerItemVariants(CONFIGURABLE_CELL, variants.toArray(new ResourceLocation[0]));
+
+        // Provide a mesh definition that selects the correct model based on the installed component
+        ModelLoader.setCustomMeshDefinition(CONFIGURABLE_CELL, stack -> {
+            ComponentInfo info = ComponentHelper.getComponentInfo(ComponentHelper.getInstalledComponent(stack));
+
+            if (info == null) return base; // empty/default
+
+            String suffix = "_" + info.getTierName();
+            if (info.isFluid()) suffix += "_fluid";
+
+            return makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", suffix);
+        });
     }
 
     @SideOnly(Side.CLIENT)
@@ -286,6 +332,8 @@ public class ItemRegistry {
             folder = "cells/hyper_density_fluid";
         } else if (item instanceof ItemHyperDensityCompactingCell || item instanceof ItemHyperDensityCompactingComponent) {
             folder = "cells/hyper_density_compacting";
+        } else if (item instanceof ItemConfigurableCell) {
+            folder = "cells/configurable";
         } else if (item instanceof ItemOverflowCard || item instanceof ItemTrashUnselectedCard
             || item instanceof ItemEqualDistributionCard
             || item instanceof ItemCompressionTierCard || item instanceof ItemDecompressionTierCard) {

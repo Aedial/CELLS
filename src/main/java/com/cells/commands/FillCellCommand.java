@@ -138,7 +138,7 @@ public class FillCellCommand extends CommandBase {
                 return;
             }
 
-            int amount = (int) Math.min(count, (long) Integer.MAX_VALUE);
+            int amount = (int) Math.min(count, Integer.MAX_VALUE);
             FluidStack fs = new FluidStack(fluid, amount);
             IAEFluidStack aeFluid = fluidChannel.createStack(fs);
             if (aeFluid == null) {
@@ -159,8 +159,6 @@ public class FillCellCommand extends CommandBase {
             } else {
                 sender.sendMessage(new TextComponentString("Partially filled fluid cell. Could not insert " + notInserted + " mB."));
             }
-
-            return;
         }
     }
 

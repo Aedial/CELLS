@@ -97,7 +97,7 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
     private boolean installedTrashUnselectedUpgrade = false;
 
     // Mapping of filter items to their corresponding storage slot index for quick lookup
-    private Map<ItemStackKey, Integer> filterToSlotMap = new HashMap<>();
+    final private Map<ItemStackKey, Integer> filterToSlotMap = new HashMap<>();
 
     // List of filter items for quick access (ith index corresponds to ith valid storage slot)
     // Initialized to empty list to avoid NPE before refreshFilterMap() is called
@@ -561,7 +561,7 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
      * Wrapper handler that provides slotless insertion of filtered items.
      * Items are automatically routed to the appropriate slot based on filters.
      * Does not allow extraction (import-only interface).
-     *
+     * <p>
      * Note: Only the filtered slots are exposed through this handler.
      *       This allows external systems to exit early when we have few filters set, without needing to try every slot.
      */
@@ -606,7 +606,7 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
          * Insert an item into the slot that matches its filter.
          * If no filter matches, either void the item (if trash unselected upgrade is installed) or reject it.
          * If the item exceeds the max slot size, either void the excess (if overflow upgrade is installed) or return the remainder.
-         *
+         * <p>
          * NOTE: We have anti-duplication and anti-orphaning logic in the filter slot handler,
          *       so the mapping from item to slot should always be consistent and valid.
          */

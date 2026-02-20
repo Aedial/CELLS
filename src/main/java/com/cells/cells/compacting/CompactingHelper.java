@@ -1,6 +1,7 @@
 package com.cells.cells.compacting;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -14,11 +15,11 @@ import net.minecraft.world.World;
 
 /**
  * Utility class for finding compression/decompression relationships between items.
- * 
+ * <p>
  * This implementation is optimized to avoid iterating over the entire recipe registry
  * for every lookup. Instead of scanning all recipes, it starts from what the item alone
  * crafts (decomposition) and verifies the reverse relationship.
- * 
+ * <p>
  * Compression works by finding crafting recipes where:
  * - Higher tier: Filling a 2x2 or 3x3 grid with item X produces item Y, and item Y decompresses back to X
  * - Lower tier: Item X alone in grid produces N of item Y, and N of item Y in a grid produces item X
@@ -160,7 +161,7 @@ public class CompactingHelper {
     /**
      * Find a higher tier (more compressed) form of the given item.
      * E.g., iron ingot -> iron block (rate = 9)
-     * 
+     * <p>
      * Strategy: Try 3x3 then 2x2 grids and verify that the result decompresses back.
      */
     @Nonnull
@@ -205,10 +206,10 @@ public class CompactingHelper {
     /**
      * Find a lower tier (less compressed) form of the given item.
      * E.g., iron ingot -> iron nugget (rate = 9)
-     * 
+     * <p>
      * Strategy: Check what the item alone crafts to (decomposition), then verify
      * that the result can compress back. This avoids iterating the entire recipe registry.
-     * 
+     * <p>
      * Also checks for recipes that produce 1 output (common in mods) where 9 or 4
      * of the output compress back to the original.
      */
@@ -269,7 +270,7 @@ public class CompactingHelper {
     /**
      * Get the compression chain for an item.
      * Returns [higher, middle, lower] where higher/lower can be empty if not found.
-     * 
+     * <p>
      * This only looks ONE tier up and ONE tier down from the input item.
      * The input item becomes the middle tier.
      * 
@@ -347,8 +348,8 @@ public class CompactingHelper {
         chain[idx++] = normalized;
 
         // Down tiers (already in order - lowest first from main)
-        for (int i = 0; i < downStacks.size(); i++) {
-            chain[idx++] = downStacks.get(i);
+        for (ItemStack downStack : downStacks) {
+            chain[idx++] = downStack;
         }
 
         // Calculate rates relative to lowest tier (base = 1)
@@ -419,7 +420,7 @@ public class CompactingHelper {
             this.height = height;
             this.stacks = new ItemStack[width * height];
 
-            for (int i = 0; i < stacks.length; i++) stacks[i] = ItemStack.EMPTY;
+            Arrays.fill(stacks, ItemStack.EMPTY);
         }
 
         @Override

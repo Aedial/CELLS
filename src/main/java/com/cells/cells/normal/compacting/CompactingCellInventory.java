@@ -15,13 +15,9 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ISaveProvider;
-import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
@@ -31,21 +27,20 @@ import appeng.util.Platform;
 import com.cells.cells.compacting.CompactingHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
-import com.cells.util.CrossTierActionSource;
 import com.cells.util.DeferredCellOperations;
 
 
 /**
  * Inventory implementation for compacting storage cells.
- * 
+ * <p>
  * This cell REQUIRES partitioning before it can accept items. The partitioned item
  * defines the compression chain (e.g., iron ingot -> iron block / iron nugget).
- * 
+ * <p>
  * Storage is exposed as compression tiers based on installed upgrade cards:
  * - Default: 1 tier up, 1 tier down (3 total tiers)
  * - Compression Tier Card: X tiers up only (no tiers down)
  * - Decompression Tier Card: X tiers down only (no tiers up)
- * 
+ * <p>
  * Only the partitioned item tier counts toward storage capacity.
  * Compressed/decompressed forms are virtual utilities for network access.
  */
@@ -237,7 +232,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
         if (tagCompound.hasKey(NBT_CONV_RATES)) {
             int[] rates = tagCompound.getIntArray(NBT_CONV_RATES);
-            for (int i = 0; i < Math.min(rates.length, currentMaxTiers); i++) convRate[i] = rates[i];
+            if (Math.min(rates.length, currentMaxTiers) >= 0)
+                System.arraycopy(rates, 0, convRate, 0, Math.min(rates.length, currentMaxTiers));
         }
 
         if (tagCompound.hasKey(NBT_PROTO_ITEMS)) {
@@ -255,7 +251,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             cachedPartitionItem = new ItemStack(tagCompound.getCompoundTag(NBT_CACHED_PARTITION));
         }
 
-        // Recalculate mainTier if it's invalid but we have chain data
+        // Recalculate mainTier if it's invalid, but we have chain data
         // This handles cases where old NBT had mainTier saved incorrectly
         if (mainTier < 0 && !isCompressionChainEmpty() && !cachedPartitionItem.isEmpty()) {
             recalculateMainTierFromCachedPartition();
@@ -585,7 +581,6 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      * Used by the handler to allow chain items through the filter.
      */
     public boolean isInCompressionChain(@Nonnull IAEItemStack stack) {
-        if (stack == null) return false;
 
         ItemStack definition = stack.getDefinition();
 
@@ -653,7 +648,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      * Initialize the compression chain for a specific item.
      * Called from Cell Terminal when partition is set, bypassing the config read
      * to avoid timing issues where the config NBT hasn't been flushed yet.
-     * 
+     * <p>
      * This method forces chain initialization even if a chain already exists,
      * as long as the cell has no stored items.
      */
@@ -719,7 +714,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      * Update the compression chain if the partition has changed, tier cards changed,
      * or if chain needs initialization/rebuilding.
      * Call this before any operation that depends on the compression chain.
-     * 
+     * <p>
      * If the cell contains items, partition changes are blocked to prevent data loss.
      * The partition will be reverted to match the stored items.
      * However, tier card changes ARE allowed even with items, as they only change
@@ -875,7 +870,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     /**
      * Get the maximum capacity in base units.
      * Accounts for type overhead in bytes.
-     * 
+     * <p>
      * Uses conservative calculation to ensure usedBytes never exceeds totalBytes.
      * The conversion chain between bytes <-> items <-> base units uses ceiling
      * divisions for display, so we must be slightly conservative here.
@@ -1103,17 +1098,13 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) return null;
 
-        // Fast path: if chain is fully initialized, skip validation checks
-        int slot;
-        if (chainFullyInitialized) {
-            slot = getSlotForItem(request);
-        } else {
+        if (!chainFullyInitialized) {
             // Slow path: need to initialize or validate the chain
             reloadFromNBTIfNeeded();
             updateCompressionChainIfNeeded(CellMathHelper.getWorldFromSource(src));
-            slot = getSlotForItem(request);
         }
 
+        int slot = getSlotForItem(request);
         if (slot < 0) return null;
 
         int rate = convRate[slot];

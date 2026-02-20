@@ -22,9 +22,9 @@ import com.cells.Tags;
 /**
  * Hyper-Density storage component item.
  * Used to craft hyper-density storage cells.
- * 
+ * <p>
  * These components enable the massive storage multiplier of HD cells.
- * 
+ * <p>
  * Uses sub-items for different capacity tiers (max 1G due to overflow):
  * - 0: 1k HD Component
  * - 1: 4k HD Component
@@ -74,7 +74,7 @@ public class ItemHyperDensityComponent extends Item {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
-        tooltip.add("\u00a7d" + I18n.format("tooltip.cells.hyper_density_component.info"));
+        tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_component.info"));
     }
 
     /**

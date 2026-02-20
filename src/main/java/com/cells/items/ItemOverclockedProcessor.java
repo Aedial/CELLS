@@ -17,12 +17,12 @@ import com.cells.Tags;
 
 /**
  * Overclocked Processors - used to craft Compacting storage components.
- *
+ * <p>
  * Created in the Inscriber with:
  * - Top: Compressed Processor Print (1x compression)
  * - Middle: Matter Ball
  * - Bottom: Compressed Silicon Print (1x compression)
- *
+ * <p>
  * Types:
  * - 0: Overclocked Calculation Processor
  * - 1: Overclocked Engineering Processor

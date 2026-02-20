@@ -19,6 +19,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -36,7 +37,6 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.core.localization.GuiText;
 import appeng.items.contents.CellConfig;
-import appeng.items.contents.CellUpgrades;
 import appeng.util.InventoryAdaptor;
 import appeng.util.Platform;
 
@@ -100,11 +100,11 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
                 if (!compactingInv.hasPartition()) {
                     // Not partitioned - tell user they need to partition
                     tooltip.add("");
-                    tooltip.add("\u00a7c" + I18n.format("tooltip.cells.compacting_cell.not_partitioned"));
+                    tooltip.add("§c" + I18n.format("tooltip.cells.compacting_cell.not_partitioned"));
                 } else if (!compactingInv.isChainInitialized() && !compactingInv.hasStoredItems()) {
                     // Partitioned but chain not initialized and no items - tell user to insert items
                     tooltip.add("");
-                    tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
+                    tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
                 } else {
                     // Has items stored - show compression info for ALL tiers
                     List<ItemStack> higherTiers = compactingInv.getAllHigherTierItems();
@@ -114,20 +114,20 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
                         tooltip.add("");
 
                         for (ItemStack tier : higherTiers) {
-                            tooltip.add("\u00a7a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
+                            tooltip.add("§a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
                         }
 
                         for (ItemStack tier : lowerTiers) {
-                            tooltip.add("\u00a7b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
+                            tooltip.add("§b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
                         }
                     } else {
                         // Items stored but no compression found
                         tooltip.add("");
-                        tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
+                        tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
                     }
                 }
 
-                tooltip.add("\u00a7e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
+                tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
 
                 // Add upgrade information (e.g., Overflow Card active)
                 CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
@@ -138,7 +138,7 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
 
         // Fallback for when cell inventory isn't available
         tooltip.add("");
-        tooltip.add("\u00a78" + I18n.format("tooltip.cells.compacting_cell.stores_one_type"));
+        tooltip.add("§8" + I18n.format("tooltip.cells.compacting_cell.stores_one_type"));
     }
 
     /**
@@ -265,7 +265,11 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
         if (inv == null) return false;
 
         IItemList<IAEItemStack> list = inv.getAvailableItems(itemChannel.createList());
-        if (!list.isEmpty()) return false; // Cell not empty
+        if (!list.isEmpty()) {
+            // Don't allow disassembly if the cell still has content in it
+            player.sendStatusMessage(new TextComponentString("§c" + I18n.format("message.cells.disassemble_fail_content")), true);
+            return false;
+        }
 
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         if (ia == null) return false;

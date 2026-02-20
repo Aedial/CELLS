@@ -150,27 +150,27 @@ public final class CellUpgradeHelper {
             if (stack.isEmpty()) continue;
 
             if (stack.getItem() instanceof ItemOverflowCard) {
-                tooltip.add("\u00a7c" + I18n.format("tooltip.cells.upgrade.overflow_active"));
+                tooltip.add("§c" + I18n.format("tooltip.cells.upgrade.overflow_active"));
             }
 
             if (stack.getItem() instanceof ItemEqualDistributionCard) {
                 int limit = ItemEqualDistributionCard.getTierValue(stack);
 
                 if (limit == Integer.MAX_VALUE) {
-                    tooltip.add("\u00a7b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active.infinite"));
+                    tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active.infinite"));
                 } else {
-                    tooltip.add("\u00a7b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active", limit));
+                    tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active", limit));
                 }
             }
 
             if (stack.getItem() instanceof ItemCompressionTierCard) {
                 int tiers = ItemCompressionTierCard.getTierValue(stack);
-                tooltip.add("\u00a7a" + I18n.format("tooltip.cells.upgrade.compression_tier_active", tiers));
+                tooltip.add("§a" + I18n.format("tooltip.cells.upgrade.compression_tier_active", tiers));
             }
 
             if (stack.getItem() instanceof ItemDecompressionTierCard) {
                 int tiers = ItemDecompressionTierCard.getTierValue(stack);
-                tooltip.add("\u00a7e" + I18n.format("tooltip.cells.upgrade.decompression_tier_active", tiers));
+                tooltip.add("§e" + I18n.format("tooltip.cells.upgrade.decompression_tier_active", tiers));
             }
         }
     }

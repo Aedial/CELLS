@@ -17,6 +17,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -45,10 +46,10 @@ import com.cells.util.CustomCellUpgrades;
 
 /**
  * Abstract base class for hyper-density fluid storage cells.
- * 
+ * <p>
  * Hyper-density cells display a small byte count (e.g., "1k") but internally
  * multiply that by a large factor (2GB) to store vastly more fluids.
- * 
+ * <p>
  * This allows circumventing int limitations in AE2's display while
  * maintaining compatibility with the existing system.
  */
@@ -64,12 +65,10 @@ public abstract class ItemFluidHyperDensityCellBase extends Item implements IIte
 
     protected final String[] tierNames;
     protected final long[] displayBytes;
-    protected final long[] bytesPerType;
 
-    public ItemFluidHyperDensityCellBase(String[] tierNames, long[] displayBytes, long[] bytesPerType) {
+    public ItemFluidHyperDensityCellBase(String[] tierNames, long[] displayBytes) {
         this.tierNames = tierNames;
         this.displayBytes = displayBytes;
-        this.bytesPerType = bytesPerType;
 
         setMaxStackSize(64);
         setHasSubtypes(true);
@@ -104,7 +103,7 @@ public abstract class ItemFluidHyperDensityCellBase extends Item implements IIte
         CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
 
         tooltip.add("");
-        tooltip.add("\u00a7d" + I18n.format("tooltip.cells.hyper_density_fluid_cell.info"));
+        tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_fluid_cell.info"));
     }
 
     /**
@@ -130,14 +129,28 @@ public abstract class ItemFluidHyperDensityCellBase extends Item implements IIte
         return BYTE_MULTIPLIER;
     }
 
+    /**
+     * Bytes per type overhead, computed dynamically based on the effective max types.
+     * <p>
+     * Formula: displayBytes / 2 / effectiveMaxTypes * BYTE_MULTIPLIER.
+     * This ensures total overhead remains ~50% of total bytes regardless of
+     * how many types the config or equal distribution card allows.
+     */
     @Override
     public long getBytesPerType(@Nonnull ItemStack cellItem) {
         int meta = cellItem.getMetadata();
-        if (meta >= 0 && meta < bytesPerType.length) {
-            return CellMathHelper.multiplyWithOverflowProtection(bytesPerType[meta], BYTE_MULTIPLIER);
+        long displayBytesValue = (meta >= 0 && meta < displayBytes.length) ? displayBytes[meta] : displayBytes[0];
+
+        // Effective max types: config value, possibly limited by equal distribution card
+        int effectiveMaxTypes = getMaxTypes();
+        int eqDistLimit = CellUpgradeHelper.getEqualDistributionLimit(getUpgradesInventory(cellItem));
+        if (eqDistLimit > 0 && eqDistLimit < effectiveMaxTypes) {
+            effectiveMaxTypes = eqDistLimit;
         }
 
-        return CellMathHelper.multiplyWithOverflowProtection(bytesPerType[0], BYTE_MULTIPLIER);
+        long displayBpt = displayBytesValue / 2 / effectiveMaxTypes;
+
+        return CellMathHelper.multiplyWithOverflowProtection(displayBpt, BYTE_MULTIPLIER);
     }
 
     @Override
@@ -238,7 +251,11 @@ public abstract class ItemFluidHyperDensityCellBase extends Item implements IIte
         if (inv == null) return false;
 
         IItemList<IAEFluidStack> list = inv.getAvailableItems(fluidChannel.createList());
-        if (!list.isEmpty()) return false;
+        if (!list.isEmpty()) {
+            // Don't allow disassembly if the cell still has content in it
+            player.sendStatusMessage(new TextComponentString("§c" + I18n.format("message.cells.disassemble_fail_content")), true);
+            return false;
+        }
 
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         if (ia == null) return false;

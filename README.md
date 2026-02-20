@@ -52,15 +52,36 @@ Combining hyper-density storage with compacting functionality:
 - **1k - 1G Hyper-Density Compacting Storage Cells** (each "byte" holds ~17.2B items, with compression capabilities)
 
 
+### Configurable Storage Cell
+A universal storage cell that accepts a ME Storage Component (AE2) to define its capacity and storage type:
+- Insert a component to configure the cell's capacity and storage type (item or fluid).
+- **Built-in equal distribution**: capacity is divided equally among all types (configurable max types, default 63). The bytes overhead is taken into account proactively, meaning the cell only has 50% of its total bytes available for storage, reserving the other 50% for overhead.
+- **Per-type capacity limit**: configure a maximum items/mB per type via the GUI text field
+- Shift-right-click to disassemble (returns cell, component, and upgrades)
+- Components cannot be removed while the cell has content. Swapping to another component of the same type (item↔item, fluid↔fluid) is allowed if the new component has enough capacity for the existing data.
+
+#### Component Whitelist
+The list of accepted storage components is defined in `configurable_components.cfg` (bundled in the JAR). To add or remove supported components, place a copy of this file in your **Forge config directory** (`config/configurable_components.cfg`). The config override takes priority over the bundled file.
+
+Each entry has the format:
+```
+registry_name@metadata = bytes,channel,tier_name
+```
+- `registry_name@metadata`: The item's registry name and damage value (e.g. `appliedenergistics2:material@35`)
+- `bytes`: Total byte capacity of the component (e.g. `1024` for 1K)
+- `channel`: `item` or `fluid`
+- `tier_name`: Used for texture selection (e.g. `1k`, `64k`, `1g`)
+
+
 ### Upgrades
 
 #### Void Overflow Card
 Install in a cell's upgrade slots to void excess items when full.
 Useful for automated systems where overflow should be destroyed.
 
-**Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells, Import Interface
+**Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells, Configurable Storage Cells, Import Interface
 
-### Trash Unselected Card
+#### Trash Unselected Card
 Install in an Import Interface to void items that don't match any filter. This is useful to prevent clogging the interface with unwanted items, especially when used with machines that export items without filtering capabilities.
 
 **Compatible with**: Import Interface
@@ -99,22 +120,27 @@ Install in a Compacting Cell's upgrade slots to increase the number of compressi
 
 The mod includes a server-side configuration file with an in-game GUI editor:
 
-### General Settings
-- **Max Types**: Maximum types per cell (default: 63)
+### Max Types
+Configure the maximum number of types allowed per cell:
+- Hyper-Density Storage Cells
+- Hyper-Density Fluid Storage Cells
+- Configurable Storage Cells
 
 ### Idle Power Drain
 Configure power drain per tick for each cell type:
 - Compacting Cells
 - Hyper-Density Cells
 - Hyper-Density Compacting Cells
-- Fluid Hyper-Density Cells
+- Hyper-Density Fluid Cells
+- Configurable Cells
 
 ### Cell Toggles
 Enable or disable entire cell categories:
 - Compacting Cells
 - Hyper-Density Cells
 - Hyper-Density Compacting Cells
-- Fluid Hyper-Density Cells
+- Hyper-Density Fluid Cells
+- Configurable Cells
 
 ## API
 
@@ -139,7 +165,7 @@ Fill a storage cell with a specified quantity of items or fluids, for testing pu
 ```
 ./gradlew -q build
 ```
-Resulting jar will be under `build/libs/`.
+First build may take some time. Resulting jar will be under `build/libs/`.
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
