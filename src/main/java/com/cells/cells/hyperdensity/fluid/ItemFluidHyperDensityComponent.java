@@ -23,7 +23,7 @@ import com.cells.Tags;
 /**
  * Hyper-Density fluid storage component item.
  * Used to craft hyper-density fluid storage cells.
- * 
+ * <p>
  * These components enable the massive storage multiplier of HD fluid cells.
  */
 public class ItemFluidHyperDensityComponent extends Item {
@@ -62,7 +62,7 @@ public class ItemFluidHyperDensityComponent extends Item {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
-        tooltip.add("\u00a7d" + I18n.format("tooltip.cells.hyper_density_fluid_component.info"));
+        tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_fluid_component.info"));
     }
 
     /**

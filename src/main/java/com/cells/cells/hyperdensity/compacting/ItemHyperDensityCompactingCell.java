@@ -8,10 +8,10 @@ import com.cells.Tags;
 
 /**
  * Hyper-Density Compacting storage cell item.
- * 
+ * <p>
  * Combines compacting functionality with the HD byte multiplier.
  * Limited to 16M tier maximum due to overflow concerns with base unit calculations.
- * 
+ * <p>
  * Uses sub-items for different capacity tiers:
  * - 0: 1k HD Compacting
  * - 1: 4k HD Compacting

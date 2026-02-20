@@ -15,10 +15,7 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.IStorageChannel;
@@ -30,7 +27,6 @@ import appeng.util.Platform;
 import com.cells.cells.compacting.CompactingHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CellMathHelper;
-import com.cells.util.CrossTierActionSource;
 import com.cells.util.DeferredCellOperations;
 
 
@@ -422,7 +418,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         // Load conversion rates array
         if (tagCompound.hasKey(NBT_CONV_RATES)) {
             int[] rates = tagCompound.getIntArray(NBT_CONV_RATES);
-            for (int i = 0; i < Math.min(rates.length, currentMaxTiers); i++) convRate[i] = rates[i];
+            if (Math.min(rates.length, currentMaxTiers) >= 0)
+                System.arraycopy(rates, 0, convRate, 0, Math.min(rates.length, currentMaxTiers));
         }
 
         // Load prototype items for each tier
@@ -1285,19 +1282,6 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
-     * Checks if the cell has an Overflow Card installed.
-     * <p>
-     * When installed, items that exceed capacity are voided instead of
-     * being rejected back to the network.
-     * </p>
-     *
-     * @return true if an Overflow Card upgrade is installed
-     */
-    private boolean hasOverflowCard() {
-        return cachedHasOverflowCard;
-    }
-
-    /**
      * Injects items into the cell.
      * <p>
      * Converts the input to base units using the appropriate tier's conversion
@@ -1404,17 +1388,13 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) return null;
 
-        // Fast path: if chain is fully initialized, skip validation checks
-        int slot;
-        if (chainFullyInitialized) {
-            slot = getSlotForItem(request);
-        } else {
+        if (!chainFullyInitialized) {
             // Slow path: need to initialize or validate the chain
             reloadFromNBTIfNeeded();
             updateCompressionChainIfNeeded(CellMathHelper.getWorldFromSource(src));
-            slot = getSlotForItem(request);
         }
 
+        int slot = getSlotForItem(request);
         if (slot < 0) return null;
 
         int rate = convRate[slot];

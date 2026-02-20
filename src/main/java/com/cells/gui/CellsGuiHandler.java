@@ -13,6 +13,10 @@ import com.cells.blocks.importinterface.GuiImportInterface;
 import com.cells.blocks.importinterface.GuiMaxSlotSize;
 import com.cells.blocks.importinterface.GuiPollingRate;
 import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.cells.configurable.ContainerConfigurableCell;
+import com.cells.cells.configurable.GuiConfigurableCell;
+
+import net.minecraft.util.EnumHand;
 
 
 /**
@@ -23,6 +27,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_IMPORT_INTERFACE = 0;
     public static final int GUI_MAX_SLOT_SIZE = 1;
     public static final int GUI_POLLING_RATE = 2;
+    public static final int GUI_CONFIGURABLE_CELL = 3;
 
     @Override
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
@@ -47,6 +52,9 @@ public class CellsGuiHandler implements IGuiHandler {
                     return new ContainerPollingRate(player.inventory, (TileImportInterface) tile);
                 }
                 break;
+
+            case GUI_CONFIGURABLE_CELL:
+                return new ContainerConfigurableCell(player.inventory, EnumHand.values()[x]);
         }
 
         return null;
@@ -75,6 +83,9 @@ public class CellsGuiHandler implements IGuiHandler {
                     return new GuiPollingRate(player.inventory, (TileImportInterface) tile);
                 }
                 break;
+
+            case GUI_CONFIGURABLE_CELL:
+                return new GuiConfigurableCell(player.inventory, EnumHand.values()[x]);
         }
 
         return null;

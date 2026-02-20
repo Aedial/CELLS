@@ -63,6 +63,15 @@ public class CellsConfig {
     /** Enable fluid hyper-density cells */
     public static boolean enableFluidHDCells = true;
 
+    /** Enable configurable cells */
+    public static boolean enableConfigurableCells = true;
+
+    /** Idle drain for configurable cells */
+    public static double configurableCellIdleDrain = 3.0;
+
+    /** Maximum types for configurable cells */
+    public static int configurableCellMaxTypes = 63;
+
     /**
      * Initializes the configuration from the given file.
      *
@@ -142,6 +151,13 @@ public class CellsConfig {
         p.setLanguageKey(Tags.MODID + ".config.fluidHdIdleDrain");
         fluidHdIdleDrain = p.getDouble();
 
+        p = config.get(CATEGORY_IDLE_DRAIN,
+            "configurableCellIdleDrain", 3.0D,
+            "Idle drain for configurable cells", 0.0D, 100.0D
+        );
+        p.setLanguageKey(Tags.MODID + ".config.configurableCellIdleDrain");
+        configurableCellIdleDrain = p.getDouble();
+
         // Enabled cells category
         config.addCustomCategoryComment(CATEGORY_ENABLED,
             "Enable or disable specific cell types. Disabled cells will not be registered.");
@@ -173,6 +189,21 @@ public class CellsConfig {
         );
         p.setLanguageKey(Tags.MODID + ".config.enableFluidHDCells");
         enableFluidHDCells = p.getBoolean();
+
+        p = config.get(CATEGORY_ENABLED,
+            "enableConfigurableCells", true,
+            "Enable configurable storage cells"
+        );
+        p.setLanguageKey(Tags.MODID + ".config.enableConfigurableCells");
+        enableConfigurableCells = p.getBoolean();
+
+        // General: configurable cell max types
+        p = config.get(CATEGORY_GENERAL,
+            "configurableCellMaxTypes", 63,
+            "Maximum item types for configurable storage cells (1-63)", 1, 16384
+        );
+        p.setLanguageKey(Tags.MODID + ".config.configurableCellMaxTypes");
+        configurableCellMaxTypes = p.getInt();
 
         // Save if config was created or changed
         if (config.hasChanged()) config.save();

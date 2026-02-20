@@ -17,12 +17,12 @@ import com.cells.Tags;
 
 /**
  * Singularity Processors - used to craft Hyper-Density storage components.
- *
+ * <p>
  * Created in the Inscriber with:
  * - Top: Quadruple Compressed Processor Print (4x compression)
  * - Middle: Singularity
  * - Bottom: Quadruple Compressed Silicon Print (4x compression)
- *
+ * <p>
  * Types:
  * - 0: Singularity Calculation Processor
  * - 1: Singularity Engineering Processor

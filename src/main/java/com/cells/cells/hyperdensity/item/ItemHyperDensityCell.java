@@ -8,10 +8,10 @@ import com.cells.Tags;
 
 /**
  * Hyper-Density storage cell item.
- * 
+ * <p>
  * These cells display standard capacity values (1k, 4k, etc.) but internally
  * multiply storage by ~2 billion, allowing massive item storage.
- * 
+ * <p>
  * Uses sub-items for different capacity tiers (max 1G due to 8 items/byte * multiplier overflow):
  * - 0: 1k HD (displays 1k, actually 1k * 2.1B = ~2.1T bytes)
  * - 1: 4k HD (displays 4k, actually ~8.6T bytes)
@@ -48,23 +48,8 @@ public class ItemHyperDensityCell extends ItemHyperDensityCellBase {
         1073741824L     // 1G
     };
 
-    // Display bytes per type - also multiplied internally
-    private static final long[] DISPLAY_BYTES_PER_TYPE = {
-        8L,             // 1k
-        32L,            // 4k
-        128L,           // 16k
-        512L,           // 64k
-        2048L,          // 256k
-        8192L,          // 1M
-        32768L,         // 4M
-        131072L,        // 16M
-        524288L,        // 64M
-        2097152L,       // 256M
-        8388608L        // 1G
-    };
-
     public ItemHyperDensityCell() {
-        super(TIER_NAMES, DISPLAY_BYTES, DISPLAY_BYTES_PER_TYPE);
+        super(TIER_NAMES, DISPLAY_BYTES);
         setRegistryName(Tags.MODID, "hyper_density_cell");
         setTranslationKey(Tags.MODID + ".hyper_density_cell");
     }

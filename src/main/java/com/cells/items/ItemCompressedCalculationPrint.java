@@ -17,13 +17,13 @@ import com.cells.Tags;
 
 /**
  * Compressed Calculation Processor Prints.
- *
+ * <p>
  * Compression levels (metadata):
  * - 0: Compressed (8x base print + nether star)
  * - 1: Double Compressed (8x compressed + nether star)
  * - 2: Triple Compressed (8x double compressed + nether star)
  * - 3: Quadruple Compressed (8x triple compressed = 4096x base print + 585x nether stars)
- *
+ * <p>
  * Higher compression levels can be added in future versions.
  */
 public class ItemCompressedCalculationPrint extends Item {

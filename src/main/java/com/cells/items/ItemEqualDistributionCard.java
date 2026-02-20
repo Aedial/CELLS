@@ -87,14 +87,14 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
         int tier = getTierValue(stack);
 
         if (tier == Integer.MAX_VALUE) {
-            tooltip.add("\u00a77" + I18n.format("tooltip.cells.equal_distribution_card.desc.infinite"));
+            tooltip.add("§7" + I18n.format("tooltip.cells.equal_distribution_card.desc.infinite"));
         } else {
-            tooltip.add("\u00a77" + I18n.format("tooltip.cells.equal_distribution_card.desc", tier));
+            tooltip.add("§7" + I18n.format("tooltip.cells.equal_distribution_card.desc", tier));
         }
         tooltip.add("");
 
         String compatibleTypes = I18n.format("tooltip.cells.type.hyperdensity");
-        tooltip.add("\u00a78" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
+        tooltip.add("§8" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
     }
 
     /**

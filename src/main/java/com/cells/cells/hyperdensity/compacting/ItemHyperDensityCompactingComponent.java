@@ -22,9 +22,9 @@ import com.cells.Tags;
 /**
  * Hyper-Density Compacting storage component item.
  * Used to craft hyper-density compacting storage cells.
- * 
+ * <p>
  * Limited to 16M tier maximum due to overflow concerns.
- * 
+ * <p>
  * Uses sub-items for different capacity tiers:
  * - 0: 1k HD Compacting Component
  * - 1: 4k HD Compacting Component
@@ -71,7 +71,7 @@ public class ItemHyperDensityCompactingComponent extends Item {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
-        tooltip.add("\u00a7d" + I18n.format("tooltip.cells.hyper_density_component.info"));
+        tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_component.info"));
     }
 
     /**

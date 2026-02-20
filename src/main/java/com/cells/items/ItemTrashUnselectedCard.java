@@ -49,12 +49,12 @@ public class ItemTrashUnselectedCard extends Item implements IUpgradeModule {
     @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
-        tooltip.add("\u00a77" + I18n.format("tooltip.cells.trash_unselected_card.desc"));
-        tooltip.add("\u00a7e" + I18n.format("tooltip.cells.trash_unselected_card.warning"));
+        tooltip.add("§7" + I18n.format("tooltip.cells.trash_unselected_card.desc"));
+        tooltip.add("§e" + I18n.format("tooltip.cells.trash_unselected_card.warning"));
         tooltip.add("");
 
         String compatibleTypes = I18n.format("tooltip.cells.type.import_interface");
-        tooltip.add("\u00a78" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
+        tooltip.add("§8" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
     }
 
     /**

@@ -18,9 +18,9 @@ import com.cells.Tags;
 /**
  * Compacting storage component item.
  * Used to craft compacting storage cells.
- * 
+ * <p>
  * These are crafted from regular AE2 storage components.
- * 
+ * <p>
  * Uses sub-items for different capacity tiers:
  * - 0: 1k Compacting Component
  * - 1: 4k Compacting Component

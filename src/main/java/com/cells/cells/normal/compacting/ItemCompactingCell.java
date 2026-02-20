@@ -9,7 +9,7 @@ import com.cells.Tags;
 /**
  * Compacting storage cell item.
  * Stores a single item type and exposes compressed/decompressed forms to the network.
- * 
+ * <p>
  * Uses sub-items for different capacity tiers:
  * - 0: 1k (1,024 bytes)
  * - 1: 4k (4,096 bytes)

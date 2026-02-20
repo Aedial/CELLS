@@ -146,7 +146,7 @@ public class GuiMaxSlotSize extends AEBaseGui {
             parsed += delta;
             int result = (int) Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, Math.min(Integer.MAX_VALUE, parsed));
 
-            this.sizeField.setText(out = Integer.toString(result));
+            this.sizeField.setText(Integer.toString(result));
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetMaxSlotSize(result));
         } catch (final NumberFormatException e) {
             this.sizeField.setText("1");

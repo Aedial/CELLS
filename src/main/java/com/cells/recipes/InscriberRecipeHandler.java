@@ -1,9 +1,7 @@
 package com.cells.recipes;
 
 import java.util.Collections;
-import java.util.List;
 
-import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 
 import appeng.api.AEApi;
@@ -13,7 +11,6 @@ import appeng.api.features.IInscriberRegistry;
 import appeng.api.features.InscriberProcessType;
 
 import com.cells.Cells;
-import com.cells.ItemRegistry;
 import com.cells.items.ItemCompressedCalculationPrint;
 import com.cells.items.ItemCompressedEngineeringPrint;
 import com.cells.items.ItemCompressedLogicPrint;
@@ -24,17 +21,17 @@ import com.cells.items.ItemSingularityProcessor;
 
 /**
  * Registers all custom inscriber recipes for CELLS.
- *
+ * <p>
  * Recipe chains:
  * 1. Compressed prints (using nether star for processors, redstone for silicon):
  *    - 8x base print + catalyst → Compressed print (8x base, 1x catalyst)
  *    - 8x Compressed + catalyst → Double Compressed (64x base, 9x catalyst)
  *    - 8x Double Compressed + catalyst → Triple Compressed (512x base, 73x catalyst)
  *    - 8x Triple Compressed + catalyst → Quadruple Compressed (4096x base, 585x catalyst)
- *
+ * <p>
  * 2. Overclocked Processors (for Compacting components):
  *    - Compressed processor print (top) + Matter Ball (middle) + Compressed silicon print (bottom)
- *
+ * <p>
  * 3. Singularity Processors (for Hyper-Density components):
  *    - Quadruple compressed processor print (top) + Singularity (middle) + Quadruple compressed silicon print (bottom)
  */

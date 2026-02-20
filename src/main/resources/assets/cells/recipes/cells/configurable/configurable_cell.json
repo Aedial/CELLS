@@ -1,0 +1,31 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "gcg",
+        "ihi",
+        "gpg"
+    ],
+    "key": {
+        "c": {
+            "item": "cells:equal_distribution_card",
+            "data": 6
+        },
+        "g": {
+            "item": "appliedenergistics2:quartz_glass"
+        },
+        "h": {
+            "item": "appliedenergistics2:material",
+            "data": 39
+        },
+        "i": {
+            "item": "minecraft:iron_ingot"
+        },
+        "p": {
+            "item": "cells:overclocked_processor",
+            "data": 0
+        }
+    },
+    "result": {
+        "item": "cells:configurable_cell"
+    }
+}

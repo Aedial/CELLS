@@ -1,7 +1,6 @@
 package com.cells.blocks.importinterface;
 
 import net.minecraft.client.gui.GuiTextField;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 
 import appeng.container.AEBaseContainer;

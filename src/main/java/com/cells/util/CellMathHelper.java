@@ -216,7 +216,7 @@ public final class CellMathHelper {
         if (src.machine().isPresent()) {
             IActionHost host = src.machine().get();
             IGridNode node = host.getActionableNode();
-            if (node != null) return node.getWorld();
+            return node.getWorld();
         }
 
         return null;
@@ -235,7 +235,7 @@ public final class CellMathHelper {
         if (src.machine().isPresent()) {
             IActionHost host = src.machine().get();
             IGridNode node = host.getActionableNode();
-            if (node != null) return node.getGrid();
+            return node.getGrid();
         }
 
         return null;
@@ -257,7 +257,7 @@ public final class CellMathHelper {
         if (container instanceof IActionHost) {
             IActionHost host = (IActionHost) container;
             IGridNode node = host.getActionableNode();
-            if (node != null) return node.getGrid();
+            return node.getGrid();
         }
 
         return null;

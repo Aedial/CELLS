@@ -2,6 +2,7 @@ package com.cells.network;
 
 import com.cells.Tags;
 import com.cells.network.packets.PacketOpenGui;
+import com.cells.network.packets.PacketSetConfigurableCellCapacity;
 import com.cells.network.packets.PacketSetMaxSlotSize;
 import com.cells.network.packets.PacketSetPollingRate;
 
@@ -23,5 +24,6 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketSetMaxSlotSize.Handler.class, PacketSetMaxSlotSize.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketOpenGui.Handler.class, PacketOpenGui.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetPollingRate.Handler.class, PacketSetPollingRate.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetConfigurableCellCapacity.Handler.class, PacketSetConfigurableCellCapacity.class, packetId++, Side.SERVER);
     }
 }

@@ -3,7 +3,6 @@ package com.cells.cells.hyperdensity.compacting;
 import javax.annotation.Nonnull;
 
 import net.minecraft.item.ItemStack;
-import net.minecraft.world.World;
 
 import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.storage.data.IAEItemStack;
@@ -14,7 +13,7 @@ import com.cells.api.IItemCompactingCell;
 /**
  * Interface for hyper-density compacting storage cell items.
  * Combines the compacting cell functionality with the HD byte multiplier.
- * 
+ * <p>
  * Due to overflow concerns (compacting uses base units * conversion rates),
  * HD compacting cells are limited to 16M tier maximum.
  */
