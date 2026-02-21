@@ -158,11 +158,9 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
                 player.openGui(Cells.instance, CellsGuiHandler.GUI_CONFIGURABLE_CELL,
                     world, hand.ordinal(), 0, 0);
             }
-
-            return new ActionResult<>(EnumActionResult.SUCCESS, stack);
         }
 
-        return new ActionResult<>(EnumActionResult.PASS, stack);
+        return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));
     }
 
     @Override
@@ -185,6 +183,15 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         return EnumActionResult.SUCCESS;
     }
 
+    /**
+     * Disassemble a single configurable cell, returning its components.
+     * 
+     * @param stack The single cell to disassemble (stack size should be 1)
+     * @param world The world
+     * @param player The player performing the action
+     * @param hand The hand holding the item (used only for stack size 1 case when clearing hand)
+     * @return true if disassembly was successful
+     */
     private boolean disassembleDrive(ItemStack stack, World world, EntityPlayer player, EnumHand hand) {
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         if (ia == null) return false;
@@ -194,6 +201,20 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
             player.sendStatusMessage(new TextComponentString("§c" + I18n.format("message.cells.disassemble_fail_content")), true);
             return false;
         }
+
+        // Check if there's anything to disassemble (component or upgrades)
+        // If nothing to disassemble, don't do anything
+        ItemStack component = ComponentHelper.getInstalledComponent(stack);
+        IItemHandler upgrades = getUpgradesInventory(stack);
+        boolean hasUpgrades = false;
+        for (int i = 0; i < upgrades.getSlots(); i++) {
+            if (!upgrades.getStackInSlot(i).isEmpty()) {
+                hasUpgrades = true;
+                break;
+            }
+        }
+
+        if (component.isEmpty() && !hasUpgrades) return false;
 
         // Create a stripped housing: no component, no upgrades, but user configs intact.
         // Copy first so we preserve all NBT (maxPerType, FuzzyMode, etc.)
@@ -211,21 +232,26 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         }
 
         // Extract and return the component from the housing copy (it contains the inventory NBT)
-        ItemStack component = ComponentHelper.getInstalledComponent(housing);
-        if (!component.isEmpty()) {
+        ItemStack housingComponent = ComponentHelper.getInstalledComponent(housing);
+        if (!housingComponent.isEmpty()) {
             ComponentHelper.setInstalledComponent(housing, ItemStack.EMPTY);
-            ItemStack leftStack = ia.addItems(component);
+            ItemStack leftStack = ia.addItems(housingComponent);
             if (!leftStack.isEmpty()) player.dropItem(leftStack, false);
         }
 
-        // Remove one cell from the player's hand
-        if (stack.getCount() > 1) {
-            stack.shrink(1);
-        } else {
-            if (hand == EnumHand.MAIN_HAND) {
-                player.inventory.setInventorySlotContents(player.inventory.currentItem, ItemStack.EMPTY);
+        // Decrease the stack count in the player's hand
+        ItemStack heldItem = player.getHeldItem(hand);
+        if (heldItem == stack) {
+            if (heldItem.getCount() <= 1) {
+                // Last item in stack - clear the slot entirely
+                if (hand == EnumHand.MAIN_HAND) {
+                    player.inventory.setInventorySlotContents(player.inventory.currentItem, ItemStack.EMPTY);
+                } else {
+                    player.setHeldItem(EnumHand.OFF_HAND, ItemStack.EMPTY);
+                }
             } else {
-                player.setHeldItem(EnumHand.OFF_HAND, ItemStack.EMPTY);
+                // More than one item - just shrink the stack
+                heldItem.shrink(1);
             }
         }
 

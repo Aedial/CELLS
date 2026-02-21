@@ -8,7 +8,19 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.4.0] - 2026-02-18
+## [0.4.1] - 2026-02-20
+### Added
+- Add Fluid Import Interface: a filtered interface that imports fluids into the ME network. Accepts fluid containers (buckets, etc.) as filter ghost items and routes matching fluids to the network. Supports overflow and trash-unselected upgrade cards.
+- Add chat warnings explaining why a filter cannot be added or removed for both Import Interface and Fluid Import Interface.
+
+### Fixed
+- Fix polling rate over-ticking for each polling rate change (until world reload), due to the ticking requests not being properly unregistered on AE2's side.
+- Fix Compacting Cell not properly updating the compacting chain when adding/removing a compression/decompression card after partitioning the cell.
+- Fix ME Chest and Cell Workbench accepting stacked cells, which causes duplication when the NBT is written to the stack. Mixins are used to set the relevant slots' max stack size to 1, like is the case for ME Drives.
+- Fix Configurable Cell using only 1 component for the whole stack, instead of 1 component per cell, resulting in component duplication/voiding.
+
+
+## [0.4.0] - 2026-02-19
 ### Added
 - Add Configurable ME Storage Cell: a universal cell that accepts an item/fluid ME Storage Component (AE2, NAE2, CrazyAE) to define its capacity and storage type. Features built-in equal distribution, configurable per-type capacity limits via GUI, and component hot-swapping.
 - Add player message when trying to disassemble a cell with content, explaining the need to empty it first.

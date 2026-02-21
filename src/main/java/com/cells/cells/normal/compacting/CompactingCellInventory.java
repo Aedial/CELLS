@@ -113,17 +113,43 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
         this.tagCompound = Platform.openNbtData(cellStack);
 
-        // Read upgrade state FIRST to determine correct array sizing
-        // This must happen before loadFromNBT() so we allocate enough space
+        // Read current upgrade state (what the upgrades cards are NOW)
         updateCachedUpgradeState();
-        this.currentMaxTiers = cachedTiersUp + 1 + cachedTiersDown;
+        int currentTiersUp = cachedTiersUp;
+        int currentTiersDown = cachedTiersDown;
+
+        // IMPORTANT: Use the SAVED tier configuration to size arrays, not current upgrades.
+        // This prevents losing chain data when upgrade cards are removed.
+        // The chain will be rebuilt with the correct tier config when items are inserted/extracted
+        // (when we have access to a World for recipe lookups).
+        int savedTiersUp = tagCompound.hasKey(NBT_TIERS_UP) ? tagCompound.getInteger(NBT_TIERS_UP) : DEFAULT_TIERS_UP;
+        int savedTiersDown = tagCompound.hasKey(NBT_TIERS_DOWN) ? tagCompound.getInteger(NBT_TIERS_DOWN) : DEFAULT_TIERS_DOWN;
+
+        // If no saved config, fall back to current upgrade config
+        if (!tagCompound.hasKey(NBT_TIERS_UP) && !tagCompound.hasKey(NBT_TIERS_DOWN)) {
+            savedTiersUp = currentTiersUp;
+            savedTiersDown = currentTiersDown;
+        }
+
+        this.currentMaxTiers = savedTiersUp + 1 + savedTiersDown;
         initializeArrays();
+
+        // Set cached values to match the SAVED config so array indices are consistent
+        // hasTierConfigChanged() will later detect if current upgrades differ from cached
+        cachedTiersUp = savedTiersUp;
+        cachedTiersDown = savedTiersDown;
 
         loadFromNBT();
 
         // Cache partition state after loading NBT
         cachedHasPartition = checkHasPartition();
-        chainFullyInitialized = cachedHasPartition && !isCompressionChainEmpty() && mainTier >= 0;
+
+        // Check if tier config is different from current upgrade cards.
+        // If so, chain needs rebuild but keep existing data for display.
+        // The rebuild will happen in updateCompressionChainIfNeeded() when we have World access.
+        // DO NOT set mainTier = -1 here, as that breaks getAvailableItems/tooltip display.
+        boolean tierConfigMatches = (savedTiersUp == currentTiersUp && savedTiersDown == currentTiersDown);
+        chainFullyInitialized = tierConfigMatches && cachedHasPartition && !isCompressionChainEmpty() && mainTier >= 0;
     }
 
     /**
@@ -283,6 +309,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         if (!isCompressionChainEmpty() && canSaveChain) {
             tagCompound.setInteger(NBT_MAIN_TIER, mainTier);
             tagCompound.setInteger(NBT_CHAIN_VERSION, chainVersion);
+            tagCompound.setInteger(NBT_TIERS_UP, cachedTiersUp);
+            tagCompound.setInteger(NBT_TIERS_DOWN, cachedTiersDown);
             tagCompound.setIntArray(NBT_CONV_RATES, convRate);
 
             NBTTagCompound protoNbt = new NBTTagCompound();
@@ -307,6 +335,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             tagCompound.removeTag(NBT_PROTO_ITEMS);
             tagCompound.removeTag(NBT_CACHED_PARTITION);
             tagCompound.removeTag(NBT_CHAIN_VERSION);
+            tagCompound.removeTag(NBT_TIERS_UP);
+            tagCompound.removeTag(NBT_TIERS_DOWN);
         }
         // If chain is empty but partition exists, or if we're stale, don't touch chain NBT
     }
@@ -1131,8 +1161,17 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
 
     @Override
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
-        // Only reload from NBT if chain is not yet initialized
-        if (!chainFullyInitialized) reloadFromNBTIfNeeded();
+        // Reload from NBT if needed and check for tier card changes
+        if (!chainFullyInitialized) {
+            reloadFromNBTIfNeeded();
+
+            // If mainTier == -1, the chain needs rebuilding (tier card changed)
+            // Try to get World from container to rebuild the chain
+            if (mainTier < 0 && !cachedPartitionItem.isEmpty()) {
+                World world = CellMathHelper.getWorldFromContainer(container);
+                if (world != null) updateCompressionChainIfNeeded(world);
+            }
+        }
 
         if (storedBaseUnits <= 0) return out;
 

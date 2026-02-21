@@ -53,7 +53,11 @@ public class ItemTrashUnselectedCard extends Item implements IUpgradeModule {
         tooltip.add("§e" + I18n.format("tooltip.cells.trash_unselected_card.warning"));
         tooltip.add("");
 
-        String compatibleTypes = I18n.format("tooltip.cells.type.import_interface");
+        String compatibleTypes = String.join(
+            I18n.format("tooltip.cells.card.separator"),
+            I18n.format("tooltip.cells.type.import_interface"),
+            I18n.format("tooltip.cells.type.import_fluid_interface")
+        );
         tooltip.add("§8" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
     }
 

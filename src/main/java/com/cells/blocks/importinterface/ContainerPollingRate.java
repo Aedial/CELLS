@@ -1,6 +1,7 @@
 package com.cells.blocks.importinterface;
 
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.tileentity.TileEntity;
 
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
@@ -13,10 +14,11 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 /**
  * Container for the Polling Rate configuration GUI.
  * Similar to ContainerMaxSlotSize but for polling rate configuration.
+ * Works with any tile entity implementing {@link IImportInterfaceHost}.
  */
 public class ContainerPollingRate extends AEBaseContainer {
 
-    private final TileImportInterface tile;
+    private final IImportInterfaceHost host;
 
     @SideOnly(Side.CLIENT)
     private IPollingRateListener listener;
@@ -24,9 +26,9 @@ public class ContainerPollingRate extends AEBaseContainer {
     @GuiSync(0)
     public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
 
-    public ContainerPollingRate(final InventoryPlayer ip, final TileImportInterface tile) {
-        super(ip, tile, null);
-        this.tile = tile;
+    public ContainerPollingRate(final InventoryPlayer ip, final IImportInterfaceHost host) {
+        super(ip, (TileEntity) host, null);
+        this.host = host;
     }
 
     @SideOnly(Side.CLIENT)
@@ -37,7 +39,7 @@ public class ContainerPollingRate extends AEBaseContainer {
 
     public void setPollingRate(final int newValue) {
         int clamped = Math.max(0, newValue);
-        this.tile.setPollingRate(clamped);
+        this.host.setPollingRate(clamped);
         this.pollingRate = clamped;
     }
 
@@ -45,7 +47,7 @@ public class ContainerPollingRate extends AEBaseContainer {
     public void detectAndSendChanges() {
         super.detectAndSendChanges();
 
-        if (Platform.isServer()) this.pollingRate = this.tile.getPollingRate();
+        if (Platform.isServer()) this.pollingRate = this.host.getPollingRate();
     }
 
     @Override
@@ -57,8 +59,8 @@ public class ContainerPollingRate extends AEBaseContainer {
         super.onUpdate(field, oldValue, newValue);
     }
 
-    public TileImportInterface getTile() {
-        return this.tile;
+    public IImportInterfaceHost getHost() {
+        return this.host;
     }
 
     /**

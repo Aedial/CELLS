@@ -282,4 +282,26 @@ public final class CellMathHelper {
 
         return getGridFromContainer(container);
     }
+
+    /**
+     * Extracts the World from an ISaveProvider (typically a drive or chest).
+     * <p>
+     * Used when no action source is available (e.g., during getAvailableItems).
+     * </p>
+     *
+     * @param container The save provider (typically TileDrive or TileChest)
+     * @return The world, or null if unavailable
+     */
+    @Nullable
+    public static World getWorldFromContainer(@Nullable ISaveProvider container) {
+        if (container == null) return null;
+
+        if (container instanceof IActionHost) {
+            IActionHost host = (IActionHost) container;
+            IGridNode node = host.getActionableNode();
+            if (node != null) return node.getWorld();
+        }
+
+        return null;
+    }
 }

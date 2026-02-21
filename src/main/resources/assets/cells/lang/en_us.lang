@@ -94,7 +94,7 @@ item.cells.compression_tier_card.6x.name=Compression Tier Card (6x)
 item.cells.compression_tier_card.9x.name=Compression Tier Card (9x)
 item.cells.compression_tier_card.12x.name=Compression Tier Card (12x)
 item.cells.compression_tier_card.15x.name=Compression Tier Card (15x)
-tooltip.cells.compression_tier_card.desc=Enables up to %d compression tiers. Place it before partitioning the Compacting Cell!
+tooltip.cells.compression_tier_card.desc=Enables up to %d compression tiers. Reinsert the cell after installing to apply the new compression tiers.
 
 # Decompression Tier Card
 item.cells.decompression_tier_card.3x.name=Decompression Tier Card (3x)
@@ -102,7 +102,7 @@ item.cells.decompression_tier_card.6x.name=Decompression Tier Card (6x)
 item.cells.decompression_tier_card.9x.name=Decompression Tier Card (9x)
 item.cells.decompression_tier_card.12x.name=Decompression Tier Card (12x)
 item.cells.decompression_tier_card.15x.name=Decompression Tier Card (15x)
-tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers. Place it after partitioning the Compacting Cell!
+tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers. Reinsert the cell after installing to apply the new decompression tiers.
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k Hyper-Density ME Storage Cell
@@ -265,5 +265,23 @@ tile.cells.import_interface.name=Import Interface
 gui.cells.import_interface.title=Import Interface
 gui.cells.import_interface.max_slot_size=Max Slot Size
 gui.cells.polling_rate.title=Polling Rate
-gui.cells.polling_rate.tooltip=Fixed interval for importing items (0 = AE2's default)
-tooltip.cells.import_interface.info=Import items into the ME network through filtered slots.\nDoes not support stocking or crafting.
+gui.cells.polling_rate.tooltip=Fixed interval for importing items (0 = AE2's default, nonzero = interval in ticks)
+tooltip.cells.import_interface.info=Import items into the ME network through filtered slots. Does not support stocking or crafting.
+
+# Import Interface warnings
+message.cells.import_interface.storage_not_empty=Cannot change filter while the storage slot is not empty.
+message.cells.import_interface.filter_duplicate=This filter already exists in another slot.
+
+# Configurable Cell warnings
+message.cells.configurable_cell.split_stack=Split the cell stack first, before inserting a component.
+
+# Fluid Import Interface
+tile.cells.import_fluid_interface.name=Fluid Import Interface
+gui.cells.import_fluid_interface.title=Fluid Import Interface
+tooltip.cells.import_fluid_interface.info=Import fluids into the ME network through filtered slots. Does not support stocking or crafting.
+tooltip.cells.type.import_fluid_interface=Fluid Import Interface
+tooltip.cells.fluid_import_interface.amount=%d/%d mB
+
+# Fluid Import Interface warnings
+message.cells.import_fluid_interface.filter_duplicate=This fluid filter already exists in another slot.
+message.cells.import_fluid_interface.not_fluid_container=This item does not contain a fluid.
