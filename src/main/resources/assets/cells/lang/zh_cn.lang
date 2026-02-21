@@ -94,7 +94,7 @@ item.cells.compression_tier_card.6x.name=压缩等级卡（6x）
 item.cells.compression_tier_card.9x.name=压缩等级卡（9x）
 item.cells.compression_tier_card.12x.name=压缩等级卡（12x）
 item.cells.compression_tier_card.15x.name=压缩等级卡（15x）
-tooltip.cells.compression_tier_card.desc=支持最多%d级压缩。需在为压缩元件分区前加装该升级卡！
+tooltip.cells.compression_tier_card.desc=支持最多%d级压缩。安装后需重新放入元件以应用新的压缩等级。
 
 # Decompression Tier Card
 item.cells.decompression_tier_card.3x.name=解压等级卡（3x）
@@ -102,7 +102,7 @@ item.cells.decompression_tier_card.6x.name=解压等级卡（6x）
 item.cells.decompression_tier_card.9x.name=解压等级卡（9x）
 item.cells.decompression_tier_card.12x.name=解压等级卡（12x）
 item.cells.decompression_tier_card.15x.name=解压等级卡（15x）
-tooltip.cells.decompression_tier_card.desc=支持最多%d级解压。需在为压缩元件分区后加装该升级卡！
+tooltip.cells.decompression_tier_card.desc=支持最多%d级解压。安装后需重新放入元件以应用新的解压等级。
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k超高密度ME存储元件
@@ -265,5 +265,23 @@ tile.cells.import_interface.name=输入接口
 gui.cells.import_interface.title=输入接口
 gui.cells.import_interface.max_slot_size=槽位最大容量
 gui.cells.polling_rate.title=轮询率
-gui.cells.polling_rate.tooltip=输入物品的固定时间间隔（0 = AE2的默认值）
-tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络。\n不支持补货或合成。
+gui.cells.polling_rate.tooltip=输入物品的固定时间间隔（0 = AE2的默认值，设置为非零值时以刻为单位）
+tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络。不支持补货或合成。
+
+# Import Interface warnings
+message.cells.import_interface.storage_not_empty=无法在存储槽位非空时更改过滤项。
+message.cells.import_interface.filter_duplicate其他槽位中已存在该过滤项。
+
+# Configurable Cell warnings
+message.cells.configurable_cell.split_stack=在插入组件前，需先拆分元件堆叠。
+
+# Fluid Import Interface
+tile.cells.import_fluid_interface.name=流体输入接口
+gui.cells.import_fluid_interface.title=流体输入接口
+tooltip.cells.import_fluid_interface.info=通过过滤槽位将流体输入至ME网络。不支持补货或合成。
+tooltip.cells.type.import_fluid_interface=流体输入接口
+tooltip.cells.fluid_import_interface.amount=%d/%d mB
+
+# Fluid Import Interface warnings
+message.cells.import_fluid_interface.filter_duplicate=其他槽位中已存在该流体过滤项。
+message.cells.import_fluid_interface.not_fluid_container=该物品内不含流体。
