@@ -15,28 +15,36 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.cells.blocks.importinterface.BlockImportInterface;
 import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.blocks.fluidimportinterface.BlockFluidImportInterface;
+import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
 
 
 public class BlockRegistry {
 
     public static BlockImportInterface IMPORT_INTERFACE;
+    public static BlockFluidImportInterface FLUID_IMPORT_INTERFACE;
 
     public static void init() {
         IMPORT_INTERFACE = new BlockImportInterface();
+        FLUID_IMPORT_INTERFACE = new BlockFluidImportInterface();
     }
 
     @SubscribeEvent
     public void registerBlocks(RegistryEvent.Register<Block> event) {
         event.getRegistry().register(IMPORT_INTERFACE);
+        event.getRegistry().register(FLUID_IMPORT_INTERFACE);
 
         // Register tile entities
         GameRegistry.registerTileEntity(TileImportInterface.class,
             new ResourceLocation(Tags.MODID, "import_interface"));
+        GameRegistry.registerTileEntity(TileFluidImportInterface.class,
+            new ResourceLocation(Tags.MODID, "import_fluid_interface"));
     }
 
     @SubscribeEvent
     public void registerItems(RegistryEvent.Register<Item> event) {
         event.getRegistry().register(createItemBlock(IMPORT_INTERFACE));
+        event.getRegistry().register(createItemBlock(FLUID_IMPORT_INTERFACE));
     }
 
     private ItemBlock createItemBlock(Block block) {
@@ -50,6 +58,7 @@ public class BlockRegistry {
     @SideOnly(Side.CLIENT)
     public void registerModels(ModelRegistryEvent event) {
         registerBlockModel(IMPORT_INTERFACE);
+        registerBlockModel(FLUID_IMPORT_INTERFACE);
     }
 
     @SideOnly(Side.CLIENT)

@@ -45,9 +45,11 @@ import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import appeng.util.item.AEItemStack;
 
+import com.cells.gui.CellsGuiHandler;
 import com.cells.items.ItemOverflowCard;
 import com.cells.items.ItemTrashUnselectedCard;
 import com.cells.util.ItemStackKey;
+import com.cells.util.TickManagerHelper;
 
 
 /**
@@ -56,7 +58,7 @@ import com.cells.util.ItemStackKey;
  * Only accepts items that match the filter in the corresponding slot.
  * Automatically imports stored items into the ME network.
  */
-public class TileImportInterface extends AENetworkInvTile implements IGridTickable, IAEAppEngInventory {
+public class TileImportInterface extends AENetworkInvTile implements IGridTickable, IAEAppEngInventory, IImportInterfaceHost {
 
     public static final int FILTER_SLOTS = 36; // 36 filter slots (ghost items)
     public static final int STORAGE_SLOTS = 36; // 36 storage slots (actual items)
@@ -364,21 +366,10 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
         this.pollingRate = Math.max(0, ticks);
         this.markDirty();
 
-        // To apply the new polling rate, we must re-register with the tick manager.
-        // The TickTracker stores the TickingRequest at registration time, so alertDevice
-        // alone won't update the min/max tick rates. We need to remove and re-add the node.
-        // FIXME: it seems to remember multiple requests?
-        //        Which triggers irregular ticking behavior when changing polling rate multiple times.
-        //        Seems to resolve itself on world reload, which clears the tick manager's state.
-        IGridNode node = this.getProxy().getNode();
-        if (node == null || node.getGrid() == null) return;
-
-        ITickManager tickManager = node.getGrid().getCache(ITickManager.class);
-        if (tickManager == null) return;
-
-        // Remove and re-add to force getTickingRequest to be called again
-        tickManager.removeNode(node, this);
-        tickManager.addNode(node, this);
+        // Re-register with the tick manager to apply the new TickingRequest bounds.
+        // Uses TickManagerHelper to purge stale TickTrackers from AE2's internal
+        // PriorityQueue before re-registering (see TickManagerHelper for details).
+        TickManagerHelper.reRegisterTickable(this.getProxy().getNode(), this);
     }
 
     /**
@@ -448,6 +439,18 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
 
     public DimensionalCoord getLocation() {
         return new DimensionalCoord(this);
+    }
+
+    // IImportInterfaceHost implementation
+
+    @Override
+    public int getMainGuiId() {
+        return CellsGuiHandler.GUI_IMPORT_INTERFACE;
+    }
+
+    @Override
+    public String getGuiTitleLangKey() {
+        return "gui.cells.import_interface.title";
     }
 
     // IGridTickable implementation

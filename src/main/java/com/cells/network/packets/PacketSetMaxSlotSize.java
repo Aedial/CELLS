@@ -9,10 +9,11 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import com.cells.blocks.importinterface.ContainerImportInterface;
 import com.cells.blocks.importinterface.ContainerMaxSlotSize;
+import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
 
 
 /**
- * Packet to set the max slot size for Import Interface.
+ * Packet to set the max slot size for Import Interface (item or fluid).
  */
 public class PacketSetMaxSlotSize implements IMessage {
 
@@ -45,6 +46,8 @@ public class PacketSetMaxSlotSize implements IMessage {
 
                 if (container instanceof ContainerImportInterface) {
                     ((ContainerImportInterface) container).setMaxSlotSize(message.maxSlotSize);
+                } else if (container instanceof ContainerFluidImportInterface) {
+                    ((ContainerFluidImportInterface) container).setMaxSlotSize(message.maxSlotSize);
                 } else if (container instanceof ContainerMaxSlotSize) {
                     ((ContainerMaxSlotSize) container).setMaxSlotSize(message.maxSlotSize);
                 }

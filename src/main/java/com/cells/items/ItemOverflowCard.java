@@ -64,7 +64,8 @@ public class ItemOverflowCard extends Item implements IUpgradeModule {
             I18n.format("tooltip.cells.type.compact"),
             I18n.format("tooltip.cells.type.hyperdensity"),
             I18n.format("tooltip.cells.type.hyperdensity_compact"),
-            I18n.format("tooltip.cells.type.import_interface")
+            I18n.format("tooltip.cells.type.import_interface"),
+            I18n.format("tooltip.cells.type.import_fluid_interface")
         );
         tooltip.add("§8" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
     }

@@ -2,6 +2,7 @@ package com.cells.blocks.importinterface;
 
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.tileentity.TileEntity;
 
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
@@ -14,10 +15,11 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 /**
  * Container for the Max Slot Size configuration GUI.
  * Similar to AE2's ContainerPriority but for slot size configuration.
+ * Works with any tile entity implementing {@link IImportInterfaceHost}.
  */
 public class ContainerMaxSlotSize extends AEBaseContainer {
 
-    private final TileImportInterface tile;
+    private final IImportInterfaceHost host;
 
     @SideOnly(Side.CLIENT)
     private GuiTextField textField;
@@ -25,9 +27,9 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     @GuiSync(0)
     public long maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
 
-    public ContainerMaxSlotSize(final InventoryPlayer ip, final TileImportInterface tile) {
-        super(ip, tile, null);
-        this.tile = tile;
+    public ContainerMaxSlotSize(final InventoryPlayer ip, final IImportInterfaceHost host) {
+        super(ip, (TileEntity) host, null);
+        this.host = host;
     }
 
     @SideOnly(Side.CLIENT)
@@ -38,7 +40,7 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
 
     public void setMaxSlotSize(final int newValue) {
         int clamped = Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, newValue);
-        this.tile.setMaxSlotSize(clamped);
+        this.host.setMaxSlotSize(clamped);
         this.maxSlotSize = clamped;
     }
 
@@ -46,7 +48,7 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     public void detectAndSendChanges() {
         super.detectAndSendChanges();
 
-        if (Platform.isServer()) this.maxSlotSize = this.tile.getMaxSlotSize();
+        if (Platform.isServer()) this.maxSlotSize = this.host.getMaxSlotSize();
     }
 
     @Override
@@ -58,7 +60,7 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
         super.onUpdate(field, oldValue, newValue);
     }
 
-    public TileImportInterface getTile() {
-        return this.tile;
+    public IImportInterfaceHost getHost() {
+        return this.host;
     }
 }

@@ -12,7 +12,11 @@ import com.cells.blocks.importinterface.ContainerPollingRate;
 import com.cells.blocks.importinterface.GuiImportInterface;
 import com.cells.blocks.importinterface.GuiMaxSlotSize;
 import com.cells.blocks.importinterface.GuiPollingRate;
+import com.cells.blocks.importinterface.IImportInterfaceHost;
 import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
+import com.cells.blocks.fluidimportinterface.GuiFluidImportInterface;
+import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
 import com.cells.cells.configurable.ContainerConfigurableCell;
 import com.cells.cells.configurable.GuiConfigurableCell;
 
@@ -28,6 +32,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_MAX_SLOT_SIZE = 1;
     public static final int GUI_POLLING_RATE = 2;
     public static final int GUI_CONFIGURABLE_CELL = 3;
+    public static final int GUI_FLUID_IMPORT_INTERFACE = 4;
 
     @Override
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
@@ -41,15 +46,21 @@ public class CellsGuiHandler implements IGuiHandler {
                 }
                 break;
 
+            case GUI_FLUID_IMPORT_INTERFACE:
+                if (tile instanceof TileFluidImportInterface) {
+                    return new ContainerFluidImportInterface(player.inventory, (TileFluidImportInterface) tile);
+                }
+                break;
+
             case GUI_MAX_SLOT_SIZE:
-                if (tile instanceof TileImportInterface) {
-                    return new ContainerMaxSlotSize(player.inventory, (TileImportInterface) tile);
+                if (tile instanceof IImportInterfaceHost) {
+                    return new ContainerMaxSlotSize(player.inventory, (IImportInterfaceHost) tile);
                 }
                 break;
 
             case GUI_POLLING_RATE:
-                if (tile instanceof TileImportInterface) {
-                    return new ContainerPollingRate(player.inventory, (TileImportInterface) tile);
+                if (tile instanceof IImportInterfaceHost) {
+                    return new ContainerPollingRate(player.inventory, (IImportInterfaceHost) tile);
                 }
                 break;
 
@@ -72,15 +83,21 @@ public class CellsGuiHandler implements IGuiHandler {
                 }
                 break;
 
+            case GUI_FLUID_IMPORT_INTERFACE:
+                if (tile instanceof TileFluidImportInterface) {
+                    return new GuiFluidImportInterface(player.inventory, (TileFluidImportInterface) tile);
+                }
+                break;
+
             case GUI_MAX_SLOT_SIZE:
-                if (tile instanceof TileImportInterface) {
-                    return new GuiMaxSlotSize(player.inventory, (TileImportInterface) tile);
+                if (tile instanceof IImportInterfaceHost) {
+                    return new GuiMaxSlotSize(player.inventory, (IImportInterfaceHost) tile);
                 }
                 break;
 
             case GUI_POLLING_RATE:
-                if (tile instanceof TileImportInterface) {
-                    return new GuiPollingRate(player.inventory, (TileImportInterface) tile);
+                if (tile instanceof IImportInterfaceHost) {
+                    return new GuiPollingRate(player.inventory, (IImportInterfaceHost) tile);
                 }
                 break;
 

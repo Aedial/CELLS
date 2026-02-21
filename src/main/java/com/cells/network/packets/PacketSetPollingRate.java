@@ -9,10 +9,11 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import com.cells.blocks.importinterface.ContainerImportInterface;
 import com.cells.blocks.importinterface.ContainerPollingRate;
+import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
 
 
 /**
- * Packet to set the polling rate for Import Interface.
+ * Packet to set the polling rate for Import Interface (item or fluid).
  */
 public class PacketSetPollingRate implements IMessage {
 
@@ -45,6 +46,8 @@ public class PacketSetPollingRate implements IMessage {
 
                 if (container instanceof ContainerImportInterface) {
                     ((ContainerImportInterface) container).setPollingRate(message.pollingRate);
+                } else if (container instanceof ContainerFluidImportInterface) {
+                    ((ContainerFluidImportInterface) container).setPollingRate(message.pollingRate);
                 } else if (container instanceof ContainerPollingRate) {
                     ((ContainerPollingRate) container).setPollingRate(message.pollingRate);
                 }

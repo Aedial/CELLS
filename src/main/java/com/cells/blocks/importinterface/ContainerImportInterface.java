@@ -1,8 +1,10 @@
 package com.cells.blocks.importinterface;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.container.AEBaseContainer;
@@ -50,7 +52,7 @@ public class ContainerImportInterface extends AEBaseContainer {
                 int storageY = filterY + 18;
 
                 // Filter slot (ghost item) - locked when storage slot has items
-                this.addSlotToContainer(new SlotFilterLocked(tile.getFilterInventory(), slotIndex, xPos, filterY, tile, slotIndex));
+                this.addSlotToContainer(new SlotFilterLocked(tile.getFilterInventory(), slotIndex, xPos, filterY, tile, slotIndex, ip.player));
 
                 // Storage slot (actual items, bottom part)
                 this.addSlotToContainer(new SlotImportStorage(tile.getStorageInventory(), slotIndex, xPos, storageY, tile, slotIndex));
@@ -108,23 +110,31 @@ public class ContainerImportInterface extends AEBaseContainer {
     /**
      * Filter slot that prevents changes when the corresponding storage slot has items.
      * This prevents orphaning items that no longer match any filter.
+     * Sends chat warnings to the player when a filter change is rejected.
      */
     private static class SlotFilterLocked extends SlotFake {
         private final TileImportInterface tile;
         private final int storageSlot;
+        private final EntityPlayer player;
 
         public SlotFilterLocked(IItemHandler inv, int idx, int x, int y,
-                                TileImportInterface tile, int storageSlot) {
+                                TileImportInterface tile, int storageSlot, EntityPlayer player) {
             super(inv, idx, x, y);
             this.tile = tile;
             this.storageSlot = storageSlot;
+            this.player = player;
         }
 
         @Override
         public void putStack(ItemStack stack) {
             // Prevent filter changes if there are items in the corresponding storage slot
             ItemStack storageStack = tile.getStorageInventory().getStackInSlot(this.storageSlot);
-            if (!storageStack.isEmpty()) return;
+            if (!storageStack.isEmpty()) {
+                if (!player.world.isRemote) {
+                    player.sendMessage(new TextComponentTranslation("message.cells.import_interface.storage_not_empty"));
+                }
+                return;
+            }
 
             // Allow clearing the filter slot by clicking with an empty hand
             if (stack.isEmpty()) {
@@ -142,7 +152,12 @@ public class ContainerImportInterface extends AEBaseContainer {
                 if (i == this.getSlotIndex()) continue; // Skip current slot
 
                 ItemStackKey otherKey = ItemStackKey.of(tile.getFilterInventory().getStackInSlot(i));
-                if (otherKey != null && otherKey.equals(newKey)) return; // Duplicate found, do not allow
+                if (otherKey != null && otherKey.equals(newKey)) {
+                    if (!player.world.isRemote) {
+                        player.sendMessage(new TextComponentTranslation("message.cells.import_interface.filter_duplicate"));
+                    }
+                    return; // Duplicate found, do not allow
+                }
             }
 
             super.putStack(stack);

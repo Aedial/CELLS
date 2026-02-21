@@ -8,11 +8,11 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
 
-import com.cells.BlockRegistry;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
@@ -20,9 +20,10 @@ import com.cells.network.packets.PacketSetPollingRate;
 
 
 /**
- * GUI for configuring the polling rate of the Import Interface.
+ * GUI for configuring the polling rate of an Import Interface.
  * Has +/- buttons for 1s, 1m, 1h, 1d. Holding shift multiplies by 10.
  * Time is displayed in format "1d 2h 3m 4s" (skipping zero parts) or "0".
+ * Works with any tile entity implementing {@link IImportInterfaceHost}.
  */
 public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IPollingRateListener {
 
@@ -37,12 +38,12 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
     private GuiButton minusHour;
     private GuiButton minusDay;
 
-    private final TileImportInterface tile;
+    private final IImportInterfaceHost host;
     private long currentPollingRate = 0;
 
-    public GuiPollingRate(final InventoryPlayer inventoryPlayer, final TileImportInterface tile) {
-        super(new ContainerPollingRate(inventoryPlayer, tile));
-        this.tile = tile;
+    public GuiPollingRate(final InventoryPlayer inventoryPlayer, final IImportInterfaceHost host) {
+        super(new ContainerPollingRate(inventoryPlayer, host));
+        this.host = host;
     }
 
     @Override
@@ -64,16 +65,16 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
         this.buttonList.add(this.minusHour = new GuiButton(6, this.guiLeft + 88, this.guiTop + 69, 28, 20, "-1h"));
         this.buttonList.add(this.minusDay = new GuiButton(7, this.guiLeft + 122, this.guiTop + 69, 28, 20, "-1d"));
 
-        // Back button to return to Import Interface GUI
+        // Back button to return to the main Interface GUI
         this.buttonList.add(this.originalGuiBtn = new GuiTabButton(
             this.guiLeft + 154,
             this.guiTop,
-            new ItemStack(BlockRegistry.IMPORT_INTERFACE),
-            I18n.format("gui.cells.import_interface.title"),
+            new ItemStack(((TileEntity) this.host).getBlockType()),
+            I18n.format(this.host.getGuiTitleLangKey()),
             this.itemRender
         ));
 
-        // TODO: add a footer with what this does (0 = default polling rate, nonzero = fixed interval)
+        // TODO: add a footer with what this does (gui.cells.polling_rate.tooltip)
     }
 
     @Override
@@ -104,12 +105,14 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
         super.actionPerformed(btn);
 
         if (btn == this.originalGuiBtn) {
-            // Return to Import Interface GUI
+            // Return to the main Interface GUI
+            // Cast to TileEntity to get position
+            TileEntity te = (TileEntity) this.host;
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
-                this.tile.getPos().getX(),
-                this.tile.getPos().getY(),
-                this.tile.getPos().getZ(),
-                CellsGuiHandler.GUI_IMPORT_INTERFACE
+                te.getPos().getX(),
+                te.getPos().getY(),
+                te.getPos().getZ(),
+                this.host.getMainGuiId()
             ));
             return;
         }

@@ -6,13 +6,14 @@ import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiTextField;
+import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
 
-import com.cells.BlockRegistry;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
@@ -20,8 +21,9 @@ import com.cells.network.packets.PacketSetMaxSlotSize;
 
 
 /**
- * GUI for configuring the max slot size of the Import Interface.
+ * GUI for configuring the max slot size of an Import Interface.
  * Similar to AE2's Priority GUI with +/- buttons and a number field.
+ * Works with any tile entity implementing {@link IImportInterfaceHost}.
  */
 public class GuiMaxSlotSize extends AEBaseGui {
 
@@ -37,11 +39,11 @@ public class GuiMaxSlotSize extends AEBaseGui {
     private GuiButton minus100;
     private GuiButton minus1000;
 
-    private final TileImportInterface tile;
+    private final IImportInterfaceHost host;
 
-    public GuiMaxSlotSize(final InventoryPlayer inventoryPlayer, final TileImportInterface tile) {
-        super(new ContainerMaxSlotSize(inventoryPlayer, tile));
-        this.tile = tile;
+    public GuiMaxSlotSize(final InventoryPlayer inventoryPlayer, final IImportInterfaceHost host) {
+        super(new ContainerMaxSlotSize(inventoryPlayer, host));
+        this.host = host;
     }
 
     @Override
@@ -64,12 +66,12 @@ public class GuiMaxSlotSize extends AEBaseGui {
         this.buttonList.add(this.minus100 = new GuiButton(0, this.guiLeft + 82, this.guiTop + 69, 32, 20, "-" + c));
         this.buttonList.add(this.minus1000 = new GuiButton(0, this.guiLeft + 120, this.guiTop + 69, 38, 20, "-" + d));
 
-        // Back button to return to Import Interface GUI
+        // Back button to return to the main Interface GUI
         this.buttonList.add(this.originalGuiBtn = new GuiTabButton(
             this.guiLeft + 154,
             this.guiTop,
-            new ItemStack(BlockRegistry.IMPORT_INTERFACE),
-            "Import Interface",
+            new ItemStack(((TileEntity) this.host).getBlockType()),
+            I18n.format(this.host.getGuiTitleLangKey()),
             this.itemRender
         ));
 
@@ -85,7 +87,7 @@ public class GuiMaxSlotSize extends AEBaseGui {
 
     @Override
     public void drawFG(final int offsetX, final int offsetY, final int mouseX, final int mouseY) {
-        this.fontRenderer.drawString("Max Slot Size", 8, 6, 0x404040);
+        this.fontRenderer.drawString(I18n.format("gui.cells.import_interface.max_slot_size"), 8, 6, 0x404040);
     }
 
     @Override
@@ -102,12 +104,14 @@ public class GuiMaxSlotSize extends AEBaseGui {
         super.actionPerformed(btn);
 
         if (btn == this.originalGuiBtn) {
-            // Return to Import Interface GUI
+            // Return to the main Interface GUI
+            // Cast to TileEntity to get position
+            TileEntity te = (TileEntity) this.host;
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
-                this.tile.getPos().getX(),
-                this.tile.getPos().getY(),
-                this.tile.getPos().getZ(),
-                CellsGuiHandler.GUI_IMPORT_INTERFACE
+                te.getPos().getX(),
+                te.getPos().getY(),
+                te.getPos().getZ(),
+                this.host.getMainGuiId()
             ));
             return;
         }
