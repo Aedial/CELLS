@@ -10,7 +10,7 @@
             "item": "minecraft:piston"
         },
         "l": {
-            "item": "cells:singularity_processor",
+            "item": "cells:overclocked_processor",
             "data": 2
         },
         "s": {

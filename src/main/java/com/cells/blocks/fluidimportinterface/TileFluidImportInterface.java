@@ -468,6 +468,9 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
 
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
+        // Upgrade changed - refresh cached upgrade flags
+        if (inv == this.upgradeInventory) this.refreshUpgrades();
+
         this.markDirty();
     }
 

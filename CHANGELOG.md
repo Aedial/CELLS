@@ -8,7 +8,18 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.4.1] - 2026-02-20
+## [0.4.2] - 2026-02-22
+### Fixed
+- Fix empty Configurable Cell not displaying correctly in ME Chest/ME Drive, due to reporting the wrong status.
+- Fix Configurable Cell sometimes voiding invalid items if spammed madly on the Component slot.
+- Fix Configurable Cell using the wrong calculation for fluids, allowing 1000x more than expected, and reporting 250x the bytes.
+- Fix Import Interface's max slot size not working properly with some piping methods. It now always exposes an empty dummy slot at index 0.
+
+### Changed
+- Make Compression/Decompression cards cheaper, requiring an Overclocked Processor instead of a Singularity one.
+
+
+## [0.4.1] - 2026-02-21
 ### Added
 - Add Fluid Import Interface: a filtered interface that imports fluids into the ME network. Accepts fluid containers (buckets, etc.) as filter ghost items and routes matching fluids to the network. Supports overflow and trash-unselected upgrade cards.
 - Add chat warnings explaining why a filter cannot be added or removed for both Import Interface and Fluid Import Interface.

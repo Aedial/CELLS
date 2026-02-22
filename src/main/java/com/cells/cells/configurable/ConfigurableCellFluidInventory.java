@@ -315,10 +315,13 @@ public class ConfigurableCellFluidInventory implements ICellInventory<IAEFluidSt
     public long getUsedBytes() {
         if (storedFluidCount == 0 && storedTypes == 0) return 0;
 
-        long usedForTypes = (long) storedTypes * componentInfo.getBytesPerType();
-        long usedForFluids = (storedFluidCount == 0) ? 0 : (storedFluidCount - 1) / 8 + 1;
+        // Equal distribution model: each type slot has a fixed byte budget (totalBytes / maxTypes).
+        // Bytes used is proportional to capacity used, with overhead pre-reserved per slot.
+        long totalCapacity = getTotalFluidCapacity();
+        if (totalCapacity <= 0) return 0;
 
-        return usedForFluids + usedForTypes;
+        // Proportional byte usage: (storedFluidCount / totalCapacity) * totalBytes
+        return (storedFluidCount * getTotalBytes()) / totalCapacity;
     }
 
     @Override
@@ -328,23 +331,19 @@ public class ConfigurableCellFluidInventory implements ICellInventory<IAEFluidSt
 
     @Override
     public int getUnusedItemCount() {
-        long usedBytesForFluids = getUsedBytes() - (long) storedTypes * componentInfo.getBytesPerType();
-        if (usedBytesForFluids <= 0) return 0;
-
-        long fullItems = usedBytesForFluids * 8;
-        long unused = fullItems - storedFluidCount;
-        if (unused < 0) return 0;
-
-        return (int) Math.min(unused, Integer.MAX_VALUE);
+        // Equal distribution model: bytes are pre-allocated per type slot, so there's no
+        // "unused" space from byte rounding. Each slot's capacity is fixed regardless
+        // of how many types are stored.
+        return 0;
     }
 
     @Override
     public int getStatusForCell() {
-        if (storedFluidCount == 0 && storedTypes == 0) return 0;
-        if (canHoldNewItem()) return 1;
-        if (getRemainingItemCount() > 0) return 2;
+        if (storedFluidCount == 0 && storedTypes == 0) return 4; // Empty but valid
+        if (canHoldNewItem()) return 1; // Has space for new types
+        if (getRemainingItemCount() > 0) return 2; // Has space for more of existing
 
-        return 3;
+        return 3; // Full
     }
 
     @Override

@@ -195,41 +195,64 @@ public class ContainerConfigurableCell extends AEBaseContainer {
             if (!player.world.isRemote) {
                 player.sendMessage(new TextComponentTranslation("message.cells.configurable_cell.split_stack"));
             }
-            return ItemStack.EMPTY;
+
+            // Return current cursor unchanged for transaction validation
+            return cursor;
         }
 
         // Cursor has item: must be a valid component
-        if (ComponentHelper.getComponentInfo(cursor) == null) return ItemStack.EMPTY;
+        ComponentInfo cursorInfo = ComponentHelper.getComponentInfo(cursor);
+        if (cursorInfo == null) return cursor;
 
         if (installed.isEmpty()) {
             // Empty slot: install one from cursor
-            ItemStack toInstall = cursor.splitStack(1);
+            ItemStack toInstall = cursor.copy();
+            toInstall.setCount(1);
             ComponentHelper.setInstalledComponent(cellStack, toInstall);
 
-            if (cursor.isEmpty()) player.inventory.setItemStack(ItemStack.EMPTY);
+            // Calculate and set remaining cursor
+            ItemStack newCursor;
+            if (cursor.getCount() <= 1) {
+                newCursor = ItemStack.EMPTY;
+            } else {
+                newCursor = cursor.copy();
+                newCursor.shrink(1);
+            }
+            player.inventory.setItemStack(newCursor);
 
             // Sync cursor and slot contents to client
             syncCursorAndSlot(player, 0);
 
-            return ItemStack.EMPTY;
+            return newCursor;
         }
 
-        // Both cursor and slot have components: swap (only if cursor count is 1)
-        if (cursor.getCount() != 1) return ItemStack.EMPTY;
+        // Both cursor and slot have components
+
+        // Idempotency check: if cursor and installed are the same item, treat as no-op
+        // This prevents spam-click issues when rapid clicks cause duplicate processing
+        if (ItemStack.areItemStacksEqual(cursor, installed)
+            && ItemStack.areItemStackTagsEqual(cursor, installed)) {
+            return cursor;
+        }
+
+        // Swap only if cursor count is 1
+        if (cursor.getCount() != 1) return cursor;
 
         // If the cell has content, only allow swapping to a compatible component
         // with enough capacity for the existing data
         if (ComponentHelper.hasContent(cellStack)
-            && !ComponentHelper.canSwapComponent(cellStack, cursor)) return ItemStack.EMPTY;
+            && !ComponentHelper.canSwapComponent(cellStack, cursor)) return cursor;
 
         ItemStack oldComponent = installed.copy();
         ComponentHelper.setInstalledComponent(cellStack, cursor.copy());
+
+        // Set cursor to the old component (swap)
         player.inventory.setItemStack(oldComponent);
 
-        // Sync cursor and slot contents to client
+        // Sync slot and cursor to client
         syncCursorAndSlot(player, 0);
 
-        return ItemStack.EMPTY;
+        return oldComponent;
     }
 
     /**

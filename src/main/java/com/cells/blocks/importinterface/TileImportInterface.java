@@ -129,10 +129,11 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
             @Nonnull
             public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
                 if (stack.isEmpty()) return ItemStack.EMPTY;
-                if (!isItemValid(slot, stack)) return stack;
 
                 // Custom insertion logic that ignores item's maxStackSize
                 // This allows slots to hold more than 64 items of any type
+                // Note: Item validity is checked by FilteredStorageHandler.insertItemSlotless()
+                // before calling this method, so we skip redundant validation here.
                 ItemStack existing = this.getStackInSlot(slot);
                 int limit = TileImportInterface.this.maxSlotSize;
 
@@ -401,7 +402,14 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
 
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
-        if (inv == this.storageInventory && !added.isEmpty()) {
+        if (inv == this.filterInventory) {
+            // Filter changed - rebuild the filter-to-slot mapping so external systems
+            // (like hoppers) can see the correct slots and item validity
+            this.refreshFilterMap();
+        } else if (inv == this.upgradeInventory) {
+            // Upgrade changed - refresh cached upgrade flags
+            this.refreshUpgrades();
+        } else if (inv == this.storageInventory && !added.isEmpty()) {
             // Wake up the tile to import items, but only if using adaptive polling
             // Fixed polling rate should not be interrupted by inventory changes
             if (this.pollingRate <= 0) {
@@ -565,8 +573,10 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
      * Items are automatically routed to the appropriate slot based on filters.
      * Does not allow extraction (import-only interface).
      * <p>
-     * Note: Only the filtered slots are exposed through this handler.
-     *       This allows external systems to exit early when we have few filters set, without needing to try every slot.
+     * Note: Exposes 1 dummy slot that's always empty because Forge's hopper code
+     * uses a broken "isFull" check that compares stack count to ItemStack.getMaxStackSize()
+     * instead of IItemHandler.getSlotLimit(). The dummy slot ensures hoppers see the
+     * inventory as "not full" and attempt insertion, which our slotless logic handles.
      */
     private static class FilteredStorageHandler implements IItemHandler {
         private final TileImportInterface tile;
@@ -577,16 +587,23 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
 
         @Override
         public int getSlots() {
-            // Since we are doing slotless insertion, we can report just as many slots as there are filters.
-            return tile.filterItemList.size();
+            // Expose 1 dummy slot so hoppers see an empty slot and don't think we're full.
+            // Forge 1.12.x hopper code uses stackInSlot.getCount() != stackInSlot.getMaxStackSize()
+            // which incorrectly caps at 64 instead of using our getSlotLimit().
+            return 1 + tile.filterToSlotMap.size();
         }
 
         @Nonnull
         @Override
         public ItemStack getStackInSlot(int slot) {
-            if (slot < 0 || slot >= tile.filterItemList.size()) return ItemStack.EMPTY;
+            // Slot 0 is the dummy slot - always empty
+            if (slot <= 0) return ItemStack.EMPTY;
 
-            ItemStackKey key = tile.filterItemList.get(slot);
+            // Slots 1 through filterItemList.size() are actual filter slots
+            int filterIndex = slot - 1;
+            if (filterIndex >= tile.filterItemList.size()) return ItemStack.EMPTY;
+
+            ItemStackKey key = tile.filterItemList.get(filterIndex);
             Integer storageSlot = tile.filterToSlotMap.get(key);
 
             // Safety check: key should always be in map, but handle edge case

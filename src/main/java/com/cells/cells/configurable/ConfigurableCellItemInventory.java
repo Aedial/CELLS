@@ -362,7 +362,7 @@ public class ConfigurableCellItemInventory implements ICellInventory<IAEItemStac
 
     @Override
     public int getStatusForCell() {
-        if (storedItemCount == 0 && storedTypes == 0) return 0; // Empty
+        if (storedItemCount == 0 && storedTypes == 0) return 4; // Empty but valid
         if (canHoldNewItem()) return 1; // Has space for new types
         if (getRemainingItemCount() > 0) return 2; // Has space for more of existing
 

@@ -208,7 +208,7 @@ tooltip.cells.upgrade.decompression_tier_active=Decompression tiers: %d
 item.cells.configurable_cell.name=Configurable ME Storage Cell
 item.cells.configurable_cell.name_configured=Configurable ME Storage Cell (%s)
 tooltip.cells.configurable_cell.no_component=No component installed! Insert a ME Storage Component to define capacity.
-tooltip.cells.configurable_cell.info=Accepts any ME Storage Component to define capacity and type.
+tooltip.cells.configurable_cell.info=Accepts any ME Storage Component to define capacity and type. Comes with built-in Equal Distribution.
 tooltip.cells.configurable_cell.capacity_per_type.items=Per-type limit: %s items
 tooltip.cells.configurable_cell.capacity_per_type.mb=Per-type limit: %s mB
 
