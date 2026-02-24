@@ -8,12 +8,17 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.4.4] - 2026-02-24
+### Changed
+- Finish updating placeholder textures to (less placeholder) assets. Proper assets will come (probably, maybe, who knows, lol).
+
+
 ## [0.4.3] - 2026-02-23
 ### Added
 - Add stricter checks for upgrades being applied (instead of all custom cards).
 
 ### Changed
-- Update textures from placeholders to proper assets.
+- Update textures from placeholders to proper (still somewhat placeholder) assets.
 
 
 ## [0.4.2] - 2026-02-22
