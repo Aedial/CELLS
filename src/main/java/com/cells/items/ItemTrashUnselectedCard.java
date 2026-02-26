@@ -16,6 +16,8 @@ import appeng.api.implementations.items.IUpgradeModule;
 import com.cells.Tags;
 import com.cells.core.CellsCreativeTab;
 
+import javax.annotation.Nonnull;
+
 
 /**
  * Trash Unselected Card - an upgrade card for the Import Interface.
@@ -48,7 +50,8 @@ public class ItemTrashUnselectedCard extends Item implements IUpgradeModule {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, List<String> tooltip,
+                               @Nonnull ITooltipFlag flag) {
         tooltip.add("§7" + I18n.format("tooltip.cells.trash_unselected_card.desc"));
         tooltip.add("§e" + I18n.format("tooltip.cells.trash_unselected_card.warning"));
         tooltip.add("");

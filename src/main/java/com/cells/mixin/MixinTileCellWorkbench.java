@@ -1,11 +1,7 @@
 package com.cells.mixin;
 
-import net.minecraft.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
-
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.tile.misc.TileCellWorkbench;
-import appeng.util.inv.filter.IAEItemFilter;
 
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

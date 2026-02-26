@@ -480,7 +480,7 @@ public class CompactingHelper {
 
         @Override
         public void clear() {
-            for (int i = 0; i < stacks.length; i++) stacks[i] = ItemStack.EMPTY;
+            Arrays.fill(stacks, ItemStack.EMPTY);
         }
     }
 }

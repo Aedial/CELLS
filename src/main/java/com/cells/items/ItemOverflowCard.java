@@ -16,6 +16,8 @@ import com.cells.core.CellsCreativeTab;
 
 import com.cells.Tags;
 
+import javax.annotation.Nonnull;
+
 
 /**
  * Overflow Card - an upgrade card for Compacting and Hyper-Density Storage Cells.
@@ -55,7 +57,8 @@ public class ItemOverflowCard extends Item implements IUpgradeModule {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, List<String> tooltip,
+                               @Nonnull ITooltipFlag flag) {
         tooltip.add("§7" + I18n.format("tooltip.cells.overflow_card.desc"));
         tooltip.add("");
 

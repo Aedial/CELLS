@@ -4,6 +4,7 @@ import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.tileentity.TileEntity;
 
+import appeng.api.parts.IPart;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
 import appeng.util.Platform;
@@ -15,7 +16,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 /**
  * Container for the Max Slot Size configuration GUI.
  * Similar to AE2's ContainerPriority but for slot size configuration.
- * Works with any tile entity implementing {@link IImportInterfaceHost}.
+ * Works with any host implementing {@link IImportInterfaceHost} (both TileEntity and IPart).
  */
 public class ContainerMaxSlotSize extends AEBaseContainer {
 
@@ -28,7 +29,7 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     public long maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
 
     public ContainerMaxSlotSize(final InventoryPlayer ip, final IImportInterfaceHost host) {
-        super(ip, (TileEntity) host, null);
+        super(ip, host instanceof TileEntity ? (TileEntity) host : null, host instanceof IPart ? (IPart) host : null);
         this.host = host;
     }
 

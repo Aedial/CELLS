@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -22,7 +23,6 @@ import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidTankProperties;
@@ -54,6 +54,7 @@ import appeng.tile.grid.AENetworkInvTile;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
+import appeng.util.SettingsFrom;
 
 import java.nio.charset.StandardCharsets;
 
@@ -72,10 +73,11 @@ import com.cells.util.TickManagerHelper;
  * Only accepts fluids that match the filter in the corresponding slot.
  * Automatically imports stored fluids into the ME network.
  */
-public class TileFluidImportInterface extends AENetworkInvTile implements IGridTickable, IAEAppEngInventory, IAEFluidInventory, IImportInterfaceHost {
+public class TileFluidImportInterface extends AENetworkInvTile implements IGridTickable, IAEAppEngInventory, IAEFluidInventory, IImportInterfaceHost, IFluidImportInterfaceInventoryHost {
 
     public static final int FILTER_SLOTS = 36;
     public static final int TANK_SLOTS = 36;
+    public static final int TOTAL_SLOTS = Math.min(FILTER_SLOTS, TANK_SLOTS);
     public static final int UPGRADE_SLOTS = 4;
     public static final int DEFAULT_MAX_SLOT_SIZE = 16000; // Default tank capacity in mB (16 buckets)
 
@@ -149,7 +151,7 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     public void refreshFilterMap() {
         this.filterToSlotMap.clear();
 
-        for (int i = 0; i < FILTER_SLOTS && i < TANK_SLOTS; i++) {
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
             IAEFluidStack filterFluid = this.filterInventory.getFluidInSlot(i);
             if (filterFluid == null) continue;
 
@@ -329,6 +331,7 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
         this.refreshUpgrades();
     }
 
+    @Nonnull
     @Override
     public NBTTagCompound writeToNBT(final NBTTagCompound data) {
         super.writeToNBT(data);
@@ -351,6 +354,45 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
         data.setTag("fluidTanks", tankList);
 
         return data;
+    }
+
+    @Nonnull
+    @Override
+    public NBTTagCompound downloadSettings(SettingsFrom from) {
+        NBTTagCompound output = super.downloadSettings(from);
+        if (output == null) output = new NBTTagCompound();
+
+        // Save slot size and polling rate for both memory card and dismantle
+        output.setInteger("maxSlotSize", this.maxSlotSize);
+        output.setInteger("pollingRate", this.pollingRate);
+
+        // Save filter inventory only when dismantling (not for memory card)
+        if (from == SettingsFrom.DISMANTLE_ITEM) {
+            this.filterInventory.writeToNBT(output, "fluidFilters");
+        }
+
+        return output;
+    }
+
+    @Override
+    public void uploadSettings(SettingsFrom from, NBTTagCompound compound, EntityPlayer player) {
+        super.uploadSettings(from, compound, player);
+
+        if (compound == null) return;
+
+        // Load slot size and polling rate for both memory card and dismantle
+        if (compound.hasKey("maxSlotSize")) {
+            this.setMaxSlotSize(compound.getInteger("maxSlotSize"));
+        }
+        if (compound.hasKey("pollingRate")) {
+            this.setPollingRate(compound.getInteger("pollingRate"));
+        }
+
+        // Load filter inventory only when placing dismantled block (not for memory card)
+        if (from == SettingsFrom.DISMANTLE_ITEM && compound.hasKey("fluidFilters")) {
+            this.filterInventory.readFromNBT(compound, "fluidFilters");
+            this.refreshFilterMap();
+        }
     }
 
     @Override
@@ -454,6 +496,16 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
         TickManagerHelper.reRegisterTickable(this.getProxy().getNode(), this);
     }
 
+    @Override
+    public BlockPos getHostPos() {
+        return this.getPos();
+    }
+
+    @Override
+    public World getHostWorld() {
+        return this.getWorld();
+    }
+
     // IImportInterfaceHost implementation
 
     @Override
@@ -467,7 +519,15 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     }
 
     @Override
+    public ItemStack getBackButtonStack() {
+        return new ItemStack(this.getBlockType());
+    }
+
+    @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
+        // Upgrade changed - refresh cached upgrade flags
+        if (inv == this.upgradeInventory) this.refreshUpgrades();
+
         this.markDirty();
     }
 
@@ -481,7 +541,8 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     }
 
     @Override
-    public AECableType getCableConnectionType(final AEPartLocation dir) {
+    @Nonnull
+    public AECableType getCableConnectionType(@Nonnull final AEPartLocation dir) {
         return AECableType.SMART;
     }
 
@@ -492,7 +553,8 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     // IGridTickable implementation
 
     @Override
-    public TickingRequest getTickingRequest(final IGridNode node) {
+    @Nonnull
+    public TickingRequest getTickingRequest(@Nonnull final IGridNode node) {
         if (this.pollingRate > 0) {
             return new TickingRequest(
                 this.pollingRate,
@@ -511,7 +573,8 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     }
 
     @Override
-    public TickRateModulation tickingRequest(final IGridNode node, final int ticksSinceLastCall) {
+    @Nonnull
+    public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
         if (!this.getProxy().isActive()) return TickRateModulation.SLEEP;
 
         boolean didWork = importFluids();
@@ -546,10 +609,8 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
                 FluidStack fluid = this.fluidTanks[i];
                 if (fluid == null || fluid.amount <= 0) continue;
 
-                IAEFluidStack aeStack = AEFluidStack.fromFluidStack(fluid);
-                if (aeStack == null) continue;
-
                 // Try to insert into network
+                IAEFluidStack aeStack = AEFluidStack.fromFluidStack(fluid);
                 IAEFluidStack remaining = fluidStorage.injectItems(aeStack, Actionable.MODULATE, this.actionSource);
 
                 if (remaining == null) {

@@ -46,6 +46,7 @@ public class ItemOverclockedProcessor extends Item {
     }
 
     @Override
+    @Nonnull
     public String getTranslationKey(ItemStack stack) {
         int meta = stack.getMetadata();
         if (meta >= 0 && meta < TYPE_NAMES.length) {

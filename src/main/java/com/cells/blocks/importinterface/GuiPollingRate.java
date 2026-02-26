@@ -7,23 +7,23 @@ import org.lwjgl.input.Keyboard;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
 
-import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketSetPollingRate;
+
+import javax.annotation.Nonnull;
 
 
 /**
  * GUI for configuring the polling rate of an Import Interface.
  * Has +/- buttons for 1s, 1m, 1h, 1d. Holding shift multiplies by 10.
  * Time is displayed in format "1d 2h 3m 4s" (skipping zero parts) or "0".
- * Works with any tile entity implementing {@link IImportInterfaceHost}.
+ * Works with any host implementing {@link IImportInterfaceHost} (both TileEntity and IPart).
  */
 public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IPollingRateListener {
 
@@ -69,7 +69,7 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
         this.buttonList.add(this.originalGuiBtn = new GuiTabButton(
             this.guiLeft + 154,
             this.guiTop,
-            new ItemStack(((TileEntity) this.host).getBlockType()),
+            this.host.getBackButtonStack(),
             I18n.format(this.host.getGuiTitleLangKey()),
             this.itemRender
         ));
@@ -101,18 +101,16 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
     }
 
     @Override
-    protected void actionPerformed(final GuiButton btn) throws IOException {
+    protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
         super.actionPerformed(btn);
 
         if (btn == this.originalGuiBtn) {
             // Return to the main Interface GUI
-            // Cast to TileEntity to get position
-            TileEntity te = (TileEntity) this.host;
+            BlockPos pos = this.host.getHostPos();
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
-                te.getPos().getX(),
-                te.getPos().getY(),
-                te.getPos().getZ(),
-                this.host.getMainGuiId()
+                pos,
+                this.host.getMainGuiId(),
+                this.host.getPartSide()
             ));
             return;
         }

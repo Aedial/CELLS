@@ -1,5 +1,6 @@
 package com.cells.cells.normal.compacting;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -67,6 +68,7 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
     }
 
     @Override
+    @Nonnull
     public String getTranslationKey(ItemStack stack) {
         int meta = stack.getMetadata();
         if (meta >= 0 && meta < tierNames.length) return getTranslationKey() + "." + tierNames[meta];
@@ -84,7 +86,8 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+                               @Nonnull ITooltipFlag flag) {
         IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
         ICellInventoryHandler<IAEItemStack> cellHandler = AEApi.instance().registries().cell().getCellInventory(stack, null, channel);
 
@@ -203,7 +206,11 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, 2);
+        return new CustomCellUpgrades(is, 2, Arrays.asList(
+            CustomCellUpgrades.CustomUpgrades.OVERFLOW,
+            CustomCellUpgrades.CustomUpgrades.COMPRESSION_TIER,
+            CustomCellUpgrades.CustomUpgrades.DECOMPRESSION_TIER
+        ));
     }
 
     @Override
@@ -240,7 +247,8 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
     // =====================
 
     @Override
-    public ActionResult<ItemStack> onItemRightClick(World world, EntityPlayer player, EnumHand hand) {
+    @Nonnull
+    public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, EntityPlayer player, @Nonnull EnumHand hand) {
         ItemStack stack = player.getHeldItem(hand);
         if (player.isSneaking() && disassembleDrive(stack, world, player)) {
             return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));
@@ -250,8 +258,10 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
     }
 
     @Override
-    public EnumActionResult onItemUseFirst(EntityPlayer player, World world, BlockPos pos, EnumFacing side,
-                                           float hitX, float hitY, float hitZ, EnumHand hand) {
+    @Nonnull
+    public EnumActionResult onItemUseFirst(@Nonnull EntityPlayer player, @Nonnull World world,
+                                           @Nonnull BlockPos pos, @Nonnull EnumFacing side,
+                                           float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
         return disassembleDrive(player.getHeldItem(hand), world, player) ? EnumActionResult.SUCCESS : EnumActionResult.PASS;
     }
 
@@ -272,7 +282,6 @@ public abstract class ItemCompactingCellBase extends Item implements IInternalCo
         }
 
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
-        if (ia == null) return false;
 
         // Remove one cell from the stack.
         // If the held stack has more than one item, shrink it by one.

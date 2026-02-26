@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.command.CommandBase;
-import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
@@ -26,6 +25,8 @@ import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
+import javax.annotation.Nonnull;
+
 /**
  * /fillCell <item id> <count>
  * Creative-only command. Uses AE2 insertion APIs to fill the storage cell in hand.
@@ -33,12 +34,14 @@ import net.minecraftforge.fluids.FluidStack;
 public class FillCellCommand extends CommandBase {
 
     @Override
+    @Nonnull
     public String getName() {
         return "fillCell";
     }
 
     @Override
-    public String getUsage(ICommandSender sender) {
+    @Nonnull
+    public String getUsage(@Nonnull ICommandSender sender) {
         return "/fillCell <item id>|<fluid id> <count> (with k,m,b,t,q,qq suffixes)";
     }
 
@@ -48,7 +51,7 @@ public class FillCellCommand extends CommandBase {
     }
 
     @Override
-    public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+    public void execute(@Nonnull MinecraftServer server, ICommandSender sender, @Nonnull String[] args) {
         if (!(sender.getCommandSenderEntity() instanceof EntityPlayerMP)) {
             sender.sendMessage(new TextComponentString("This command must be run by a player."));
             return;
@@ -81,7 +84,7 @@ public class FillCellCommand extends CommandBase {
 
         EntityPlayerMP player = (EntityPlayerMP) sender.getCommandSenderEntity();
         ItemStack held = player.getHeldItemMainhand();
-        if (held == null || held.isEmpty()) {
+        if (held.isEmpty()) {
             sender.sendMessage(new TextComponentString("Hold a storage cell in your hand."));
             return;
         }
@@ -163,7 +166,9 @@ public class FillCellCommand extends CommandBase {
     }
 
     @Override
-    public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, BlockPos pos) {
+    @Nonnull
+    public List<String> getTabCompletions(@Nonnull MinecraftServer server, @Nonnull ICommandSender sender,
+                                          String[] args, BlockPos pos) {
         List<String> ret = new ArrayList<>();
         if (args.length == 1) {
             String last = args[args.length - 1];
@@ -173,7 +178,7 @@ public class FillCellCommand extends CommandBase {
                 EntityPlayerMP player = (EntityPlayerMP) sender.getCommandSenderEntity();
                 ItemStack held = player.getHeldItemMainhand();
 
-                if (held != null && !held.isEmpty()) {
+                if (!held.isEmpty()) {
                     IStorageChannel<IAEItemStack> itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
                     IMEInventoryHandler<IAEItemStack> itemInv = AEApi.instance().registries().cell().getCellInventory(held, null, itemChannel);
 

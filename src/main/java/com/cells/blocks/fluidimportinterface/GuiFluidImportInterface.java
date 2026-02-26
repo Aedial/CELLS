@@ -12,9 +12,11 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 
+import appeng.api.parts.IPart;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiCustomSlot;
@@ -31,6 +33,8 @@ import com.cells.network.packets.PacketOpenGui;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
+import javax.annotation.Nonnull;
+
 
 /**
  * GUI for the Fluid Import Interface.
@@ -41,19 +45,34 @@ import mezz.jei.api.gui.IGhostIngredientHandler;
  * <p>
  * Extends AEBaseGui for proper fluid slot rendering.
  * Implements IJEIGhostIngredients for JEI drag and drop support.
+ * Works with both TileFluidImportInterface (block) and PartFluidImportInterface (part).
  */
 public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngredients {
 
     private final ContainerFluidImportInterface container;
-    private final TileFluidImportInterface tile;
+    private final IFluidImportInterfaceInventoryHost host;
     private GuiTabButton configButton;
     private GuiTabButton pollingRateButton;
     private final Map<IGhostIngredientHandler.Target<?>, Object> mapTargetSlot = new HashMap<>();
 
+    /**
+     * Constructor for tile entity.
+     */
     public GuiFluidImportInterface(final InventoryPlayer inventoryPlayer, final TileFluidImportInterface tile) {
         super(new ContainerFluidImportInterface(inventoryPlayer, tile));
         this.container = (ContainerFluidImportInterface) this.inventorySlots;
-        this.tile = tile;
+        this.host = tile;
+        this.ySize = 256;
+        this.xSize = 210;
+    }
+
+    /**
+     * Constructor for part.
+     */
+    public GuiFluidImportInterface(final InventoryPlayer inventoryPlayer, final IPart part) {
+        super(new ContainerFluidImportInterface(inventoryPlayer, part));
+        this.container = (ContainerFluidImportInterface) this.inventorySlots;
+        this.host = (IFluidImportInterfaceInventoryHost) part;
         this.ySize = 256;
         this.xSize = 210;
     }
@@ -71,7 +90,7 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
                 int xPos = 8 + col * 18;
                 int filterY = 25 + row * 36;  // Filter slot position
 
-                GuiFluidFilterSlot filterSlot = new GuiFluidFilterSlot(this.tile, slotIndex, xPos, filterY);
+                GuiFluidFilterSlot filterSlot = new GuiFluidFilterSlot(this.host, slotIndex, xPos, filterY);
                 this.guiSlots.add(filterSlot);
             }
         }
@@ -86,7 +105,7 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
                 int xPos = 8 + col * 18;
                 int yPos = 25 + row * 36 + 18;  // 18 pixels below filter slot
 
-                GuiFluidImportTankSlot tankSlot = new GuiFluidImportTankSlot(this.tile, this.container, tankIndex, tankIndex, xPos, yPos);
+                GuiFluidImportTankSlot tankSlot = new GuiFluidImportTankSlot(this.host, this.container, tankIndex, tankIndex, xPos, yPos);
                 tankSlot.setFontRenderer(this.fontRenderer);
                 this.guiSlots.add(tankSlot);
             }
@@ -123,26 +142,48 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
     }
 
     @Override
-    protected void actionPerformed(final GuiButton btn) throws IOException {
+    protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
         super.actionPerformed(btn);
 
+        BlockPos pos = this.host.getHostPos();
+
         if (btn == this.configButton) {
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
-                this.tile.getPos().getX(),
-                this.tile.getPos().getY(),
-                this.tile.getPos().getZ(),
-                CellsGuiHandler.GUI_MAX_SLOT_SIZE
-            ));
+            // Open the max slot size configuration GUI
+            // Use part-specific GUI ID with side encoding for parts
+            if (this.host.isPart()) {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pos,
+                    CellsGuiHandler.GUI_PART_MAX_SLOT_SIZE,
+                    this.host.getPartSide()
+                ));
+            } else {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pos.getX(),
+                    pos.getY(),
+                    pos.getZ(),
+                    CellsGuiHandler.GUI_MAX_SLOT_SIZE
+                ));
+            }
             return;
         }
 
         if (btn == this.pollingRateButton) {
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
-                this.tile.getPos().getX(),
-                this.tile.getPos().getY(),
-                this.tile.getPos().getZ(),
-                CellsGuiHandler.GUI_POLLING_RATE
-            ));
+            // Open the polling rate configuration GUI
+            // Use part-specific GUI ID with side encoding for parts
+            if (this.host.isPart()) {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pos,
+                    CellsGuiHandler.GUI_PART_POLLING_RATE,
+                    this.host.getPartSide()
+                ));
+            } else {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pos.getX(),
+                    pos.getY(),
+                    pos.getZ(),
+                    CellsGuiHandler.GUI_POLLING_RATE
+                ));
+            }
         }
     }
 
@@ -179,12 +220,13 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
 
             IGhostIngredientHandler.Target<Object> target = new IGhostIngredientHandler.Target<Object>() {
                 @Override
+                @Nonnull
                 public Rectangle getArea() {
                     return new Rectangle(getGuiLeft() + filterSlot.xPos(), getGuiTop() + filterSlot.yPos(), 16, 16);
                 }
 
                 @Override
-                public void accept(Object ingredient) {
+                public void accept(@Nonnull Object ingredient) {
                     // Send fluid slot update to server
                     IAEFluidStack aeFluid = AEFluidStack.fromFluidStack(finalFluid);
                     Map<Integer, IAEFluidStack> map = new HashMap<>();

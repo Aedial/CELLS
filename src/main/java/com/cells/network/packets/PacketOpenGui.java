@@ -1,17 +1,26 @@
 package com.cells.network.packets;
 
+import javax.annotation.Nullable;
+
 import io.netty.buffer.ByteBuf;
+
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.math.BlockPos;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
+import appeng.api.util.AEPartLocation;
+
 import com.cells.Cells;
+import com.cells.gui.CellsGuiHandler;
 
 
 /**
  * Packet to request opening a GUI at a specific position.
+ * <p>
+ * For parts, the GUI ID should be pre-encoded with side information using
+ * {@link CellsGuiHandler#encodePartGuiId(int, AEPartLocation)}.
  */
 public class PacketOpenGui implements IMessage {
 
@@ -21,11 +30,33 @@ public class PacketOpenGui implements IMessage {
     public PacketOpenGui() {
     }
 
+    /**
+     * Create a packet to open a block-based GUI.
+     */
     public PacketOpenGui(int x, int y, int z, int guiId) {
         this.x = x;
         this.y = y;
         this.z = z;
         this.guiId = guiId;
+    }
+
+    /**
+     * Create a packet to open a GUI, encoding part side if applicable.
+     *
+     * @param pos The block position
+     * @param baseGuiId The base GUI ID (use part GUI IDs like GUI_PART_MAX_SLOT_SIZE for parts)
+     * @param partSide The part side (null for blocks)
+     */
+    public PacketOpenGui(BlockPos pos, int baseGuiId, @Nullable AEPartLocation partSide) {
+        this.x = pos.getX();
+        this.y = pos.getY();
+        this.z = pos.getZ();
+
+        if (partSide != null) {
+            this.guiId = CellsGuiHandler.encodePartGuiId(baseGuiId, partSide);
+        } else {
+            this.guiId = baseGuiId;
+        }
     }
 
     @Override

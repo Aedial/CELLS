@@ -45,6 +45,7 @@ public class ItemCompressedEngineeringPrint extends Item {
     }
 
     @Override
+    @Nonnull
     public String getTranslationKey(ItemStack stack) {
         int meta = stack.getMetadata();
 

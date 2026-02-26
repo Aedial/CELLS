@@ -4,6 +4,7 @@ import appeng.api.networking.security.IActionHost;
 import appeng.api.networking.security.IActionSource;
 import net.minecraft.entity.player.EntityPlayer;
 
+import javax.annotation.Nonnull;
 import java.util.Optional;
 
 /**
@@ -30,17 +31,20 @@ public class CrossTierActionSource implements IActionSource {
     }
 
     @Override
+    @Nonnull
     public Optional<EntityPlayer> player() {
         return Optional.empty();
     }
 
     @Override
+    @Nonnull
     public Optional<IActionHost> machine() {
         return Optional.ofNullable(machine);
     }
 
     @Override
-    public <T> Optional<T> context(Class<T> key) {
+    @Nonnull
+    public <T> Optional<T> context(@Nonnull Class<T> key) {
         return Optional.empty();
     }
 

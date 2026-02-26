@@ -4,7 +4,6 @@ import java.util.Collections;
 import java.util.List;
 
 import net.minecraftforge.fml.common.Optional;
-import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 
 import zone.rong.mixinbooter.ILateMixinLoader;
 

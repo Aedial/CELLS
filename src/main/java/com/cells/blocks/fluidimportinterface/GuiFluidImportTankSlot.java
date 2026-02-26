@@ -33,14 +33,14 @@ public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
 
     private static final FluidStackSizeRenderer FLUID_STACK_SIZE_RENDERER = new FluidStackSizeRenderer();
 
-    private final TileFluidImportInterface tile;
+    private final IFluidImportInterfaceInventoryHost host;
     private final ContainerFluidImportInterface container;
     private final int tankIndex;
     private FontRenderer fontRenderer;
 
-    public GuiFluidImportTankSlot(TileFluidImportInterface tile, ContainerFluidImportInterface container, int tankIndex, int id, int x, int y) {
+    public GuiFluidImportTankSlot(IFluidImportInterfaceInventoryHost host, ContainerFluidImportInterface container, int tankIndex, int id, int x, int y) {
         super(id, x, y);
-        this.tile = tile;
+        this.host = host;
         this.container = container;
         this.tankIndex = tankIndex;
     }
@@ -55,7 +55,7 @@ public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
 
     @Override
     public void drawContent(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
-        FluidStack fluid = this.tile.getFluidInTank(this.tankIndex);
+        FluidStack fluid = this.host.getFluidInTank(this.tankIndex);
         if (fluid == null || fluid.amount <= 0) return;
 
         Fluid fluidType = fluid.getFluid();
@@ -88,7 +88,7 @@ public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
 
     @Override
     public String getMessage() {
-        FluidStack fluid = this.tile.getFluidInTank(this.tankIndex);
+        FluidStack fluid = this.host.getFluidInTank(this.tankIndex);
         if (fluid == null || fluid.amount <= 0) return null;
 
         // Format: "Fluid Name\n1,234 / 16,000 mB"
@@ -138,6 +138,6 @@ public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
     }
 
     public FluidStack getFluidStack() {
-        return this.tile.getFluidInTank(this.tankIndex);
+        return this.host.getFluidInTank(this.tankIndex);
     }
 }

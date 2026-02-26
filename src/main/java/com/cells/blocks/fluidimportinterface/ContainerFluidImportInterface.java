@@ -9,11 +9,13 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IContainerListener;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 
+import appeng.api.parts.IPart;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
@@ -21,11 +23,14 @@ import appeng.container.slot.SlotNormal;
 import appeng.fluids.container.IFluidSyncContainer;
 import appeng.fluids.helper.FluidSyncHelper;
 import appeng.helpers.InventoryAction;
+import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
 
 import com.cells.Cells;
 import com.cells.blocks.importinterface.TileImportInterface;
 import com.cells.util.FluidStackKey;
+
+import javax.annotation.Nonnull;
 
 
 /**
@@ -33,10 +38,12 @@ import com.cells.util.FluidStackKey;
  * Layout: 4 rows of 9 filter slots (fluid filters, not item slots).
  * Storage is fluid-based (internal tanks), rendered as GuiFluidImportTankSlot.
  * Plus 4 upgrade slots on the right side.
+ * <p>
+ * Works with both TileFluidImportInterface (block) and PartFluidImportInterface (part).
  */
 public class ContainerFluidImportInterface extends AEBaseContainer implements IFluidSyncContainer {
 
-    private final TileFluidImportInterface tile;
+    private final IFluidImportInterfaceInventoryHost host;
     private FluidSyncHelper filterSync = null;
 
     @GuiSync(0)
@@ -45,18 +52,35 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
     @GuiSync(1)
     public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
 
+    /**
+     * Constructor for tile entity.
+     */
     public ContainerFluidImportInterface(final InventoryPlayer ip, final TileFluidImportInterface tile) {
-        super(ip, tile, null);
-        this.tile = tile;
+        this(ip, tile, tile);
+    }
+
+    /**
+     * Constructor for part.
+     */
+    public ContainerFluidImportInterface(final InventoryPlayer ip, final IPart part) {
+        this(ip, (IFluidImportInterfaceInventoryHost) part, part instanceof TileEntity ? part : null);
+    }
+
+    /**
+     * Common constructor that both tile and part use.
+     */
+    private ContainerFluidImportInterface(final InventoryPlayer ip, final IFluidImportInterfaceInventoryHost host, final Object anchor) {
+        super(ip, anchor instanceof TileEntity ? (TileEntity) anchor : null, anchor instanceof IPart ? (IPart) anchor : null);
+        this.host = host;
 
         // Add 4 upgrade slots at the right side of the GUI
         for (int i = 0; i < TileFluidImportInterface.UPGRADE_SLOTS; i++) {
             this.addSlotToContainer(new SlotUpgrade(
-                tile.getUpgradeInventory(),
+                host.getUpgradeInventory(),
                 i,
                 186,
                 25 + i * 18,
-                tile
+                host
             ));
         }
 
@@ -66,7 +90,7 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
 
     private FluidSyncHelper getFilterSyncHelper() {
         if (this.filterSync == null) {
-            this.filterSync = new FluidSyncHelper(this.tile.getFilterInventory(), 0);
+            this.filterSync = new FluidSyncHelper(this.host.getFilterInventory(), 0);
         }
         return this.filterSync;
     }
@@ -78,12 +102,12 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
         // Sync fluid filter inventory
         if (Platform.isServer()) this.getFilterSyncHelper().sendDiff(this.listeners);
 
-        if (this.maxSlotSize != this.tile.getMaxSlotSize()) this.maxSlotSize = this.tile.getMaxSlotSize();
-        if (this.pollingRate != this.tile.getPollingRate()) this.pollingRate = this.tile.getPollingRate();
+        if (this.maxSlotSize != this.host.getMaxSlotSize()) this.maxSlotSize = this.host.getMaxSlotSize();
+        if (this.pollingRate != this.host.getPollingRate()) this.pollingRate = this.host.getPollingRate();
     }
 
     @Override
-    public void addListener(IContainerListener listener) {
+    public void addListener(@Nonnull IContainerListener listener) {
         super.addListener(listener);
         this.getFilterSyncHelper().sendFull(Collections.singleton(listener));
     }
@@ -91,7 +115,7 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
     @Override
     public void receiveFluidSlots(Map<Integer, IAEFluidStack> fluids) {
         // On client, just update the display cache
-        if (this.tile.getWorld() != null && this.tile.getWorld().isRemote) {
+        if (this.host.getHostWorld() != null && this.host.getHostWorld().isRemote) {
             this.getFilterSyncHelper().readPacket(fluids);
             return;
         }
@@ -115,8 +139,8 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
 
             // Null fluid means clearing the filter - only allowed if tank is empty (prevent orphans)
             if (fluid == null) {
-                if (this.tile.isTankEmpty(slot)) {
-                    this.tile.setFilterFluid(slot, null);
+                if (this.host.isTankEmpty(slot)) {
+                    this.host.setFilterFluid(slot, null);
                 } else if (player != null) {
                     player.sendMessage(new TextComponentTranslation("message.cells.import_interface.storage_not_empty"));
                 }
@@ -124,7 +148,7 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
             }
 
             // Prevent filter changes if the corresponding tank has fluid
-            if (!this.tile.isTankEmpty(slot)) {
+            if (!this.host.isTankEmpty(slot)) {
                 if (player != null) {
                     player.sendMessage(new TextComponentTranslation("message.cells.import_interface.storage_not_empty"));
                 }
@@ -139,7 +163,7 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
             for (int i = 0; i < TileFluidImportInterface.FILTER_SLOTS; i++) {
                 if (i == slot) continue;
 
-                IAEFluidStack otherFluid = this.tile.getFilterFluid(i);
+                IAEFluidStack otherFluid = this.host.getFilterFluid(i);
                 if (otherFluid == null) continue;
 
                 FluidStackKey otherKey = FluidStackKey.of(otherFluid.getFluidStack());
@@ -154,28 +178,28 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
                     player.sendMessage(new TextComponentTranslation("message.cells.import_interface.filter_duplicate"));
                 }
             } else {
-                this.tile.setFilterFluid(slot, fluid);
+                this.host.setFilterFluid(slot, fluid);
             }
         }
     }
 
-    public TileFluidImportInterface getTile() {
-        return this.tile;
+    public IFluidImportInterfaceInventoryHost getHost() {
+        return this.host;
     }
 
     public void setMaxSlotSize(int size) {
-        this.tile.setMaxSlotSize(size);
+        this.host.setMaxSlotSize(size);
     }
 
     public void setPollingRate(int ticks) {
-        this.tile.setPollingRate(ticks);
+        this.host.setPollingRate(ticks);
     }
 
     @Override
     public void onSlotChange(final Slot s) {
         super.onSlotChange(s);
 
-        if (s instanceof SlotUpgrade) tile.refreshUpgrades();
+        if (s instanceof SlotUpgrade) host.refreshUpgrades();
     }
 
     /**
@@ -203,7 +227,7 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
         if (fh == null) return;
 
         // Check if the slot has a filter set
-        IAEFluidStack filterFluid = this.tile.getFilterFluid(slot);
+        IAEFluidStack filterFluid = this.host.getFilterFluid(slot);
 
         // Check what fluid is in the container
         FluidStack drainable = fh.drain(Integer.MAX_VALUE, false);
@@ -213,8 +237,8 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
         if (filterFluid != null && !filterFluid.getFluidStack().isFluidEqual(drainable)) return;
 
         // Calculate how much we can insert into the tank
-        int capacity = this.tile.getMaxSlotSize();
-        FluidStack currentTankFluid = this.tile.getFluidInTank(slot);
+        int capacity = this.host.getMaxSlotSize();
+        FluidStack currentTankFluid = this.host.getFluidInTank(slot);
 
         // If tank has fluid, it must match
         if (currentTankFluid != null && !currentTankFluid.isFluidEqual(drainable)) return;
@@ -227,7 +251,7 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
         int heldAmount = held.getCount();
         for (int i = 0; i < heldAmount; i++) {
             // Recalculate space available
-            currentTankFluid = this.tile.getFluidInTank(slot);
+            currentTankFluid = this.host.getFluidInTank(slot);
             currentAmount = currentTankFluid != null ? currentTankFluid.amount : 0;
             spaceAvailable = capacity - currentAmount;
             if (spaceAvailable <= 0) break;
@@ -250,7 +274,7 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
             if (drained == null || drained.amount <= 0) break;
 
             // Now insert into tank - this should always succeed since we checked space
-            int actuallyInserted = this.tile.insertFluidIntoTank(slot, drained);
+            int actuallyInserted = this.host.insertFluidIntoTank(slot, drained);
 
             // Safety check: if we couldn't insert everything we drained, we have a problem
             // This shouldn't happen, but log it if it does
@@ -276,16 +300,16 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
      * Custom slot for upgrades that only accepts specific upgrade cards.
      */
     private static class SlotUpgrade extends SlotNormal {
-        private final TileFluidImportInterface tile;
+        private final IFluidImportInterfaceInventoryHost host;
 
-        public SlotUpgrade(appeng.tile.inventory.AppEngInternalInventory inv, int idx, int x, int y, TileFluidImportInterface tile) {
+        public SlotUpgrade(AppEngInternalInventory inv, int idx, int x, int y, IFluidImportInterfaceInventoryHost host) {
             super(inv, idx, x, y);
-            this.tile = tile;
+            this.host = host;
         }
 
         @Override
-        public boolean isItemValid(ItemStack stack) {
-            return tile.isValidUpgrade(stack);
+        public boolean isItemValid(@Nonnull ItemStack stack) {
+            return host.isValidUpgrade(stack);
         }
 
         @Override

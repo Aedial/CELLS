@@ -1,7 +1,6 @@
 package com.cells.util;
 
 import java.lang.reflect.Field;
-import java.util.Iterator;
 import java.util.PriorityQueue;
 
 import appeng.api.networking.IGridHost;
@@ -52,12 +51,10 @@ public final class TickManagerHelper {
      * @return true if re-registration succeeded, false if it failed
      */
     public static <T extends IGridTickable & IGridHost> boolean reRegisterTickable(IGridNode node, T tickable) {
-        if (node == null || node.getGrid() == null) return false;
-
-        ITickManager tickManager = node.getGrid().getCache(ITickManager.class);
-        if (tickManager == null) return false;
+        if (node == null) return false;
 
         // Purge stale entries from the PriorityQueue before AE2's removeNode leaves them behind
+        ITickManager tickManager = node.getGrid().getCache(ITickManager.class);
         purgeStaleTrackers(tickManager, node);
 
         tickManager.removeNode(node, tickable);
@@ -85,11 +82,7 @@ public final class TickManagerHelper {
             PriorityQueue<TickTracker> upcomingTicks =
                 (PriorityQueue<TickTracker>) upcomingTicksField.get(tickManager);
 
-            Iterator<TickTracker> it = upcomingTicks.iterator();
-            while (it.hasNext()) {
-                TickTracker tracker = it.next();
-                if (tracker.getNode() == node) it.remove();
-            }
+            upcomingTicks.removeIf(tracker -> tracker.getNode() == node);
         } catch (NoSuchFieldException | IllegalAccessException | ClassCastException e) {
             // If reflection fails (e.g. AE2 internals changed), log a warning once
             // and fall back to the buggy removeNode/addNode behavior. The issue will

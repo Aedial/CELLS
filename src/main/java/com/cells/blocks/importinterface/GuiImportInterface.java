@@ -16,7 +16,9 @@ import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
 
+import appeng.api.parts.IPart;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
 import appeng.container.interfaces.IJEIGhostIngredients;
@@ -33,27 +35,45 @@ import com.cells.network.packets.PacketOpenGui;
 
 import mezz.jei.api.gui.IGhostIngredientHandler;
 
+import javax.annotation.Nonnull;
+
 
 /**
  * GUI for the Import Interface.
  * Shows 4 rows of 9 paired slots (filter on top, storage below).
  * Extends AEBaseGui to get proper SlotFake handling for filter slots.
  * Implements IJEIGhostIngredients for JEI drag and drop support.
+ * <p>
+ * Works with both TileImportInterface (block) and PartImportInterface (part).
  */
 public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredients {
 
     private final ContainerImportInterface container;
-    private final TileImportInterface tile;
+    private final IImportInterfaceInventoryHost host;
     private GuiTabButton configButton;
     private GuiTabButton pollingRateButton;
     private final Map<IGhostIngredientHandler.Target<?>, Object> mapTargetSlot = new HashMap<>();
 
+    /**
+     * Constructor for tile entity.
+     */
     public GuiImportInterface(final InventoryPlayer inventoryPlayer, final TileImportInterface tile) {
         super(new ContainerImportInterface(inventoryPlayer, tile));
         this.container = (ContainerImportInterface) this.inventorySlots;
-        this.tile = tile;
+        this.host = tile;
         this.ySize = 256;
         this.xSize = 210;  // 176 for the main area + 34 for the upgrades area
+    }
+
+    /**
+     * Constructor for part.
+     */
+    public GuiImportInterface(final InventoryPlayer inventoryPlayer, final IPart part) {
+        super(new ContainerImportInterface(inventoryPlayer, part));
+        this.container = (ContainerImportInterface) this.inventorySlots;
+        this.host = (IImportInterfaceInventoryHost) part;
+        this.ySize = 256;
+        this.xSize = 210;
     }
 
     @Override
@@ -95,28 +115,48 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
     }
 
     @Override
-    protected void actionPerformed(final GuiButton btn) throws IOException {
+    protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
         super.actionPerformed(btn);
+
+        BlockPos pos = this.host.getHostPos();
 
         if (btn == this.configButton) {
             // Open the max slot size configuration GUI
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
-                this.tile.getPos().getX(),
-                this.tile.getPos().getY(),
-                this.tile.getPos().getZ(),
-                CellsGuiHandler.GUI_MAX_SLOT_SIZE
-            ));
+            // Use part-specific GUI ID with side encoding for parts
+            if (this.host.isPart()) {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pos,
+                    CellsGuiHandler.GUI_PART_MAX_SLOT_SIZE,
+                    this.host.getPartSide()
+                ));
+            } else {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pos.getX(),
+                    pos.getY(),
+                    pos.getZ(),
+                    CellsGuiHandler.GUI_MAX_SLOT_SIZE
+                ));
+            }
             return;
         }
 
         if (btn == this.pollingRateButton) {
             // Open the polling rate configuration GUI
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
-                this.tile.getPos().getX(),
-                this.tile.getPos().getY(),
-                this.tile.getPos().getZ(),
-                CellsGuiHandler.GUI_POLLING_RATE
-            ));
+            // Use part-specific GUI ID with side encoding for parts
+            if (this.host.isPart()) {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pos,
+                    CellsGuiHandler.GUI_PART_POLLING_RATE,
+                    this.host.getPartSide()
+                ));
+            } else {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pos.getX(),
+                    pos.getY(),
+                    pos.getZ(),
+                    CellsGuiHandler.GUI_POLLING_RATE
+                ));
+            }
         }
     }
 
@@ -171,12 +211,13 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
 
             IGhostIngredientHandler.Target<Object> target = new IGhostIngredientHandler.Target<Object>() {
                 @Override
+                @Nonnull
                 public Rectangle getArea() {
                     return new Rectangle(getGuiLeft() + slot.xPos, getGuiTop() + slot.yPos, 16, 16);
                 }
 
                 @Override
-                public void accept(Object ingredient) {
+                public void accept(@Nonnull Object ingredient) {
                     try {
                         PacketInventoryAction p = new PacketInventoryAction(
                             InventoryAction.PLACE_JEI_GHOST_ITEM,

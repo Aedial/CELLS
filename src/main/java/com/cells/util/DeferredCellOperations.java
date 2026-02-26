@@ -219,10 +219,8 @@ public final class DeferredCellOperations {
             if (grid == null) grid = CellMathHelper.getGridFromSource(src);
             if (grid == null) return;
 
-            IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
-            if (storageGrid == null) return;
-
             // Use CrossTierActionSource to avoid nesting detection issues
+            IStorageGrid storageGrid = grid.getCache(IStorageGrid.class);
             IActionSource crossTierSource = (container instanceof IActionHost)
                 ? new CrossTierActionSource((IActionHost) container)
                 : src;

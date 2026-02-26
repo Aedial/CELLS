@@ -19,6 +19,8 @@ import com.cells.core.CellsCreativeTab;
 import com.cells.ItemRegistry;
 import com.cells.Tags;
 
+import javax.annotation.Nonnull;
+
 
 /**
  * Decompression Tier Card - an upgrade for Compacting Storage Cells.
@@ -65,6 +67,7 @@ public class ItemDecompressionTierCard extends Item implements IUpgradeModule {
     }
 
     @Override
+    @Nonnull
     public String getTranslationKey(ItemStack stack) {
         int meta = stack.getMetadata();
         if (meta >= 0 && meta < TIER_NAMES.length) return getTranslationKey() + "." + TIER_NAMES[meta];
@@ -74,7 +77,7 @@ public class ItemDecompressionTierCard extends Item implements IUpgradeModule {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
+    public void getSubItems(@Nonnull CreativeTabs tab, @Nonnull NonNullList<ItemStack> items) {
         if (!isInCreativeTab(tab)) return;
 
         for (int i = 0; i < TIER_NAMES.length; i++) items.add(new ItemStack(this, 1, i));
@@ -82,7 +85,8 @@ public class ItemDecompressionTierCard extends Item implements IUpgradeModule {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, List<String> tooltip,
+                               @Nonnull ITooltipFlag flag) {
         int tier = getTierValue(stack);
         tooltip.add("§7" + I18n.format("tooltip.cells.decompression_tier_card.desc", tier));
         tooltip.add("");

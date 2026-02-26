@@ -804,8 +804,6 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * @return true if the item matches any tier in the chain
      */
     public boolean isInCompressionChain(@Nonnull IAEItemStack stack) {
-        if (stack == null) return false;
-
         ItemStack definition = stack.getDefinition();
 
         for (int i = 0; i < currentMaxTiers; i++) {

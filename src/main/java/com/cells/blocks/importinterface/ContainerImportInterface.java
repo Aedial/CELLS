@@ -4,9 +4,11 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.items.IItemHandler;
 
+import appeng.api.parts.IPart;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
 import appeng.container.slot.SlotFake;
@@ -14,15 +16,19 @@ import appeng.container.slot.SlotNormal;
 
 import com.cells.util.ItemStackKey;
 
+import javax.annotation.Nonnull;
+
 
 /**
  * Container for the Import Interface GUI.
  * Layout: 4 rows of (9 filter slots on top + 9 storage slots below)
  * Plus 4 upgrade slots on the right side.
+ * <p>
+ * Works with both TileImportInterface (block) and PartImportInterface (part).
  */
 public class ContainerImportInterface extends AEBaseContainer {
 
-    private final TileImportInterface tile;
+    private final IImportInterfaceInventoryHost host;
 
     @GuiSync(0)
     public long maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
@@ -30,14 +36,31 @@ public class ContainerImportInterface extends AEBaseContainer {
     @GuiSync(1)
     public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
 
+    /**
+     * Constructor for tile entity.
+     */
     public ContainerImportInterface(final InventoryPlayer ip, final TileImportInterface tile) {
-        super(ip, tile, null);
-        this.tile = tile;
+        this(ip, tile, tile);
+    }
+
+    /**
+     * Constructor for part.
+     */
+    public ContainerImportInterface(final InventoryPlayer ip, final IPart part) {
+        this(ip, (IImportInterfaceInventoryHost) part, part instanceof TileEntity ? part : null);
+    }
+
+    /**
+     * Common constructor that both tile and part use.
+     */
+    private ContainerImportInterface(final InventoryPlayer ip, final IImportInterfaceInventoryHost host, final Object anchor) {
+        super(ip, anchor instanceof TileEntity ? (TileEntity) anchor : null, anchor instanceof IPart ? (IPart) anchor : null);
+        this.host = host;
 
         // Create slot pairs only up to the smallest inventory size to avoid creating
         // out-of-range slots (some tiles may expose fewer than 36 slots).
-        final int filterSlots = tile.getFilterInventory().getSlots();
-        final int storageSlots = tile.getStorageInventory().getSlots();
+        final int filterSlots = host.getFilterInventory().getSlots();
+        final int storageSlots = host.getStorageInventory().getSlots();
         final int maxSlots = Math.min(filterSlots, storageSlots);
 
         // Add filter slots (ghost/fake slots) and storage slots
@@ -52,10 +75,10 @@ public class ContainerImportInterface extends AEBaseContainer {
                 int storageY = filterY + 18;
 
                 // Filter slot (ghost item) - locked when storage slot has items
-                this.addSlotToContainer(new SlotFilterLocked(tile.getFilterInventory(), slotIndex, xPos, filterY, tile, slotIndex, ip.player));
+                this.addSlotToContainer(new SlotFilterLocked(host.getFilterInventory(), slotIndex, xPos, filterY, host, slotIndex, ip.player));
 
                 // Storage slot (actual items, bottom part)
-                this.addSlotToContainer(new SlotImportStorage(tile.getStorageInventory(), slotIndex, xPos, storageY, tile, slotIndex));
+                this.addSlotToContainer(new SlotImportStorage(host.getStorageInventory(), slotIndex, xPos, storageY, host, slotIndex));
 
                 slotIndex++;
             }
@@ -64,11 +87,11 @@ public class ContainerImportInterface extends AEBaseContainer {
         // Add 4 upgrade slots at the right side of the GUI
         for (int i = 0; i < TileImportInterface.UPGRADE_SLOTS; i++) {
             this.addSlotToContainer(new SlotUpgrade(
-                tile.getUpgradeInventory(),
+                host.getUpgradeInventory(),
                 i,
                 186,
                 25 + i * 18,
-                tile
+                host
             ));
         }
 
@@ -80,20 +103,20 @@ public class ContainerImportInterface extends AEBaseContainer {
     public void detectAndSendChanges() {
         super.detectAndSendChanges();
 
-        if (this.maxSlotSize != this.tile.getMaxSlotSize()) this.maxSlotSize = this.tile.getMaxSlotSize();
-        if (this.pollingRate != this.tile.getPollingRate()) this.pollingRate = this.tile.getPollingRate();
+        if (this.maxSlotSize != this.host.getMaxSlotSize()) this.maxSlotSize = this.host.getMaxSlotSize();
+        if (this.pollingRate != this.host.getPollingRate()) this.pollingRate = this.host.getPollingRate();
     }
 
-    public TileImportInterface getTile() {
-        return this.tile;
+    public IImportInterfaceInventoryHost getHost() {
+        return this.host;
     }
 
     public void setMaxSlotSize(int size) {
-        this.tile.setMaxSlotSize(size);
+        this.host.setMaxSlotSize(size);
     }
 
     public void setPollingRate(int ticks) {
-        this.tile.setPollingRate(ticks);
+        this.host.setPollingRate(ticks);
     }
 
     @Override
@@ -101,10 +124,10 @@ public class ContainerImportInterface extends AEBaseContainer {
         super.onSlotChange(s);
 
         // Refresh upgrade status when an upgrade slot changes
-        if (s instanceof SlotUpgrade) tile.refreshUpgrades();
+        if (s instanceof SlotUpgrade) host.refreshUpgrades();
 
         // Refresh filter map when a filter slot changes (for slotless storage lookups)
-        if (s instanceof SlotFilterLocked) tile.refreshFilterMap();
+        if (s instanceof SlotFilterLocked) host.refreshFilterMap();
     }
 
     /**
@@ -113,14 +136,14 @@ public class ContainerImportInterface extends AEBaseContainer {
      * Sends chat warnings to the player when a filter change is rejected.
      */
     private static class SlotFilterLocked extends SlotFake {
-        private final TileImportInterface tile;
+        private final IImportInterfaceInventoryHost host;
         private final int storageSlot;
         private final EntityPlayer player;
 
         public SlotFilterLocked(IItemHandler inv, int idx, int x, int y,
-                                TileImportInterface tile, int storageSlot, EntityPlayer player) {
+                                IImportInterfaceInventoryHost host, int storageSlot, EntityPlayer player) {
             super(inv, idx, x, y);
-            this.tile = tile;
+            this.host = host;
             this.storageSlot = storageSlot;
             this.player = player;
         }
@@ -128,7 +151,7 @@ public class ContainerImportInterface extends AEBaseContainer {
         @Override
         public void putStack(ItemStack stack) {
             // Prevent filter changes if there are items in the corresponding storage slot
-            ItemStack storageStack = tile.getStorageInventory().getStackInSlot(this.storageSlot);
+            ItemStack storageStack = host.getStorageInventory().getStackInSlot(this.storageSlot);
             if (!storageStack.isEmpty()) {
                 if (!player.world.isRemote) {
                     player.sendMessage(new TextComponentTranslation("message.cells.import_interface.storage_not_empty"));
@@ -148,10 +171,10 @@ public class ContainerImportInterface extends AEBaseContainer {
             ItemStackKey newKey = ItemStackKey.of(stack);
             if (newKey == null) return;
 
-            for (int i = 0; i < tile.getFilterInventory().getSlots(); i++) {
+            for (int i = 0; i < host.getFilterInventory().getSlots(); i++) {
                 if (i == this.getSlotIndex()) continue; // Skip current slot
 
-                ItemStackKey otherKey = ItemStackKey.of(tile.getFilterInventory().getStackInSlot(i));
+                ItemStackKey otherKey = ItemStackKey.of(host.getFilterInventory().getStackInSlot(i));
                 if (otherKey != null && otherKey.equals(newKey)) {
                     if (!player.world.isRemote) {
                         player.sendMessage(new TextComponentTranslation("message.cells.import_interface.filter_duplicate"));
@@ -168,24 +191,24 @@ public class ContainerImportInterface extends AEBaseContainer {
      * Custom slot for storage that respects the filter.
      */
     private static class SlotImportStorage extends SlotNormal {
-        private final TileImportInterface tile;
+        private final IImportInterfaceInventoryHost host;
         private final int filterSlot;
 
         public SlotImportStorage(IItemHandler inv, int idx, int x, int y,
-                                  TileImportInterface tile, int filterSlot) {
+                                  IImportInterfaceInventoryHost host, int filterSlot) {
             super(inv, idx, x, y);
-            this.tile = tile;
+            this.host = host;
             this.filterSlot = filterSlot;
         }
 
         @Override
-        public boolean isItemValid(ItemStack stack) {
-            return tile.isItemValidForSlot(filterSlot, stack);
+        public boolean isItemValid(@Nonnull ItemStack stack) {
+            return host.isItemValidForSlot(filterSlot, stack);
         }
 
         @Override
         public int getSlotStackLimit() {
-            return tile.getMaxSlotSize();
+            return host.getMaxSlotSize();
         }
     }
 
@@ -193,16 +216,16 @@ public class ContainerImportInterface extends AEBaseContainer {
      * Custom slot for upgrades that only accepts specific upgrade cards.
      */
     private static class SlotUpgrade extends SlotNormal {
-        private final TileImportInterface tile;
+        private final IImportInterfaceInventoryHost host;
 
-        public SlotUpgrade(IItemHandler inv, int idx, int x, int y, TileImportInterface tile) {
+        public SlotUpgrade(IItemHandler inv, int idx, int x, int y, IImportInterfaceInventoryHost host) {
             super(inv, idx, x, y);
-            this.tile = tile;
+            this.host = host;
         }
 
         @Override
-        public boolean isItemValid(ItemStack stack) {
-            return tile.isValidUpgrade(stack);
+        public boolean isItemValid(@Nonnull ItemStack stack) {
+            return host.isValidUpgrade(stack);
         }
 
         @Override

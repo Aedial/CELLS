@@ -6,6 +6,8 @@ import net.minecraft.init.Items;
 
 import com.cells.ItemRegistry;
 
+import javax.annotation.Nonnull;
+
 /**
  * Creative tab for the C.E.L.L.S. mod.
  */
@@ -22,11 +24,13 @@ public final class CellsCreativeTab extends CreativeTabs {
     }
 
     @Override
+    @Nonnull
     public ItemStack getIcon() {
         return this.createIcon();
     }
 
     @Override
+    @Nonnull
     public ItemStack createIcon() {
         try {
             if (ItemRegistry.HYPER_DENSITY_COMPONENT != null) {

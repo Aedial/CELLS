@@ -8,22 +8,22 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
 
-import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketSetMaxSlotSize;
+
+import javax.annotation.Nonnull;
 
 
 /**
  * GUI for configuring the max slot size of an Import Interface.
  * Similar to AE2's Priority GUI with +/- buttons and a number field.
- * Works with any tile entity implementing {@link IImportInterfaceHost}.
+ * Works with any host implementing {@link IImportInterfaceHost} (both TileEntity and IPart).
  */
 public class GuiMaxSlotSize extends AEBaseGui {
 
@@ -70,7 +70,7 @@ public class GuiMaxSlotSize extends AEBaseGui {
         this.buttonList.add(this.originalGuiBtn = new GuiTabButton(
             this.guiLeft + 154,
             this.guiTop,
-            new ItemStack(((TileEntity) this.host).getBlockType()),
+            this.host.getBackButtonStack(),
             I18n.format(this.host.getGuiTitleLangKey()),
             this.itemRender
         ));
@@ -100,18 +100,16 @@ public class GuiMaxSlotSize extends AEBaseGui {
     }
 
     @Override
-    protected void actionPerformed(final GuiButton btn) throws IOException {
+    protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
         super.actionPerformed(btn);
 
         if (btn == this.originalGuiBtn) {
             // Return to the main Interface GUI
-            // Cast to TileEntity to get position
-            TileEntity te = (TileEntity) this.host;
+            BlockPos pos = this.host.getHostPos();
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
-                te.getPos().getX(),
-                te.getPos().getY(),
-                te.getPos().getZ(),
-                this.host.getMainGuiId()
+                pos,
+                this.host.getMainGuiId(),
+                this.host.getPartSide()
             ));
             return;
         }

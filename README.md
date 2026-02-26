@@ -4,7 +4,7 @@ An AE2-UEL addon providing additional storage cells with extended capacities and
 
 ## FAQ
 ### My Compacting Cells are not refreshing in the ME Chest until I reopen it
-This is a limitation of the ME Chest's implementation, which doesn't listen for changes on the network. It handles everything by itself, which doesn't work well with the virtual items of the Compacting Cells. This issue is purely visual, and the cell is working correctly.
+This is a limitation of the ME Chest's implementation,which doesn't listen for changes on the network. It handles everything by itself, which doesn't work well with the virtual items of the Compacting Cells. This issue is purely visual, and the cell is working correctly.
 
 ## Features
 
@@ -17,22 +17,20 @@ Storage cells that automatically expose compressed and decompressed forms of ite
 #### How It Works
 1. **Partition Required**: Compacting cells require a partition to be set before they can accept items.
 2. **Compression Chain**: When partitioned with an item (e.g., Iron Ingot), the cell automatically detects the compression chain:
-   - Higher tier: Iron Block (compressed form)
-   - Main tier: Iron Ingot (the partitioned item)
-   - Lower tier: Iron Nugget (decompressed form)
+    - Higher tier: Iron Block (compressed form)
+    - Main tier: Iron Ingot (the partitioned item)
+    - Lower tier: Iron Nugget (decompressed form)
 3. **Virtual Conversion**: Items are stored in a unified pool and can be extracted in any compression tier:
-   - Insert 81 Iron Nuggets → Extract 81 Nuggets, 9 Iron Ingots, or 1 Iron Block
-   - Insert 1 Iron Block → Extract 9 Iron Ingots, 81 Iron Nuggets, or 1 Iron Block
-   - All conversions are lossless and instant
-   - Due to size limitations, the maximum capacity is ~9.2 Quintillion items of the lowest tier. This is mainly an issue with high compression chains (using compression/decompression cards)
+    - Insert 81 Iron Nuggets → Extract 81 Nuggets, 9 Iron Ingots, or 1 Iron Block
+    - Insert 1 Iron Block → Extract 9 Iron Ingots, 81 Iron Nuggets, or 1 Iron Block
+    - All conversions are lossless and instant
+    - Due to size limitations, the maximum capacity is ~9.2 Quintillion items of the lowest tier. This is mainly an issue with high compression chains (using compression/decompression cards)
 4. **Single Item Type**: Each compacting cell stores only one item type (with its compression variants).
 5. **Storage Counting**: Storage capacity is measured in main tier (partitioned item) units, so no need to worry about conversion factors when checking capacity.
 
 #### Available Tiers
-- **1k - 64k Compacting Storage Cells** (Standard AE2 sizes)
-- **256k - 16M Compacting Storage Cells** (NAE2-equivalent sizes)
-- **64M - 2G Compacting Storage Cells** (Extended sizes)
-- **1k - 16M Hyper-Density Compacting Storage Cells** (with ~2.1B multiplier per byte)
+- **1k - 2G Compacting Storage Cells** (normal sizes)
+- **1k - 1G Hyper-Density Compacting Storage Cells** (with ~2.1B multiplier per byte)
 
 #### Partition Protection
 - If a compacting cell contains items, the partition cannot be changed.
@@ -45,7 +43,7 @@ Storage cells with an internal multiplier of ~2.1 billion per displayed byte:
 
 ### Hyper-Density Fluid Storage Cells
 Fluid storage cells with the same massive multiplier:
-- **1k - 1G Hyper-Density Fluid Storage Cells** (each "byte" holds ~17.2M buckets)
+- **1k - 1G Hyper-Density Fluid Storage Cells** (each "byte" holds ~17.2B buckets)
 
 ### Hyper-Density Compacting Cells
 Combining hyper-density storage with compacting functionality:
@@ -61,7 +59,7 @@ A universal storage cell that accepts a ME Storage Component (AE2) to define its
 - Components cannot be removed while the cell has content. Swapping to another component of the same type (item↔item, fluid↔fluid) is allowed if the new component has enough capacity for the existing data.
 
 #### Component Whitelist
-The list of accepted storage components is defined in `configurable_components.cfg` (bundled in the JAR). To add or remove supported components, place a copy of this file in your **Forge config directory** (`config/configurable_components.cfg`). The config override takes priority over the bundled file.
+The list of accepted storage components is defined in [configurable\_components.cfg](https://github.com/Aedial/CELLS/blob/main/src/main/resources/assets/cells/configurable_components.cfg). To add or remove supported components, place a copy of this file in your **Forge config directory** (`config/configurable_components.cfg`). The config override takes priority over the bundled file.
 
 Each entry has the format:
 ```
@@ -76,15 +74,14 @@ registry_name@metadata = bytes,channel,tier_name
 ### Upgrades
 
 #### Void Overflow Card
-Install in a cell's upgrade slots to void excess items when full.
-Useful for automated systems where overflow should be destroyed.
+Install in a cell's upgrade slots to void excess items when full. Useful for automated systems where overflow should be destroyed.
 
-**Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells, Configurable Storage Cells, Import Interface
+**Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells, Configurable Storage Cells, Import Interfaces
 
 #### Trash Unselected Card
-Install in an Import Interface to void items that don't match any filter. This is useful to prevent clogging the interface with unwanted items, especially when used with machines that export items without filtering capabilities.
+Install in an Import Interface to void items that don't match any filter. This is useful to prevent clogging the machine with leftover items, especially when used with machines that export items without filtering capabilities.
 
-**Compatible with**: Import Interface
+**Compatible with**: Import Interfaces
 
 #### Equal Distribution Card
 Limits the number of types a cell can hold and divides capacity equally among them. Available in 7 variants:
@@ -95,12 +92,12 @@ Limits the number of types a cell can hold and divides capacity equally among th
 - **16x**: 16 types
 - **32x**: 32 types
 - **63x**: 63 types (default max)
-- **unbounded**: inherits max types from the cell
+- **unbounded**: inherits max types from the cell (see config)
 
 Use cases:
 - Force a cell to hold exactly one item type with maximum capacity (1x)
 - Prevent one item from dominating cell storage
-- Ensure fair distribution across multiple stored items
+- Ensure fair storage distribution across multiple stored items
 
 **Compatible with**: Hyper-Density Storage Cells
 
@@ -142,15 +139,6 @@ Enable or disable entire cell categories:
 - Hyper-Density Fluid Cells
 - Configurable Cells
 
-## API
-
-This mod exposes an API for computing compression chains:
-
-```java
-// Initialize the compacting cell chain for a given partition. Should be called when setting the partition item.
-void initializeCompactingCellChain(@Nonnull ItemStack cellStack, @Nonnull ItemStack partitionItem, @Nonnull World world);
-```
-
 ## Commands
 
 ### /fillcell
@@ -160,12 +148,6 @@ Fill a storage cell with a specified quantity of items or fluids, for testing pu
 - The storage cell must be held in the main hand.
 - Example: `/fillCell minecraft:iron_ingot 10k` fills the held cell with 10,000 Iron Ingots.
 
-
-## Building
-```
-./gradlew -q build
-```
-First build may take some time. Resulting jar will be under `build/libs/`.
-
-## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Credits
+- Chinese translation: @ZHAY10086
+- Hyper-Density Item/Fluid Cells'/Cell Components' textures: ArchEzekiel

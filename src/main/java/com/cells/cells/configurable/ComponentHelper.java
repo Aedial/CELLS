@@ -4,14 +4,11 @@ import javax.annotation.Nullable;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -80,7 +77,7 @@ public final class ComponentHelper {
             File override = new File(configDir, WHITELIST_CONFIG_NAME);
             if (override.isFile()) {
                 Cells.LOGGER.info("Loading component whitelist override from {}", override.getAbsolutePath());
-                try (InputStream is = new FileInputStream(override)) {
+                try (InputStream is = Files.newInputStream(override.toPath())) {
                     parseWhitelist(is, override.getAbsolutePath());
                     return;
                 } catch (Exception e) {
@@ -166,7 +163,7 @@ public final class ComponentHelper {
         ResourceLocation regName = item.getRegistryName();
         if (regName == null) return null;
 
-        String key = regName.toString() + "@" + stack.getMetadata();
+        String key = regName + "@" + stack.getMetadata();
 
         return WHITELIST.get(key);
     }
@@ -242,9 +239,7 @@ public final class ComponentHelper {
         if (tag.hasKey("itemType") && !tag.getCompoundTag("itemType").isEmpty()) return true;
 
         // Check fluid storage (ConfigurableCellFluidInventory uses "fluidType")
-        if (tag.hasKey("fluidType") && !tag.getCompoundTag("fluidType").isEmpty()) return true;
-
-        return false;
+        return tag.hasKey("fluidType") && !tag.getCompoundTag("fluidType").isEmpty();
     }
 
     /**
@@ -353,8 +348,6 @@ public final class ComponentHelper {
         if (storedTypes > maxTypes) return false;
 
         // The new component's per-type capacity must accommodate the largest stored count
-        if (maxCountPerType > newEffectivePerType) return false;
-
-        return true;
+        return maxCountPerType <= newEffectivePerType;
     }
 }

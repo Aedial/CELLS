@@ -299,7 +299,8 @@ public final class CellMathHelper {
         if (container instanceof IActionHost) {
             IActionHost host = (IActionHost) container;
             IGridNode node = host.getActionableNode();
-            if (node != null) return node.getWorld();
+
+            return node.getWorld();
         }
 
         return null;

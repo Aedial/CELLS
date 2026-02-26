@@ -2,6 +2,7 @@ package com.cells.blocks.importinterface;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.block.Block;
@@ -68,7 +69,8 @@ public class BlockImportInterface extends AEBaseTileBlock {
     }
 
     @Override
-    public void neighborChanged(IBlockState state, World worldIn, BlockPos pos, Block blockIn, BlockPos fromPos) {
+    public void neighborChanged(@Nonnull IBlockState state, @Nonnull World worldIn, @Nonnull BlockPos pos,
+                                @Nonnull Block blockIn, @Nonnull BlockPos fromPos) {
         // Nothing special needed for redstone handling
     }
 }

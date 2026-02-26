@@ -15,6 +15,7 @@ import com.cells.cells.normal.compacting.CompactingCellHandler;
 import com.cells.cells.hyperdensity.fluid.FluidHyperDensityCellHandler;
 import com.cells.cells.hyperdensity.item.HyperDensityCellHandler;
 import com.cells.cells.hyperdensity.compacting.HyperDensityCompactingCellHandler;
+import com.cells.parts.PartRegistry;
 import com.cells.recipes.InscriberRecipeHandler;
 
 
@@ -31,6 +32,10 @@ public class CommonProxy {
         // Initialize items
         ItemRegistry.init();
         MinecraftForge.EVENT_BUS.register(new ItemRegistry());
+
+        // Initialize parts
+        PartRegistry.init();
+        MinecraftForge.EVENT_BUS.register(new PartRegistry());
     }
 
     public void init(FMLInitializationEvent event) {

@@ -19,6 +19,8 @@ import com.cells.core.CellsCreativeTab;
 import com.cells.ItemRegistry;
 import com.cells.Tags;
 
+import javax.annotation.Nonnull;
+
 
 /**
  * Equal Distribution Card - an upgrade for storage cells that limits capacity per type.
@@ -62,6 +64,7 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
     }
 
     @Override
+    @Nonnull
     public String getTranslationKey(ItemStack stack) {
         int meta = stack.getMetadata();
         if (meta >= 0 && meta < TIER_NAMES.length) {
@@ -73,7 +76,7 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void getSubItems(CreativeTabs tab, NonNullList<ItemStack> items) {
+    public void getSubItems(@Nonnull CreativeTabs tab, @Nonnull NonNullList<ItemStack> items) {
         if (!isInCreativeTab(tab)) return;
 
         for (int i = 0; i < TIER_NAMES.length; i++) {
@@ -83,7 +86,8 @@ public class ItemEqualDistributionCard extends Item implements IUpgradeModule {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
+                               @Nonnull ITooltipFlag flag) {
         int tier = getTierValue(stack);
 
         if (tier == Integer.MAX_VALUE) {

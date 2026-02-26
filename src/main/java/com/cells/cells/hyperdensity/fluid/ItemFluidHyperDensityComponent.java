@@ -44,6 +44,7 @@ public class ItemFluidHyperDensityComponent extends Item {
     }
 
     @Override
+    @Nonnull
     public String getTranslationKey(ItemStack stack) {
         int meta = stack.getMetadata();
         if (meta >= 0 && meta < TIER_NAMES.length) return getTranslationKey() + "." + TIER_NAMES[meta];
@@ -61,7 +62,8 @@ public class ItemFluidHyperDensityComponent extends Item {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, World world, List<String> tooltip, ITooltipFlag flag) {
+    public void addInformation(@Nonnull ItemStack stack, World world, List<String> tooltip,
+                               @Nonnull ITooltipFlag flag) {
         tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_fluid_component.info"));
     }
 

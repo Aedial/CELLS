@@ -1,7 +1,13 @@
 package com.cells.util;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import javax.annotation.Nonnull;
 
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 
@@ -11,6 +17,8 @@ import appeng.parts.automation.StackUpgradeInventory;
 import appeng.util.Platform;
 import appeng.util.inv.filter.IAEItemFilter;
 
+import com.cells.Cells;
+import com.cells.ItemRegistry;
 import com.cells.items.ItemCompressionTierCard;
 import com.cells.items.ItemDecompressionTierCard;
 import com.cells.items.ItemEqualDistributionCard;
@@ -26,13 +34,37 @@ import com.cells.items.ItemOverflowCard;
  */
 public class CustomCellUpgrades extends StackUpgradeInventory {
 
-    private final ItemStack cellStack;
+    public enum CustomUpgrades {
+        OVERFLOW,
+        EQUAL_DISTRIBUTION,
+        COMPRESSION_TIER,
+        DECOMPRESSION_TIER
+    }
 
-    public CustomCellUpgrades(final ItemStack cellStack, final int slots) {
+    private static final Map<Item, CustomUpgrades> UPGRADE_ITEM_CLASSES = new HashMap<>();
+    static {
+        UPGRADE_ITEM_CLASSES.put(ItemRegistry.OVERFLOW_CARD, CustomUpgrades.OVERFLOW);
+        UPGRADE_ITEM_CLASSES.put(ItemRegistry.EQUAL_DISTRIBUTION_CARD, CustomUpgrades.EQUAL_DISTRIBUTION);
+        UPGRADE_ITEM_CLASSES.put(ItemRegistry.COMPRESSION_TIER_CARD, CustomUpgrades.COMPRESSION_TIER);
+        UPGRADE_ITEM_CLASSES.put(ItemRegistry.DECOMPRESSION_TIER_CARD, CustomUpgrades.DECOMPRESSION_TIER);
+    }
+
+
+    private final ItemStack cellStack;
+    private final List<CustomUpgrades> allowedCustomUpgrades;
+
+    public CustomCellUpgrades(final ItemStack cellStack, final int slots,
+            final List<CustomUpgrades> allowedCustomUpgrades) {
         super(cellStack, null, slots);
         this.cellStack = cellStack;
         this.readFromNBT(Platform.openNbtData(cellStack), "upgrades");
         this.setFilter(new CustomUpgradeFilter());
+
+        if (allowedCustomUpgrades == null) {
+            this.allowedCustomUpgrades = Arrays.asList(CustomUpgrades.values());
+        } else {
+            this.allowedCustomUpgrades = allowedCustomUpgrades;
+        }
     }
 
     @Override
@@ -71,33 +103,39 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
         public boolean allowInsert(IItemHandler inv, int slot, @Nonnull ItemStack stack) {
             if (stack.isEmpty()) return false;
 
+            CustomUpgrades customUpgrade = UPGRADE_ITEM_CLASSES.get(stack.getItem());
+            if (customUpgrade == null) {
+                // Accept standard AE2 upgrades if getMaxInstalled allows
+                if (stack.getItem() instanceof IUpgradeModule) {
+                    Upgrades u = ((IUpgradeModule) stack.getItem()).getType(stack);
+                    if (u != null) return getInstalledUpgrades(u) < getMaxInstalled(u);
+                }
+            } else if (!allowedCustomUpgrades.contains(customUpgrade)) {
+                return false;  // not allowed by this cell's configuration
+            }
+
             // Accept our custom upgrade cards
-            if (stack.getItem() instanceof ItemOverflowCard) {
+            if (customUpgrade == CustomUpgrades.OVERFLOW) {
                 return countInstalled(ItemOverflowCard.class) < 1; // Max 1
             }
 
-            if (stack.getItem() instanceof ItemEqualDistributionCard) {
+            if (customUpgrade == CustomUpgrades.EQUAL_DISTRIBUTION) {
                 return countInstalled(ItemEqualDistributionCard.class) < 1; // Max 1
             }
 
             // Compression and Decompression tier cards are mutually exclusive (max 1 total)
-            if (stack.getItem() instanceof ItemCompressionTierCard) {
+            if (customUpgrade == CustomUpgrades.COMPRESSION_TIER) {
                 return countInstalled(ItemCompressionTierCard.class) < 1
                     && countInstalled(ItemDecompressionTierCard.class) < 1;
             }
 
-            if (stack.getItem() instanceof ItemDecompressionTierCard) {
+            if (customUpgrade == CustomUpgrades.DECOMPRESSION_TIER) {
                 return countInstalled(ItemDecompressionTierCard.class) < 1
                     && countInstalled(ItemCompressionTierCard.class) < 1;
             }
 
-            // Also accept standard AE2 upgrades if getMaxInstalled allows
-            if (stack.getItem() instanceof IUpgradeModule) {
-                Upgrades u = ((IUpgradeModule) stack.getItem()).getType(stack);
-                if (u != null) return getInstalledUpgrades(u) < getMaxInstalled(u);
-            }
-
-            return false;
+            Cells.LOGGER.warn("Upgrade item {} is not recognized as a valid upgrade for this cell", stack);
+            return false; // Reject anything else
         }
 
         private int countInstalled(Class<?> itemClass) {

@@ -3,6 +3,7 @@ package com.cells.blocks.importinterface;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.tileentity.TileEntity;
 
+import appeng.api.parts.IPart;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
 import appeng.util.Platform;
@@ -14,7 +15,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 /**
  * Container for the Polling Rate configuration GUI.
  * Similar to ContainerMaxSlotSize but for polling rate configuration.
- * Works with any tile entity implementing {@link IImportInterfaceHost}.
+ * Works with any host implementing {@link IImportInterfaceHost} (both TileEntity and IPart).
  */
 public class ContainerPollingRate extends AEBaseContainer {
 
@@ -27,7 +28,7 @@ public class ContainerPollingRate extends AEBaseContainer {
     public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
 
     public ContainerPollingRate(final InventoryPlayer ip, final IImportInterfaceHost host) {
-        super(ip, (TileEntity) host, null);
+        super(ip, host instanceof TileEntity ? (TileEntity) host : null, host instanceof IPart ? (IPart) host : null);
         this.host = host;
     }
 

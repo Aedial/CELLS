@@ -24,19 +24,19 @@ import appeng.fluids.util.AEFluidStack;
 /**
  * GUI widget for rendering fluid filter slots in the Fluid Import Interface.
  * <p>
- * Similar to AE2's GuiFluidSlot but reads from the tile's filter inventory directly.
+ * Similar to AE2's GuiFluidSlot but reads from the host's filter inventory directly.
  * When clicked, extracts the fluid from the held container item and sends a PacketFluidSlot
  * to update the filter on the server.
  * </p>
  */
 public class GuiFluidFilterSlot extends GuiCustomSlot implements IJEITargetSlot {
 
-    private final TileFluidImportInterface tile;
+    private final IFluidImportInterfaceInventoryHost host;
     private final int slot;
 
-    public GuiFluidFilterSlot(final TileFluidImportInterface tile, final int slot, final int x, final int y) {
+    public GuiFluidFilterSlot(final IFluidImportInterfaceInventoryHost host, final int slot, final int x, final int y) {
         super(slot, x, y);
-        this.tile = tile;
+        this.host = host;
         this.slot = slot;
     }
 
@@ -107,7 +107,7 @@ public class GuiFluidFilterSlot extends GuiCustomSlot implements IJEITargetSlot 
     }
 
     public IAEFluidStack getFluidStack() {
-        return this.tile.getFilterFluid(this.slot);
+        return this.host.getFilterFluid(this.slot);
     }
 
     public void setFluidStack(final IAEFluidStack stack) {
