@@ -2,45 +2,27 @@ package com.cells.cells.hyperdensity.compacting;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.Nonnull;
 
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.EnumActionResult;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
-import appeng.api.config.FuzzyMode;
-import appeng.api.definitions.IMaterials;
-import appeng.api.implementations.items.IItemGroup;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
-import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.api.storage.data.IItemList;
-import com.cells.core.CellsCreativeTab;
-import appeng.core.localization.GuiText;
-import appeng.items.contents.CellConfig;
-import appeng.util.InventoryAdaptor;
-import appeng.util.Platform;
 
+import com.cells.cells.common.AbstractTieredCellItem;
 import com.cells.config.CellsConfig;
+import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
@@ -55,7 +37,8 @@ import com.cells.util.CustomCellUpgrades;
  * Due to overflow concerns with base unit calculations, HD compacting cells
  * are limited to 16M tier maximum (vs 2G for regular HD cells).
  */
-public abstract class ItemHyperDensityCompactingCellBase extends Item implements IItemHyperDensityCompactingCell, IItemGroup {
+public abstract class ItemHyperDensityCompactingCellBase extends AbstractTieredCellItem
+        implements IItemHyperDensityCompactingCell {
 
     /**
      * The internal byte multiplier. Each "displayed byte" represents this many actual bytes.
@@ -67,39 +50,29 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
     protected final long[] bytesPerType;
 
     public ItemHyperDensityCompactingCellBase(String[] tierNames, long[] displayBytes, long[] bytesPerType) {
+        super();
         this.tierNames = tierNames;
         this.displayBytes = displayBytes;
         this.bytesPerType = bytesPerType;
-
-        setMaxStackSize(64);
-        setHasSubtypes(true);
-        setMaxDamage(0);
-        setCreativeTab(CellsCreativeTab.instance);
     }
+
+    // =====================
+    // AbstractTieredCellItem implementation
+    // =====================
 
     @Override
     @Nonnull
-    public String getTranslationKey(ItemStack stack) {
-        int meta = stack.getMetadata();
-        if (meta >= 0 && meta < tierNames.length) return getTranslationKey() + "." + tierNames[meta];
-
-        return getTranslationKey();
+    protected String[] getTiers() {
+        return tierNames;
     }
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void getSubItems(@Nonnull CreativeTabs tab, @Nonnull NonNullList<ItemStack> items) {
-        if (!isInCreativeTab(tab)) return;
-
-        for (int i = 0; i < tierNames.length; i++) items.add(new ItemStack(this, 1, i));
-    }
-
-    @Override
-    @SideOnly(Side.CLIENT)
-    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
-                               @Nonnull ITooltipFlag flag) {
+    protected void addCellInformation(@Nonnull ItemStack stack, World world,
+                                       @Nonnull List<String> tooltip, @Nonnull ITooltipFlag flag) {
         IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-        ICellInventoryHandler<IAEItemStack> cellHandler = AEApi.instance().registries().cell().getCellInventory(stack, null, channel);
+        ICellInventoryHandler<IAEItemStack> cellHandler = AEApi.instance().registries().cell()
+                .getCellInventory(stack, null, channel);
 
         AEApi.instance().client().addCellInformation(cellHandler, tooltip);
 
@@ -108,44 +81,57 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
             ICellInventory<?> cellInv = cellHandler.getCellInv();
 
             if (cellInv instanceof HyperDensityCompactingCellInventory) {
-                HyperDensityCompactingCellInventory hdCompInv = (HyperDensityCompactingCellInventory) cellInv;
-
-                if (!hdCompInv.hasPartition()) {
-                    tooltip.add("");
-                    tooltip.add("§c" + I18n.format("tooltip.cells.compacting_cell.not_partitioned"));
-                } else if (!hdCompInv.isChainInitialized() && !hdCompInv.hasStoredItems()) {
-                    tooltip.add("");
-                    tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
-                } else {
-                    List<ItemStack> higherTiers = hdCompInv.getAllHigherTierItems();
-                    List<ItemStack> lowerTiers = hdCompInv.getAllLowerTierItems();
-
-                    if (!higherTiers.isEmpty() || !lowerTiers.isEmpty()) {
-                        tooltip.add("");
-
-                        for (ItemStack tier : higherTiers) {
-                            tooltip.add("§a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
-                        }
-
-                        for (ItemStack tier : lowerTiers) {
-                            tooltip.add("§b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
-                        }
-                    } else {
-                        tooltip.add("");
-                        tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
-                    }
-                }
+                addHDCompactingCellInfo((HyperDensityCompactingCellInventory) cellInv, tooltip);
             }
         }
 
-        // Add upgrade information (e.g., Overflow Card active)
         CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
 
-        // Add hyper-density explanation - simple one-liner
+        // Add hyper-density and compacting explanations
         tooltip.add("");
         tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_cell.info"));
         tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
+    }
 
+    /**
+     * Add HD compacting-specific tooltip info (compression chain status).
+     */
+    protected void addHDCompactingCellInfo(HyperDensityCompactingCellInventory hdCompInv, List<String> tooltip) {
+        if (!hdCompInv.hasPartition()) {
+            tooltip.add("");
+            tooltip.add("§c" + I18n.format("tooltip.cells.compacting_cell.not_partitioned"));
+            return;
+        }
+
+        if (!hdCompInv.isChainInitialized() && !hdCompInv.hasStoredItems()) {
+            tooltip.add("");
+            tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.insert_to_set_compression"));
+            return;
+        }
+
+        List<ItemStack> higherTiers = hdCompInv.getAllHigherTierItems();
+        List<ItemStack> lowerTiers = hdCompInv.getAllLowerTierItems();
+
+        if (!higherTiers.isEmpty() || !lowerTiers.isEmpty()) {
+            tooltip.add("");
+            for (ItemStack tier : higherTiers) {
+                tooltip.add("§a" + I18n.format("tooltip.cells.compacting_cell.converts_up", tier.getDisplayName()));
+            }
+            for (ItemStack tier : lowerTiers) {
+                tooltip.add("§b" + I18n.format("tooltip.cells.compacting_cell.converts_down", tier.getDisplayName()));
+            }
+        } else {
+            tooltip.add("");
+            tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.no_compression"));
+        }
+    }
+
+    @Override
+    protected boolean disassembleCell(@Nonnull ItemStack stack, @Nonnull EntityPlayer player) {
+        IItemStorageChannel channel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+        return CellDisassemblyHelper.disassembleCell(
+                stack, player, channel, this, true,
+                s -> getCellComponent(s.getMetadata()));
     }
 
     /**
@@ -159,10 +145,7 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
 
     @Override
     public long getDisplayBytes(@Nonnull ItemStack cellItem) {
-        int meta = cellItem.getMetadata();
-        if (meta >= 0 && meta < displayBytes.length) return displayBytes[meta];
-
-        return displayBytes[0];
+        return getValueByMeta(cellItem, displayBytes);
     }
 
     @Override
@@ -172,15 +155,12 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
 
     @Override
     public long getBytes(@Nonnull ItemStack cellItem) {
-        // Return actual bytes (display * multiplier)
         return CellMathHelper.multiplyWithOverflowProtection(getDisplayBytes(cellItem), BYTE_MULTIPLIER);
     }
 
     @Override
     public long getBytesPerType(@Nonnull ItemStack cellItem) {
-        int meta = cellItem.getMetadata();
-        long displayBpt = (meta >= 0 && meta < bytesPerType.length) ? bytesPerType[meta] : bytesPerType[0];
-
+        long displayBpt = getValueByMeta(cellItem, bytesPerType);
         return CellMathHelper.multiplyWithOverflowProtection(displayBpt, BYTE_MULTIPLIER);
     }
 
@@ -204,7 +184,8 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
     // =====================
 
     @Override
-    public void initializeCompactingCellChain(@Nonnull ItemStack cellStack, @Nonnull ItemStack partitionItem, @Nonnull World world) {
+    public void initializeCompactingCellChain(@Nonnull ItemStack cellStack, @Nonnull ItemStack partitionItem,
+                                               @Nonnull World world) {
         HyperDensityCompactingCellInventory inventory = new HyperDensityCompactingCellInventory(this, cellStack, null);
 
         if (!partitionItem.isEmpty()) {
@@ -215,13 +196,8 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
     }
 
     // =====================
-    // ICellWorkbenchItem implementation
+    // ICellWorkbenchItem - upgrades
     // =====================
-
-    @Override
-    public boolean isEditable(ItemStack is) {
-        return true;
-    }
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
@@ -230,118 +206,5 @@ public abstract class ItemHyperDensityCompactingCellBase extends Item implements
             CustomCellUpgrades.CustomUpgrades.COMPRESSION_TIER,
             CustomCellUpgrades.CustomUpgrades.DECOMPRESSION_TIER
         ));
-    }
-
-    @Override
-    public IItemHandler getConfigInventory(ItemStack is) {
-        return new CellConfig(is);
-    }
-
-    @Override
-    public FuzzyMode getFuzzyMode(ItemStack is) {
-        String fz = Platform.openNbtData(is).getString("FuzzyMode");
-        try {
-            return FuzzyMode.valueOf(fz);
-        } catch (Throwable t) {
-            return FuzzyMode.IGNORE_ALL;
-        }
-    }
-
-    @Override
-    public void setFuzzyMode(ItemStack is, FuzzyMode fzMode) {
-        Platform.openNbtData(is).setString("FuzzyMode", fzMode.name());
-    }
-
-    // =====================
-    // IItemGroup implementation
-    // =====================
-
-    @Override
-    public String getUnlocalizedGroupName(Set<ItemStack> others, ItemStack is) {
-        return GuiText.StorageCells.getUnlocalized();
-    }
-
-    // =====================
-    // Disassembly support
-    // =====================
-
-    @Override
-    @Nonnull
-    public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, EntityPlayer player, @Nonnull EnumHand hand) {
-        ItemStack stack = player.getHeldItem(hand);
-        if (player.isSneaking() && disassembleDrive(stack, world, player)) {
-            return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));
-        }
-
-        return new ActionResult<>(EnumActionResult.PASS, stack);
-    }
-
-    @Override
-    @Nonnull
-    public EnumActionResult onItemUseFirst(@Nonnull EntityPlayer player, @Nonnull World world,
-                                           @Nonnull BlockPos pos, @Nonnull EnumFacing side,
-                                           float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
-        return disassembleDrive(player.getHeldItem(hand), world, player) ? EnumActionResult.SUCCESS : EnumActionResult.PASS;
-    }
-
-    private boolean disassembleDrive(ItemStack stack, World world, EntityPlayer player) {
-        if (!player.isSneaking()) return false;
-        if (Platform.isClient()) return false;
-
-        IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-
-        IMEInventoryHandler<IAEItemStack> inv = AEApi.instance().registries().cell().getCellInventory(stack, null, itemChannel);
-        if (inv == null) return false;
-
-        IItemList<IAEItemStack> list = inv.getAvailableItems(itemChannel.createList());
-        if (!list.isEmpty()) {
-            player.sendStatusMessage(new TextComponentString("§c" + I18n.format("message.cells.disassemble_fail_content")), true);
-            return false;
-        }
-
-        InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
-
-        // Remove one cell from the stack.
-        // If the held stack has more than one item, shrink it by one.
-        if (stack.getCount() > 1) {
-            stack.shrink(1);
-        } else {
-            // Main hand
-            if (stack == player.getHeldItemMainhand()) {
-                player.inventory.setInventorySlotContents(player.inventory.currentItem, ItemStack.EMPTY);
-            // Off hand
-            } else if (stack == player.getHeldItemOffhand()) {
-                player.setHeldItem(EnumHand.OFF_HAND, ItemStack.EMPTY);
-            }
-        }
-
-        // Return upgrades
-        IItemHandler upgradesInventory = getUpgradesInventory(stack);
-        for (int i = 0; i < upgradesInventory.getSlots(); i++) {
-            ItemStack upgradeStack = upgradesInventory.getStackInSlot(i);
-            if (!upgradeStack.isEmpty()) {
-                ItemStack leftStack = ia.addItems(upgradeStack);
-                if (!leftStack.isEmpty()) player.dropItem(leftStack, false);
-            }
-        }
-
-        // Return housing
-        IMaterials materials = AEApi.instance().definitions().materials();
-        ItemStack housing = materials.emptyStorageCell().maybeStack(1).orElse(ItemStack.EMPTY);
-        if (!housing.isEmpty()) {
-            ItemStack leftStack = ia.addItems(housing);
-            if (!leftStack.isEmpty()) player.dropItem(leftStack, false);
-        }
-
-        // Return component
-        ItemStack component = getCellComponent(stack.getMetadata());
-        if (!component.isEmpty()) {
-            ItemStack leftStack = ia.addItems(component);
-            if (!leftStack.isEmpty()) player.dropItem(leftStack, false);
-        }
-
-        if (player.inventoryContainer != null) player.inventoryContainer.detectAndSendChanges();
-
-        return true;
     }
 }

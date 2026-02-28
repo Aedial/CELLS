@@ -10,12 +10,12 @@ import com.cells.config.CellsConfig;
 public final class ComponentInfo {
 
     private final long bytes;
-    private final boolean isFluid;
+    private final ChannelType channelType;
     private final String tierName;
 
-    public ComponentInfo(long bytes, boolean isFluid, String tierName) {
+    public ComponentInfo(long bytes, ChannelType channelType, String tierName) {
         this.bytes = bytes;
-        this.isFluid = isFluid;
+        this.channelType = channelType;
         this.tierName = tierName;
     }
 
@@ -29,9 +29,11 @@ public final class ComponentInfo {
         return bytes / 2 / CellsConfig.configurableCellMaxTypes;
     }
 
-    /** Whether this component stores fluids (true) or items (false). */
-    public boolean isFluid() {
-        return isFluid;
+    /**
+     * The storage channel type of this component.
+     */
+    public ChannelType getChannelType() {
+        return channelType;
     }
 
     /**

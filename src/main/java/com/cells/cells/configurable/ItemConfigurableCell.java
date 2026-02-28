@@ -42,6 +42,9 @@ import com.cells.Tags;
 import com.cells.config.CellsConfig;
 import com.cells.core.CellsCreativeTab;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
+import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
+import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
 
@@ -55,7 +58,9 @@ import com.cells.util.CustomCellUpgrades;
  * <p>
  * Right-click opens the configuration GUI.
  * Shift-right-click disassembles the cell (returns housing, component, upgrades).
- * TODO: add a crafting recipe to combine a configurable cell + a component into a configured cell, to make it easier
+ * <p>
+ * The cell supports a shapeless crafting recipe: empty housing + any valid
+ * component from the whitelist = configured cell with that component installed.
  */
 public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, IItemGroup {
 
@@ -110,16 +115,29 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
 
         // Show AE2 cell info (bytes, types, stored items)
-        if (info.isFluid()) {
-            ICellInventoryHandler<IAEFluidStack> handler = AEApi.instance().registries().cell()
-                .getCellInventory(stack, null,
-                    AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
-            AEApi.instance().client().addCellInformation(handler, tooltip);
-        } else {
-            ICellInventoryHandler<IAEItemStack> handler = AEApi.instance().registries().cell()
-                .getCellInventory(stack, null,
-                    AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
-            AEApi.instance().client().addCellInformation(handler, tooltip);
+        ChannelType channelType = info.getChannelType();
+        switch (channelType) {
+            case ITEM:
+                ICellInventoryHandler<IAEItemStack> itemHandler = AEApi.instance().registries().cell()
+                    .getCellInventory(stack, null,
+                        AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
+                AEApi.instance().client().addCellInformation(itemHandler, tooltip);
+                break;
+
+            case FLUID:
+                ICellInventoryHandler<IAEFluidStack> fluidHandler = AEApi.instance().registries().cell()
+                    .getCellInventory(stack, null,
+                        AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
+                AEApi.instance().client().addCellInformation(fluidHandler, tooltip);
+                break;
+
+            case ESSENTIA:
+                ThaumicEnergisticsIntegration.addCellInformation(stack, tooltip);
+                break;
+
+            case GAS:
+                MekanismEnergisticsIntegration.addCellInformation(stack, tooltip);
+                break;
         }
 
         // Show per-type capacity info
@@ -128,9 +146,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
         long effectivePerType = Math.min(maxPerType, physicalMax);
 
-        String unitKey = info.isFluid()
-            ? "tooltip.cells.configurable_cell.capacity_per_type.mb"
-            : "tooltip.cells.configurable_cell.capacity_per_type.items";
+        String unitKey = "tooltip.cells.configurable_cell.capacity_per_type." + channelType.getLocalizationSuffix();
         tooltip.add("§b" + I18n.format(unitKey, ReadableNumberConverter.INSTANCE.toWideReadableForm(effectivePerType)));
 
         // Show upgrade information
@@ -190,7 +206,10 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
     /**
      * Disassemble a single configurable cell, returning its components.
-     * 
+     * <p>
+     * Unlike standard cells, the configurable cell returns a stripped empty housing
+     * (with user configs preserved) plus the component and upgrades separately.
+     *
      * @param stack The single cell to disassemble (stack size should be 1)
      * @param world The world
      * @param player The player performing the action
@@ -208,18 +227,10 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         }
 
         // Check if there's anything to disassemble (component or upgrades)
-        // If nothing to disassemble, don't do anything
+        // If nothing to disassemble, this cell is already empty - do nothing
         ItemStack component = ComponentHelper.getInstalledComponent(stack);
         IItemHandler upgrades = getUpgradesInventory(stack);
-        boolean hasUpgrades = false;
-        for (int i = 0; i < upgrades.getSlots(); i++) {
-            if (!upgrades.getStackInSlot(i).isEmpty()) {
-                hasUpgrades = true;
-                break;
-            }
-        }
-
-        if (component.isEmpty() && !hasUpgrades) return false;
+        if (component.isEmpty() && !CellDisassemblyHelper.hasUpgrades(upgrades)) return false;
 
         // Create a stripped housing: no component, no upgrades, but user configs intact.
         // Copy first so we preserve all NBT (maxPerType, FuzzyMode, etc.)
@@ -227,42 +238,20 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         housing.setCount(1);
 
         // Extract and return upgrades from the housing copy
-        IItemHandler housingUpgrades = getUpgradesInventory(housing);
-        for (int i = 0; i < housingUpgrades.getSlots(); i++) {
-            ItemStack upgradeStack = housingUpgrades.extractItem(i, Integer.MAX_VALUE, false);
-            if (!upgradeStack.isEmpty()) {
-                ItemStack leftStack = ia.addItems(upgradeStack);
-                if (!leftStack.isEmpty()) player.dropItem(leftStack, false);
-            }
-        }
+        CellDisassemblyHelper.extractAndReturnUpgrades(getUpgradesInventory(housing), ia, player);
 
-        // Extract and return the component from the housing copy (it contains the inventory NBT)
+        // Extract and return the component from the housing copy
         ItemStack housingComponent = ComponentHelper.getInstalledComponent(housing);
         if (!housingComponent.isEmpty()) {
             ComponentHelper.setInstalledComponent(housing, ItemStack.EMPTY);
-            ItemStack leftStack = ia.addItems(housingComponent);
-            if (!leftStack.isEmpty()) player.dropItem(leftStack, false);
+            CellDisassemblyHelper.returnItem(housingComponent, ia, player);
         }
 
-        // Decrease the stack count in the player's hand
-        ItemStack heldItem = player.getHeldItem(hand);
-        if (heldItem == stack) {
-            if (heldItem.getCount() <= 1) {
-                // Last item in stack - clear the slot entirely
-                if (hand == EnumHand.MAIN_HAND) {
-                    player.inventory.setInventorySlotContents(player.inventory.currentItem, ItemStack.EMPTY);
-                } else {
-                    player.setHeldItem(EnumHand.OFF_HAND, ItemStack.EMPTY);
-                }
-            } else {
-                // More than one item - just shrink the stack
-                heldItem.shrink(1);
-            }
-        }
+        // Remove one cell from the player's hand
+        CellDisassemblyHelper.removeOneFromHand(stack, player);
 
         // Return the stripped housing to the player's inventory
-        ItemStack leftHousing = ia.addItems(housing);
-        if (!leftHousing.isEmpty()) player.dropItem(leftHousing, false);
+        CellDisassemblyHelper.returnItem(housing, ia, player);
 
         if (player.inventoryContainer != null) player.inventoryContainer.detectAndSendChanges();
 
@@ -281,8 +270,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
         return new CustomCellUpgrades(is, 2, Arrays.asList(
-            CustomCellUpgrades.CustomUpgrades.OVERFLOW,
-            CustomCellUpgrades.CustomUpgrades.EQUAL_DISTRIBUTION
+            CustomCellUpgrades.CustomUpgrades.OVERFLOW
         ));
     }
 

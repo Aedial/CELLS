@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -26,14 +28,12 @@ import appeng.core.sync.network.NetworkHandler;
 import appeng.core.sync.packets.PacketFluidSlot;
 import appeng.fluids.util.AEFluidStack;
 
+import mezz.jei.api.gui.IGhostIngredientHandler.Target;
+
 import com.cells.Tags;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
-
-import mezz.jei.api.gui.IGhostIngredientHandler;
-
-import javax.annotation.Nonnull;
 
 
 /**
@@ -53,7 +53,8 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
     private final IFluidImportInterfaceInventoryHost host;
     private GuiTabButton configButton;
     private GuiTabButton pollingRateButton;
-    private final Map<IGhostIngredientHandler.Target<?>, Object> mapTargetSlot = new HashMap<>();
+    // Use Object key type to avoid JEI class reference in field signature (JEI is optional)
+    private final Map<Object, Object> mapTargetSlot = new HashMap<>();
 
     /**
      * Constructor for tile entity.
@@ -199,7 +200,7 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
      * Only accepts items that contain fluids.
      */
     @Override
-    public List<IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
+    public List<Target<?>> getPhantomTargets(Object ingredient) {
         // Accept FluidStack directly (from JEI fluid tab)
         FluidStack fluidStack = null;
         if (ingredient instanceof FluidStack) {
@@ -211,14 +212,14 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
         if (fluidStack == null) return new ArrayList<>();
 
         final FluidStack finalFluid = fluidStack;
-        List<IGhostIngredientHandler.Target<?>> targets = new ArrayList<>();
+        List<Target<?>> targets = new ArrayList<>();
 
         for (GuiCustomSlot slot : this.guiSlots) {
             if (!(slot instanceof GuiFluidFilterSlot)) continue;
 
             final GuiFluidFilterSlot filterSlot = (GuiFluidFilterSlot) slot;
 
-            IGhostIngredientHandler.Target<Object> target = new IGhostIngredientHandler.Target<Object>() {
+            Target<Object> target = new Target<Object>() {
                 @Override
                 @Nonnull
                 public Rectangle getArea() {
@@ -241,8 +242,9 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
         return targets;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public Map<IGhostIngredientHandler.Target<?>, Object> getFakeSlotTargetMap() {
-        return mapTargetSlot;
+    public Map<Target<?>, Object> getFakeSlotTargetMap() {
+        return (Map<Target<?>, Object>) (Map<?, ?>) mapTargetSlot;
     }
 }

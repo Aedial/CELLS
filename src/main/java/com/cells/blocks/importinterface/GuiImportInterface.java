@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
@@ -28,14 +30,13 @@ import appeng.core.sync.packets.PacketInventoryAction;
 import appeng.helpers.InventoryAction;
 import appeng.util.item.AEItemStack;
 
+import mezz.jei.api.gui.IGhostIngredientHandler.Target;
+
 import com.cells.Tags;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
 
-import mezz.jei.api.gui.IGhostIngredientHandler;
-
-import javax.annotation.Nonnull;
 
 
 /**
@@ -52,7 +53,8 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
     private final IImportInterfaceInventoryHost host;
     private GuiTabButton configButton;
     private GuiTabButton pollingRateButton;
-    private final Map<IGhostIngredientHandler.Target<?>, Object> mapTargetSlot = new HashMap<>();
+    // Use Object key type to avoid JEI class reference in field signature (JEI is optional)
+    private final Map<Object, Object> mapTargetSlot = new HashMap<>();
 
     /**
      * Constructor for tile entity.
@@ -200,16 +202,16 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
      * JEI ghost ingredient support - returns targets for dragging items from JEI.
      */
     @Override
-    public List<IGhostIngredientHandler.Target<?>> getPhantomTargets(Object ingredient) {
+    public List<Target<?>> getPhantomTargets(Object ingredient) {
         if (!(ingredient instanceof ItemStack)) return Collections.emptyList();
 
-        List<IGhostIngredientHandler.Target<?>> targets = new ArrayList<>();
+        List<Target<?>> targets = new ArrayList<>();
         ItemStack itemStack = (ItemStack) ingredient;
 
         for (Slot slot : this.inventorySlots.inventorySlots) {
             if (!(slot instanceof SlotFake)) continue;
 
-            IGhostIngredientHandler.Target<Object> target = new IGhostIngredientHandler.Target<Object>() {
+            Target<Object> target = new Target<Object>() {
                 @Override
                 @Nonnull
                 public Rectangle getArea() {
@@ -237,8 +239,9 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
         return targets;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public Map<IGhostIngredientHandler.Target<?>, Object> getFakeSlotTargetMap() {
-        return mapTargetSlot;
+    public Map<Target<?>, Object> getFakeSlotTargetMap() {
+        return (Map<Target<?>, Object>) (Map<?, ?>) mapTargetSlot;
     }
 }

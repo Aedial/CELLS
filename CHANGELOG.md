@@ -8,6 +8,20 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.4.6] - 2026-02-27
+### Added
+- Add Essentia and Gas support for Configurable Cells (with textures for all the supported sizes: 1k, 4k, ..., 1g, 2g).
+- Add support for Essentia and Gas in /fillCell.
+- Add recipes for combining the Configurable Cell and the component directly.
+- Add some warnings for custom components in the configurable_components.cfg.
+
+### Changed
+- Harmonize Configurable Cells.
+
+### Technical
+- Refactor the codebase to share the common logic between the various cell types.
+
+
 ## [0.4.5] - 2026-02-25
 ### Added
 - Add support for downloading and uploading Import Interface settings to memory cards and dismantled blocks.

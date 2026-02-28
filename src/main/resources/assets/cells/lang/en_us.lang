@@ -209,13 +209,17 @@ item.cells.configurable_cell.name=Configurable ME Storage Cell
 item.cells.configurable_cell.name_configured=Configurable ME Storage Cell (%s)
 tooltip.cells.configurable_cell.no_component=No component installed! Insert a ME Storage Component to define capacity.
 tooltip.cells.configurable_cell.info=Accepts any ME Storage Component to define capacity and type. Comes with built-in Equal Distribution.
-tooltip.cells.configurable_cell.capacity_per_type.items=Per-type limit: %s items
-tooltip.cells.configurable_cell.capacity_per_type.mb=Per-type limit: %s mB
+tooltip.cells.configurable_cell.capacity_per_type.item=Per-type limit: %s items
+tooltip.cells.configurable_cell.capacity_per_type.fluid=Per-type limit: %s mB
+tooltip.cells.configurable_cell.capacity_per_type.essentia=Per-type limit: %s essentia
+tooltip.cells.configurable_cell.capacity_per_type.gas=Per-type limit: %s mB gas
 
 # Configurable Cell GUI
 gui.cells.configurable_cell.capacity_title.none=Per-type capacity:
 gui.cells.configurable_cell.capacity_title.item=Per-type capacity (items):
 gui.cells.configurable_cell.capacity_title.fluid=Per-type capacity (mB):
+gui.cells.configurable_cell.capacity_title.essentia=Per-type capacity (essentia):
+gui.cells.configurable_cell.capacity_title.gas=Per-type capacity (mB gas):
 gui.cells.configurable_cell.no_component=Unknown
 
 # Configurable Cell Config
@@ -267,7 +271,7 @@ gui.cells.import_interface.title=Import Interface
 gui.cells.import_interface.max_slot_size=Max Slot Size
 gui.cells.polling_rate.title=Polling Rate
 gui.cells.polling_rate.tooltip=Fixed interval for importing items (0 = AE2's default, nonzero = interval in ticks)
-tooltip.cells.import_interface.info=Import items into the ME network through filtered slots. Does not support stocking or crafting.
+tooltip.cells.import_interface.info=Import items into the ME network through filtered slots. Does not support stocking or crafting. Use Slot Size and Polling Rate for best performance.
 
 # Import Interface warnings
 message.cells.import_interface.storage_not_empty=Cannot change filter while the storage slot is not empty.
@@ -280,7 +284,7 @@ message.cells.configurable_cell.split_stack=Split the cell stack first, before i
 tile.cells.import_fluid_interface.name=Fluid Import Interface
 item.cells.part.import_fluid_interface.name=Fluid Import Interface
 gui.cells.import_fluid_interface.title=Fluid Import Interface
-tooltip.cells.import_fluid_interface.info=Import fluids into the ME network through filtered slots. Does not support stocking or crafting.
+tooltip.cells.import_fluid_interface.info=Import fluids into the ME network through filtered slots. Does not support stocking or crafting. Use Slot Size and Polling Rate for best performance.
 tooltip.cells.type.import_fluid_interface=Fluid Import Interface
 tooltip.cells.fluid_import_interface.amount=%d/%d mB
 

@@ -1,5 +1,6 @@
 package com.cells.cells.hyperdensity.fluid;
 
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
 import appeng.api.AEApi;
@@ -22,8 +23,8 @@ public class FluidHyperDensityCellHandler implements ICellHandler {
     public boolean isCell(ItemStack is) {
         if (is.isEmpty()) return false;
 
-        return is.getItem() instanceof IItemFluidHyperDensityCell
-            && ((IItemFluidHyperDensityCell) is.getItem()).isFluidHyperDensityCell(is);
+        Item item = is.getItem();
+        return item instanceof IItemFluidHyperDensityCell && ((IItemFluidHyperDensityCell) item).isHyperDensityCell(is);
     }
 
     @Override

@@ -12,6 +12,8 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.container.AEBaseContainer;
@@ -20,9 +22,6 @@ import appeng.container.guisync.GuiSync;
 import appeng.util.Platform;
 
 import com.cells.config.CellsConfig;
-
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
 
 
 /**
@@ -55,7 +54,7 @@ public class ContainerConfigurableCell extends AEBaseContainer {
     public long physicalMaxPerType = 0;
 
     @GuiSync(2)
-    public int componentIsFluid = 0;
+    public int componentChannelTypeOrdinal = -1;
 
     @GuiSync(3)
     public int componentPresent = 0;
@@ -104,11 +103,11 @@ public class ContainerConfigurableCell extends AEBaseContainer {
         ComponentInfo info = ComponentHelper.getComponentInfo(ComponentHelper.getInstalledComponent(cellStack));
         if (info != null) {
             this.physicalMaxPerType = ComponentHelper.calculatePhysicalPerTypeCapacity(info, CellsConfig.configurableCellMaxTypes);
-            this.componentIsFluid = info.isFluid() ? 1 : 0;
+            this.componentChannelTypeOrdinal = info.getChannelType().ordinal();
             this.componentPresent = 1;
         } else {
             this.physicalMaxPerType = 0;
-            this.componentIsFluid = 0;
+            this.componentChannelTypeOrdinal = -1;
             this.componentPresent = 0;
         }
     }

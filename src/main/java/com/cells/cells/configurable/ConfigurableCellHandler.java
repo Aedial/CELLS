@@ -13,6 +13,9 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 
+import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
+import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
+
 
 /**
  * Cell handler for the Configurable Storage Cell.
@@ -39,19 +42,51 @@ public class ConfigurableCellHandler implements ICellHandler {
         ComponentInfo info = ComponentHelper.getComponentInfo(ComponentHelper.getInstalledComponent(is));
         if (info == null) return null;
 
-        IStorageChannel<IAEItemStack> itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-        IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-
-        if (info.isFluid()) {
-            if (channel != fluidChannel) return null;
-
-            ConfigurableCellFluidInventory inventory = new ConfigurableCellFluidInventory(is, container, info);
-            return (ICellInventoryHandler<T>) new ConfigurableCellInventoryHandler<>(inventory, fluidChannel);
-        } else {
-            if (channel != itemChannel) return null;
-
-            ConfigurableCellItemInventory inventory = new ConfigurableCellItemInventory(is, container, info);
-            return (ICellInventoryHandler<T>) new ConfigurableCellInventoryHandler<>(inventory, itemChannel);
+        switch (info.getChannelType()) {
+            case ITEM:
+                return getItemCellInventory(is, container, info, channel);
+            case FLUID:
+                return getFluidCellInventory(is, container, info, channel);
+            case ESSENTIA:
+                return getEssentiaCellInventory(is, container, info, channel);
+            case GAS:
+                return getGasCellInventory(is, container, info, channel);
+            default:
+                return null;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends IAEStack<T>> ICellInventoryHandler<T> getItemCellInventory(
+            ItemStack is, ISaveProvider container, ComponentInfo info, IStorageChannel<T> channel) {
+
+        IStorageChannel<IAEItemStack> itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+        if (channel != itemChannel) return null;
+
+        ConfigurableCellItemInventory inventory = new ConfigurableCellItemInventory(is, container, info);
+        return (ICellInventoryHandler<T>) new ConfigurableCellInventoryHandler<>(inventory, itemChannel);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T extends IAEStack<T>> ICellInventoryHandler<T> getFluidCellInventory(
+            ItemStack is, ISaveProvider container, ComponentInfo info, IStorageChannel<T> channel) {
+
+        IStorageChannel<IAEFluidStack> fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+        if (channel != fluidChannel) return null;
+
+        ConfigurableCellFluidInventory inventory = new ConfigurableCellFluidInventory(is, container, info);
+        return (ICellInventoryHandler<T>) new ConfigurableCellInventoryHandler<>(inventory, fluidChannel);
+    }
+
+    private <T extends IAEStack<T>> ICellInventoryHandler<T> getEssentiaCellInventory(
+            ItemStack is, ISaveProvider container, ComponentInfo info, IStorageChannel<T> channel) {
+
+        return ThaumicEnergisticsIntegration.getCellInventory(is, container, info, channel);
+    }
+
+    private <T extends IAEStack<T>> ICellInventoryHandler<T> getGasCellInventory(
+            ItemStack is, ISaveProvider container, ComponentInfo info, IStorageChannel<T> channel) {
+
+        return MekanismEnergisticsIntegration.getCellInventory(is, container, info, channel);
     }
 }

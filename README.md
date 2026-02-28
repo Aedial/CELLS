@@ -56,10 +56,13 @@ A universal storage cell that accepts a ME Storage Component (AE2) to define its
 - **Built-in equal distribution**: capacity is divided equally among all types (configurable max types, default 63). The bytes overhead is taken into account proactively, meaning the cell only has 50% of its total bytes available for storage, reserving the other 50% for overhead.
 - **Per-type capacity limit**: configure a maximum items/mB per type via the GUI text field
 - Shift-right-click to disassemble (returns cell, component, and upgrades)
+- The cell can be crafted with the component to directly insert it, and will show such things in JEI.
 - Components cannot be removed while the cell has content. Swapping to another component of the same type (item↔item, fluid↔fluid) is allowed if the new component has enough capacity for the existing data.
 
 #### Component Whitelist
 The list of accepted storage components is defined in [configurable\_components.cfg](https://github.com/Aedial/CELLS/blob/main/src/main/resources/assets/cells/configurable_components.cfg). To add or remove supported components, place a copy of this file in your **Forge config directory** (`config/configurable_components.cfg`). The config override takes priority over the bundled file.
+
+**This means you can define custom components past the default ones provided by the mods in your modlist.**
 
 Each entry has the format:
 ```

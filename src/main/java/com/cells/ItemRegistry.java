@@ -2,10 +2,13 @@ package com.cells;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-import com.cells.cells.configurable.ComponentInfo;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.ModelRegistryEvent;
 import net.minecraftforge.client.model.ModelLoader;
@@ -14,7 +17,9 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.cells.cells.configurable.ChannelType;
 import com.cells.cells.configurable.ComponentHelper;
+import com.cells.cells.configurable.ComponentInfo;
 import com.cells.cells.configurable.ItemConfigurableCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingComponent;
@@ -36,6 +41,7 @@ import com.cells.items.ItemOverclockedProcessor;
 import com.cells.items.ItemOverflowCard;
 import com.cells.items.ItemSingularityProcessor;
 import com.cells.items.ItemTrashUnselectedCard;
+import com.cells.recipes.ConfigurableCellAssemblyRecipe;
 
 
 public class ItemRegistry {
@@ -136,6 +142,16 @@ public class ItemRegistry {
         event.getRegistry().register(COMPRESSED_SILICON_PRINT);
         event.getRegistry().register(OVERCLOCKED_PROCESSOR);
         event.getRegistry().register(SINGULARITY_PROCESSOR);
+    }
+
+    @SubscribeEvent
+    public void registerRecipes(RegistryEvent.Register<IRecipe> event) {
+        // Register configurable cell assembly recipe only if the cell is enabled
+        if (CONFIGURABLE_CELL != null) {
+            event.getRegistry().register(
+                new ConfigurableCellAssemblyRecipe()
+                    .setRegistryName(Tags.MODID, "configurable_cell_assembly"));
+        }
     }
 
     @SubscribeEvent
@@ -275,17 +291,23 @@ public class ItemRegistry {
 
     @SideOnly(Side.CLIENT)
     private static void registerConfigurableCellModels() {
-        // Register base model + all tier/fluid variants so the model bakery knows about them
+        // Register base model + all tier/channel variants so the model bakery knows about them
         ModelResourceLocation base = makeModelLocation(CONFIGURABLE_CELL, "cells/configurable");
 
-        String[] tiers = ComponentHelper.TIER_NAMES;
+        // Use dynamically registered tier names from the whitelist, separated by channel type
+        Map<ChannelType, Set<String>> tiersByChannel = ComponentHelper.getRegisteredTierNamesByChannel();
 
         List<ModelResourceLocation> variants = new ArrayList<>();
         variants.add(base);
 
-        for (String t : tiers) {
-            variants.add(makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", "_" + t));
-            variants.add(makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", "_" + t + "_fluid"));
+        // Register each tier for each channel type with the appropriate model suffix
+        for (Map.Entry<ChannelType, Set<String>> entry : tiersByChannel.entrySet()) {
+            ChannelType channel = entry.getKey();
+            String channelSuffix = channel.getModelSuffix(); // "", "_fluid", "_essentia", "_gas"
+
+            for (String tier : entry.getValue()) {
+                variants.add(makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", "_" + tier + channelSuffix));
+            }
         }
 
         // Register all variants with the model loader
@@ -294,11 +316,9 @@ public class ItemRegistry {
         // Provide a mesh definition that selects the correct model based on the installed component
         ModelLoader.setCustomMeshDefinition(CONFIGURABLE_CELL, stack -> {
             ComponentInfo info = ComponentHelper.getComponentInfo(ComponentHelper.getInstalledComponent(stack));
-
             if (info == null) return base; // empty/default
 
-            String suffix = "_" + info.getTierName();
-            if (info.isFluid()) suffix += "_fluid";
+            String suffix = "_" + info.getTierName() + info.getChannelType().getModelSuffix();
 
             return makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", suffix);
         });

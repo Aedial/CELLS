@@ -1,85 +1,51 @@
 package com.cells.cells.configurable;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
-import appeng.api.config.FuzzyMode;
-import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IItemList;
 import appeng.api.networking.security.IActionSource;
-import appeng.items.contents.CellConfig;
-import appeng.util.Platform;
 
-import com.cells.config.CellsConfig;
-import com.cells.util.CellUpgradeHelper;
-import com.cells.util.CustomCellUpgrades;
-import com.cells.util.DeferredCellOperations;
 import com.cells.util.FluidStackKey;
 
 
 /**
  * Fluid-channel inventory for the Configurable Storage Cell.
  * <p>
- * Identical logic to ConfigurableCellItemInventory but operates on IAEFluidStack
- * and stores data under the "fluidType" NBT key.
+ * Extends the abstract base to provide fluid-specific NBT serialization
+ * and inject/extract operations.
  */
-public class ConfigurableCellFluidInventory implements ICellInventory<IAEFluidStack> {
+public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInventory<IAEFluidStack> {
 
     private static final String NBT_FLUID_TYPE = "fluidType";
     private static final String NBT_STORED_COUNT = "StoredCount";
 
-    private final ItemStack cellStack;
-    private final ISaveProvider container;
     private final IStorageChannel<IAEFluidStack> channel;
-    private final ComponentInfo componentInfo;
 
-    private final NBTTagCompound tagCompound;
-
+    // In-memory cache: FluidStackKey -> NBT index
     private final Map<FluidStackKey, Integer> keyToNbtIndex = new HashMap<>();
     private int cachedNextIndex = 0;
 
-    private long storedFluidCount = 0;
-    private int storedTypes = 0;
-
-    private final int maxTypes;
-    private final long userMaxPerType;
-    private final long physicalPerType;
-    private final long effectivePerType;
-    private final boolean hasOverflowCard;
-
     public ConfigurableCellFluidInventory(ItemStack cellStack, ISaveProvider container, ComponentInfo componentInfo) {
-        this.cellStack = cellStack;
-        this.container = container;
-        this.componentInfo = componentInfo;
+        super(cellStack, container, componentInfo);
         this.channel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-        this.tagCompound = Platform.openNbtData(cellStack);
-
-        this.maxTypes = CellsConfig.configurableCellMaxTypes;
-        this.userMaxPerType = ComponentHelper.getMaxPerType(cellStack);
-        this.physicalPerType = ComponentHelper.calculatePhysicalPerTypeCapacity(componentInfo, maxTypes);
-        this.effectivePerType = Math.min(userMaxPerType, physicalPerType * 1000L);
-
-        IItemHandler upgrades = getUpgradesInventory();
-        this.hasOverflowCard = CellUpgradeHelper.hasOverflowCard(upgrades);
-
         loadFromNBT();
     }
 
-    private void loadFromNBT() {
+    @Override
+    protected void loadFromNBT() {
         NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
-        storedFluidCount = 0;
+        storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
         cachedNextIndex = 0;
@@ -97,7 +63,7 @@ public class ConfigurableCellFluidInventory implements ICellInventory<IAEFluidSt
                     if (index >= cachedNextIndex) cachedNextIndex = index + 1;
 
                     keyToNbtIndex.put(key, index);
-                    storedFluidCount += count;
+                    storedCount += count;
                     storedTypes++;
                 }
             }
@@ -142,17 +108,14 @@ public class ConfigurableCellFluidInventory implements ICellInventory<IAEFluidSt
         tagCompound.setTag(NBT_FLUID_TYPE, fluidsTag);
     }
 
-    private void saveChangesDeferred() {
-        DeferredCellOperations.markDirty(this, container);
-    }
-
-    private long getTotalFluidCapacity() {
-        return effectivePerType * maxTypes;
-    }
-
     // =====================
-    // ICellInventory implementation
+    // ICellInventory implementation - channel-specific
     // =====================
+
+    @Override
+    public IStorageChannel<IAEFluidStack> getChannel() {
+        return channel;
+    }
 
     @Override
     public IAEFluidStack injectItems(IAEFluidStack input, Actionable mode, IActionSource src) {
@@ -177,7 +140,7 @@ public class ConfigurableCellFluidInventory implements ICellInventory<IAEFluidSt
             if (isNewType) storedTypes++;
 
             setStoredCount(input, existingCount + toInsert);
-            storedFluidCount += toInsert;
+            storedCount += toInsert;
             saveChangesDeferred();
         }
 
@@ -205,7 +168,7 @@ public class ConfigurableCellFluidInventory implements ICellInventory<IAEFluidSt
 
             if (newCount <= 0) storedTypes = Math.max(0, storedTypes - 1);
 
-            storedFluidCount = Math.max(0, storedFluidCount - toExtract);
+            storedCount = Math.max(0, storedCount - toExtract);
             saveChangesDeferred();
         }
 
@@ -235,123 +198,5 @@ public class ConfigurableCellFluidInventory implements ICellInventory<IAEFluidSt
         }
 
         return out;
-    }
-
-    @Override
-    public IStorageChannel<IAEFluidStack> getChannel() {
-        return channel;
-    }
-
-    @Override
-    public ItemStack getItemStack() {
-        return cellStack;
-    }
-
-    @Override
-    public double getIdleDrain() {
-        return CellsConfig.configurableCellIdleDrain;
-    }
-
-    @Override
-    public FuzzyMode getFuzzyMode() {
-        String fz = Platform.openNbtData(cellStack).getString("FuzzyMode");
-        try {
-            return FuzzyMode.valueOf(fz);
-        } catch (Throwable t) {
-            return FuzzyMode.IGNORE_ALL;
-        }
-    }
-
-    @Override
-    public IItemHandler getConfigInventory() {
-        return new CellConfig(cellStack);
-    }
-
-    @Override
-    public IItemHandler getUpgradesInventory() {
-        return new CustomCellUpgrades(cellStack, 2, Arrays.asList(
-            CustomCellUpgrades.CustomUpgrades.OVERFLOW,
-            CustomCellUpgrades.CustomUpgrades.EQUAL_DISTRIBUTION
-        ));
-    }
-
-    @Override
-    public int getBytesPerType() {
-        return (int) Math.min(componentInfo.getBytesPerType(), Integer.MAX_VALUE);
-    }
-
-    @Override
-    public boolean canHoldNewItem() {
-        return storedTypes < maxTypes && effectivePerType > 0;
-    }
-
-    @Override
-    public long getTotalBytes() {
-        return componentInfo.getBytes();
-    }
-
-    @Override
-    public long getFreeBytes() {
-        return Math.max(0, getTotalBytes() - getUsedBytes());
-    }
-
-    @Override
-    public long getTotalItemTypes() {
-        return maxTypes;
-    }
-
-    @Override
-    public long getStoredItemCount() {
-        return storedFluidCount;
-    }
-
-    @Override
-    public long getStoredItemTypes() {
-        return storedTypes;
-    }
-
-    @Override
-    public long getRemainingItemTypes() {
-        return maxTypes - storedTypes;
-    }
-
-    @Override
-    public long getUsedBytes() {
-        if (storedFluidCount == 0 && storedTypes == 0) return 0;
-
-        // Equal distribution model: each type slot has a fixed byte budget (totalBytes / maxTypes).
-        // Bytes used is proportional to capacity used, with overhead pre-reserved per slot.
-        long totalCapacity = getTotalFluidCapacity();
-        if (totalCapacity <= 0) return 0;
-
-        // Proportional byte usage: (storedFluidCount / totalCapacity) * totalBytes
-        return (storedFluidCount * getTotalBytes()) / totalCapacity;
-    }
-
-    @Override
-    public long getRemainingItemCount() {
-        return Math.max(0, getTotalFluidCapacity() - storedFluidCount);
-    }
-
-    @Override
-    public int getUnusedItemCount() {
-        // Equal distribution model: bytes are pre-allocated per type slot, so there's no
-        // "unused" space from byte rounding. Each slot's capacity is fixed regardless
-        // of how many types are stored.
-        return 0;
-    }
-
-    @Override
-    public int getStatusForCell() {
-        if (storedFluidCount == 0 && storedTypes == 0) return 4; // Empty but valid
-        if (canHoldNewItem()) return 1; // Has space for new types
-        if (getRemainingItemCount() > 0) return 2; // Has space for more of existing
-
-        return 3; // Full
-    }
-
-    @Override
-    public void persist() {
-        // Individual fluid counts are saved in setStoredCount()
     }
 }

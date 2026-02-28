@@ -7,13 +7,19 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 import com.cells.Cells;
 import com.cells.Tags;
@@ -28,13 +34,24 @@ import com.cells.config.CellsConfig;
  * ({@code assets/cells/configurable_components.cfg}) at startup. Each entry maps
  * a registry name + metadata to a byte capacity, storage channel, and tier name.
  * <p>
- * Supported components (via whitelist):
+ * Tier names are collected dynamically from the whitelist entries, allowing
+ * modpack developers to add custom sizes beyond the default set. Note that
+ * textures are only provided for: 1k, 4k, 16k, 64k, 256k, 1m, 4m, 16m, 64m, 256m, 1g, 2g.
+ * Custom tier names will show no texture (black and purple checkerboard) but can still be used for storage.
+ * <p>
+ * <b>Warning:</b> No overflow protection is provided for custom components.
+ * The underlying storage uses long values, so modpack developers should be
+ * mindful of values approaching Long.MAX_VALUE (9.2 quintillion).
+ * <p>
+ * Supported components (via default whitelist):
  * - AE2 item components (1k, 4k, 16k, 64k)
  * - AE2 fluid components (1k, 4k, 16k, 64k)
  * - NAE2 item components (256k, 1m, 4m, 16m)
  * - NAE2 fluid components (256k, 1m, 4m, 16m)
  * - CrazyAE item components (256k, 1m, 4m, 16m, 64m, 256m, 1g, 2g)
  * - CrazyAE fluid components (256k, 1m, 4m, 16m, 64m, 256m, 1g, 2g)
+ * - Thaumic Energistics essentia components (1k, 4k, 16k, 64k)
+ * - Mekanism Energistics gas components (1k, 4k, 16k, 64k)
  */
 public final class ComponentHelper {
 
@@ -47,11 +64,18 @@ public final class ComponentHelper {
      */
     private static final Map<String, ComponentInfo> WHITELIST = new HashMap<>();
 
-    public static final String[] TIER_NAMES = {
-        "1k", "4k", "16k", "64k",
-        "256k", "1m", "4m", "16m",
-        "64m", "256m", "1g", "2g"
-    };
+    /**
+     * Tier names collected from whitelist entries, separated by channel type.
+     * Each channel type has its own set of tier names in order of first appearance.
+     */
+    private static final Map<ChannelType, Set<String>> REGISTERED_TIER_NAMES_BY_CHANNEL = new EnumMap<>(ChannelType.class);
+
+    static {
+        // Initialize empty sets for each channel type
+        for (ChannelType type : ChannelType.values()) {
+            REGISTERED_TIER_NAMES_BY_CHANNEL.put(type, new LinkedHashSet<>());
+        }
+    }
 
     private ComponentHelper() {}
 
@@ -71,6 +95,7 @@ public final class ComponentHelper {
      */
     public static void loadWhitelist(@Nullable File configDir) {
         WHITELIST.clear();
+        for (ChannelType type : ChannelType.values()) REGISTERED_TIER_NAMES_BY_CHANNEL.get(type).clear();
 
         // Try config directory override first
         if (configDir != null) {
@@ -132,11 +157,17 @@ public final class ComponentHelper {
 
                 try {
                     long bytes = Long.parseLong(parts[0].trim());
-                    String channel = parts[1].trim().toLowerCase();
-                    String tierName = parts[2].trim();
-                    boolean isFluid = channel.equals("fluid");
+                    String channelName = parts[1].trim().toLowerCase();
+                    String tierName = parts[2].trim().toLowerCase();
+                    ChannelType channelType = ChannelType.fromConfigName(channelName);
 
-                    WHITELIST.put(key, new ComponentInfo(bytes, isFluid, tierName));
+                    if (channelType == null) {
+                        Cells.LOGGER.warn("Unknown channel type at line {}: {}", lineNum, channelName);
+                        continue;
+                    }
+
+                    WHITELIST.put(key, new ComponentInfo(bytes, channelType, tierName));
+                    REGISTERED_TIER_NAMES_BY_CHANNEL.get(channelType).add(tierName);
                 } catch (NumberFormatException e) {
                     Cells.LOGGER.warn("Invalid byte value at line {}: {}", lineNum, parts[0].trim());
                 }
@@ -146,6 +177,66 @@ public final class ComponentHelper {
         } catch (Exception e) {
             Cells.LOGGER.error("Failed to parse whitelist from {}", sourceName, e);
         }
+    }
+
+    // =====================
+    // Tier name access
+    // =====================
+
+    /**
+     * Get tier names registered for a specific channel type.
+     *
+     * @param channelType The channel type to get tiers for
+     * @return Array of tier names for that channel (e.g., ["1k", "4k", "16k", ...])
+     */
+    public static String[] getRegisteredTierNames(ChannelType channelType) {
+        Set<String> tiers = REGISTERED_TIER_NAMES_BY_CHANNEL.get(channelType);
+        return tiers != null ? tiers.toArray(new String[0]) : new String[0];
+    }
+
+    /**
+     * Get the map of all registered tier names by channel type.
+     * This is useful for model registration where we need to iterate all channels.
+     *
+     * @return Map of channel type to tier names
+     */
+    public static Map<ChannelType, Set<String>> getRegisteredTierNamesByChannel() {
+        return REGISTERED_TIER_NAMES_BY_CHANNEL;
+    }
+
+    /**
+     * Get all valid component ItemStacks that currently exist in the game.
+     * <p>
+     * This method iterates through the whitelist and checks if each component's
+     * item is registered in Forge. Only components whose items exist are returned.
+     * This is useful for dynamically registering recipes only for available components.
+     *
+     * @return List of valid component ItemStacks (only for loaded mods/items)
+     */
+    public static List<ItemStack> getValidComponents() {
+        List<ItemStack> validComponents = new ArrayList<>();
+
+        for (String key : WHITELIST.keySet()) {
+            // Parse "registryName@meta" format
+            int atIdx = key.indexOf('@');
+            if (atIdx < 0) continue;
+
+            String registryName = key.substring(0, atIdx);
+            int meta;
+            try {
+                meta = Integer.parseInt(key.substring(atIdx + 1));
+            } catch (NumberFormatException e) {
+                continue;
+            }
+
+            // Check if the item exists in the registry
+            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(registryName));
+            if (item == null) continue;
+
+            validComponents.add(new ItemStack(item, 1, meta));
+        }
+
+        return validComponents;
     }
 
     /**
@@ -216,9 +307,17 @@ public final class ComponentHelper {
 
     /**
      * Set the user-configured max per type in the cell's NBT.
+     * If the value is Long.MAX_VALUE (unlimited), the key is removed instead.
      */
     public static void setMaxPerType(ItemStack cellStack, long value) {
         NBTTagCompound tag = cellStack.getTagCompound();
+
+        // Remove the key if the value is unlimited (default behavior)
+        if (value == Long.MAX_VALUE) {
+            if (tag != null) tag.removeTag("maxPerType");
+            return;
+        }
+
         if (tag == null) {
             tag = new NBTTagCompound();
             cellStack.setTagCompound(tag);
@@ -261,11 +360,11 @@ public final class ComponentHelper {
 
         if (availableBytes <= 0) return 0;
 
-        // 8 units per byte for both items and fluids
-        long totalUnits = availableBytes * 8L;
-
-        // For fluids, convert units to mB (1 unit = 1000 mB)
-        if (info.isFluid()) totalUnits *= 1000L;
+        // 8 bits per byte, each bit holds countPerBit units
+        // Items/essentia: 1 per bit (8 per byte)
+        // Fluids: 1000 per bit (8000 per byte)
+        // Gas: 4000 per bit (32000 per byte)
+        long totalUnits = availableBytes * 8L * info.getChannelType().getCountPerBit();
 
         return totalUnits / maxTypes;
     }
@@ -287,23 +386,14 @@ public final class ComponentHelper {
         long storedTypes = 0;
         long maxCountPerType = 0;
 
-        // Check item storage
-        if (tag.hasKey("itemType")) {
-            NBTTagCompound itemsTag = tag.getCompoundTag("itemType");
-            for (String key : itemsTag.getKeySet()) {
-                long count = itemsTag.getCompoundTag(key).getLong("StoredCount");
-                if (count > 0) {
-                    storedTypes++;
-                    if (count > maxCountPerType) maxCountPerType = count;
-                }
-            }
-        }
+        // Check all channel type storage tags
+        for (ChannelType channelType : ChannelType.values()) {
+            String nbtKey = channelType.getNbtTagKey();
+            if (!tag.hasKey(nbtKey)) continue;
 
-        // Check fluid storage
-        if (tag.hasKey("fluidType")) {
-            NBTTagCompound fluidsTag = tag.getCompoundTag("fluidType");
-            for (String key : fluidsTag.getKeySet()) {
-                long count = fluidsTag.getCompoundTag(key).getLong("StoredCount");
+            NBTTagCompound channelTag = tag.getCompoundTag(nbtKey);
+            for (String key : channelTag.getKeySet()) {
+                long count = channelTag.getCompoundTag(key).getLong("StoredCount");
                 if (count > 0) {
                     storedTypes++;
                     if (count > maxCountPerType) maxCountPerType = count;
@@ -331,8 +421,8 @@ public final class ComponentHelper {
         ComponentInfo newInfo = getComponentInfo(newComponent);
         if (currentInfo == null || newInfo == null) return false;
 
-        // Must be the same storage channel
-        if (currentInfo.isFluid() != newInfo.isFluid()) return false;
+        // Must be the same storage channel type
+        if (currentInfo.getChannelType() != newInfo.getChannelType()) return false;
 
         // New component must have enough per-type capacity for the existing content
         int maxTypes = CellsConfig.configurableCellMaxTypes;

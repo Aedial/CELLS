@@ -62,15 +62,17 @@ public class GuiConfigurableCell extends AEBaseGui {
 
     @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        boolean isFluid = container.componentIsFluid == 1;
         boolean hasComponent = container.componentPresent == 1;
 
         // TODO: draw component name if present otherwise "insert component here"
+        // Determine localization suffix based on channel type
+        String suffix = "none";
+        if (hasComponent && container.componentChannelTypeOrdinal >= 0) {
+            ChannelType channelType = ChannelType.values()[container.componentChannelTypeOrdinal];
+            suffix = channelType.getLocalizationSuffix();
+        }
 
         // Title for the text field
-        String suffix = "none";
-        if (hasComponent) suffix = isFluid ? "fluid" : "item";
-
         String fieldTitleKey = "gui.cells.configurable_cell.capacity_title." + suffix;
         this.fontRenderer.drawString(I18n.format(fieldTitleKey), 6, 29, 0x404040);
 

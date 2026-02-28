@@ -27,9 +27,9 @@ import com.cells.Tags;
 public class ItemCompactingCell extends ItemCompactingCellBase {
 
     private static final String[] TIER_NAMES = {
-        "1k", "4k", "16k", "64k",           // Standard AE2 tiers
-        "256k", "1m", "4m", "16m",          // Dense tiers (NAE2-equivalent)
-        "64m", "256m", "1g", "2g"           // Ultra-dense tiers
+        "1k", "4k", "16k", "64k",
+        "256k", "1m", "4m", "16m",
+        "64m", "256m", "1g", "2g"
     };
 
     private static final long[] TIER_BYTES = {
