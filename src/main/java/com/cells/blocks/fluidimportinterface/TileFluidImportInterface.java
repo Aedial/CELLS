@@ -111,8 +111,12 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     // Mapping of filter fluids to their corresponding tank index for quick lookup
     final Map<FluidStackKey, Integer> filterToSlotMap = new HashMap<>();
 
-    // List of filter fluids for quick access
-    List<FluidStackKey> filterFluidList = new ArrayList<>();
+    // Reverse mapping: slot index to filter key
+    final Map<Integer, FluidStackKey> slotToFilterMap = new HashMap<>();
+
+    // List of slot indices that have filters, in slot order (0, 1, 3, 5 if slots 2,4 have no filter)
+    // This ensures external systems only see tanks that matter
+    List<Integer> filterSlotList = new ArrayList<>();
 
     // Action source for network operations
     private final IActionSource actionSource;
@@ -150,6 +154,10 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
      */
     public void refreshFilterMap() {
         this.filterToSlotMap.clear();
+        this.slotToFilterMap.clear();
+
+        // Build list of valid (internal) slot indices for quick access (because AE2 expects slots matching)
+        List<Integer> validSlots = new ArrayList<>();
 
         for (int i = 0; i < TOTAL_SLOTS; i++) {
             IAEFluidStack filterFluid = this.filterInventory.getFluidInSlot(i);
@@ -159,10 +167,14 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
             if (fluid == null) continue;
 
             FluidStackKey key = FluidStackKey.of(fluid);
-            if (key != null) this.filterToSlotMap.put(key, i);
+            if (key != null) {
+                this.filterToSlotMap.put(key, i);
+                this.slotToFilterMap.put(i, key);
+                validSlots.add(i);
+            }
         }
 
-        this.filterFluidList = new ArrayList<>(filterToSlotMap.keySet());
+        this.filterSlotList = validSlots;
     }
 
     /**
@@ -669,10 +681,12 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
         public IFluidTankProperties[] getTankProperties() {
             List<IFluidTankProperties> props = new ArrayList<>();
 
-            for (Map.Entry<FluidStackKey, Integer> entry : tile.filterToSlotMap.entrySet()) {
-                int slot = entry.getValue();
+            for (int slot : tile.filterSlotList) {
                 FluidStack contents = tile.fluidTanks[slot];
                 int capacity = tile.maxSlotSize;
+
+                // Use cached filter key for this slot
+                FluidStackKey filterKey = tile.slotToFilterMap.get(slot);
 
                 props.add(new IFluidTankProperties() {
                     @Nullable
@@ -698,7 +712,7 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
 
                     @Override
                     public boolean canFillFluidType(FluidStack fluidStack) {
-                        return entry.getKey().matches(fluidStack);
+                        return filterKey != null && filterKey.matches(fluidStack);
                     }
 
                     @Override

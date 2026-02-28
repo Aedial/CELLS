@@ -69,7 +69,7 @@ if (propertyBool('publish_to_curseforge')) {
             def dnOverride = propertyString('curseforge_display_name')
             def displayName = !dnOverride.isEmpty() ? dnOverride : "${propertyString('mod_name')} ${propertyString('mod_version')}"
 
-            mainArtifact tasks.reobfJar, {
+            mainArtifact(tasks.reobfJar.archiveFile) {
                 it.displayName = displayName
                 if (propertyBool('use_mixins')) {
                     relations {

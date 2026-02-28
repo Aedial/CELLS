@@ -101,9 +101,9 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
     // Mapping of filter items to their corresponding storage slot index for quick lookup
     final private Map<ItemStackKey, Integer> filterToSlotMap = new HashMap<>();
 
-    // List of filter items for quick access (ith index corresponds to ith valid storage slot)
-    // Initialized to empty list to avoid NPE before refreshFilterMap() is called
-    private List<ItemStackKey> filterItemList = new ArrayList<>();
+    // List of slot indices that have filters, in slot order (0, 1, 3, 5 if slots 2,4 have no filter)
+    // This ensures external systems see slots in the correct order regardless of filter insertion order
+    private List<Integer> filterSlotList = new ArrayList<>();
 
     // Action source for network operations
     private final IActionSource actionSource;
@@ -206,31 +206,18 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
         final int storageSlots = this.storageInventory.getSlots();
         final int maxSlots = Math.min(filterSlots, storageSlots);
 
+        // Build list of valid (internal) slot indices for quick access (because AE2 expects slots matching)
+        List<Integer> validSlots = new ArrayList<>();
+
         for (int i = 0; i < maxSlots; i++) {
             ItemStack filterStack = this.filterInventory.getStackInSlot(i);
-            if (!filterStack.isEmpty()) this.filterToSlotMap.put(ItemStackKey.of(filterStack), i);
+            if (!filterStack.isEmpty()) {
+                this.filterToSlotMap.put(ItemStackKey.of(filterStack), i);
+                validSlots.add(i);
+            }
         }
 
-        // Also build the filter item list for quick access
-        this.filterItemList = new ArrayList<>(filterToSlotMap.keySet());
-    }
-
-    /**
-     * Check if an item is a valid upgrade for this interface.
-     * Only accepts Overflow Card and Trash Unselected Card, max 1 of each.
-     */
-    public boolean isValidUpgrade(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-
-        if (stack.getItem() instanceof ItemOverflowCard) {
-            return countUpgrade(ItemOverflowCard.class) < 1;
-        }
-
-        if (stack.getItem() instanceof ItemTrashUnselectedCard) {
-            return countUpgrade(ItemTrashUnselectedCard.class) < 1;
-        }
-
-        return false;
+        this.filterSlotList = validSlots;
     }
 
     /**
@@ -258,6 +245,19 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
      */
     public boolean hasTrashUnselectedUpgrade() {
         return countUpgrade(ItemTrashUnselectedCard.class) > 0;
+    }
+
+    /**
+     * Check if an item is a valid upgrade for this interface.
+     * Only accepts Overflow Card and Trash Unselected Card, max 1 of each.
+     */
+    public boolean isValidUpgrade(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+
+        if (stack.getItem() instanceof ItemOverflowCard) return !hasOverflowUpgrade();
+        if (stack.getItem() instanceof ItemTrashUnselectedCard) return !hasTrashUnselectedUpgrade();
+
+        return false;
     }
 
     /**
@@ -642,7 +642,8 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
             // Expose 1 dummy slot so hoppers see an empty slot and don't think we're full.
             // Forge 1.12.x hopper code uses stackInSlot.getCount() != stackInSlot.getMaxStackSize()
             // which incorrectly caps at 64 instead of using our getSlotLimit().
-            return 1 + tile.filterToSlotMap.size();
+            // Also allows early insert for pipes that don't care about stack merging.
+            return 1 + tile.filterSlotList.size();
         }
 
         @Nonnull
@@ -651,16 +652,11 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
             // Slot 0 is the dummy slot - always empty
             if (slot <= 0) return ItemStack.EMPTY;
 
-            // Slots 1 through filterItemList.size() are actual filter slots
+            // Slots 1 through filterSlotList.size() are actual filter slots
             int filterIndex = slot - 1;
-            if (filterIndex >= tile.filterItemList.size()) return ItemStack.EMPTY;
+            if (filterIndex >= tile.filterSlotList.size()) return ItemStack.EMPTY;
 
-            ItemStackKey key = tile.filterItemList.get(filterIndex);
-            Integer storageSlot = tile.filterToSlotMap.get(key);
-
-            // Safety check: key should always be in map, but handle edge case
-            if (storageSlot == null) return ItemStack.EMPTY;
-
+            int storageSlot = tile.filterSlotList.get(filterIndex);
             return tile.storageInventory.getStackInSlot(storageSlot);
         }
 
