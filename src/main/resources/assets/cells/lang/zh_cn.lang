@@ -209,13 +209,17 @@ item.cells.configurable_cell.name=可配置ME存储元件
 item.cells.configurable_cell.name_configured=可配置ME存储元件（%s）
 tooltip.cells.configurable_cell.no_component=未安装组件！放入ME存储组件来定义容量。
 tooltip.cells.configurable_cell.info=可接受任意ME存储组件以定义容量和类型。自带内置的均分功能。
-tooltip.cells.configurable_cell.capacity_per_type.items=每种类型限制：%s 物品
-tooltip.cells.configurable_cell.capacity_per_type.mb=每种类型限制：%s mB
+tooltip.cells.configurable_cell.capacity_per_type.item=每种类型上限：%s物品
+tooltip.cells.configurable_cell.capacity_per_type.fluid=每种类型上限：%s mB
+tooltip.cells.configurable_cell.capacity_per_type.essentia=每种类型上限：%s源质
+tooltip.cells.configurable_cell.capacity_per_type.gas=每种类型上限：%s mB气体
 
 # Configurable Cell GUI
 gui.cells.configurable_cell.capacity_title.none=每种类型容量：
 gui.cells.configurable_cell.capacity_title.item=每种类型容量（物品）：
 gui.cells.configurable_cell.capacity_title.fluid=每种类型容量（mB）：
+gui.cells.configurable_cell.capacity_title.essentia=每种类型容量（源质）：
+gui.cells.configurable_cell.capacity_title.gas=每种类型容量（mB气体）：
 gui.cells.configurable_cell.no_component=未知
 
 # Configurable Cell Config
@@ -267,7 +271,7 @@ gui.cells.import_interface.title=输入接口
 gui.cells.import_interface.max_slot_size=槽位最大容量
 gui.cells.polling_rate.title=轮询率
 gui.cells.polling_rate.tooltip=输入物品的固定时间间隔（0 = AE2的默认值，设置为非零值时以刻为单位）
-tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络。不支持补货或合成。
+tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络。不支持补货或合成。通过设置槽位容量和轮询率来获得最佳性能。
 
 # Import Interface warnings
 message.cells.import_interface.storage_not_empty=无法在存储槽位非空时更改过滤项。
@@ -280,7 +284,7 @@ message.cells.configurable_cell.split_stack=在插入组件前，需先拆分元
 tile.cells.import_fluid_interface.name=流体输入接口
 item.cells.part.import_fluid_interface.name=流体输入接口
 gui.cells.import_fluid_interface.title=流体输入接口
-tooltip.cells.import_fluid_interface.info=通过过滤槽位将流体输入至ME网络。不支持补货或合成。
+tooltip.cells.import_fluid_interface.info=通过过滤槽位将流体输入至ME网络。不支持补货或合成。通过设置槽位容量和轮询率来获得最佳性能。
 tooltip.cells.type.import_fluid_interface=流体输入接口
 tooltip.cells.fluid_import_interface.amount=%d/%d mB
 
