@@ -208,7 +208,7 @@ tooltip.cells.upgrade.decompression_tier_active=解压等级：%d
 item.cells.configurable_cell.name=可配置ME存储元件
 item.cells.configurable_cell.name_configured=可配置ME存储元件（%s）
 tooltip.cells.configurable_cell.no_component=未安装组件！放入ME存储组件来定义容量。
-tooltip.cells.configurable_cell.info=可接受任意ME存储组件以定义容量和类型。
+tooltip.cells.configurable_cell.info=可接受任意ME存储组件以定义容量和类型。自带内置的均分功能。
 tooltip.cells.configurable_cell.capacity_per_type.items=每种类型限制：%s 物品
 tooltip.cells.configurable_cell.capacity_per_type.mb=每种类型限制：%s mB
 
@@ -262,6 +262,7 @@ item.cells.singularity_processor.logic.name=奇点逻辑处理器
 
 # Import Interface
 tile.cells.import_interface.name=输入接口
+item.cells.part.import_interface.name=输入接口
 gui.cells.import_interface.title=输入接口
 gui.cells.import_interface.max_slot_size=槽位最大容量
 gui.cells.polling_rate.title=轮询率
@@ -277,6 +278,7 @@ message.cells.configurable_cell.split_stack=在插入组件前，需先拆分元
 
 # Fluid Import Interface
 tile.cells.import_fluid_interface.name=流体输入接口
+item.cells.part.import_fluid_interface.name=流体输入接口
 gui.cells.import_fluid_interface.title=流体输入接口
 tooltip.cells.import_fluid_interface.info=通过过滤槽位将流体输入至ME网络。不支持补货或合成。
 tooltip.cells.type.import_fluid_interface=流体输入接口
