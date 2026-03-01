@@ -235,8 +235,15 @@ jar {
     }
     // Add all embedded dependencies into the jar
     from(provider{ configurations.embed.collect {it.isDirectory() ? it : zipTree(it)} })
+
+    // Include the API classes in the final JAR (src/api/java is compiled to a separate sourceSet)
+    from sourceSets.api.output
 }
 
+// Include the API sources in the sources JAR
+tasks.named('sourcesJar').configure {
+    from sourceSets.api.allJava
+}
 idea {
     module {
         inheritOutputDirs = true
