@@ -7,6 +7,8 @@ tooltip.cells.type.compact=ME Compacting Cell
 tooltip.cells.type.hyperdensity=Hyper-Density ME Storage Cell
 tooltip.cells.type.hyperdensity_compact=Hyper-Density ME Compacting Cell
 tooltip.cells.type.import_interface=Import Interface
+tooltip.cells.nbt_size=NBT Size: %s
+tooltip.cells.nbt_size.warning=§c⚠ NBT size exceeds safe limit! This may cause lag or crashes. §r
 
 # Messages
 message.cells.disassemble_fail_content=Cannot disassemble cell with content! Empty the cell first.
@@ -20,6 +22,10 @@ cells.config.hdItemMaxTypes=HD Item Cells Max Types
 cells.config.hdFluidMaxTypes=HD Fluid Cells Max Types
 cells.config.hdItemMaxTypes.tooltip=Maximum item types for hyper-density item storage cells (1-16384). CAUTION: Setting this too high can result in NBT size issues and potential crashloops.
 cells.config.hdFluidMaxTypes.tooltip=Maximum item types for hyper-density fluid storage cells (1-16384). CAUTION: Setting this too high can result in NBT size issues and potential crashloops.
+cells.config.nbtSizeWarningThresholdMB=NBT Size Warning Threshold (MB)
+cells.config.nbtSizeWarningThresholdMB.tooltip=Warning threshold for NBT size in megabytes (0.1-10.0). Cells with NBT size exceeding this value will show a warning tooltip.
+cells.config.enableNbtSizeTooltip=Enable NBT Size Tooltip
+cells.config.enableNbtSizeTooltip.tooltip=Enable NBT size computation and display in cell tooltips. Disable for better cell performance.
 
 cells.config.compactingIdleDrain=Compacting Cells Idle drain
 cells.config.hdIdleDrain=HD Item Cells Idle drain
@@ -222,14 +228,21 @@ gui.cells.configurable_cell.capacity_title.fluid=Per-type capacity (mB):
 gui.cells.configurable_cell.capacity_title.essentia=Per-type capacity (essentia):
 gui.cells.configurable_cell.capacity_title.gas=Per-type capacity (mB gas):
 gui.cells.configurable_cell.no_component=Unknown
+gui.cells.configurable_cell.types_title=Types:
 
 # Configurable Cell Config
 cells.config.configurableCellIdleDrain=Configurable Cells Idle drain
 cells.config.configurableCellIdleDrain.tooltip=Idle drain for configurable cells (passive AE/t consumption)
 cells.config.enableConfigurableCells=Enable Configurable Cell
 cells.config.enableConfigurableCells.tooltip=Enable Configurable storage cells
-cells.config.configurableCellMaxTypes=Configurable Cells Max Types
-cells.config.configurableCellMaxTypes.tooltip=Maximum item types for configurable storage cells (1-63)
+cells.config.configurableCellItemMaxTypes=Configurable Item Cells Max Types
+cells.config.configurableCellItemMaxTypes.tooltip=Maximum types for configurable item storage cells (1-16384)
+cells.config.configurableCellFluidMaxTypes=Configurable Fluid Cells Max Types
+cells.config.configurableCellFluidMaxTypes.tooltip=Maximum types for configurable fluid storage cells (1-16384)
+cells.config.configurableCellEssentiaMaxTypes=Configurable Essentia Cells Max Types
+cells.config.configurableCellEssentiaMaxTypes.tooltip=Maximum types for configurable essentia storage cells (1-16384)
+cells.config.configurableCellGasMaxTypes=Configurable Gas Cells Max Types
+cells.config.configurableCellGasMaxTypes.tooltip=Maximum types for configurable gas storage cells (1-16384)
 
 # Compressed Calculation Prints
 item.cells.compressed_calculation_print.compressed.name=Compressed Calculation Processor Print
@@ -286,6 +299,10 @@ message.cells.import_interface.filter_duplicate=This filter already exists in an
 
 # Configurable Cell warnings
 message.cells.configurable_cell.split_stack=Split the cell stack first, before inserting a component.
+message.cells.configurable_cell.types_min=Types limit must be at least 1.
+message.cells.configurable_cell.types_over_config=Types limit cannot exceed config maximum.
+message.cells.configurable_cell.types_below_stored=Types limit cannot be less than currently stored types.
+message.cells.configurable_cell.types_capacity_exceeded=Types limit would exceed per-type capacity for stored content.
 
 # Fluid Import Interface
 tile.cells.import_fluid_interface.name=Fluid Import Interface

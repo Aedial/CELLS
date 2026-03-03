@@ -24,10 +24,13 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.util.Platform;
 
+import com.cells.cells.common.INBTSizeProvider;
 import com.cells.cells.compacting.CompactingHelper;
+import com.cells.config.CellsConfig;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.DeferredCellOperations;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -107,7 +110,7 @@ import com.cells.util.DeferredCellOperations;
  * @see IItemHyperDensityCompactingCell
  * @see CompactingHelper
  */
-public class HyperDensityCompactingCellInventory implements ICellInventory<IAEItemStack> {
+public class HyperDensityCompactingCellInventory implements ICellInventory<IAEItemStack>, INBTSizeProvider {
 
     /** NBT key prefix for stored base units (saved as _hi and _lo integer pairs for long support). */
     private static final String NBT_STORED_BASE_UNITS = "storedBaseUnits";
@@ -220,6 +223,9 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     // These are set after initialization and don't change until the cell is removed from the drive
     private boolean cachedHasPartition = false;
     private boolean chainFullyInitialized = false;
+
+    /** Tracked total NBT size in bytes for tooltip display. */
+    private int totalNbtSize = 0;
 
     /**
      * Version counter for the compression chain. Incremented when the chain is initialized or replaced.
@@ -470,6 +476,13 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         if (mainTier < 0 && !isCompressionChainEmpty() && !cachedPartitionItem.isEmpty()) {
             recalculateMainTierFromCachedPartition();
         }
+
+        // Calculate total NBT size from protoItems compound (if enabled)
+        if (CellsConfig.enableNbtSizeTooltip && tagCompound.hasKey(NBT_PROTO_ITEMS)) {
+            totalNbtSize = NBTSizeHelper.calculateSize(tagCompound.getCompoundTag(NBT_PROTO_ITEMS));
+        } else {
+            totalNbtSize = 0;
+        }
     }
 
     /**
@@ -534,6 +547,11 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             }
             tagCompound.setTag(NBT_PROTO_ITEMS, protoNbt);
 
+            // Update NBT size tracking (if enabled)
+            if (CellsConfig.enableNbtSizeTooltip) {
+                totalNbtSize = NBTSizeHelper.calculateSize(protoNbt);
+            }
+
             // Save cached partition for reversion protection
             if (!cachedPartitionItem.isEmpty()) {
                 NBTTagCompound partNbt = new NBTTagCompound();
@@ -549,6 +567,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             tagCompound.removeTag(NBT_CHAIN_VERSION);
             tagCompound.removeTag(NBT_TIERS_UP);
             tagCompound.removeTag(NBT_TIERS_DOWN);
+
+            totalNbtSize = 0;
         }
         // If chain is empty but partition exists, or if we're stale, don't touch chain NBT
     }
@@ -1665,5 +1685,10 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     @Override
     public void persist() {
         saveToNBT();
+    }
+
+    @Override
+    public int getTotalNbtSize() {
+        return totalNbtSize;
     }
 }

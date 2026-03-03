@@ -23,6 +23,8 @@ import com.mekeng.github.common.me.storage.IGasStorageChannel;
 
 import com.cells.cells.configurable.AbstractConfigurableCellInventory;
 import com.cells.cells.configurable.ComponentInfo;
+import com.cells.config.CellsConfig;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -41,6 +43,8 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
 
     // In-memory cache: GasStackKey -> NBT index
     private final Map<GasStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    // NBT size tracking per gas type
+    private final Map<GasStackKey, Integer> gasEntryNbtSizes = new HashMap<>();
     private int cachedNextIndex = 0;
 
     public ConfigurableCellGasInventory(ItemStack cellStack, ISaveProvider container, ComponentInfo componentInfo) {
@@ -55,6 +59,8 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
         storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        gasEntryNbtSizes.clear();
+        totalNbtSize = 0;
         cachedNextIndex = 0;
 
         for (String nbtKey : gasTag.getKeySet()) {
@@ -73,6 +79,13 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
                     keyToNbtIndex.put(key, index);
                     storedCount += count;
                     storedTypes++;
+
+                    // Track NBT size for this gas (if enabled)
+                    if (CellsConfig.enableNbtSizeTooltip) {
+                        int entrySize = NBTSizeHelper.calculateSize(entryTag);
+                        gasEntryNbtSizes.put(key, entrySize);
+                        totalNbtSize += entrySize;
+                    }
                 }
             }
         }
@@ -98,11 +111,15 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
 
         if (count <= 0) {
             if (index != null) {
+                // Subtract this gas's NBT size from total
+                Integer oldSize = gasEntryNbtSizes.remove(key);
+                if (oldSize != null) totalNbtSize -= oldSize;
+
                 gasTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
             }
         } else if (index != null) {
-            // Update count only
+            // Update count only - NBT size change is minimal
             NBTTagCompound entryTag = gasTag.getCompoundTag(String.valueOf(index));
             entryTag.setLong(NBT_STORED_COUNT, count);
         } else {
@@ -113,6 +130,13 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
             entryTag.setLong(NBT_STORED_COUNT, count);
             gasTag.setTag(String.valueOf(index), entryTag);
             keyToNbtIndex.put(key, index);
+
+            // Track NBT size for this new gas (if enabled)
+            if (CellsConfig.enableNbtSizeTooltip) {
+                int entrySize = NBTSizeHelper.calculateSize(entryTag);
+                gasEntryNbtSizes.put(key, entrySize);
+                totalNbtSize += entrySize;
+            }
         }
 
         tagCompound.setTag(NBT_GAS_TYPE, gasTag);

@@ -21,10 +21,13 @@ import appeng.api.storage.data.IItemList;
 import appeng.api.networking.security.IActionSource;
 import appeng.util.Platform;
 
+import com.cells.cells.common.INBTSizeProvider;
+import com.cells.config.CellsConfig;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.DeferredCellOperations;
 import com.cells.util.ItemStackKey;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -47,7 +50,7 @@ import com.cells.util.ItemStackKey;
  *   <li>Each type can only store up to its allocated share</li>
  * </ul>
  */
-public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
+public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, INBTSizeProvider {
 
     // NBT keys - use "Stored" prefix to avoid conflicts with ItemStack's "Count" tag
     private static final String NBT_ITEM_TYPE = "itemType";
@@ -74,6 +77,10 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
     // Cached upgrade card states
     private int equalDistributionLimit = 0;
     private boolean cachedHasOverflowCard = false;
+
+    // NBT size tracking - per-item sizes for incremental updates
+    private final Map<ItemStackKey, Integer> itemNbtSizes = new HashMap<>();
+    private int totalNbtSize = 0;
 
     public HyperDensityCellInventory(IItemHyperDensityCell cellType, ItemStack cellStack, ISaveProvider container) {
         this.cellStack = cellStack;
@@ -138,6 +145,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
         storedItemCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        itemNbtSizes.clear();
+        totalNbtSize = 0;
         cachedNextIndex = 0;
 
         // Collect all keys upfront to avoid ConcurrentModificationException
@@ -183,6 +192,13 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
                     keyToNbtIndex.put(key, index);
                     storedItemCount = CellMathHelper.addWithOverflowProtection(storedItemCount, count);
                     storedTypes++;
+
+                    // Track NBT size for this item (if enabled)
+                    if (CellsConfig.enableNbtSizeTooltip) {
+                        int itemSize = NBTSizeHelper.calculateSize(itemTag);
+                        itemNbtSizes.put(key, itemSize);
+                        totalNbtSize += itemSize;
+                    }
                 }
             }
         }
@@ -326,6 +342,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
     /**
      * Set the stored count for a specific item in NBT.
      * Only serializes the full item on first insert; subsequent updates only change the count.
+     * Also tracks NBT size for tooltip display.
      */
     private void setStoredCount(IAEItemStack item, long count) {
         ItemStackKey key = ItemStackKey.of(item.getDefinition());
@@ -337,11 +354,16 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
         if (count <= 0) {
             // Remove the item entirely
             if (index != null) {
+                // Subtract this item's NBT size from total
+                Integer oldSize = itemNbtSizes.remove(key);
+                if (oldSize != null) totalNbtSize -= oldSize;
+
                 itemsTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
             }
         } else if (index != null) {
             // Item already exists - just update the count (no re-serialization needed)
+            // NBT size change is minimal (just the count value), don't recalculate
             NBTTagCompound itemTag = itemsTag.getCompoundTag(String.valueOf(index));
             saveLongToTag(itemTag, count);
         } else {
@@ -355,6 +377,13 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
             itemsTag.setTag(nbtKey, itemTag);
 
             keyToNbtIndex.put(key, index);
+
+            // Track NBT size for this new item (if enabled)
+            if (CellsConfig.enableNbtSizeTooltip) {
+                int itemSize = NBTSizeHelper.calculateSize(itemTag);
+                itemNbtSizes.put(key, itemSize);
+                totalNbtSize += itemSize;
+            }
         }
 
         tagCompound.setTag(NBT_ITEM_TYPE, itemsTag);
@@ -660,6 +689,16 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack> {
         if (getRemainingItemCount() > 0) return 2;               // Has space for more of existing
 
         return 3; // Full
+    }
+
+    /**
+     * Get the total NBT size of all stored items in bytes.
+     * Used for tooltip display and warning when approaching limits.
+     *
+     * @return Total NBT size in bytes
+     */
+    public int getTotalNbtSize() {
+        return totalNbtSize;
     }
 
     @Override

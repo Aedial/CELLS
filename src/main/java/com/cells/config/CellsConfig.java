@@ -69,8 +69,23 @@ public class CellsConfig {
     /** Idle drain for configurable cells */
     public static double configurableCellIdleDrain = 3.0;
 
-    /** Maximum types for configurable cells */
-    public static int configurableCellMaxTypes = 63;
+    /** Maximum types for configurable item cells */
+    public static int configurableCellItemMaxTypes = 63;
+
+    /** Maximum types for configurable fluid cells */
+    public static int configurableCellFluidMaxTypes = 63;
+
+    /** Maximum types for configurable essentia cells */
+    public static int configurableCellEssentiaMaxTypes = 63;
+
+    /** Maximum types for configurable gas cells */
+    public static int configurableCellGasMaxTypes = 63;
+
+    /** NBT size warning threshold in MB (tooltip shows warning when exceeded) */
+    public static double nbtSizeWarningThresholdMB = 1.0;
+
+    /** Enable NBT size computation and display in cell tooltips */
+    public static boolean enableNbtSizeTooltip = true;
 
     /**
      * Initializes the configuration from the given file.
@@ -197,13 +212,50 @@ public class CellsConfig {
         p.setLanguageKey(Tags.MODID + ".config.enableConfigurableCells");
         enableConfigurableCells = p.getBoolean();
 
-        // General: configurable cell max types
+        // General: configurable cell max types per channel
         p = config.get(CATEGORY_GENERAL,
-            "configurableCellMaxTypes", 63,
-            "Maximum item types for configurable storage cells (1-63)", 1, 16384
+            "configurableCellItemMaxTypes", 63,
+            "Maximum item types for configurable item storage cells (1-16384)", 1, 16384
         );
-        p.setLanguageKey(Tags.MODID + ".config.configurableCellMaxTypes");
-        configurableCellMaxTypes = p.getInt();
+        p.setLanguageKey(Tags.MODID + ".config.configurableCellItemMaxTypes");
+        configurableCellItemMaxTypes = p.getInt();
+
+        p = config.get(CATEGORY_GENERAL,
+            "configurableCellFluidMaxTypes", 63,
+            "Maximum fluid types for configurable fluid storage cells (1-16384)", 1, 16384
+        );
+        p.setLanguageKey(Tags.MODID + ".config.configurableCellFluidMaxTypes");
+        configurableCellFluidMaxTypes = p.getInt();
+
+        p = config.get(CATEGORY_GENERAL,
+            "configurableCellEssentiaMaxTypes", 63,
+            "Maximum essentia types for configurable essentia storage cells (1-16384)", 1, 16384
+        );
+        p.setLanguageKey(Tags.MODID + ".config.configurableCellEssentiaMaxTypes");
+        configurableCellEssentiaMaxTypes = p.getInt();
+
+        p = config.get(CATEGORY_GENERAL,
+            "configurableCellGasMaxTypes", 63,
+            "Maximum gas types for configurable gas storage cells (1-16384)", 1, 16384
+        );
+        p.setLanguageKey(Tags.MODID + ".config.configurableCellGasMaxTypes");
+        configurableCellGasMaxTypes = p.getInt();
+
+        // General: NBT size warning threshold
+        p = config.get(CATEGORY_GENERAL,
+            "nbtSizeWarningThresholdMB", 1.0D,
+            "NBT size warning threshold in MB. Tooltip shows warning when cell NBT exceeds this.", 0.1D, 10.0D
+        );
+        p.setLanguageKey(Tags.MODID + ".config.nbtSizeWarningThresholdMB");
+        nbtSizeWarningThresholdMB = p.getDouble();
+
+        // General: Enable NBT size tooltip
+        p = config.get(CATEGORY_GENERAL,
+            "enableNbtSizeTooltip", true,
+            "Enable NBT size computation and display in cell tooltips. Disable for performance."
+        );
+        p.setLanguageKey(Tags.MODID + ".config.enableNbtSizeTooltip");
+        enableNbtSizeTooltip = p.getBoolean();
 
         // Save if config was created or changed
         if (config.hasChanged()) config.save();

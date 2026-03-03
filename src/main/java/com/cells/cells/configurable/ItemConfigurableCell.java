@@ -25,6 +25,7 @@ import net.minecraftforge.items.IItemHandler;
 import appeng.api.AEApi;
 import appeng.api.config.FuzzyMode;
 import appeng.api.implementations.items.IItemGroup;
+import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.channels.IItemStorageChannel;
@@ -39,6 +40,7 @@ import appeng.util.ReadableNumberConverter;
 
 import com.cells.Cells;
 import com.cells.Tags;
+import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
 import com.cells.core.CellsCreativeTab;
 import com.cells.gui.CellsGuiHandler;
@@ -48,6 +50,7 @@ import com.cells.mixin.MixinState;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -119,12 +122,15 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
         // Show AE2 cell info (bytes, types, stored items)
         ChannelType channelType = info.getChannelType();
+        ICellInventory<?> cellInv = null;
+
         switch (channelType) {
             case ITEM:
                 ICellInventoryHandler<IAEItemStack> itemHandler = AEApi.instance().registries().cell()
                     .getCellInventory(stack, null,
                         AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class));
                 AEApi.instance().client().addCellInformation(itemHandler, tooltip);
+                if (itemHandler != null) cellInv = itemHandler.getCellInv();
                 break;
 
             case FLUID:
@@ -132,6 +138,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
                     .getCellInventory(stack, null,
                         AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class));
                 AEApi.instance().client().addCellInformation(fluidHandler, tooltip);
+                if (fluidHandler != null) cellInv = fluidHandler.getCellInv();
                 break;
 
             case ESSENTIA:
@@ -143,9 +150,24 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
                 break;
         }
 
+        // Add NBT size information (if enabled in config)
+        if (CellsConfig.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
+            int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
+            long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
+            String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
+
+            tooltip.add("");
+            tooltip.add(I18n.format("tooltip.cells.nbt_size", sizeStr));
+
+            if (NBTSizeHelper.exceedsThreshold(nbtSize, warningThreshold)) {
+                tooltip.add("§c" + I18n.format("tooltip.cells.nbt_size.warning"));
+            }
+        }
+
         // Show per-type capacity info
         long maxPerType = ComponentHelper.getMaxPerType(stack);
-        long physicalMax = ComponentHelper.calculatePhysicalPerTypeCapacity(info, CellsConfig.configurableCellMaxTypes);
+        int maxTypes = ComponentHelper.getEffectiveMaxTypes(stack, channelType);
+        long physicalMax = ComponentHelper.calculatePhysicalPerTypeCapacity(info, maxTypes);
 
         long effectivePerType = Math.min(maxPerType, physicalMax);
 

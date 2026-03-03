@@ -6,14 +6,20 @@ import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
 
 import appeng.api.AEApi;
+import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.data.IAEStack;
 
 import com.cells.Cells;
+import com.cells.cells.common.INBTSizeProvider;
 import com.cells.cells.configurable.ComponentInfo;
 import com.cells.cells.configurable.ConfigurableCellInventoryHandler;
+import com.cells.config.CellsConfig;
+import com.cells.util.NBTSizeHelper;
+
+import net.minecraft.client.resources.I18n;
 
 
 /**
@@ -94,6 +100,24 @@ public final class ThaumicEnergisticsIntegration {
                     AEApi.instance().registries().cell().getCellInventory(cellStack, null, essentiaChannel);
 
                 AEApi.instance().client().addCellInformation(handler, tooltip);
+
+                // Add NBT size information (if enabled in config)
+                if (CellsConfig.enableNbtSizeTooltip && handler != null) {
+                    ICellInventory<?> cellInv = handler.getCellInv();
+
+                    if (cellInv instanceof INBTSizeProvider) {
+                        int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
+                        long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
+                        String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
+
+                        tooltip.add("");
+                        tooltip.add(I18n.format("tooltip.cells.nbt_size", sizeStr));
+
+                        if (NBTSizeHelper.exceedsThreshold(nbtSize, warningThreshold)) {
+                            tooltip.add("§c" + I18n.format("tooltip.cells.nbt_size.warning"));
+                        }
+                    }
+                }
             } catch (Exception e) {
                 Cells.LOGGER.error("Failed to add essentia cell info to tooltip", e);
             }

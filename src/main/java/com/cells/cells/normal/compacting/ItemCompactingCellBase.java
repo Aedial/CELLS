@@ -21,10 +21,12 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 
 import com.cells.cells.common.AbstractTieredCellItem;
+import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -70,6 +72,21 @@ public abstract class ItemCompactingCellBase extends AbstractTieredCellItem impl
 
             if (cellInv instanceof CompactingCellInventory) {
                 addCompactingCellInfo((CompactingCellInventory) cellInv, tooltip);
+
+                // Add NBT size information (if enabled in config)
+                if (CellsConfig.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
+                    int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
+                    long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
+                    String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
+
+                    tooltip.add("");
+                    tooltip.add(I18n.format("tooltip.cells.nbt_size", sizeStr));
+
+                    if (NBTSizeHelper.exceedsThreshold(nbtSize, warningThreshold)) {
+                        tooltip.add("§c" + I18n.format("tooltip.cells.nbt_size.warning"));
+                    }
+                }
+
                 tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
                 CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
                 return;

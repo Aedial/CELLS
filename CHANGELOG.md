@@ -14,6 +14,10 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add keybind to quickly add the hovered item to the first free filter slot in the Import Interfaces.
 - Add better explanations for how to best use the Import Interface in the buttons tooltip and the controls help widget.
 - Add a tooltip for components that are compatible with the Configurable Cell, to make it more clear which ones can be used in it.
+- Add NBT size and a warning for cells with large NBT sizes, to make it more clear when a cell might come close to the packet size limit and cause issues with the network.
+- Split the Configurable Cell's types limit (config) between the different data types (item, fluid, essentia, gas), to allow more flexibility in configuring it for different use cases.
+- Allow configurable cells to have the types limit set in the GUI, to trade-off between max types and max capacity per type without needing to change the config and reload the world.
+- Allow disabling the NBT size calculation in config.
 
 
 ## [0.4.10] - 2026-03-01

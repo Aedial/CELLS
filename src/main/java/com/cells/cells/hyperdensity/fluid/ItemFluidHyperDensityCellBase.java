@@ -15,16 +15,19 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
+import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 
 import com.cells.cells.common.AbstractTieredCellItem;
+import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -76,6 +79,23 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
         AEApi.instance().client().addCellInformation(cellHandler, tooltip);
 
         CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
+
+        // Add NBT size information (if enabled in config)
+        if (CellsConfig.enableNbtSizeTooltip && cellHandler != null) {
+            ICellInventory<IAEFluidStack> cellInv = cellHandler.getCellInv();
+            if (cellInv instanceof INBTSizeProvider) {
+                int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
+                long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
+                String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
+
+                tooltip.add("");
+                tooltip.add(I18n.format("tooltip.cells.nbt_size", sizeStr));
+
+                if (NBTSizeHelper.exceedsThreshold(nbtSize, warningThreshold)) {
+                    tooltip.add("§c" + I18n.format("tooltip.cells.nbt_size.warning"));
+                }
+            }
+        }
 
         tooltip.add("");
         tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_fluid_cell.info"));

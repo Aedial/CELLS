@@ -16,7 +16,9 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IItemList;
 import appeng.api.networking.security.IActionSource;
 
+import com.cells.config.CellsConfig;
 import com.cells.util.FluidStackKey;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -34,6 +36,7 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
 
     // In-memory cache: FluidStackKey -> NBT index
     private final Map<FluidStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    private final Map<FluidStackKey, Integer> fluidNbtSizes = new HashMap<>();
     private int cachedNextIndex = 0;
 
     public ConfigurableCellFluidInventory(ItemStack cellStack, ISaveProvider container, ComponentInfo componentInfo) {
@@ -48,6 +51,8 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
         storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        fluidNbtSizes.clear();
+        totalNbtSize = 0;
         cachedNextIndex = 0;
 
         for (String nbtKey : fluidsTag.getKeySet()) {
@@ -65,6 +70,13 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
                     keyToNbtIndex.put(key, index);
                     storedCount += count;
                     storedTypes++;
+
+                    // Track NBT size for this fluid (if enabled)
+                    if (CellsConfig.enableNbtSizeTooltip) {
+                        int fluidSize = NBTSizeHelper.calculateSize(fluidTag);
+                        fluidNbtSizes.put(key, fluidSize);
+                        totalNbtSize += fluidSize;
+                    }
                 }
             }
         }
@@ -90,10 +102,15 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
 
         if (count <= 0) {
             if (index != null) {
+                // Subtract this fluid's NBT size from total
+                Integer oldSize = fluidNbtSizes.remove(key);
+                if (oldSize != null) totalNbtSize -= oldSize;
+
                 fluidsTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
             }
         } else if (index != null) {
+            // Update count only - NBT size change is minimal
             NBTTagCompound fluidTag = fluidsTag.getCompoundTag(String.valueOf(index));
             fluidTag.setLong(NBT_STORED_COUNT, count);
         } else {
@@ -103,6 +120,13 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
             fluidTag.setLong(NBT_STORED_COUNT, count);
             fluidsTag.setTag(String.valueOf(index), fluidTag);
             keyToNbtIndex.put(key, index);
+
+            // Track NBT size for this new fluid (if enabled)
+            if (CellsConfig.enableNbtSizeTooltip) {
+                int fluidSize = NBTSizeHelper.calculateSize(fluidTag);
+                fluidNbtSizes.put(key, fluidSize);
+                totalNbtSize += fluidSize;
+            }
         }
 
         tagCompound.setTag(NBT_FLUID_TYPE, fluidsTag);

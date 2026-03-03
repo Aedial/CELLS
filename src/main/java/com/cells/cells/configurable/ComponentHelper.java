@@ -23,7 +23,6 @@ import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 import com.cells.Cells;
 import com.cells.Tags;
-import com.cells.config.CellsConfig;
 
 
 /**
@@ -327,6 +326,85 @@ public final class ComponentHelper {
     }
 
     /**
+     * Get the user-configured max types from the cell's NBT.
+     * Returns Integer.MAX_VALUE if not set (unlimited by user, uses config value).
+     */
+    public static int getUserMaxTypes(ItemStack cellStack) {
+        NBTTagCompound tag = cellStack.getTagCompound();
+        if (tag == null || !tag.hasKey("userMaxTypes")) return Integer.MAX_VALUE;
+
+        return tag.getInteger("userMaxTypes");
+    }
+
+    /**
+     * Set the user-configured max types in the cell's NBT.
+     * If the value is Integer.MAX_VALUE (unlimited), the key is removed instead.
+     */
+    public static void setUserMaxTypes(ItemStack cellStack, int value) {
+        NBTTagCompound tag = cellStack.getTagCompound();
+
+        // Remove the key if the value is unlimited (default behavior)
+        if (value == Integer.MAX_VALUE) {
+            if (tag != null) tag.removeTag("userMaxTypes");
+            return;
+        }
+
+        if (tag == null) {
+            tag = new NBTTagCompound();
+            cellStack.setTagCompound(tag);
+        }
+
+        tag.setInteger("userMaxTypes", value);
+    }
+
+    /**
+     * Get the effective max types for a cell, considering both user limit and config limit.
+     * Returns the minimum of user limit, config limit, capped at 1 minimum.
+     */
+    public static int getEffectiveMaxTypes(ItemStack cellStack, ChannelType channelType) {
+        int configMax = channelType.getMaxTypes();
+        int userMax = getUserMaxTypes(cellStack);
+
+        return Math.max(1, Math.min(configMax, userMax));
+    }
+
+    /**
+     * Validate a proposed new max types value for a cell.
+     * Checks:
+     * 1. newMaxTypes >= currently stored types count
+     * 2. Per-type capacity with new limit can hold existing content
+     *
+     * @param cellStack   The cell ItemStack
+     * @param newMaxTypes The proposed new max types value
+     * @return null if valid, or an error message key if invalid
+     */
+    public static String validateNewMaxTypes(ItemStack cellStack, int newMaxTypes) {
+        if (newMaxTypes < 1) return "message.cells.configurable_cell.types_min";
+
+        ComponentInfo info = getComponentInfo(getInstalledComponent(cellStack));
+        if (info == null) return null; // No component, no validation needed
+
+        int configMax = info.getChannelType().getMaxTypes();
+        if (newMaxTypes > configMax) return "message.cells.configurable_cell.types_over_config";
+
+        long[] summary = getStoredContentSummary(cellStack);
+        long storedTypes = summary[0];
+        long maxCountPerType = summary[1];
+
+        // Check 1: Must have enough types for stored content
+        if (newMaxTypes < storedTypes) return "message.cells.configurable_cell.types_below_stored";
+
+        // Check 2: Per-type capacity must accommodate existing content
+        long newPhysicalPerType = calculatePhysicalPerTypeCapacity(info, newMaxTypes);
+        long userMaxPerType = getMaxPerType(cellStack);
+        long effectivePerType = Math.min(userMaxPerType, newPhysicalPerType);
+
+        if (maxCountPerType > effectivePerType) return "message.cells.configurable_cell.types_capacity_exceeded";
+
+        return null; // Valid
+    }
+
+    /**
      * Determine if the cell has items or fluids in its inventory by checking the NBT for stored types.
      * @return True if the cell has stored types (indicating it has content), false otherwise.
      */
@@ -425,7 +503,7 @@ public final class ComponentHelper {
         if (currentInfo.getChannelType() != newInfo.getChannelType()) return false;
 
         // New component must have enough per-type capacity for the existing content
-        int maxTypes = CellsConfig.configurableCellMaxTypes;
+        int maxTypes = newInfo.getChannelType().getMaxTypes();
         long newPhysicalPerType = calculatePhysicalPerTypeCapacity(newInfo, maxTypes);
         long userMaxPerType = getMaxPerType(cellStack);
         long newEffectivePerType = Math.min(userMaxPerType, newPhysicalPerType);

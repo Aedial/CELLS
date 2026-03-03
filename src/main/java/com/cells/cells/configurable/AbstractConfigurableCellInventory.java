@@ -14,10 +14,12 @@ import appeng.api.storage.data.IAEStack;
 import appeng.items.contents.CellConfig;
 import appeng.util.Platform;
 
+import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
 import com.cells.util.DeferredCellOperations;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -33,7 +35,7 @@ import com.cells.util.DeferredCellOperations;
  *
  * @param <T> The AE stack type for this channel
  */
-public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> implements ICellInventory<T> {
+public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> implements ICellInventory<T>, INBTSizeProvider {
 
     protected final ItemStack cellStack;
     protected final ISaveProvider container;
@@ -51,13 +53,17 @@ public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> i
     protected long storedCount = 0;
     protected int storedTypes = 0;
 
+    // NBT size tracking - updated by subclasses
+    protected int totalNbtSize = 0;
+
     protected AbstractConfigurableCellInventory(ItemStack cellStack, ISaveProvider container, ComponentInfo componentInfo) {
         this.cellStack = cellStack;
         this.container = container;
         this.componentInfo = componentInfo;
         this.tagCompound = Platform.openNbtData(cellStack);
 
-        this.maxTypes = CellsConfig.configurableCellMaxTypes;
+        // Use effective max types (min of user limit and config limit)
+        this.maxTypes = ComponentHelper.getEffectiveMaxTypes(cellStack, componentInfo.getChannelType());
         this.userMaxPerType = ComponentHelper.getMaxPerType(cellStack);
         this.physicalPerType = ComponentHelper.calculatePhysicalPerTypeCapacity(componentInfo, maxTypes);
         this.effectivePerType = Math.min(userMaxPerType, physicalPerType);
@@ -232,6 +238,16 @@ public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> i
         if (unused < 0) return 0;
 
         return (int) Math.min(unused, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Get the total NBT size of all stored items/fluids in bytes.
+     * Used for tooltip display and warning when approaching limits.
+     *
+     * @return Total NBT size in bytes
+     */
+    public int getTotalNbtSize() {
+        return totalNbtSize;
     }
 
     // =====================

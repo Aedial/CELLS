@@ -21,6 +21,8 @@ import thaumicenergistics.integration.appeng.AEEssentiaStack;
 
 import com.cells.cells.configurable.AbstractConfigurableCellInventory;
 import com.cells.cells.configurable.ComponentInfo;
+import com.cells.config.CellsConfig;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -38,6 +40,8 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
 
     // In-memory cache: EssentiaStackKey -> NBT index
     private final Map<EssentiaStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    // NBT size tracking per essentia type
+    private final Map<EssentiaStackKey, Integer> essentiaEntryNbtSizes = new HashMap<>();
     private int cachedNextIndex = 0;
 
     public ConfigurableCellEssentiaInventory(ItemStack cellStack, ISaveProvider container, ComponentInfo componentInfo) {
@@ -52,6 +56,8 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
         storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        essentiaEntryNbtSizes.clear();
+        totalNbtSize = 0;
         cachedNextIndex = 0;
 
         for (String nbtKey : essentiaTag.getKeySet()) {
@@ -69,6 +75,13 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
                     keyToNbtIndex.put(key, index);
                     storedCount += count;
                     storedTypes++;
+
+                    // Track NBT size for this essentia (if enabled)
+                    if (CellsConfig.enableNbtSizeTooltip) {
+                        int entrySize = NBTSizeHelper.calculateSize(entryTag);
+                        essentiaEntryNbtSizes.put(key, entrySize);
+                        totalNbtSize += entrySize;
+                    }
                 }
             }
         }
@@ -94,11 +107,15 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
 
         if (count <= 0) {
             if (index != null) {
+                // Subtract this essentia's NBT size from total
+                Integer oldSize = essentiaEntryNbtSizes.remove(key);
+                if (oldSize != null) totalNbtSize -= oldSize;
+
                 essentiaTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
             }
         } else if (index != null) {
-            // Update count only
+            // Update count only - NBT size change is minimal
             NBTTagCompound entryTag = essentiaTag.getCompoundTag(String.valueOf(index));
             entryTag.setLong(NBT_STORED_COUNT, count);
         } else {
@@ -109,6 +126,13 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
             entryTag.setLong(NBT_STORED_COUNT, count);
             essentiaTag.setTag(String.valueOf(index), entryTag);
             keyToNbtIndex.put(key, index);
+
+            // Track NBT size for this new essentia (if enabled)
+            if (CellsConfig.enableNbtSizeTooltip) {
+                int entrySize = NBTSizeHelper.calculateSize(entryTag);
+                essentiaEntryNbtSizes.put(key, entrySize);
+                totalNbtSize += entrySize;
+            }
         }
 
         tagCompound.setTag(NBT_ESSENTIA_TYPE, essentiaTag);

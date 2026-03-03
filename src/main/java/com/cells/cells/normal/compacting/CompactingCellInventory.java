@@ -24,10 +24,13 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.util.Platform;
 
+import com.cells.cells.common.INBTSizeProvider;
 import com.cells.cells.compacting.CompactingHelper;
+import com.cells.config.CellsConfig;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.DeferredCellOperations;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -44,7 +47,7 @@ import com.cells.util.DeferredCellOperations;
  * Only the partitioned item tier counts toward storage capacity.
  * Compressed/decompressed forms are virtual utilities for network access.
  */
-public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
+public class CompactingCellInventory implements ICellInventory<IAEItemStack>, INBTSizeProvider {
 
     private static final String NBT_STORED_BASE_UNITS = "storedBaseUnits";
     private static final String NBT_CONV_RATES = "convRates";
@@ -103,6 +106,9 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      * Compared against NBT to detect external changes.
      */
     private int localChainVersion = 0;
+
+    // NBT size tracking - calculated from protoItems compound
+    private int totalNbtSize = 0;
 
 
     public CompactingCellInventory(IInternalCompactingCell cellType, ItemStack cellStack, ISaveProvider container) {
@@ -282,6 +288,13 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         if (mainTier < 0 && !isCompressionChainEmpty() && !cachedPartitionItem.isEmpty()) {
             recalculateMainTierFromCachedPartition();
         }
+
+        // Calculate total NBT size from protoItems compound (if enabled)
+        if (CellsConfig.enableNbtSizeTooltip && tagCompound.hasKey(NBT_PROTO_ITEMS)) {
+            totalNbtSize = NBTSizeHelper.calculateSize(tagCompound.getCompoundTag(NBT_PROTO_ITEMS));
+        } else {
+            totalNbtSize = 0;
+        }
     }
 
     /**
@@ -323,6 +336,11 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             }
             tagCompound.setTag(NBT_PROTO_ITEMS, protoNbt);
 
+            // Update NBT size tracking (if enabled)
+            if (CellsConfig.enableNbtSizeTooltip) {
+                totalNbtSize = NBTSizeHelper.calculateSize(protoNbt);
+            }
+
             if (!cachedPartitionItem.isEmpty()) {
                 NBTTagCompound partNbt = new NBTTagCompound();
                 cachedPartitionItem.writeToNBT(partNbt);
@@ -337,6 +355,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             tagCompound.removeTag(NBT_CHAIN_VERSION);
             tagCompound.removeTag(NBT_TIERS_UP);
             tagCompound.removeTag(NBT_TIERS_DOWN);
+
+            totalNbtSize = 0;
         }
         // If chain is empty but partition exists, or if we're stale, don't touch chain NBT
     }
@@ -1310,6 +1330,16 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         if (getRemainingItemCount() > 0) return 2; // Has space for more of existing
 
         return 3; // Full
+    }
+
+    /**
+     * Get the total NBT size of all stored items in bytes.
+     * Used for tooltip display and warning when approaching limits.
+     *
+     * @return Total NBT size in bytes
+     */
+    public int getTotalNbtSize() {
+        return totalNbtSize;
     }
 
     @Override
