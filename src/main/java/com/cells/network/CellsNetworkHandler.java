@@ -2,7 +2,11 @@ package com.cells.network;
 
 import com.cells.Tags;
 import com.cells.network.packets.PacketOpenGui;
+import com.cells.network.packets.PacketQuickAddFluidFilter;
+import com.cells.network.packets.PacketQuickAddItemFilter;
+import com.cells.network.packets.PacketSaveMemoryCardWithFilters;
 import com.cells.network.packets.PacketSetConfigurableCellCapacity;
+import com.cells.network.packets.PacketSetConfigurableCellMaxTypes;
 import com.cells.network.packets.PacketSetMaxSlotSize;
 import com.cells.network.packets.PacketSetPollingRate;
 
@@ -25,5 +29,9 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketOpenGui.Handler.class, PacketOpenGui.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetPollingRate.Handler.class, PacketSetPollingRate.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetConfigurableCellCapacity.Handler.class, PacketSetConfigurableCellCapacity.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetConfigurableCellMaxTypes.Handler.class, PacketSetConfigurableCellMaxTypes.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketQuickAddItemFilter.Handler.class, PacketQuickAddItemFilter.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketQuickAddFluidFilter.Handler.class, PacketQuickAddFluidFilter.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSaveMemoryCardWithFilters.Handler.class, PacketSaveMemoryCardWithFilters.class, packetId++, Side.SERVER);
     }
 }

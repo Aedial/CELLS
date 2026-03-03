@@ -23,6 +23,7 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.Constants;
@@ -167,10 +168,23 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
 
     @Override
     public void setPollingRate(int ticks) {
+        this.setPollingRate(ticks, null);
+    }
+
+    /**
+     * Set the polling rate with optional player notification on failure.
+     * @param ticks Polling rate in ticks (0 = adaptive)
+     * @param player Player to notify if re-registration fails, or null to skip notification
+     */
+    public void setPollingRate(int ticks, EntityPlayer player) {
         this.pollingRate = Math.max(0, ticks);
         this.getHost().markForSave();
 
-        TickManagerHelper.reRegisterTickable(this.getProxy().getNode(), this);
+        if (!TickManagerHelper.reRegisterTickable(this.getProxy().getNode(), this)) {
+            if (player != null) {
+                player.sendMessage(new TextComponentTranslation("chat.cells.polling_rate_delayed"));
+            }
+        }
     }
 
     @Override
@@ -327,7 +341,7 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
 
     @Nonnull
     @Override
-    protected NBTTagCompound downloadSettings(SettingsFrom from) {
+    public NBTTagCompound downloadSettings(SettingsFrom from) {
         NBTTagCompound output = super.downloadSettings(from);
         if (output == null) output = new NBTTagCompound();
 
@@ -396,11 +410,11 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
             this.setMaxSlotSize(compound.getInteger("maxSlotSize"));
         }
         if (compound.hasKey("pollingRate")) {
-            this.setPollingRate(compound.getInteger("pollingRate"));
+            this.setPollingRate(compound.getInteger("pollingRate"), player);
         }
 
-        // Load filter inventory only when placing dismantled block (not for memory card)
-        if (from == SettingsFrom.DISMANTLE_ITEM && compound.hasKey("fluidFilters")) {
+        // Load filter inventory when memory card has filters
+        if (compound.hasKey("fluidFilters")) {
             this.filterInventory.readFromNBT(compound, "fluidFilters");
             this.refreshFilterMap();
         }

@@ -22,10 +22,13 @@ import appeng.api.storage.data.IItemList;
 import appeng.api.networking.security.IActionSource;
 import appeng.util.Platform;
 
+import com.cells.cells.common.INBTSizeProvider;
+import com.cells.config.CellsConfig;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.DeferredCellOperations;
 import com.cells.util.FluidStackKey;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -45,7 +48,7 @@ import com.cells.util.FluidStackKey;
  * - The total capacity is divided equally among those types
  * - Each type can only store up to its allocated share
  */
-public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidStack> {
+public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidStack>, INBTSizeProvider {
 
     private static final String NBT_FLUID_TYPE = "fluidType";
     private static final String NBT_STORED_COUNT = "StoredCount";
@@ -69,6 +72,10 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     // Cached upgrade card states
     private int equalDistributionLimit = 0;
     private boolean cachedHasOverflowCard = false;
+
+    // NBT size tracking - per-fluid sizes for incremental updates
+    private final Map<FluidStackKey, Integer> fluidNbtSizes = new HashMap<>();
+    private int totalNbtSize = 0;
 
     public FluidHyperDensityCellInventory(IItemFluidHyperDensityCell cellType, ItemStack cellStack, ISaveProvider container) {
         this.cellStack = cellStack;
@@ -127,6 +134,8 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         storedFluidCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        fluidNbtSizes.clear();
+        totalNbtSize = 0;
         cachedNextIndex = 0;
 
         // Collect all keys upfront to avoid ConcurrentModificationException
@@ -172,6 +181,13 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
                     keyToNbtIndex.put(key, index);
                     storedFluidCount = CellMathHelper.addWithOverflowProtection(storedFluidCount, count);
                     storedTypes++;
+
+                    // Track NBT size for this fluid (if enabled)
+                    if (CellsConfig.enableNbtSizeTooltip) {
+                        int fluidSize = NBTSizeHelper.calculateSize(fluidTag);
+                        fluidNbtSizes.put(key, fluidSize);
+                        totalNbtSize += fluidSize;
+                    }
                 }
             }
         }
@@ -298,6 +314,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     /**
      * Set the stored count for a specific fluid in NBT.
      * Only serializes the full fluid on first insert; subsequent updates only change the count.
+     * Also tracks NBT size for tooltip display.
      */
     private void setStoredCount(IAEFluidStack fluid, long count) {
         FluidStackKey key = FluidStackKey.of(fluid.getFluidStack());
@@ -309,11 +326,16 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         if (count <= 0) {
             // Remove the fluid entirely
             if (index != null) {
+                // Subtract this fluid's NBT size from total
+                Integer oldSize = fluidNbtSizes.remove(key);
+                if (oldSize != null) totalNbtSize -= oldSize;
+
                 fluidsTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
             }
         } else if (index != null) {
             // Fluid already exists - just update the count (no re-serialization needed)
+            // NBT size change is minimal (just the count value), don't recalculate
             NBTTagCompound fluidTag = fluidsTag.getCompoundTag(String.valueOf(index));
             saveLongToTag(fluidTag, count);
         } else {
@@ -327,6 +349,13 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
             fluidsTag.setTag(nbtKey, fluidTag);
 
             keyToNbtIndex.put(key, index);
+
+            // Track NBT size for this new fluid (if enabled)
+            if (CellsConfig.enableNbtSizeTooltip) {
+                int fluidSize = NBTSizeHelper.calculateSize(fluidTag);
+                fluidNbtSizes.put(key, fluidSize);
+                totalNbtSize += fluidSize;
+            }
         }
 
         tagCompound.setTag(NBT_FLUID_TYPE, fluidsTag);
@@ -607,6 +636,16 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         if (getRemainingItemCount() > 0) return 2;
 
         return 3;
+    }
+
+    /**
+     * Get the total NBT size of all stored fluids in bytes.
+     * Used for tooltip display and warning when approaching limits.
+     *
+     * @return Total NBT size in bytes
+     */
+    public int getTotalNbtSize() {
+        return totalNbtSize;
     }
 
     @Override

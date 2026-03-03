@@ -11,6 +11,7 @@ import net.minecraftforge.items.IItemHandler;
 import appeng.api.parts.IPart;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
+import appeng.container.slot.AppEngSlot.hasCalculatedValidness;
 import appeng.container.slot.SlotFake;
 import appeng.container.slot.SlotNormal;
 
@@ -214,6 +215,8 @@ public class ContainerImportInterface extends AEBaseContainer {
 
     /**
      * Custom slot for upgrades that only accepts specific upgrade cards.
+     * Uses the same icon as AE2 UPGRADES (13 * 16 + 15 = 223) for empty slot background at 40% opacity.
+     * Always reports as Valid to prevent red background rendering for custom upgrade cards.
      */
     private static class SlotUpgrade extends SlotNormal {
         private final IImportInterfaceInventoryHost host;
@@ -221,6 +224,8 @@ public class ContainerImportInterface extends AEBaseContainer {
         public SlotUpgrade(IItemHandler inv, int idx, int x, int y, IImportInterfaceInventoryHost host) {
             super(inv, idx, x, y);
             this.host = host;
+            // Use UPGRADES icon (same as SlotRestrictedInput.PlacableItemType.UPGRADES)
+            this.setIIcon(13 * 16 + 15);
         }
 
         @Override
@@ -231,6 +236,12 @@ public class ContainerImportInterface extends AEBaseContainer {
         @Override
         public int getSlotStackLimit() {
             return 1;
+        }
+
+        @Override
+        public hasCalculatedValidness getIsValid() {
+            // Always return Valid to prevent red background for custom upgrade cards
+            return hasCalculatedValidness.Valid;
         }
     }
 }

@@ -47,6 +47,9 @@ dependencies {
     // AE2 Extended Life (AE2-UEL)
     implementation rfg.deobf("curse.maven:ae2-extended-life-570458:5378163")
 
+    // ---- Optional: MixinBooter ----
+    devOnlyNonPublishable rfg.deobf("curse.maven:mixin-booter-419286:4750909")
+
     // ---- Optional: JEI ----
     devOnlyNonPublishable rfg.deobf("curse.maven:jei-238222:3043174")
 

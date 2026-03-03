@@ -27,6 +27,7 @@ public class CellsMixinPlugin implements ILateMixinLoader {
     @Override
     @Optional.Method(modid = "mixinbooter")
     public List<String> getMixinConfigs() {
+        MixinState.markMixinsEnabled();
         return Collections.singletonList("mixins.cells.json");
     }
 }

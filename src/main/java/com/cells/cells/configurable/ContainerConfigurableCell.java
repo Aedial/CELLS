@@ -21,8 +21,6 @@ import appeng.container.slot.AppEngSlot;
 import appeng.container.guisync.GuiSync;
 import appeng.util.Platform;
 
-import com.cells.config.CellsConfig;
-
 
 /**
  * Container for the Configurable Storage Cell GUI.
@@ -47,6 +45,9 @@ public class ContainerConfigurableCell extends AEBaseContainer {
     @SideOnly(Side.CLIENT)
     private GuiTextField textField;
 
+    @SideOnly(Side.CLIENT)
+    private GuiTextField typesField;
+
     @GuiSync(0)
     public long maxPerType = Long.MAX_VALUE;
 
@@ -58,6 +59,15 @@ public class ContainerConfigurableCell extends AEBaseContainer {
 
     @GuiSync(3)
     public int componentPresent = 0;
+
+    @GuiSync(4)
+    public int currentTypes = 0;
+
+    @GuiSync(5)
+    public int maxTypesConfig = 0;
+
+    @GuiSync(6)
+    public int userMaxTypes = Integer.MAX_VALUE;
 
     public ContainerConfigurableCell(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, null, null);
@@ -85,9 +95,39 @@ public class ContainerConfigurableCell extends AEBaseContainer {
         this.textField.setText(this.maxPerType == Long.MAX_VALUE ? "" : String.valueOf(this.maxPerType));
     }
 
+    @SideOnly(Side.CLIENT)
+    public void setTypesField(GuiTextField field) {
+        this.typesField = field;
+        this.typesField.setText(this.userMaxTypes == Integer.MAX_VALUE ? "" : String.valueOf(this.userMaxTypes));
+    }
+
     public void setMaxPerType(long value) {
         ComponentHelper.setMaxPerType(this.cellStack, value);
         this.maxPerType = value;
+    }
+
+    /**
+     * Set the user-configured max types for this cell.
+     * Validates the new value before applying.
+     *
+     * @param value The new max types value (Integer.MAX_VALUE for unlimited)
+     * @return null if successful, or an error message key if validation failed
+     */
+    public String setUserMaxTypes(int value) {
+        // Treat empty/unlimited as config max
+        if (value == Integer.MAX_VALUE || value <= 0) {
+            ComponentHelper.setUserMaxTypes(this.cellStack, Integer.MAX_VALUE);
+            this.userMaxTypes = Integer.MAX_VALUE;
+            return null;
+        }
+
+        // Validate the new value
+        String error = ComponentHelper.validateNewMaxTypes(this.cellStack, value);
+        if (error != null) return error;
+
+        ComponentHelper.setUserMaxTypes(this.cellStack, value);
+        this.userMaxTypes = value;
+        return null;
     }
 
     @Override
@@ -99,16 +139,26 @@ public class ContainerConfigurableCell extends AEBaseContainer {
 
     private void updateSyncValues() {
         this.maxPerType = ComponentHelper.getMaxPerType(cellStack);
+        this.userMaxTypes = ComponentHelper.getUserMaxTypes(cellStack);
 
         ComponentInfo info = ComponentHelper.getComponentInfo(ComponentHelper.getInstalledComponent(cellStack));
         if (info != null) {
-            this.physicalMaxPerType = ComponentHelper.calculatePhysicalPerTypeCapacity(info, CellsConfig.configurableCellMaxTypes);
+            int configMaxTypes = info.getChannelType().getMaxTypes();
+            int effectiveMaxTypes = ComponentHelper.getEffectiveMaxTypes(cellStack, info.getChannelType());
+            this.physicalMaxPerType = ComponentHelper.calculatePhysicalPerTypeCapacity(info, effectiveMaxTypes);
             this.componentChannelTypeOrdinal = info.getChannelType().ordinal();
             this.componentPresent = 1;
+            this.maxTypesConfig = configMaxTypes;
+
+            // Get current stored types from NBT
+            long[] summary = ComponentHelper.getStoredContentSummary(cellStack);
+            this.currentTypes = (int) Math.min(summary[0], Integer.MAX_VALUE);
         } else {
             this.physicalMaxPerType = 0;
             this.componentChannelTypeOrdinal = -1;
             this.componentPresent = 0;
+            this.maxTypesConfig = 0;
+            this.currentTypes = 0;
         }
     }
 
@@ -116,6 +166,10 @@ public class ContainerConfigurableCell extends AEBaseContainer {
     public void onUpdate(String field, Object oldValue, Object newValue) {
         if (field.equals("maxPerType") && this.textField != null) {
             this.textField.setText(this.maxPerType == Long.MAX_VALUE ? "" : String.valueOf(this.maxPerType));
+        }
+
+        if (field.equals("userMaxTypes") && this.typesField != null) {
+            this.typesField.setText(this.userMaxTypes == Integer.MAX_VALUE ? "" : String.valueOf(this.userMaxTypes));
         }
 
         super.onUpdate(field, oldValue, newValue);

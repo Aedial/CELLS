@@ -19,7 +19,6 @@ A clear and concise description of what you expected to happen.
 
 ## Logs and crash reports
 - Attach `logs/latest.log` and any crash report from `crash-reports/`.
-- If relevant, include the OpenComputers program snippet you ran.
 
 ## Screenshots
 If applicable, add screenshots to help explain your problem.

@@ -29,6 +29,7 @@ import appeng.items.contents.CellConfig;
 import appeng.util.Platform;
 
 import com.cells.core.CellsCreativeTab;
+import com.cells.mixin.MixinState;
 import com.cells.util.CellDisassemblyHelper;
 
 
@@ -52,7 +53,9 @@ import com.cells.util.CellDisassemblyHelper;
 public abstract class AbstractTieredCellItem extends Item implements ICellWorkbenchItem, IItemGroup {
 
     public AbstractTieredCellItem() {
-        setMaxStackSize(64);
+        // Cells stack to 64 only if mixins are active (fixing AE2 slot limits).
+        // Without mixins, stacking cells causes duplication exploits in ME Chest/Workbench.
+        setMaxStackSize(MixinState.areMixinsEnabled() ? 64 : 1);
         setHasSubtypes(true);
         setMaxDamage(0);
         setCreativeTab(CellsCreativeTab.instance);

@@ -1,7 +1,5 @@
 package com.cells.cells.configurable;
 
-import com.cells.config.CellsConfig;
-
 
 /**
  * Immutable data class holding the properties of a recognized ME Storage Component.
@@ -26,7 +24,7 @@ public final class ComponentInfo {
 
     /** Bytes consumed per stored type (overhead). */
     public long getBytesPerType() {
-        return bytes / 2 / CellsConfig.configurableCellMaxTypes;
+        return bytes / 2 / channelType.getMaxTypes();
     }
 
     /**

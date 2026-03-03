@@ -8,6 +8,38 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.4.11] - 2026-03-02
+### Added
+- Add additional Memory Card keybind to include filters when saving a card.
+- Add keybind to quickly add the hovered item to the first free filter slot in the Import Interfaces.
+- Add better explanations for how to best use the Import Interface in the buttons tooltip and the controls help widget.
+- Add a tooltip for components that are compatible with the Configurable Cell, to make it more clear which ones can be used in it.
+- Add NBT size and a warning for cells with large NBT sizes, to make it more clear when a cell might come close to the packet size limit and cause issues with the network.
+- Split the Configurable Cell's types limit (config) between the different data types (item, fluid, essentia, gas), to allow more flexibility in configuring it for different use cases.
+- Allow configurable cells to have the types limit set in the GUI, to trade-off between max types and max capacity per type without needing to change the config and reload the world.
+- Allow disabling the NBT size calculation in config.
+
+
+## [0.4.10] - 2026-03-01
+### Fixed
+- Fix gradle not including the API by default.
+
+
+## [0.4.9] - 2026-02-29
+### Changed
+- Make MixinBooter optional. The storage cells will only stack to 1 if mixins are not enabled, preventing duplication exploits in ME Chest/Workbench.
+
+
+## [0.4.8] - 2026-02-28
+### Fixed
+- Fix a weird crash with some versions of Cleanroom (Material.IRON not existing)
+
+
+## [0.4.7] - 2026-02-28
+### Fixed
+- Fix Import Interface's slots not being aligned with filtered slots (slots with no filter are still not exposed)
+
+
 ## [0.4.6] - 2026-02-27
 ### Added
 - Add Essentia and Gas support for Configurable Cells (with textures for all the supported sizes: 1k, 4k, ..., 1g, 2g).

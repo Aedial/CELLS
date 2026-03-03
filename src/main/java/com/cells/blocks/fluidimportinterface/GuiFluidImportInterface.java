@@ -12,6 +12,7 @@ import javax.annotation.Nonnull;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
+import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
@@ -31,9 +32,15 @@ import appeng.fluids.util.AEFluidStack;
 import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
 import com.cells.Tags;
+import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.client.KeyBindings;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.gui.DynamicTooltipTabButton;
+import com.cells.gui.ImportInterfaceControlsHelper;
+import com.cells.gui.QuickAddHelper;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
+import com.cells.network.packets.PacketQuickAddFluidFilter;
 
 
 /**
@@ -51,8 +58,8 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
 
     private final ContainerFluidImportInterface container;
     private final IFluidImportInterfaceInventoryHost host;
-    private GuiTabButton configButton;
-    private GuiTabButton pollingRateButton;
+    private DynamicTooltipTabButton configButton;
+    private DynamicTooltipTabButton pollingRateButton;
     // Use Object key type to avoid JEI class reference in field signature (JEI is optional)
     private final Map<Object, Object> mapTargetSlot = new HashMap<>();
 
@@ -112,20 +119,30 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
             }
         }
 
-        this.configButton = new GuiTabButton(
+        this.configButton = new DynamicTooltipTabButton(
             this.guiLeft + 154,
             this.guiTop,
             2 + 4 * 16,
-            I18n.format("gui.cells.import_interface.max_slot_size"),
+            () -> I18n.format("gui.cells.import_interface.max_slot_size") + "\n\n"
+                + I18n.format("gui.cells.import_interface.max_slot_size.fluids.tooltip", (int) this.container.maxSlotSize) + "\n"
+                + I18n.format("gui.cells.import_interface.max_slot_size.tooltip"),
             this.itemRender
         );
         this.buttonList.add(this.configButton);
 
-        this.pollingRateButton = new GuiTabButton(
+        this.pollingRateButton = new DynamicTooltipTabButton(
             this.guiLeft + 154 - 22,
             this.guiTop,
             2 + 5 * 16,
-            I18n.format("gui.cells.polling_rate.title"),
+            () -> {
+                int rate = (int) this.container.pollingRate;
+                String value = rate <= 0
+                    ? I18n.format("gui.cells.import_interface.polling_rate.adaptive.tooltip")
+                    : I18n.format("gui.cells.import_interface.polling_rate.custom.tooltip", TileImportInterface.formatPollingRate(rate));
+                return I18n.format("gui.cells.import_interface.polling_rate") + "\n\n"
+                    + value + "\n"
+                    + I18n.format("gui.cells.import_interface.polling_rate.tooltip");
+            },
             this.itemRender
         );
         this.buttonList.add(this.pollingRateButton);
@@ -134,6 +151,15 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
     @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
         this.fontRenderer.drawString(I18n.format("gui.cells.import_fluid_interface.title"), 8, 6, 0x404040);
+
+        // Draw controls help widget on the left side
+        ImportInterfaceControlsHelper.drawControlsHelpWidget(
+            this.fontRenderer,
+            this.guiLeft,
+            this.guiTop,
+            this.ySize,
+            true
+        );
     }
 
     @Override
@@ -246,5 +272,25 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
     @Override
     public Map<Target<?>, Object> getFakeSlotTargetMap() {
         return (Map<Target<?>, Object>) (Map<?, ?>) mapTargetSlot;
+    }
+
+    @Override
+    protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        // Handle quick-add keybind
+        if (KeyBindings.QUICK_ADD_TO_FILTER.isActiveAndMatches(keyCode)) {
+            Slot hoveredSlot = this.getSlotUnderMouse();
+            FluidStack fluid = QuickAddHelper.getFluidUnderCursor(hoveredSlot);
+
+            if (fluid != null) {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFluidFilter(fluid));
+            } else {
+                // Show error that item doesn't contain fluid
+                QuickAddHelper.sendNoFluidError();
+            }
+
+            return;
+        }
+
+        super.keyTyped(typedChar, keyCode);
     }
 }

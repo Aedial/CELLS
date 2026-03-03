@@ -1,9 +1,11 @@
 package com.cells.blocks.importinterface;
 
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 
 import appeng.tile.inventory.AppEngInternalInventory;
+import appeng.util.SettingsFrom;
 
 
 /**
@@ -81,4 +83,9 @@ public interface IImportInterfaceInventoryHost extends IImportInterfaceHost {
      * @return The block position of this host (tile position or part's host tile position).
      */
     BlockPos getHostPos();
+
+    /**
+     * @return The settings of this host as an NBTTagCompound, for saving to memory cards or other uses.
+     */
+    public NBTTagCompound downloadSettings(SettingsFrom from);
 }

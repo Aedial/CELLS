@@ -1,6 +1,7 @@
 package com.cells.blocks.fluidimportinterface;
 
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.fluids.FluidStack;
@@ -8,6 +9,7 @@ import net.minecraftforge.fluids.FluidStack;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.fluids.util.IAEFluidTank;
 import appeng.tile.inventory.AppEngInternalInventory;
+import appeng.util.SettingsFrom;
 
 import com.cells.blocks.importinterface.IImportInterfaceHost;
 
@@ -96,4 +98,14 @@ public interface IFluidImportInterfaceInventoryHost extends IImportInterfaceHost
      * @return The amount actually inserted
      */
     int insertFluidIntoTank(int slot, FluidStack fluid);
+
+    /**
+     * Refresh the filter-to-slot map. Should be called after filter changes.
+     */
+    void refreshFilterMap();
+
+    /**
+    * @return The settings of this host as an NBTTagCompound, for saving to memory cards or other uses.
+    */
+    public NBTTagCompound downloadSettings(SettingsFrom from);
 }

@@ -1,5 +1,7 @@
 package com.cells.cells.configurable;
 
+import com.cells.config.CellsConfig;
+
 
 /**
  * Enumeration of supported AE2 storage channels for the Configurable Storage Cell.
@@ -132,5 +134,21 @@ public enum ChannelType {
         if (this == ITEM) return "";
 
         return "_" + configName;
+    }
+
+    /**
+     * Get the maximum types allowed for configurable cells of this channel type.
+     * Each channel type has its own config value.
+     *
+     * @return The configured max types for this channel type
+     */
+    public int getMaxTypes() {
+        switch (this) {
+            case ITEM:     return CellsConfig.configurableCellItemMaxTypes;
+            case FLUID:    return CellsConfig.configurableCellFluidMaxTypes;
+            case ESSENTIA: return CellsConfig.configurableCellEssentiaMaxTypes;
+            case GAS:      return CellsConfig.configurableCellGasMaxTypes;
+            default:       return 63;
+        }
     }
 }

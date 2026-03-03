@@ -1,6 +1,7 @@
 package com.cells.blocks.fluidimportinterface;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +18,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.Constants;
@@ -55,8 +57,6 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import appeng.util.SettingsFrom;
-
-import java.nio.charset.StandardCharsets;
 
 import com.cells.blocks.importinterface.IImportInterfaceHost;
 import com.cells.blocks.importinterface.TileImportInterface;
@@ -111,8 +111,12 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     // Mapping of filter fluids to their corresponding tank index for quick lookup
     final Map<FluidStackKey, Integer> filterToSlotMap = new HashMap<>();
 
-    // List of filter fluids for quick access
-    List<FluidStackKey> filterFluidList = new ArrayList<>();
+    // Reverse mapping: slot index to filter key
+    final Map<Integer, FluidStackKey> slotToFilterMap = new HashMap<>();
+
+    // List of slot indices that have filters, in slot order (0, 1, 3, 5 if slots 2,4 have no filter)
+    // This ensures external systems only see tanks that matter
+    List<Integer> filterSlotList = new ArrayList<>();
 
     // Action source for network operations
     private final IActionSource actionSource;
@@ -150,6 +154,10 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
      */
     public void refreshFilterMap() {
         this.filterToSlotMap.clear();
+        this.slotToFilterMap.clear();
+
+        // Build list of valid (internal) slot indices for quick access (because AE2 expects slots matching)
+        List<Integer> validSlots = new ArrayList<>();
 
         for (int i = 0; i < TOTAL_SLOTS; i++) {
             IAEFluidStack filterFluid = this.filterInventory.getFluidInSlot(i);
@@ -159,10 +167,14 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
             if (fluid == null) continue;
 
             FluidStackKey key = FluidStackKey.of(fluid);
-            if (key != null) this.filterToSlotMap.put(key, i);
+            if (key != null) {
+                this.filterToSlotMap.put(key, i);
+                this.slotToFilterMap.put(i, key);
+                validSlots.add(i);
+            }
         }
 
-        this.filterFluidList = new ArrayList<>(filterToSlotMap.keySet());
+        this.filterSlotList = validSlots;
     }
 
     /**
@@ -314,6 +326,8 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
         if (this.maxSlotSize < TileImportInterface.MIN_MAX_SLOT_SIZE) this.maxSlotSize = TileImportInterface.MIN_MAX_SLOT_SIZE;
         if (this.pollingRate < 0) this.pollingRate = 0;
 
+
+
         // Read fluid tanks
         if (data.hasKey("fluidTanks", Constants.NBT.TAG_LIST)) {
             NBTTagList tankList = data.getTagList("fluidTanks", Constants.NBT.TAG_COMPOUND);
@@ -385,11 +399,11 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
             this.setMaxSlotSize(compound.getInteger("maxSlotSize"));
         }
         if (compound.hasKey("pollingRate")) {
-            this.setPollingRate(compound.getInteger("pollingRate"));
+            this.setPollingRate(compound.getInteger("pollingRate"), player);
         }
 
-        // Load filter inventory only when placing dismantled block (not for memory card)
-        if (from == SettingsFrom.DISMANTLE_ITEM && compound.hasKey("fluidFilters")) {
+        // Load filter inventory when memory card has filters
+        if (compound.hasKey("fluidFilters")) {
             this.filterInventory.readFromNBT(compound, "fluidFilters");
             this.refreshFilterMap();
         }
@@ -487,13 +501,26 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
 
     @Override
     public void setPollingRate(int ticks) {
+        this.setPollingRate(ticks, null);
+    }
+
+    /**
+     * Set the polling rate with optional player notification on failure.
+     * @param ticks Polling rate in ticks (0 = adaptive)
+     * @param player Player to notify if re-registration fails, or null to skip notification
+     */
+    public void setPollingRate(int ticks, EntityPlayer player) {
         this.pollingRate = Math.max(0, ticks);
         this.markDirty();
 
         // Re-register with the tick manager to apply the new TickingRequest bounds.
         // Uses TickManagerHelper to purge stale TickTrackers from AE2's internal
         // PriorityQueue before re-registering (see TickManagerHelper for details).
-        TickManagerHelper.reRegisterTickable(this.getProxy().getNode(), this);
+        if (!TickManagerHelper.reRegisterTickable(this.getProxy().getNode(), this)) {
+            if (player != null) {
+                player.sendMessage(new TextComponentTranslation("chat.cells.polling_rate_delayed"));
+            }
+        }
     }
 
     @Override
@@ -669,10 +696,12 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
         public IFluidTankProperties[] getTankProperties() {
             List<IFluidTankProperties> props = new ArrayList<>();
 
-            for (Map.Entry<FluidStackKey, Integer> entry : tile.filterToSlotMap.entrySet()) {
-                int slot = entry.getValue();
+            for (int slot : tile.filterSlotList) {
                 FluidStack contents = tile.fluidTanks[slot];
                 int capacity = tile.maxSlotSize;
+
+                // Use cached filter key for this slot
+                FluidStackKey filterKey = tile.slotToFilterMap.get(slot);
 
                 props.add(new IFluidTankProperties() {
                     @Nullable
@@ -698,7 +727,7 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
 
                     @Override
                     public boolean canFillFluidType(FluidStack fluidStack) {
-                        return entry.getKey().matches(fluidStack);
+                        return filterKey != null && filterKey.matches(fluidStack);
                     }
 
                     @Override

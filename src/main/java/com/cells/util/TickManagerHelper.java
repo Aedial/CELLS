@@ -52,9 +52,12 @@ public final class TickManagerHelper {
      */
     public static <T extends IGridTickable & IGridHost> boolean reRegisterTickable(IGridNode node, T tickable) {
         if (node == null) return false;
+        if (node.getGrid() == null) return false;
 
         // Purge stale entries from the PriorityQueue before AE2's removeNode leaves them behind
         ITickManager tickManager = node.getGrid().getCache(ITickManager.class);
+        if (tickManager == null) return false;
+
         purgeStaleTrackers(tickManager, node);
 
         tickManager.removeNode(node, tickable);

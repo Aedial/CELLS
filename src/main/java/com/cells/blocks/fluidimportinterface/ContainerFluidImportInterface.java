@@ -19,6 +19,7 @@ import appeng.api.parts.IPart;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
+import appeng.container.slot.AppEngSlot.hasCalculatedValidness;
 import appeng.container.slot.SlotNormal;
 import appeng.fluids.container.IFluidSyncContainer;
 import appeng.fluids.helper.FluidSyncHelper;
@@ -298,6 +299,8 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
 
     /**
      * Custom slot for upgrades that only accepts specific upgrade cards.
+     * Uses the same icon as AE2 UPGRADES (13 * 16 + 15 = 223) for empty slot background at 40% opacity.
+     * Always reports as Valid to prevent red background rendering for custom upgrade cards.
      */
     private static class SlotUpgrade extends SlotNormal {
         private final IFluidImportInterfaceInventoryHost host;
@@ -305,6 +308,8 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
         public SlotUpgrade(AppEngInternalInventory inv, int idx, int x, int y, IFluidImportInterfaceInventoryHost host) {
             super(inv, idx, x, y);
             this.host = host;
+            // Use UPGRADES icon (same as SlotRestrictedInput.PlacableItemType.UPGRADES)
+            this.setIIcon(13 * 16 + 15);
         }
 
         @Override
@@ -315,6 +320,12 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
         @Override
         public int getSlotStackLimit() {
             return 1;
+        }
+
+        @Override
+        public hasCalculatedValidness getIsValid() {
+            // Always return Valid to prevent red background for custom upgrade cards
+            return hasCalculatedValidness.Valid;
         }
     }
 }

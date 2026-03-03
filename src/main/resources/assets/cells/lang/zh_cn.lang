@@ -275,7 +275,7 @@ tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络
 
 # Import Interface warnings
 message.cells.import_interface.storage_not_empty=无法在存储槽位非空时更改过滤项。
-message.cells.import_interface.filter_duplicate其他槽位中已存在该过滤项。
+message.cells.import_interface.filter_duplicate=其他槽位中已存在该过滤项。
 
 # Configurable Cell warnings
 message.cells.configurable_cell.split_stack=在插入组件前，需先拆分元件堆叠。

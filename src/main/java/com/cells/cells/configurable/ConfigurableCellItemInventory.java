@@ -15,7 +15,9 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.api.networking.security.IActionSource;
 
+import com.cells.config.CellsConfig;
 import com.cells.util.ItemStackKey;
+import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -33,6 +35,7 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
 
     // In-memory cache: ItemStackKey -> NBT index
     private final Map<ItemStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    private final Map<ItemStackKey, Integer> itemNbtSizes = new HashMap<>();
     private int cachedNextIndex = 0;
 
     public ConfigurableCellItemInventory(ItemStack cellStack, ISaveProvider container, ComponentInfo componentInfo) {
@@ -47,6 +50,8 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
         storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        itemNbtSizes.clear();
+        totalNbtSize = 0;
         cachedNextIndex = 0;
 
         for (String nbtKey : itemsTag.getKeySet()) {
@@ -64,6 +69,13 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
                     keyToNbtIndex.put(key, index);
                     storedCount += count;
                     storedTypes++;
+
+                    // Track NBT size for this item (if enabled)
+                    if (CellsConfig.enableNbtSizeTooltip) {
+                        int itemSize = NBTSizeHelper.calculateSize(itemTag);
+                        itemNbtSizes.put(key, itemSize);
+                        totalNbtSize += itemSize;
+                    }
                 }
             }
         }
@@ -89,11 +101,15 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
 
         if (count <= 0) {
             if (index != null) {
+                // Subtract this item's NBT size from total
+                Integer oldSize = itemNbtSizes.remove(key);
+                if (oldSize != null) totalNbtSize -= oldSize;
+
                 itemsTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
             }
         } else if (index != null) {
-            // Update count only
+            // Update count only - NBT size change is minimal
             NBTTagCompound itemTag = itemsTag.getCompoundTag(String.valueOf(index));
             itemTag.setLong(NBT_STORED_COUNT, count);
         } else {
@@ -104,6 +120,13 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
             itemTag.setLong(NBT_STORED_COUNT, count);
             itemsTag.setTag(String.valueOf(index), itemTag);
             keyToNbtIndex.put(key, index);
+
+            // Track NBT size for this new item (if enabled)
+            if (CellsConfig.enableNbtSizeTooltip) {
+                int itemSize = NBTSizeHelper.calculateSize(itemTag);
+                itemNbtSizes.put(key, itemSize);
+                totalNbtSize += itemSize;
+            }
         }
 
         tagCompound.setTag(NBT_ITEM_TYPE, itemsTag);

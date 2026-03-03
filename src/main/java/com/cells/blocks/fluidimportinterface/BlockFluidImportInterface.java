@@ -33,7 +33,8 @@ import com.cells.gui.CellsGuiHandler;
 public class BlockFluidImportInterface extends AEBaseTileBlock {
 
     public BlockFluidImportInterface() {
-        super(Material.IRON);
+        // Use ROCK instead of IRON to avoid runtime remapping issues with Cleanroom/Foundation
+        super(Material.ROCK);
         this.setRegistryName(Tags.MODID, "import_fluid_interface");
         this.setTranslationKey(Tags.MODID + ".import_fluid_interface");
         this.setCreativeTab(CellsCreativeTab.instance);
