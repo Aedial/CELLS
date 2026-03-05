@@ -1,1 +1,49 @@
+// Task to print the changelog for CI usage (GitHub releases, etc.)
+// Usage: ./gradlew -q printChangelog
+tasks.register('printChangelog') {
+    group 'publishing'
+    description 'Prints the changelog for the current mod_version to stdout'
+    doLast {
+        if (!file('CHANGELOG.md').exists()) {
+            throw new GradleException('CHANGELOG.md does not exist!')
+        }
 
+        def cl = changelog.renderItem(
+            changelog.get(propertyString('mod_version')).withHeader(false).withEmptySections(false),
+            org.jetbrains.changelog.Changelog.OutputType.MARKDOWN
+        )
+
+        if (cl.isEmpty()) {
+            throw new GradleException("No changelog section found for version ${propertyString('mod_version')}")
+        }
+
+        println cl
+    }
+}
+
+// Task to print the mod version for CI usage
+// Usage: ./gradlew -q printVersion
+tasks.register('printVersion') {
+    group 'publishing'
+    description 'Prints the mod_version to stdout'
+    doLast {
+        println propertyString('mod_version')
+    }
+}
+
+// Task to infer release type from mod_version (release, beta, alpha)
+// Usage: ./gradlew -q printReleaseType
+tasks.register('printReleaseType') {
+    group 'publishing'
+    description 'Prints the inferred release type (release/beta/alpha) based on mod_version'
+    doLast {
+        def version = propertyString('mod_version').toLowerCase()
+        def releaseType = 'release'
+        if (version.contains('alpha') || version =~ /^\d+(\.\d+)*a\d*$/) {
+            releaseType = 'alpha'
+        } else if (version.contains('beta') || version.contains('rc') || version.contains('pre') || version =~ /^\d+(\.\d+)*b\d*$/) {
+            releaseType = 'beta'
+        }
+        println releaseType
+    }
+}

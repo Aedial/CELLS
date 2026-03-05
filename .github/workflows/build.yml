@@ -2,7 +2,14 @@ name: build
 
 on:
   push:
+    branches:
+      - '**'
+    tags:
+      - '**'
   pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:  # Allow manual triggering from GitHub UI
 
 permissions:
   contents: write
@@ -36,9 +43,6 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Make scripts executable
-        run: chmod +x .github/scripts/*.sh
-
       - name: Build
         run: |
           ./gradlew --version
@@ -48,7 +52,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cells-jar
+          name: jars
           path: build/libs/*.jar
 
       - name: Publish GitHub Release (tags only)
@@ -57,44 +61,35 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF##*/}"
-          TAG_COMMIT=$(git rev-list -n 1 "$TAG")
+
+          # Get version and release type from Gradle
+          VERSION=$(./gradlew -q printVersion)
+          RELEASE_TYPE=$(./gradlew -q printReleaseType)
+
+          # Get changelog from Gradle
           NOTES_FILE="/tmp/release_notes.md"
-          .github/scripts/build_release_notes.sh "$TAG" "${GITHUB_REPOSITORY%/*}" "${GITHUB_REPOSITORY#*/}" "$TAG_COMMIT" "${GITHUB_SERVER_URL:-https://github.com}" > "$NOTES_FILE"
+          ./gradlew -q printChangelog > "$NOTES_FILE"
+
+          echo "Version: $VERSION, Release Type: $RELEASE_TYPE" >&2
           echo "Generated release notes:" >&2
           sed 's/^/  /' "$NOTES_FILE" >&2
-          gh release create "$TAG" build/libs/*.jar \
-            --title "C.E.L.L.S $TAG" \
-            --notes-file "$NOTES_FILE" \
-            $(if [[ "$TAG" =~ [ab]|rc|pre ]]; then echo "--prerelease"; fi)
 
-      - name: Publish to CurseForge (tags only; infer release type)
+          # TODO: get "C.E.L.L.S" from gradle
+          gh release create "$TAG" build/libs/*.jar \
+            --title "C.E.L.L.S $VERSION" \
+            --notes-file "$NOTES_FILE" \
+            $(if [[ "$RELEASE_TYPE" != "release" ]]; then echo "--prerelease"; fi)
+
+      - name: Publish to CurseForge (tags only)
         if: ${{ env.CURSEFORGE_TOKEN != '' && startsWith(github.ref, 'refs/tags/') }}
-        working-directory: .
         env:
           CURSEFORGE_TOKEN: ${{ env.CURSEFORGE_TOKEN }}
-          GIT_TAG: ${{ github.ref_name }}
         run: |
-          set -euo pipefail
-          TAG="${GIT_TAG:-${GITHUB_REF##*/}}"
-          VERSION_DISPLAY=$(echo "$TAG" | sed -E 's/^v//')
-          LOWER=$(echo "$TAG" | tr '[:upper:]' '[:lower:]')
-          RELEASE_TYPE=release
-          if [[ "$LOWER" == *alpha* ]]; then
-            RELEASE_TYPE=alpha
-          elif [[ "$LOWER" == *beta* || "$LOWER" == *rc* || "$LOWER" == *pre* ]]; then
-            RELEASE_TYPE=beta
-          else
-            CORE=$(echo "$LOWER" | sed -E 's/^v//')
-            if [[ "$CORE" =~ ^[0-9]+(\.[0-9]+)*a([0-9]*)?$ ]]; then
-              RELEASE_TYPE=alpha
-            elif [[ "$CORE" =~ ^[0-9]+(\.[0-9]+)*b([0-9]*)?$ ]]; then
-              RELEASE_TYPE=beta
-            fi
-          fi
-          TAG_COMMIT=$(git rev-list -n 1 "$TAG")
-          CL=$(.github/scripts/build_release_notes.sh "$TAG" "${GITHUB_REPOSITORY%/*}" "${GITHUB_REPOSITORY#*/}" "$TAG_COMMIT" "${GITHUB_SERVER_URL:-https://github.com}")
+          # Get release type from Gradle
+          RELEASE_TYPE=$(./gradlew -q printReleaseType)
+
+          # Gradle handles changelog and display name from mod_version
           ./gradlew curseforge --no-daemon \
             -Ppublish_to_curseforge=true \
-            -Prelease_type="$RELEASE_TYPE" \
-            -Pcurseforge_changelog="$CL" \
-            -Pcurseforge_display_name="C.E.L.L.S $VERSION_DISPLAY"
+            -Ppublish_with_changelog=true \
+            -Prelease_type="$RELEASE_TYPE"
