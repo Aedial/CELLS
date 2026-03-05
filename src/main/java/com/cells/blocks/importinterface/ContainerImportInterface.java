@@ -15,6 +15,7 @@ import appeng.container.slot.AppEngSlot.hasCalculatedValidness;
 import appeng.container.slot.SlotFake;
 import appeng.container.slot.SlotNormal;
 
+import com.cells.gui.slots.PagedItemHandler;
 import com.cells.util.ItemStackKey;
 
 import javax.annotation.Nonnull;
@@ -24,6 +25,7 @@ import javax.annotation.Nonnull;
  * Container for the Import Interface GUI.
  * Layout: 4 rows of (9 filter slots on top + 9 storage slots below)
  * Plus 4 upgrade slots on the right side.
+ * Supports pagination via Capacity Cards - each card adds a page of 36 slots.
  * <p>
  * Works with both TileImportInterface (block) and PartImportInterface (part).
  */
@@ -36,6 +38,16 @@ public class ContainerImportInterface extends AEBaseContainer {
 
     @GuiSync(1)
     public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
+
+    @GuiSync(2)
+    public int currentPage = 0;
+
+    @GuiSync(3)
+    public int totalPages = 1;
+
+    // Paged handlers for filter and storage inventories
+    private final PagedItemHandler pagedFilterHandler;
+    private final PagedItemHandler pagedStorageHandler;
 
     /**
      * Constructor for tile entity.
@@ -58,30 +70,40 @@ public class ContainerImportInterface extends AEBaseContainer {
         super(ip, anchor instanceof TileEntity ? (TileEntity) anchor : null, anchor instanceof IPart ? (IPart) anchor : null);
         this.host = host;
 
-        // Create slot pairs only up to the smallest inventory size to avoid creating
-        // out-of-range slots (some tiles may expose fewer than 36 slots).
-        final int filterSlots = host.getFilterInventory().getSlots();
-        final int storageSlots = host.getStorageInventory().getSlots();
-        final int maxSlots = Math.min(filterSlots, storageSlots);
+        // Create paged handlers that offset based on current page
+        this.pagedFilterHandler = new PagedItemHandler(
+            host.getFilterInventory(),
+            TileImportInterface.SLOTS_PER_PAGE,
+            () -> this.currentPage,
+            () -> this.totalPages
+        );
+        this.pagedStorageHandler = new PagedItemHandler(
+            host.getStorageInventory(),
+            TileImportInterface.SLOTS_PER_PAGE,
+            () -> this.currentPage,
+            () -> this.totalPages
+        );
 
         // Add filter slots (ghost/fake slots) and storage slots
         // 4 rows of 9 pairs (filter on top, storage below)
-        int slotIndex = 0;
-        outer: for (int row = 0; row < 4; row++) {
+        for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 9; col++) {
-                if (slotIndex >= maxSlots) break outer;
-
+                int slotIndex = row * 9 + col;
                 int xPos = 8 + col * 18;
                 int filterY = 25 + row * 36;
                 int storageY = filterY + 18;
 
-                // Filter slot (ghost item) - locked when storage slot has items
-                this.addSlotToContainer(new SlotFilterLocked(host.getFilterInventory(), slotIndex, xPos, filterY, host, slotIndex, ip.player));
+                // Filter slot (ghost item) - uses paged handler
+                this.addSlotToContainer(new SlotFilterLocked(
+                    this.pagedFilterHandler, slotIndex, xPos, filterY,
+                    host, this.pagedStorageHandler, slotIndex, ip.player
+                ));
 
                 // Storage slot (actual items, bottom part)
-                this.addSlotToContainer(new SlotImportStorage(host.getStorageInventory(), slotIndex, xPos, storageY, host, slotIndex));
-
-                slotIndex++;
+                this.addSlotToContainer(new SlotImportStorage(
+                    this.pagedStorageHandler, slotIndex, xPos, storageY,
+                    host, slotIndex
+                ));
             }
         }
 
@@ -106,6 +128,8 @@ public class ContainerImportInterface extends AEBaseContainer {
 
         if (this.maxSlotSize != this.host.getMaxSlotSize()) this.maxSlotSize = this.host.getMaxSlotSize();
         if (this.pollingRate != this.host.getPollingRate()) this.pollingRate = this.host.getPollingRate();
+        if (this.currentPage != this.host.getCurrentPage()) this.currentPage = this.host.getCurrentPage();
+        if (this.totalPages != this.host.getTotalPages()) this.totalPages = this.host.getTotalPages();
     }
 
     public IImportInterfaceInventoryHost getHost() {
@@ -118,6 +142,50 @@ public class ContainerImportInterface extends AEBaseContainer {
 
     public void setPollingRate(int ticks) {
         this.host.setPollingRate(ticks);
+    }
+
+    /**
+     * Set the current page index and notify the host.
+     */
+    public void setCurrentPage(int page) {
+        int newPage = Math.max(0, Math.min(page, this.totalPages - 1));
+        this.currentPage = newPage;
+        this.host.setCurrentPage(newPage);
+    }
+
+    /**
+     * Go to the next page if available.
+     */
+    public void nextPage() {
+        if (this.currentPage < this.totalPages - 1) setCurrentPage(this.currentPage + 1);
+    }
+
+    /**
+     * Go to the previous page if available.
+     */
+    public void prevPage() {
+        if (this.currentPage > 0) setCurrentPage(this.currentPage - 1);
+    }
+
+    /**
+     * Clear all filters that don't have items in their storage slots.
+     * For Import Interface, we cannot clear filters where items exist
+     * because that would orphan the items.
+     */
+    public void clearFilters() {
+        // Clear filters across ALL pages, not just the current page
+        int totalSlots = this.totalPages * TileImportInterface.SLOTS_PER_PAGE;
+        for (int i = 0; i < totalSlots; i++) {
+            // Only clear filter if storage slot is empty
+            if (i < this.host.getStorageInventory().getSlots() &&
+                this.host.getStorageInventory().getStackInSlot(i).isEmpty()) {
+                if (i < this.host.getFilterInventory().getSlots()) {
+                    this.host.getFilterInventory().setStackInSlot(i, ItemStack.EMPTY);
+                }
+            }
+        }
+
+        this.host.refreshFilterMap();
     }
 
     @Override
@@ -135,24 +203,29 @@ public class ContainerImportInterface extends AEBaseContainer {
      * Filter slot that prevents changes when the corresponding storage slot has items.
      * This prevents orphaning items that no longer match any filter.
      * Sends chat warnings to the player when a filter change is rejected.
+     * <p>
+     * Uses paged handlers to access the correct slot based on the current page.
      */
     private static class SlotFilterLocked extends SlotFake {
         private final IImportInterfaceInventoryHost host;
-        private final int storageSlot;
+        private final PagedItemHandler storageHandler;
+        private final int localSlot;
         private final EntityPlayer player;
 
-        public SlotFilterLocked(IItemHandler inv, int idx, int x, int y,
-                                IImportInterfaceInventoryHost host, int storageSlot, EntityPlayer player) {
-            super(inv, idx, x, y);
+        public SlotFilterLocked(PagedItemHandler filterHandler, int idx, int x, int y,
+                                IImportInterfaceInventoryHost host, PagedItemHandler storageHandler,
+                                int localSlot, EntityPlayer player) {
+            super(filterHandler, idx, x, y);
             this.host = host;
-            this.storageSlot = storageSlot;
+            this.storageHandler = storageHandler;
+            this.localSlot = localSlot;
             this.player = player;
         }
 
         @Override
         public void putStack(ItemStack stack) {
             // Prevent filter changes if there are items in the corresponding storage slot
-            ItemStack storageStack = host.getStorageInventory().getStackInSlot(this.storageSlot);
+            ItemStack storageStack = storageHandler.getStackInSlot(this.localSlot);
             if (!storageStack.isEmpty()) {
                 if (!player.world.isRemote) {
                     player.sendMessage(new TextComponentTranslation("message.cells.import_interface.storage_not_empty"));
@@ -167,13 +240,13 @@ public class ContainerImportInterface extends AEBaseContainer {
             }
 
             // Prevent duplicate filters by checking if the new filter item already exists in another slot
-            // Must use ItemStackKey (item + meta + NBT) rather than ItemStack.areItemsEqual (item + meta only),
-            // otherwise items with the same id/meta but different NBT are incorrectly rejected as duplicates.
+            // Check all slots across ALL pages, not just the current page
             ItemStackKey newKey = ItemStackKey.of(stack);
             if (newKey == null) return;
 
+            int actualSlot = ((PagedItemHandler) this.getItemHandler()).getActualSlotIndex(this.localSlot);
             for (int i = 0; i < host.getFilterInventory().getSlots(); i++) {
-                if (i == this.getSlotIndex()) continue; // Skip current slot
+                if (i == actualSlot) continue; // Skip current slot
 
                 ItemStackKey otherKey = ItemStackKey.of(host.getFilterInventory().getStackInSlot(i));
                 if (otherKey != null && otherKey.equals(newKey)) {
@@ -190,21 +263,24 @@ public class ContainerImportInterface extends AEBaseContainer {
 
     /**
      * Custom slot for storage that respects the filter.
+     * Uses paged handlers to access the correct slot based on the current page.
      */
     private static class SlotImportStorage extends SlotNormal {
         private final IImportInterfaceInventoryHost host;
-        private final int filterSlot;
+        private final int localSlot;
 
-        public SlotImportStorage(IItemHandler inv, int idx, int x, int y,
-                                  IImportInterfaceInventoryHost host, int filterSlot) {
-            super(inv, idx, x, y);
+        public SlotImportStorage(PagedItemHandler storageHandler, int idx, int x, int y,
+                                  IImportInterfaceInventoryHost host, int localSlot) {
+            super(storageHandler, idx, x, y);
             this.host = host;
-            this.filterSlot = filterSlot;
+            this.localSlot = localSlot;
         }
 
         @Override
         public boolean isItemValid(@Nonnull ItemStack stack) {
-            return host.isItemValidForSlot(filterSlot, stack);
+            // Get the actual slot index for validation
+            int actualSlot = ((PagedItemHandler) this.getItemHandler()).getActualSlotIndex(this.localSlot);
+            return host.isItemValidForSlot(actualSlot, stack);
         }
 
         @Override

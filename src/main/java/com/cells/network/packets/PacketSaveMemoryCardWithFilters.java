@@ -20,10 +20,17 @@ import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
 import appeng.util.SettingsFrom;
 
+import com.cells.blocks.exportinterface.IExportInterfaceInventoryHost;
+import com.cells.blocks.exportinterface.TileExportInterface;
+import com.cells.blocks.fluidexportinterface.IFluidExportInterfaceInventoryHost;
 import com.cells.blocks.fluidimportinterface.IFluidImportInterfaceInventoryHost;
+import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
 import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
 import com.cells.blocks.importinterface.IImportInterfaceInventoryHost;
 import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.network.MemoryCardSaveTracker;
+import com.cells.parts.PartExportInterface;
+import com.cells.parts.PartFluidExportInterface;
 import com.cells.parts.PartFluidImportInterface;
 import com.cells.parts.PartImportInterface;
 
@@ -70,6 +77,10 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().player;
 
             player.getServerWorld().addScheduledTask(() -> {
+                // Mark this player as having a pending "save with filters" action.
+                // This will cause MemoryCardServerHandler to cancel the normal memory card handling.
+                MemoryCardSaveTracker.markPendingSave(player, message.pos);
+
                 // Find which hand has the memory card
                 EnumHand hand = null;
                 ItemStack heldItem = player.getHeldItemMainhand();
@@ -99,6 +110,14 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
                         IFluidImportInterfaceInventoryHost fluidPart = (PartFluidImportInterface) part;
                         data = fluidPart.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
                         name = "tile.cells.import_fluid_interface";
+                    } else if (part instanceof PartExportInterface) {
+                        IExportInterfaceInventoryHost exportPart = (PartExportInterface) part;
+                        data = exportPart.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
+                        name = "tile.cells.export_interface";
+                    } else if (part instanceof PartFluidExportInterface) {
+                        IFluidExportInterfaceInventoryHost fluidExportPart = (PartFluidExportInterface) part;
+                        data = fluidExportPart.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
+                        name = "tile.cells.export_fluid_interface";
                     }
                 } else {
                     // Handle tile entity
@@ -110,6 +129,14 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
                         IFluidImportInterfaceInventoryHost tile = (TileFluidImportInterface) te;
                         data = tile.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
                         name = "tile.cells.import_fluid_interface";
+                    } else if (te instanceof TileExportInterface) {
+                        IExportInterfaceInventoryHost tile = (TileExportInterface) te;
+                        data = tile.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
+                        name = "tile.cells.export_interface";
+                    } else if (te instanceof TileFluidExportInterface) {
+                        IFluidExportInterfaceInventoryHost tile = (TileFluidExportInterface) te;
+                        data = tile.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
+                        name = "tile.cells.export_fluid_interface";
                     }
                 }
 

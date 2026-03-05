@@ -32,6 +32,8 @@ import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
+import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionSource;
@@ -69,14 +71,18 @@ import com.cells.util.TickManagerHelper;
 
 /**
  * Tile entity for the Fluid Import Interface block.
- * Provides 36 filter slots (fluid-based filters) and 36 internal fluid tanks.
+ * Provides filter slots (fluid-based filters) and internal fluid tanks.
  * Only accepts fluids that match the filter in the corresponding slot.
  * Automatically imports stored fluids into the ME network.
+ * Supports Capacity Cards to add additional pages of 36 tanks each.
  */
 public class TileFluidImportInterface extends AENetworkInvTile implements IGridTickable, IAEAppEngInventory, IAEFluidInventory, IImportInterfaceHost, IFluidImportInterfaceInventoryHost {
 
-    public static final int FILTER_SLOTS = 36;
-    public static final int TANK_SLOTS = 36;
+    public static final int SLOTS_PER_PAGE = 36;
+    public static final int MAX_CAPACITY_CARDS = 4;
+    public static final int MAX_PAGES = 1 + MAX_CAPACITY_CARDS;
+    public static final int FILTER_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
+    public static final int TANK_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
     public static final int TOTAL_SLOTS = Math.min(FILTER_SLOTS, TANK_SLOTS);
     public static final int UPGRADE_SLOTS = 4;
     public static final int DEFAULT_MAX_SLOT_SIZE = 16000; // Default tank capacity in mB (16 buckets)
@@ -107,6 +113,12 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
 
     // Has Trash Unselected Upgrade installed
     private boolean installedTrashUnselectedUpgrade = false;
+
+    // Number of installed capacity upgrades (adds pages)
+    private int installedCapacityUpgrades = 0;
+
+    // Current GUI page index (0-based)
+    private int currentPage = 0;
 
     // Mapping of filter fluids to their corresponding tank index for quick lookup
     final Map<FluidStackKey, Integer> filterToSlotMap = new HashMap<>();
@@ -146,6 +158,18 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     public void refreshUpgrades() {
         this.installedOverflowUpgrade = hasOverflowUpgrade();
         this.installedTrashUnselectedUpgrade = hasTrashUnselectedUpgrade();
+
+        // Count and handle capacity upgrades
+        int newCapacityCount = countCapacityUpgrades();
+        if (newCapacityCount < this.installedCapacityUpgrades) {
+            // Capacity cards were removed - handle reduction
+            handleCapacityReduction(newCapacityCount);
+        }
+        this.installedCapacityUpgrades = newCapacityCount;
+
+        // Clamp current page to valid range
+        int maxPage = getTotalPages() - 1;
+        if (this.currentPage > maxPage) this.currentPage = maxPage;
     }
 
     /**
@@ -205,7 +229,7 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
 
     /**
      * Check if an item is a valid upgrade for this interface.
-     * Only accepts Overflow Card and Trash Unselected Card, max 1 of each.
+     * Accepts Overflow Card, Trash Unselected Card (max 1 each), and Capacity Cards (max 4).
      */
     public boolean isValidUpgrade(ItemStack stack) {
         if (stack.isEmpty()) return false;
@@ -218,7 +242,131 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
             return countUpgrade(ItemTrashUnselectedCard.class) < 1;
         }
 
+        // Check for AE2 capacity card
+        if (stack.getItem() instanceof IUpgradeModule) {
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == Upgrades.CAPACITY) {
+                return countCapacityUpgrades() < MAX_CAPACITY_CARDS;
+            }
+        }
+
         return false;
+    }
+
+    /**
+     * Count the number of capacity upgrade cards installed.
+     */
+    private int countCapacityUpgrades() {
+        int count = 0;
+        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
+            if (!stack.isEmpty() && stack.getItem() instanceof IUpgradeModule) {
+                IUpgradeModule module = (IUpgradeModule) stack.getItem();
+                if (module.getType(stack) == Upgrades.CAPACITY) count++;
+            }
+        }
+
+        return count;
+    }
+
+    /**
+     * @return Number of capacity upgrades currently installed.
+     */
+    public int getInstalledCapacityUpgrades() {
+        return this.installedCapacityUpgrades;
+    }
+
+    /**
+     * @return Total number of pages (1 base + 1 per capacity card).
+     */
+    public int getTotalPages() {
+        return 1 + this.installedCapacityUpgrades;
+    }
+
+    /**
+     * @return Current page index (0-based).
+     */
+    public int getCurrentPage() {
+        return this.currentPage;
+    }
+
+    /**
+     * Set the current page index, clamped to valid range.
+     */
+    public void setCurrentPage(int page) {
+        int maxPage = getTotalPages() - 1;
+        if (page < 0) page = 0;
+        if (page > maxPage) page = maxPage;
+        this.currentPage = page;
+    }
+
+    /**
+     * @return The starting slot index for the current page.
+     */
+    public int getCurrentPageStartSlot() {
+        return this.currentPage * SLOTS_PER_PAGE;
+    }
+
+    /**
+     * Handle reduction in capacity cards - clear filters and return fluids from deleted pages.
+     */
+    private void handleCapacityReduction(int newCapacityCount) {
+        int newTotalPages = 1 + newCapacityCount;
+        int newMaxSlot = newTotalPages * SLOTS_PER_PAGE;
+
+        // Process slots that are being removed (from the end)
+        for (int slot = TANK_SLOTS - 1; slot >= newMaxSlot; slot--) {
+            // Clear the filter
+            this.filterInventory.setFluidInSlot(slot, null);
+
+            // Return fluid to network, drop remainder
+            FluidStack fluid = this.fluidTanks[slot];
+            if (fluid != null && fluid.amount > 0) {
+                int remaining = returnFluidToNetwork(fluid);
+                if (remaining > 0) dropFluidOnGround(new FluidStack(fluid.getFluid(), remaining));
+                this.fluidTanks[slot] = null;
+            }
+        }
+
+        refreshFilterMap();
+        this.markDirty();
+    }
+
+    /**
+     * Attempt to return a fluid to the ME network.
+     * @return Amount that could NOT be inserted (remainder).
+     */
+    private int returnFluidToNetwork(FluidStack fluid) {
+        if (fluid == null || fluid.amount <= 0) return 0;
+
+        try {
+            IStorageGrid storage = this.getProxy().getStorage();
+            IMEInventory<IAEFluidStack> fluidStorage = storage.getInventory(
+                AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class)
+            );
+
+            IAEFluidStack toInsert = AEFluidStack.fromFluidStack(fluid);
+            IAEFluidStack notInserted = fluidStorage.injectItems(toInsert, Actionable.MODULATE, this.actionSource);
+
+            if (notInserted == null) return 0;
+            return (int) notInserted.getStackSize();
+        } catch (GridAccessException e) {
+            return fluid.amount;
+        }
+    }
+
+    /**
+     * Drop fluid on ground. For fluids, we just void them since there's no good way
+     * to drop fluid without a container. A message could be logged.
+     */
+    private void dropFluidOnGround(FluidStack fluid) {
+        // Fluids cannot be dropped as entities without containers
+        // Log a warning or just void them
+        if (fluid != null && fluid.amount > 0 && this.world != null && !this.world.isRemote) {
+            // TODO: how do we handle that
+            // Could spawn bucket items here if we wanted, but that's complex
+            // For now, fluids that can't go back to network are voided
+        }
     }
 
     private int countUpgrade(Class<?> itemClass) {
@@ -237,6 +385,24 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
 
     public boolean hasTrashUnselectedUpgrade() {
         return countUpgrade(ItemTrashUnselectedCard.class) > 0;
+    }
+
+    /**
+     * Clear filter slots only where the corresponding tank is empty.
+     * This prevents orphaning fluids in the import interface.
+     */
+    @Override
+    public void clearFilters() {
+        int maxSlot = getTotalPages() * SLOTS_PER_PAGE;
+        for (int i = 0; i < maxSlot; i++) {
+            // Only clear filter if the corresponding tank is empty
+            if (i >= TANK_SLOTS || this.fluidTanks[i] == null || this.fluidTanks[i].amount <= 0) {
+                this.filterInventory.setFluidInSlot(i, null);
+            }
+        }
+
+        this.refreshFilterMap();
+        this.markDirty();
     }
 
     /**
@@ -326,8 +492,6 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
         if (this.maxSlotSize < TileImportInterface.MIN_MAX_SLOT_SIZE) this.maxSlotSize = TileImportInterface.MIN_MAX_SLOT_SIZE;
         if (this.pollingRate < 0) this.pollingRate = 0;
 
-
-
         // Read fluid tanks
         if (data.hasKey("fluidTanks", Constants.NBT.TAG_LIST)) {
             NBTTagList tankList = data.getTagList("fluidTanks", Constants.NBT.TAG_COMPOUND);
@@ -402,11 +566,83 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
             this.setPollingRate(compound.getInteger("pollingRate"), player);
         }
 
-        // Load filter inventory when memory card has filters
+        // Merge filter inventory from memory card instead of replacing
         if (compound.hasKey("fluidFilters")) {
-            this.filterInventory.readFromNBT(compound, "fluidFilters");
-            this.refreshFilterMap();
+            mergeFiltersFromNBT(compound, "fluidFilters", player);
         }
+    }
+
+    /**
+     * Merge fluid filters from NBT into the current filter inventory.
+     * Only adds filters to empty slots; skips filters that already exist.
+     * Reports to the player which filters couldn't be added if slots were full.
+     *
+     * @param data The NBT compound containing the filter data
+     * @param name The key name for the filter tag list
+     * @param player The player to notify about results, or null to skip notification
+     */
+    private void mergeFiltersFromNBT(NBTTagCompound data, String name, @Nullable EntityPlayer player) {
+        if (!data.hasKey(name)) return;
+
+        // Create a temporary inventory to load the source filters
+        AEFluidInventory sourceFilters = new AEFluidInventory(null, FILTER_SLOTS, 1);
+        sourceFilters.readFromNBT(data, name);
+
+        List<FluidStack> skippedFilters = new ArrayList<>();
+
+        for (int i = 0; i < sourceFilters.getSlots(); i++) {
+            IAEFluidStack sourceFilter = sourceFilters.getFluidInSlot(i);
+            if (sourceFilter == null) continue;
+
+            FluidStack fluidStack = sourceFilter.getFluidStack();
+            if (fluidStack == null) continue;
+
+            FluidStackKey sourceKey = FluidStackKey.of(fluidStack);
+            if (sourceKey == null) continue;
+
+            // Skip if this filter already exists in the target
+            if (this.filterToSlotMap.containsKey(sourceKey)) continue;
+
+            // Find an empty slot to add this filter
+            int targetSlot = findEmptyFilterSlot();
+            if (targetSlot < 0) {
+                // No empty slots - track this filter as skipped
+                skippedFilters.add(fluidStack.copy());
+                continue;
+            }
+
+            // Add the filter to the empty slot
+            this.filterInventory.setFluidInSlot(targetSlot, sourceFilter.copy());
+            this.filterToSlotMap.put(sourceKey, targetSlot);
+            this.slotToFilterMap.put(targetSlot, sourceKey);
+        }
+
+        this.refreshFilterMap();
+
+        // Notify the player about skipped filters
+        if (player != null && !skippedFilters.isEmpty()) {
+            String filters = skippedFilters.stream()
+                .map(FluidStack::getLocalizedName)
+                .reduce((a, b) -> a + "\n- " + b)
+                .orElse("");
+            player.sendMessage(new TextComponentTranslation(
+                "message.cells.import_fluid_interface.filters_not_added",
+                skippedFilters.size(),
+                filters
+            ));
+        }
+    }
+
+    /**
+     * Find the first empty filter slot.
+     * @return The slot index, or -1 if no empty slots are available
+     */
+    private int findEmptyFilterSlot() {
+        for (int i = 0; i < this.filterInventory.getSlots(); i++) {
+            if (this.filterInventory.getFluidInSlot(i) == null) return i;
+        }
+
+        return -1;
     }
 
     @Override

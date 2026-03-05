@@ -1,0 +1,12 @@
+{
+    "type": "forge:ore_shapeless",
+    "ingredients": [
+        {
+            "item": "cells:import_interface"
+        }
+    ],
+    "result": {
+        "item": "cells:part",
+        "data": 0
+    }
+}

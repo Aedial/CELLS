@@ -35,7 +35,6 @@ public class ConfigurableCellHandler implements ICellHandler {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T extends IAEStack<T>> ICellInventoryHandler<T> getCellInventory(ItemStack is, ISaveProvider container, IStorageChannel<T> channel) {
         if (is.isEmpty() || !(is.getItem() instanceof ItemConfigurableCell)) return null;
 

@@ -15,6 +15,7 @@ import com.cells.cells.normal.compacting.CompactingCellHandler;
 import com.cells.cells.hyperdensity.fluid.FluidHyperDensityCellHandler;
 import com.cells.cells.hyperdensity.item.HyperDensityCellHandler;
 import com.cells.cells.hyperdensity.compacting.HyperDensityCompactingCellHandler;
+import com.cells.network.MemoryCardServerHandler;
 import com.cells.parts.PartRegistry;
 import com.cells.recipes.InscriberRecipeHandler;
 
@@ -36,6 +37,9 @@ public class CommonProxy {
         // Initialize parts
         PartRegistry.init();
         MinecraftForge.EVENT_BUS.register(new PartRegistry());
+
+        // Register server-side memory card handler for "save with filters" functionality
+        MinecraftForge.EVENT_BUS.register(new MemoryCardServerHandler());
     }
 
     public void init(FMLInitializationEvent event) {

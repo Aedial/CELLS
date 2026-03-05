@@ -1,6 +1,8 @@
 package com.cells.network;
 
 import com.cells.Tags;
+import com.cells.network.packets.PacketChangePage;
+import com.cells.network.packets.PacketClearFilters;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketQuickAddFluidFilter;
 import com.cells.network.packets.PacketQuickAddItemFilter;
@@ -33,5 +35,7 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketQuickAddItemFilter.Handler.class, PacketQuickAddItemFilter.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketQuickAddFluidFilter.Handler.class, PacketQuickAddFluidFilter.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSaveMemoryCardWithFilters.Handler.class, PacketSaveMemoryCardWithFilters.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketClearFilters.Handler.class, PacketClearFilters.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketChangePage.Handler.class, PacketChangePage.class, packetId++, Side.SERVER);
     }
 }

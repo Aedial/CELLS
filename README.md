@@ -19,6 +19,12 @@ The mod requires AE2-UEL. It also has support for:
 ### Import Interface/Fluid Import Interface
 A block that acts as a filtered interface for importing items/fluids into the ME network. It needs to be configured to allow specific content, and can be used to import items/fluids into the network from machines that don't necessarily have a filtered export capability (Woot, Ultimate Mob Farm, etc). It does not have any exporting/stocking or crafting capabilities, and only works as an import interface. The top part of each slot is used for the filter, while the bottom part is used for the actual import. The size of the slots can be configured in the GUI, allowing higher/lower amount of each item/fluid to be kept in the interface if the export targets are full. The polling rate can also be configured, allowing content to be imported at a fixed interval instead of AE2's adaptive rates.
 
+They hold 36 slots, extendable up to 5x with capacity cards.
+
+### Export Interface/Fluid Export Interface
+The counterpart to the Import Interface, allowing items/fluids to be exported from the ME network to any outside piping. Slot size and polling rate apply all the same as the Import Interface.
+
+
 ### Compacting Storage Cells
 Storage cells that automatically expose compressed and decompressed forms of items to the ME network, similar to Storage Drawers' Compacting Drawer.
 

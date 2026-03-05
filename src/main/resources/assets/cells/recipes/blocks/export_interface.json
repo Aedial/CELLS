@@ -1,0 +1,34 @@
+{
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "aga",
+        "bfb",
+        "aia"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        },
+        "b": {
+            "item": "appliedenergistics2:material",
+            "data": 43
+        },
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 12
+        },
+        "g": {
+            "type": "forge:ore_dict",
+            "ore": "blockGlass"
+        },
+        "i": {
+            "item": "appliedenergistics2:part",
+            "data": 260
+        }
+
+    },
+    "result": {
+        "item": "cells:export_interface"
+    }
+}

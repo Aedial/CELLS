@@ -36,9 +36,13 @@ import com.cells.Tags;
 import com.cells.client.KeyBindings;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.gui.DynamicTooltipTabButton;
+import com.cells.gui.GuiClearFiltersButton;
+import com.cells.gui.GuiPageNavigation;
 import com.cells.gui.ImportInterfaceControlsHelper;
 import com.cells.gui.QuickAddHelper;
 import com.cells.network.CellsNetworkHandler;
+import com.cells.network.packets.PacketChangePage;
+import com.cells.network.packets.PacketClearFilters;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketQuickAddItemFilter;
 
@@ -58,6 +62,8 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
     private final IImportInterfaceInventoryHost host;
     private DynamicTooltipTabButton configButton;
     private DynamicTooltipTabButton pollingRateButton;
+    private GuiClearFiltersButton clearFiltersButton;
+    private GuiPageNavigation pageNavigation;
     // Use Object key type to avoid JEI class reference in field signature (JEI is optional)
     private final Map<Object, Object> mapTargetSlot = new HashMap<>();
 
@@ -120,6 +126,36 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
             this.itemRender
         );
         this.buttonList.add(this.pollingRateButton);
+
+        // Clear filters button (right of the hotbar)
+        // For Import interface, only clears filters where storage slot is empty
+        this.clearFiltersButton = new GuiClearFiltersButton(
+            2,  // Button ID
+            this.guiLeft + 186,
+            this.guiTop + 232,
+            () -> I18n.format("gui.cells.import_interface.clear_filters") + "\n\n"
+                + I18n.format("gui.cells.import_interface.clear_filters.tooltip")
+        );
+        this.buttonList.add(this.clearFiltersButton);
+
+        // Page navigation (only visible when capacity cards are installed)
+        // Position: 26x10 at (181, 3) relative to GUI
+        this.pageNavigation = new GuiPageNavigation(
+            3,  // Button ID
+            this.guiLeft + 181,
+            this.guiTop + 3,
+            () -> this.container.currentPage,
+            () -> this.container.totalPages,
+            () -> {
+                this.container.prevPage();
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketChangePage(this.container.currentPage));
+            },
+            () -> {
+                this.container.nextPage();
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketChangePage(this.container.currentPage));
+            }
+        );
+        this.buttonList.add(this.pageNavigation);
     }
 
     @Override
@@ -132,7 +168,8 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
             this.guiLeft,
             this.guiTop,
             this.ySize,
-            false
+            false,
+            true
         );
     }
 
@@ -185,6 +222,13 @@ public class GuiImportInterface extends AEBaseGui implements IJEIGhostIngredient
                     CellsGuiHandler.GUI_POLLING_RATE
                 ));
             }
+
+            return;
+        }
+
+        if (btn == this.clearFiltersButton) {
+            // Clear all filters (server handles orphan prevention)
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketClearFilters());
         }
     }
 

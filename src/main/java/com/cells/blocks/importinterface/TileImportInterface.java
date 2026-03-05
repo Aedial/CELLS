@@ -24,6 +24,8 @@ import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
+import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.security.IActionSource;
@@ -62,8 +64,11 @@ import com.cells.util.TickManagerHelper;
  */
 public class TileImportInterface extends AENetworkInvTile implements IGridTickable, IAEAppEngInventory, IImportInterfaceInventoryHost {
 
-    public static final int FILTER_SLOTS = 36; // 36 filter slots (ghost items)
-    public static final int STORAGE_SLOTS = 36; // 36 storage slots (actual items)
+    public static final int SLOTS_PER_PAGE = 36; // Slots per page (4x9 grid)
+    public static final int MAX_CAPACITY_CARDS = 4; // Max capacity cards (1 per upgrade slot)
+    public static final int MAX_PAGES = 1 + MAX_CAPACITY_CARDS; // Base page + 1 per capacity card
+    public static final int FILTER_SLOTS = SLOTS_PER_PAGE * MAX_PAGES; // Max filter slots with all capacity cards
+    public static final int STORAGE_SLOTS = SLOTS_PER_PAGE * MAX_PAGES; // Max storage slots with all capacity cards
     public static final int UPGRADE_SLOTS = 4;  // 4 upgrade slots
     public static final int DEFAULT_MAX_SLOT_SIZE = 64;
     public static final int MIN_MAX_SLOT_SIZE = 1;
@@ -96,8 +101,14 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
     // Has Void Overflow Upgrade installed
     private boolean installedOverflowUpgrade = false;
 
-     // Has Trash Unselected Upgrade installed
+    // Has Trash Unselected Upgrade installed
     private boolean installedTrashUnselectedUpgrade = false;
+
+    // Number of installed capacity upgrades (adds pages)
+    private int installedCapacityUpgrades = 0;
+
+    // Current GUI page index (0-based)
+    private int currentPage = 0;
 
     // Mapping of filter items to their corresponding storage slot index for quick lookup
     final private Map<ItemStackKey, Integer> filterToSlotMap = new HashMap<>();
@@ -195,6 +206,18 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
     public void refreshUpgrades() {
         this.installedOverflowUpgrade = hasOverflowUpgrade();
         this.installedTrashUnselectedUpgrade = hasTrashUnselectedUpgrade();
+
+        int oldCapacityCount = this.installedCapacityUpgrades;
+        this.installedCapacityUpgrades = countCapacityUpgrades();
+
+        // Handle capacity card removal - shrink pages
+        if (this.installedCapacityUpgrades < oldCapacityCount) {
+            handleCapacityReduction(oldCapacityCount, this.installedCapacityUpgrades);
+        }
+
+        // Clamp current page to valid range
+        int maxPage = this.installedCapacityUpgrades;
+        if (this.currentPage > maxPage) this.currentPage = maxPage;
     }
 
     /**
@@ -249,8 +272,128 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
     }
 
     /**
+     * Count the number of installed capacity upgrades.
+     */
+    public int countCapacityUpgrades() {
+        int count = 0;
+
+        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            if (!(stack.getItem() instanceof IUpgradeModule)) continue;
+
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == Upgrades.CAPACITY) count++;
+        }
+
+        return count;
+    }
+
+    /**
+     * Get the number of installed capacity upgrades.
+     */
+    public int getInstalledCapacityUpgrades() {
+        return this.installedCapacityUpgrades;
+    }
+
+    /**
+     * Get the total number of pages (1 base + 1 per capacity card).
+     */
+    public int getTotalPages() {
+        return 1 + this.installedCapacityUpgrades;
+    }
+
+    /**
+     * Get the current page index (0-based).
+     */
+    public int getCurrentPage() {
+        return this.currentPage;
+    }
+
+    /**
+     * Set the current page index (0-based), clamped to valid range.
+     */
+    public void setCurrentPage(int page) {
+        this.currentPage = Math.max(0, Math.min(page, this.installedCapacityUpgrades));
+    }
+
+    /**
+     * Get the starting slot index for the current page.
+     */
+    public int getCurrentPageStartSlot() {
+        return this.currentPage * SLOTS_PER_PAGE;
+    }
+
+    /**
+     * Handle capacity reduction by clearing filters and returning/dropping items from removed pages.
+     */
+    private void handleCapacityReduction(int oldCount, int newCount) {
+        int newTotalSlots = (1 + newCount) * SLOTS_PER_PAGE;
+        int oldTotalSlots = (1 + oldCount) * SLOTS_PER_PAGE;
+
+        // Process slots that are being removed (from newTotalSlots to oldTotalSlots-1)
+        for (int slot = newTotalSlots; slot < oldTotalSlots && slot < this.storageInventory.getSlots(); slot++) {
+            // Clear the filter
+            if (slot < this.filterInventory.getSlots()) {
+                this.filterInventory.setStackInSlot(slot, ItemStack.EMPTY);
+            }
+
+            // Return items to network or drop on floor
+            ItemStack items = this.storageInventory.getStackInSlot(slot);
+            if (!items.isEmpty()) {
+                ItemStack remaining = returnItemsToNetwork(items);
+                if (!remaining.isEmpty()) dropItemsOnGround(remaining);
+                this.storageInventory.setStackInSlot(slot, ItemStack.EMPTY);
+            }
+        }
+
+        this.refreshFilterMap();
+    }
+
+    /**
+     * Try to return items to the ME network.
+     * @return Items that could not be inserted (empty if all inserted)
+     */
+    private ItemStack returnItemsToNetwork(ItemStack stack) {
+        if (stack.isEmpty()) return ItemStack.EMPTY;
+
+        try {
+            IStorageGrid storage = this.getProxy().getStorage();
+            IMEInventory<IAEItemStack> itemStorage = storage.getInventory(
+                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
+            );
+
+            IAEItemStack toInsert = AEItemStack.fromItemStack(stack);
+            if (toInsert == null) return stack;
+
+            IAEItemStack notInserted = itemStorage.injectItems(toInsert, Actionable.MODULATE, this.actionSource);
+            if (notInserted == null || notInserted.getStackSize() == 0) return ItemStack.EMPTY;
+
+            return notInserted.createItemStack();
+        } catch (GridAccessException e) {
+            return stack;
+        }
+    }
+
+    /**
+     * Drop items on the ground at the tile's position.
+     */
+    private void dropItemsOnGround(ItemStack stack) {
+        if (stack.isEmpty() || this.world == null) return;
+
+        net.minecraft.entity.item.EntityItem entity = new net.minecraft.entity.item.EntityItem(
+            this.world,
+            this.pos.getX() + 0.5,
+            this.pos.getY() + 0.5,
+            this.pos.getZ() + 0.5,
+            stack
+        );
+        this.world.spawnEntity(entity);
+    }
+
+    /**
      * Check if an item is a valid upgrade for this interface.
-     * Only accepts Overflow Card and Trash Unselected Card, max 1 of each.
+     * Accepts Overflow Card, Trash Unselected Card (max 1 each), and Capacity Card (max 4).
      */
     public boolean isValidUpgrade(ItemStack stack) {
         if (stack.isEmpty()) return false;
@@ -258,7 +401,32 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
         if (stack.getItem() instanceof ItemOverflowCard) return !hasOverflowUpgrade();
         if (stack.getItem() instanceof ItemTrashUnselectedCard) return !hasTrashUnselectedUpgrade();
 
+        // Check for AE2 capacity card
+        if (stack.getItem() instanceof IUpgradeModule) {
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == Upgrades.CAPACITY) {
+                return countCapacityUpgrades() < MAX_CAPACITY_CARDS;
+            }
+        }
+
         return false;
+    }
+
+    /**
+     * Clear filter slots only where the corresponding storage slot is empty.
+     * This prevents orphaning items in the import interface.
+     */
+    @Override
+    public void clearFilters() {
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            // Only clear filter if the corresponding storage slot is empty
+            if (i >= STORAGE_SLOTS || this.storageInventory.getStackInSlot(i).isEmpty()) {
+                this.filterInventory.setStackInSlot(i, ItemStack.EMPTY);
+            }
+        }
+
+        this.refreshFilterMap();
+        this.markDirty();
     }
 
     /**
@@ -341,11 +509,79 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
             this.setPollingRate(compound.getInteger("pollingRate"), player);
         }
 
-        // Load filter inventory when memory card has filters
+        // Merge filter inventory from memory card instead of replacing
         if (compound.hasKey("filter")) {
-            this.filterInventory.readFromNBT(compound, "filter");
-            this.refreshFilterMap();
+            mergeFiltersFromNBT(compound, "filter", player);
         }
+    }
+
+    /**
+     * Merge filters from NBT into the current filter inventory.
+     * Only adds filters to empty slots; skips filters that already exist.
+     * Reports to the player which filters couldn't be added if slots were full.
+     *
+     * @param data The NBT compound containing the filter data
+     * @param name The key name for the filter tag list
+     * @param player The player to notify about results, or null to skip notification
+     */
+    private void mergeFiltersFromNBT(NBTTagCompound data, String name, @Nullable EntityPlayer player) {
+        if (!data.hasKey(name)) return;
+
+        // Create a temporary inventory to load the source filters
+        AppEngInternalInventory sourceFilters = new AppEngInternalInventory(null, FILTER_SLOTS, 1);
+        sourceFilters.readFromNBT(data, name);
+
+        List<ItemStack> skippedFilters = new ArrayList<>();
+
+        for (int i = 0; i < sourceFilters.getSlots(); i++) {
+            ItemStack sourceFilter = sourceFilters.getStackInSlot(i);
+            if (sourceFilter.isEmpty()) continue;
+
+            ItemStackKey sourceKey = ItemStackKey.of(sourceFilter);
+            if (sourceKey == null) continue;
+
+            // Skip if this filter already exists in the target
+            if (this.filterToSlotMap.containsKey(sourceKey)) continue;
+
+            // Find an empty slot to add this filter
+            int targetSlot = findEmptyFilterSlot();
+            if (targetSlot < 0) {
+                // No empty slots - track this filter as skipped
+                skippedFilters.add(sourceFilter.copy());
+                continue;
+            }
+
+            // Add the filter to the empty slot
+            this.filterInventory.setStackInSlot(targetSlot, sourceFilter.copy());
+            this.filterToSlotMap.put(sourceKey, targetSlot);
+        }
+
+        this.refreshFilterMap();
+
+        // Notify the player about skipped filters
+        if (player != null && !skippedFilters.isEmpty()) {
+            String filters = skippedFilters.stream()
+                .map(ItemStack::getDisplayName)
+                .reduce((a, b) -> a + "\n- " + b)
+                .orElse("");
+            player.sendMessage(new TextComponentTranslation(
+                "message.cells.import_interface.filters_not_added",
+                skippedFilters.size(),
+                filters
+            ));
+        }
+    }
+
+    /**
+     * Find the first empty filter slot.
+     * @return The slot index, or -1 if no empty slots are available
+     */
+    private int findEmptyFilterSlot() {
+        for (int i = 0; i < this.filterInventory.getSlots(); i++) {
+            if (this.filterInventory.getStackInSlot(i).isEmpty()) return i;
+        }
+
+        return -1;
     }
 
     @Override

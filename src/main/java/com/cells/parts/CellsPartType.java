@@ -24,7 +24,9 @@ import com.cells.Tags;
  */
 public enum CellsPartType {
     IMPORT_INTERFACE("import_interface", PartImportInterface.class),
-    FLUID_IMPORT_INTERFACE("import_fluid_interface", PartFluidImportInterface.class);
+    FLUID_IMPORT_INTERFACE("import_fluid_interface", PartFluidImportInterface.class),
+    EXPORT_INTERFACE("export_interface", PartExportInterface.class),
+    FLUID_EXPORT_INTERFACE("export_fluid_interface", PartFluidExportInterface.class);
 
     private final String id;
     private final Class<? extends IPart> partClass;

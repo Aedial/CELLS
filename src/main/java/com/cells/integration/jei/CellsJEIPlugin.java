@@ -1,5 +1,6 @@
 package com.cells.integration.jei;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
@@ -31,7 +32,7 @@ public class CellsJEIPlugin implements IModPlugin {
     private static IJeiRuntime jeiRuntime = null;
 
     @Override
-    public void register(IModRegistry registry) {
+    public void register(@Nonnull IModRegistry registry) {
         // Register configurable cell assembly recipe plugin
         if (CellsConfig.enableConfigurableCells && ItemRegistry.CONFIGURABLE_CELL != null) {
             registry.addRecipeRegistryPlugin(new ConfigurableCellRegistryPlugin());
@@ -39,7 +40,7 @@ public class CellsJEIPlugin implements IModPlugin {
     }
 
     @Override
-    public void onRuntimeAvailable(IJeiRuntime runtime) {
+    public void onRuntimeAvailable(@Nonnull IJeiRuntime runtime) {
         jeiRuntime = runtime;
     }
 
