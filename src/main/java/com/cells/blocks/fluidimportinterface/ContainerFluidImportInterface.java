@@ -53,6 +53,12 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
     @GuiSync(1)
     public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
 
+    @GuiSync(2)
+    public int currentPage = 0;
+
+    @GuiSync(3)
+    public int totalPages = 1;
+
     /**
      * Constructor for tile entity.
      */
@@ -105,6 +111,30 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
 
         if (this.maxSlotSize != this.host.getMaxSlotSize()) this.maxSlotSize = this.host.getMaxSlotSize();
         if (this.pollingRate != this.host.getPollingRate()) this.pollingRate = this.host.getPollingRate();
+
+        // Sync pagination state
+        if (this.currentPage != this.host.getCurrentPage()) this.currentPage = this.host.getCurrentPage();
+        if (this.totalPages != this.host.getTotalPages()) this.totalPages = this.host.getTotalPages();
+    }
+
+    /**
+     * Sets the current page for viewing, clamped to valid range.
+     */
+    public void setCurrentPage(int page) {
+        int maxPage = this.totalPages - 1;
+        if (page < 0) page = 0;
+        if (page > maxPage) page = maxPage;
+
+        this.currentPage = page;
+        this.host.setCurrentPage(page);
+    }
+
+    public void nextPage() {
+        if (this.currentPage < this.totalPages - 1) setCurrentPage(this.currentPage + 1);
+    }
+
+    public void prevPage() {
+        if (this.currentPage > 0) setCurrentPage(this.currentPage - 1);
     }
 
     @Override
@@ -194,6 +224,18 @@ public class ContainerFluidImportInterface extends AEBaseContainer implements IF
 
     public void setPollingRate(int ticks) {
         this.host.setPollingRate(ticks);
+    }
+
+    /**
+     * Clear all filters that don't have fluids in their tanks.
+     * For Fluid Import Interface, we cannot clear filters where fluids exist
+     * because that would orphan the fluids.
+     */
+    public void clearFilters() {
+        for (int i = 0; i < TileFluidImportInterface.FILTER_SLOTS; i++) {
+            // Only clear filter if tank is empty
+            if (this.host.isTankEmpty(i)) this.host.setFilterFluid(i, null);
+        }
     }
 
     @Override

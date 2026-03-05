@@ -55,6 +55,7 @@ import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
+import appeng.api.implementations.items.IUpgradeModule;
 import appeng.core.settings.TickRates;
 import appeng.fluids.util.AEFluidInventory;
 import appeng.fluids.util.AEFluidStack;
@@ -69,6 +70,7 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
+import appeng.util.item.AEItemStack;
 
 import com.cells.Tags;
 import com.cells.blocks.fluidimportinterface.IFluidImportInterfaceInventoryHost;
@@ -98,16 +100,22 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
     @PartModels
     public static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/import_fluid_interface_has_channel"));
 
-    public static final int FILTER_SLOTS = 36;
-    public static final int TANK_SLOTS = 36;
+    // Pagination constants
+    public static final int SLOTS_PER_PAGE = 36;
+    public static final int MAX_CAPACITY_CARDS = 4;
+    public static final int MAX_PAGES = MAX_CAPACITY_CARDS + 1;  // Base page + 4 capacity card pages
+
+    // Total slots/tanks = base page (36) + 4 capacity pages (36 each) = 180
+    public static final int FILTER_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
+    public static final int TANK_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
     public static final int TOTAL_SLOTS = Math.min(FILTER_SLOTS, TANK_SLOTS);
     public static final int UPGRADE_SLOTS = 4;
     public static final int DEFAULT_MAX_SLOT_SIZE = 16000; // mB (16 buckets)
 
-    // Filter inventory - fluid filters
+    // Filter inventory - fluid filters (sized for max capacity)
     private final AEFluidInventory filterInventory = new AEFluidInventory(this, FILTER_SLOTS, 1);
 
-    // Internal fluid storage
+    // Internal fluid storage (sized for max capacity)
     private final FluidStack[] fluidTanks = new FluidStack[TANK_SLOTS];
 
     // Upgrade inventory
@@ -123,6 +131,10 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
     // Upgrade cache
     private boolean installedOverflowUpgrade = false;
     private boolean installedTrashUnselectedUpgrade = false;
+    private int installedCapacityUpgrades = 0;
+
+    // Pagination state
+    private int currentPage = 0;
 
     // Filter mapping
     final Map<FluidStackKey, Integer> filterToSlotMap = new HashMap<>();
@@ -527,6 +539,34 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
         this.filterInventory.setFluidInSlot(slot, fluid);
     }
 
+    // Pagination methods (IFluidImportInterfaceInventoryHost)
+
+    @Override
+    public int getInstalledCapacityUpgrades() {
+        return this.installedCapacityUpgrades;
+    }
+
+    @Override
+    public int getTotalPages() {
+        return 1 + this.installedCapacityUpgrades;
+    }
+
+    @Override
+    public int getCurrentPage() {
+        return this.currentPage;
+    }
+
+    @Override
+    public void setCurrentPage(int page) {
+        int maxPage = getTotalPages() - 1;
+        this.currentPage = Math.max(0, Math.min(page, maxPage));
+    }
+
+    @Override
+    public int getCurrentPageStartSlot() {
+        return this.currentPage * SLOTS_PER_PAGE;
+    }
+
     public int insertFluidIntoTank(int slot, FluidStack fluid) {
         if (slot < 0 || slot >= TANK_SLOTS) return 0;
         if (fluid == null || fluid.amount <= 0) return 0;
@@ -639,6 +679,89 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
     public void refreshUpgrades() {
         this.installedOverflowUpgrade = hasOverflowUpgrade();
         this.installedTrashUnselectedUpgrade = hasTrashUnselectedUpgrade();
+
+        int oldCapacity = this.installedCapacityUpgrades;
+        this.installedCapacityUpgrades = countCapacityUpgrades();
+
+        // Handle capacity reduction: return fluids and clear filters from removed pages
+        if (this.installedCapacityUpgrades < oldCapacity) {
+            handleCapacityReduction(oldCapacity, this.installedCapacityUpgrades);
+        }
+    }
+
+    /**
+     * Counts the number of AE2 capacity cards installed.
+     */
+    private int countCapacityUpgrades() {
+        int count = 0;
+
+        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+
+            if (stack.getItem() instanceof IUpgradeModule) {
+                IUpgradeModule module = (IUpgradeModule) stack.getItem();
+                if (module.getType(stack) == appeng.api.config.Upgrades.CAPACITY) {
+                    count += stack.getCount();
+                }
+            }
+        }
+
+        return Math.min(count, MAX_CAPACITY_CARDS);
+    }
+
+    /**
+     * Handles capacity reduction when capacity cards are removed.
+     * Returns fluids to network, clears filters on removed pages.
+     */
+    private void handleCapacityReduction(int oldCapacity, int newCapacity) {
+        int oldMaxSlot = (oldCapacity + 1) * SLOTS_PER_PAGE;
+        int newMaxSlot = (newCapacity + 1) * SLOTS_PER_PAGE;
+
+        // Process slots that are being removed
+        for (int i = newMaxSlot; i < oldMaxSlot; i++) {
+            // Return fluid to network
+            FluidStack fluid = this.fluidTanks[i];
+            if (fluid != null && fluid.amount > 0) {
+                returnFluidToNetwork(fluid);
+                this.fluidTanks[i] = null;
+            }
+
+            // Clear the filter
+            this.filterInventory.setFluidInSlot(i, null);
+        }
+
+        // Clamp current page to valid range
+        int maxPage = newCapacity;
+        if (this.currentPage > maxPage) this.currentPage = maxPage;
+
+        this.refreshFilterMap();
+    }
+
+    /**
+     * Attempts to return fluid to the AE2 network.
+     * If unable to return, fluid is voided.
+     */
+    private void returnFluidToNetwork(FluidStack fluid) {
+        if (fluid == null || fluid.amount <= 0) return;
+
+        try {
+            IStorageGrid storage = this.getProxy().getStorage();
+            IMEInventory<IAEFluidStack> fluidStorage = storage.getInventory(
+                AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class)
+            );
+
+            IAEFluidStack toInsert = AEFluidStack.fromFluidStack(fluid);
+            IAEFluidStack remaining = fluidStorage.injectItems(toInsert, Actionable.MODULATE, this.actionSource);
+
+            // Any remainder is voided (no good way to drop fluid items)
+            if (remaining != null && remaining.getStackSize() > 0) {
+                // TODO: how do we handle it
+                // Log or silently void - fluids can't be dropped as items easily
+            }
+        } catch (GridAccessException e) {
+            // Network unavailable, fluid is voided
+        }
     }
 
     public void refreshFilterMap() {
@@ -684,7 +807,33 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
         if (stack.getItem() instanceof ItemOverflowCard) return !hasOverflowUpgrade();
         if (stack.getItem() instanceof ItemTrashUnselectedCard) return !hasTrashUnselectedUpgrade();
 
+        // Accept AE2 capacity cards (max 4)
+        if (stack.getItem() instanceof IUpgradeModule) {
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == appeng.api.config.Upgrades.CAPACITY) {
+                return countCapacityUpgrades() < MAX_CAPACITY_CARDS;
+            }
+        }
+
         return false;
+    }
+
+    /**
+     * Clear filter slots only where the corresponding tank is empty.
+     * This prevents orphaning fluids in the import interface.
+     */
+    @Override
+    public void clearFilters() {
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            // Only clear filter if the corresponding tank is empty
+            if (i >= TANK_SLOTS || this.fluidTanks[i] == null || this.fluidTanks[i].amount <= 0) {
+                this.filterInventory.setFluidInSlot(i, null);
+            }
+        }
+
+        this.refreshFilterMap();
+        this.getHost().markForSave();
+        this.getHost().markForUpdate();
     }
 
     private boolean hasWorkToDo() {

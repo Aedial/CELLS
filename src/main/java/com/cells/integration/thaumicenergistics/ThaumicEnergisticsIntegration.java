@@ -52,7 +52,6 @@ public final class ThaumicEnergisticsIntegration {
      * Get the cell inventory handler for an essentia cell.
      * Returns null if Thaumic Energistics is not loaded.
      */
-    @SuppressWarnings("unchecked")
     public static <T extends IAEStack<T>> ICellInventoryHandler<T> getCellInventory(
             ItemStack is, ISaveProvider container, ComponentInfo info, IStorageChannel<T> channel) {
 

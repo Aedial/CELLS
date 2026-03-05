@@ -105,6 +105,37 @@ public interface IFluidImportInterfaceInventoryHost extends IImportInterfaceHost
     void refreshFilterMap();
 
     /**
+     * Clear all filter slots. For Import interfaces, only clears slots where
+     * the corresponding tank is empty (to prevent orphaning fluids).
+     */
+    void clearFilters();
+
+    /**
+     * @return Number of capacity upgrades currently installed.
+     */
+    int getInstalledCapacityUpgrades();
+
+    /**
+     * @return Total number of pages (1 base + 1 per capacity card).
+     */
+    int getTotalPages();
+
+    /**
+     * @return Current page index (0-based).
+     */
+    int getCurrentPage();
+
+    /**
+     * Set the current page index, clamped to valid range.
+     */
+    void setCurrentPage(int page);
+
+    /**
+     * @return The starting slot index for the current page.
+     */
+    int getCurrentPageStartSlot();
+
+    /**
     * @return The settings of this host as an NBTTagCompound, for saving to memory cards or other uses.
     */
     public NBTTagCompound downloadSettings(SettingsFrom from);

@@ -22,10 +22,20 @@ import com.cells.blocks.importinterface.TileImportInterface;
 import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
 import com.cells.blocks.fluidimportinterface.GuiFluidImportInterface;
 import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
+import com.cells.blocks.exportinterface.ContainerExportInterface;
+import com.cells.blocks.exportinterface.GuiExportInterface;
+import com.cells.blocks.exportinterface.IExportInterfaceInventoryHost;
+import com.cells.blocks.exportinterface.TileExportInterface;
+import com.cells.blocks.fluidexportinterface.ContainerFluidExportInterface;
+import com.cells.blocks.fluidexportinterface.GuiFluidExportInterface;
+import com.cells.blocks.fluidexportinterface.IFluidExportInterfaceInventoryHost;
+import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
 import com.cells.cells.configurable.ContainerConfigurableCell;
 import com.cells.cells.configurable.GuiConfigurableCell;
 import com.cells.parts.PartImportInterface;
 import com.cells.parts.PartFluidImportInterface;
+import com.cells.parts.PartExportInterface;
+import com.cells.parts.PartFluidExportInterface;
 
 import net.minecraft.util.EnumHand;
 
@@ -47,12 +57,16 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_POLLING_RATE = 2;
     public static final int GUI_CONFIGURABLE_CELL = 3;
     public static final int GUI_FLUID_IMPORT_INTERFACE = 4;
+    public static final int GUI_EXPORT_INTERFACE = 5;
+    public static final int GUI_FLUID_EXPORT_INTERFACE = 6;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
     public static final int GUI_PART_FLUID_IMPORT_INTERFACE = 101;
     public static final int GUI_PART_MAX_SLOT_SIZE = 102;
     public static final int GUI_PART_POLLING_RATE = 103;
+    public static final int GUI_PART_EXPORT_INTERFACE = 104;
+    public static final int GUI_PART_FLUID_EXPORT_INTERFACE = 105;
 
     /**
      * Encode a part GUI ID with side information.
@@ -148,6 +162,18 @@ public class CellsGuiHandler implements IGuiHandler {
                         return new ContainerPollingRate(player.inventory, (IImportInterfaceHost) part);
                     }
                     break;
+
+                case GUI_PART_EXPORT_INTERFACE:
+                    if (part instanceof PartExportInterface) {
+                        return new ContainerExportInterface(player.inventory, part);
+                    }
+                    break;
+
+                case GUI_PART_FLUID_EXPORT_INTERFACE:
+                    if (part instanceof PartFluidExportInterface) {
+                        return new ContainerFluidExportInterface(player.inventory, part);
+                    }
+                    break;
             }
 
             return null;
@@ -181,6 +207,18 @@ public class CellsGuiHandler implements IGuiHandler {
 
             case GUI_CONFIGURABLE_CELL:
                 return new ContainerConfigurableCell(player.inventory, EnumHand.values()[x]);
+
+            case GUI_EXPORT_INTERFACE:
+                if (tile instanceof TileExportInterface) {
+                    return new ContainerExportInterface(player.inventory, (TileExportInterface) tile);
+                }
+                break;
+
+            case GUI_FLUID_EXPORT_INTERFACE:
+                if (tile instanceof TileFluidExportInterface) {
+                    return new ContainerFluidExportInterface(player.inventory, (TileFluidExportInterface) tile);
+                }
+                break;
         }
 
         return null;
@@ -220,6 +258,18 @@ public class CellsGuiHandler implements IGuiHandler {
                         return new GuiPollingRate(player.inventory, (IImportInterfaceHost) part);
                     }
                     break;
+
+                case GUI_PART_EXPORT_INTERFACE:
+                    if (part instanceof PartExportInterface) {
+                        return new GuiExportInterface(player.inventory, part);
+                    }
+                    break;
+
+                case GUI_PART_FLUID_EXPORT_INTERFACE:
+                    if (part instanceof PartFluidExportInterface) {
+                        return new GuiFluidExportInterface(player.inventory, part);
+                    }
+                    break;
             }
 
             return null;
@@ -253,6 +303,18 @@ public class CellsGuiHandler implements IGuiHandler {
 
             case GUI_CONFIGURABLE_CELL:
                 return new GuiConfigurableCell(player.inventory, EnumHand.values()[x]);
+
+            case GUI_EXPORT_INTERFACE:
+                if (tile instanceof TileExportInterface) {
+                    return new GuiExportInterface(player.inventory, (TileExportInterface) tile);
+                }
+                break;
+
+            case GUI_FLUID_EXPORT_INTERFACE:
+                if (tile instanceof TileFluidExportInterface) {
+                    return new GuiFluidExportInterface(player.inventory, (TileFluidExportInterface) tile);
+                }
+                break;
         }
 
         return null;

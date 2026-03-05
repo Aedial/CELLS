@@ -8,6 +8,24 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.1] - 2026-03-05
+### Added
+- Add Oredict card support for Compacting Cells. The cell will convert the items into the partitioned item based on the Oredict entry.
+
+### Fixed
+- Fix item filters not being able to be set on page 2+.
+
+### Changed
+- Remove NBT size for Compacting Cells, as they shouldn't have any issue with large NBT sizes, storing only 1 "real" item.
+
+
+## [0.5.0] - 2026-03-04
+### Added
+- Add Export Interfaces: same as Import Interfaces but for exposing items/fluids from the ME network to outside piping. They have the same filtering and upgrade capabilities as Import Interfaces, but work in reverse.
+- Add clear button to Import/Export interfaces. Clears the current filters (if possible).
+- Add Capacity Card support to Import/Export Interfaces. Each capacity card adds a page of 36 additional filter/storage slots (up to 4 cards for 5 pages total = 180 slots). Removing a capacity card returns items from deleted pages to the network and clears those filters.
+
+
 ## [0.4.11] - 2026-03-02
 ### Added
 - Add additional Memory Card keybind to include filters when saving a card.

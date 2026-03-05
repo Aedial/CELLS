@@ -16,6 +16,8 @@ import com.cells.ItemRegistry;
 import com.cells.cells.configurable.ComponentHelper;
 import com.cells.cells.configurable.ComponentInfo;
 
+import javax.annotation.Nonnull;
+
 
 /**
  * JEI plugin that dynamically generates configurable cell assembly recipes.
@@ -30,7 +32,8 @@ import com.cells.cells.configurable.ComponentInfo;
 public class ConfigurableCellRegistryPlugin implements IRecipeRegistryPlugin {
 
     @Override
-    public <V> List<String> getRecipeCategoryUids(IFocus<V> focus) {
+    @Nonnull
+    public <V> List<String> getRecipeCategoryUids(@Nonnull IFocus<V> focus) {
         if (ItemRegistry.CONFIGURABLE_CELL == null) return Collections.emptyList();
         if (!(focus.getValue() instanceof ItemStack)) return Collections.emptyList();
 
@@ -64,7 +67,9 @@ public class ConfigurableCellRegistryPlugin implements IRecipeRegistryPlugin {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <T extends IRecipeWrapper, V> List<T> getRecipeWrappers(IRecipeCategory<T> recipeCategory, IFocus<V> focus) {
+    @Nonnull
+    public <T extends IRecipeWrapper, V> List<T> getRecipeWrappers(IRecipeCategory<T> recipeCategory,
+                                                                   @Nonnull IFocus<V> focus) {
         if (!VanillaRecipeCategoryUid.CRAFTING.equals(recipeCategory.getUid())) {
             return Collections.emptyList();
         }
@@ -110,7 +115,8 @@ public class ConfigurableCellRegistryPlugin implements IRecipeRegistryPlugin {
     }
 
     @Override
-    public <T extends IRecipeWrapper> List<T> getRecipeWrappers(IRecipeCategory<T> recipeCategory) {
+    @Nonnull
+    public <T extends IRecipeWrapper> List<T> getRecipeWrappers(@Nonnull IRecipeCategory<T> recipeCategory) {
         // This is called to get all recipes for the category (e.g. when browsing)
         // We don't return anything here to avoid cluttering the crafting category
         // Users can still find recipes by searching for components or cells

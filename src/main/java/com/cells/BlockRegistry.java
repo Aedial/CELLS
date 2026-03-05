@@ -17,34 +17,50 @@ import com.cells.blocks.importinterface.BlockImportInterface;
 import com.cells.blocks.importinterface.TileImportInterface;
 import com.cells.blocks.fluidimportinterface.BlockFluidImportInterface;
 import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
+import com.cells.blocks.exportinterface.BlockExportInterface;
+import com.cells.blocks.exportinterface.TileExportInterface;
+import com.cells.blocks.fluidexportinterface.BlockFluidExportInterface;
+import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
 
 
 public class BlockRegistry {
 
     public static BlockImportInterface IMPORT_INTERFACE;
     public static BlockFluidImportInterface FLUID_IMPORT_INTERFACE;
+    public static BlockExportInterface EXPORT_INTERFACE;
+    public static BlockFluidExportInterface FLUID_EXPORT_INTERFACE;
 
     public static void init() {
         IMPORT_INTERFACE = new BlockImportInterface();
         FLUID_IMPORT_INTERFACE = new BlockFluidImportInterface();
+        EXPORT_INTERFACE = new BlockExportInterface();
+        FLUID_EXPORT_INTERFACE = new BlockFluidExportInterface();
     }
 
     @SubscribeEvent
     public void registerBlocks(RegistryEvent.Register<Block> event) {
         event.getRegistry().register(IMPORT_INTERFACE);
         event.getRegistry().register(FLUID_IMPORT_INTERFACE);
+        event.getRegistry().register(EXPORT_INTERFACE);
+        event.getRegistry().register(FLUID_EXPORT_INTERFACE);
 
         // Register tile entities
         GameRegistry.registerTileEntity(TileImportInterface.class,
             new ResourceLocation(Tags.MODID, "import_interface"));
         GameRegistry.registerTileEntity(TileFluidImportInterface.class,
             new ResourceLocation(Tags.MODID, "import_fluid_interface"));
+        GameRegistry.registerTileEntity(TileExportInterface.class,
+            new ResourceLocation(Tags.MODID, "export_interface"));
+        GameRegistry.registerTileEntity(TileFluidExportInterface.class,
+            new ResourceLocation(Tags.MODID, "fluid_export_interface"));
     }
 
     @SubscribeEvent
     public void registerItems(RegistryEvent.Register<Item> event) {
         event.getRegistry().register(createItemBlock(IMPORT_INTERFACE));
         event.getRegistry().register(createItemBlock(FLUID_IMPORT_INTERFACE));
+        event.getRegistry().register(createItemBlock(EXPORT_INTERFACE));
+        event.getRegistry().register(createItemBlock(FLUID_EXPORT_INTERFACE));
     }
 
     private ItemBlock createItemBlock(Block block) {
@@ -59,6 +75,8 @@ public class BlockRegistry {
     public void registerModels(ModelRegistryEvent event) {
         registerBlockModel(IMPORT_INTERFACE);
         registerBlockModel(FLUID_IMPORT_INTERFACE);
+        registerBlockModel(EXPORT_INTERFACE);
+        registerBlockModel(FLUID_EXPORT_INTERFACE);
     }
 
     @SideOnly(Side.CLIENT)

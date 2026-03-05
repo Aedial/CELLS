@@ -30,13 +30,17 @@ public class ImportInterfaceControlsHelper {
      * @param isFluid Whether this is for the fluid interface (changes some text)
      * @return List of formatted help lines
      */
-    public static List<String> getHelpLines(boolean isFluid) {
+    public static List<String> getHelpLines(boolean isFluid, boolean cardsHelp) {
         List<String> lines = new ArrayList<>();
 
         lines.add(I18n.format("gui.cells.controls.use_settings"));
         lines.add("");
-        lines.add(I18n.format("gui.cells.controls.use_cards"));
-        lines.add("");
+
+        lines.add(I18n.format("gui.cells.controls.capacity_cards"));
+        if (cardsHelp) {
+            lines.add(I18n.format("gui.cells.controls.use_cards"));
+            lines.add("");
+        }
 
         // Memory card section
         lines.add(I18n.format("gui.cells.controls.memory_card_sneak"));
@@ -44,8 +48,7 @@ public class ImportInterfaceControlsHelper {
         String filterKey = KeyBindings.MEMORY_CARD_INCLUDE_FILTERS.isBound()
             ? KeyBindings.MEMORY_CARD_INCLUDE_FILTERS.getDisplayName()
             : I18n.format("gui.cells.controls.key_not_set");
-        // FIXME: re-enable when I get the f*** card working properly
-        // lines.add(I18n.format("gui.cells.controls.memory_card_filter", filterKey));
+        lines.add(I18n.format("gui.cells.controls.memory_card_filter", filterKey));
 
         lines.add("");
 
@@ -76,9 +79,10 @@ public class ImportInterfaceControlsHelper {
             int guiLeft,
             int guiTop,
             int guiHeight,
-            boolean isFluid) {
+            boolean isFluid,
+            boolean cardsHelp) {
 
-        List<String> lines = getHelpLines(isFluid);
+        List<String> lines = getHelpLines(isFluid, cardsHelp);
         if (lines.isEmpty()) return;
 
         // Calculate panel width

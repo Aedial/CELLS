@@ -1,5 +1,7 @@
 package com.cells.blocks.fluidimportinterface;
 
+import java.util.function.IntSupplier;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.renderer.GlStateManager;
@@ -27,7 +29,9 @@ import appeng.helpers.InventoryAction;
  * <p>
  * This class integrates with AE2's guiSlots system for automatic rendering,
  * tooltip handling, and hover highlighting - no custom rendering code needed in the GUI.
- * </p>
+ * <p>
+ * Supports pagination via a page offset supplier, allowing the displayed tank to map
+ * to a different actual tank index based on the current page.
  */
 public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
 
@@ -35,14 +39,43 @@ public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
 
     private final IFluidImportInterfaceInventoryHost host;
     private final ContainerFluidImportInterface container;
-    private final int tankIndex;
+    private final int displayTankIndex;  // The tank index displayed in the GUI (0-35)
+    private final IntSupplier pageOffsetSupplier;  // Supplies the current page offset
     private FontRenderer fontRenderer;
 
-    public GuiFluidImportTankSlot(IFluidImportInterfaceInventoryHost host, ContainerFluidImportInterface container, int tankIndex, int id, int x, int y) {
+    /**
+     * Create a tank slot with pagination support.
+     *
+     * @param host The fluid interface host
+     * @param container The container for synced config values
+     * @param displayTankIndex The display tank index (0-35 for one page)
+     * @param id The slot ID for the GUI
+     * @param x X position in GUI
+     * @param y Y position in GUI
+     * @param pageOffsetSupplier Supplier that returns the current page's starting slot index
+     */
+    public GuiFluidImportTankSlot(IFluidImportInterfaceInventoryHost host, ContainerFluidImportInterface container,
+                                   int displayTankIndex, int id, int x, int y, IntSupplier pageOffsetSupplier) {
         super(id, x, y);
         this.host = host;
         this.container = container;
-        this.tankIndex = tankIndex;
+        this.displayTankIndex = displayTankIndex;
+        this.pageOffsetSupplier = pageOffsetSupplier;
+    }
+
+    /**
+     * Create a tank slot without pagination (legacy support, page 0 only).
+     */
+    public GuiFluidImportTankSlot(IFluidImportInterfaceInventoryHost host, ContainerFluidImportInterface container,
+                                   int tankIndex, int id, int x, int y) {
+        this(host, container, tankIndex, id, x, y, () -> 0);
+    }
+
+    /**
+     * Get the actual tank index in the storage (display tank + page offset).
+     */
+    public int getTankIndex() {
+        return this.displayTankIndex + this.pageOffsetSupplier.getAsInt();
     }
 
     /**
@@ -55,7 +88,7 @@ public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
 
     @Override
     public void drawContent(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
-        FluidStack fluid = this.host.getFluidInTank(this.tankIndex);
+        FluidStack fluid = this.host.getFluidInTank(this.getTankIndex());
         if (fluid == null || fluid.amount <= 0) return;
 
         Fluid fluidType = fluid.getFluid();
@@ -88,7 +121,7 @@ public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
 
     @Override
     public String getMessage() {
-        FluidStack fluid = this.host.getFluidInTank(this.tankIndex);
+        FluidStack fluid = this.host.getFluidInTank(this.getTankIndex());
         if (fluid == null || fluid.amount <= 0) return null;
 
         // Format: "Fluid Name\n1,234 / 16,000 mB"
@@ -133,11 +166,11 @@ public class GuiFluidImportTankSlot extends GuiCustomSlot implements ITooltip {
 
         // Send EMPTY_ITEM action to the server to empty the container into this tank slot
         NetworkHandler.instance().sendToServer(
-            new PacketInventoryAction(InventoryAction.EMPTY_ITEM, this.tankIndex, this.getId())
+            new PacketInventoryAction(InventoryAction.EMPTY_ITEM, this.getTankIndex(), this.getId())
         );
     }
 
     public FluidStack getFluidStack() {
-        return this.host.getFluidInTank(this.tankIndex);
+        return this.host.getFluidInTank(this.getTankIndex());
     }
 }

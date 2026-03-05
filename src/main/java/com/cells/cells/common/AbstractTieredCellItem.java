@@ -135,7 +135,8 @@ public abstract class AbstractTieredCellItem extends Item implements ICellWorkbe
 
     @Override
     @Nonnull
-    public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, EntityPlayer player, @Nonnull EnumHand hand) {
+    public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, @Nonnull EntityPlayer player,
+                                                    @Nonnull EnumHand hand) {
         return CellDisassemblyHelper.handleRightClick(world, player, hand,
                 stack -> disassembleCell(stack, player));
     }

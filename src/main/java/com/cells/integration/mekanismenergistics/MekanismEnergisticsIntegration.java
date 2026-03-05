@@ -52,7 +52,6 @@ public final class MekanismEnergisticsIntegration {
      * Get the cell inventory handler for a gas cell.
      * Returns null if Mekanism Energistics is not loaded.
      */
-    @SuppressWarnings("unchecked")
     public static <T extends IAEStack<T>> ICellInventoryHandler<T> getCellInventory(
             ItemStack is, ISaveProvider container, ComponentInfo info, IStorageChannel<T> channel) {
 

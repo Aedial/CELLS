@@ -36,9 +36,13 @@ import com.cells.blocks.importinterface.TileImportInterface;
 import com.cells.client.KeyBindings;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.gui.DynamicTooltipTabButton;
+import com.cells.gui.GuiClearFiltersButton;
+import com.cells.gui.GuiPageNavigation;
 import com.cells.gui.ImportInterfaceControlsHelper;
 import com.cells.gui.QuickAddHelper;
 import com.cells.network.CellsNetworkHandler;
+import com.cells.network.packets.PacketChangePage;
+import com.cells.network.packets.PacketClearFilters;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketQuickAddFluidFilter;
 
@@ -60,6 +64,8 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
     private final IFluidImportInterfaceInventoryHost host;
     private DynamicTooltipTabButton configButton;
     private DynamicTooltipTabButton pollingRateButton;
+    private GuiClearFiltersButton clearFiltersButton;
+    private GuiPageNavigation pageNavigation;
     // Use Object key type to avoid JEI class reference in field signature (JEI is optional)
     private final Map<Object, Object> mapTargetSlot = new HashMap<>();
 
@@ -89,16 +95,23 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
     public void initGui() {
         super.initGui();
 
+        // Slots per page for pagination (4 rows x 9 cols)
+        final int SLOTS_PER_PAGE = 36;
+
         // Add fluid filter slots (fluid-based, not item-based)
+        // Slots use page offset supplier for pagination
         for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 9; col++) {
-                int slotIndex = row * 9 + col;
-                if (slotIndex >= TileFluidImportInterface.FILTER_SLOTS) break;
+                int displaySlot = row * 9 + col;
+                if (displaySlot >= SLOTS_PER_PAGE) break;
 
                 int xPos = 8 + col * 18;
                 int filterY = 25 + row * 36;  // Filter slot position
 
-                GuiFluidFilterSlot filterSlot = new GuiFluidFilterSlot(this.host, slotIndex, xPos, filterY);
+                GuiFluidFilterSlot filterSlot = new GuiFluidFilterSlot(
+                    this.host, displaySlot, xPos, filterY,
+                    () -> this.container.currentPage * SLOTS_PER_PAGE
+                );
                 this.guiSlots.add(filterSlot);
             }
         }
@@ -107,13 +120,16 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
         // This automatically handles rendering, tooltips, and hover highlighting
         for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 9; col++) {
-                int tankIndex = row * 9 + col;
-                if (tankIndex >= TileFluidImportInterface.TANK_SLOTS) break;
+                int displayTank = row * 9 + col;
+                if (displayTank >= SLOTS_PER_PAGE) break;
 
                 int xPos = 8 + col * 18;
                 int yPos = 25 + row * 36 + 18;  // 18 pixels below filter slot
 
-                GuiFluidImportTankSlot tankSlot = new GuiFluidImportTankSlot(this.host, this.container, tankIndex, tankIndex, xPos, yPos);
+                GuiFluidImportTankSlot tankSlot = new GuiFluidImportTankSlot(
+                    this.host, this.container, displayTank, displayTank, xPos, yPos,
+                    () -> this.container.currentPage * SLOTS_PER_PAGE
+                );
                 tankSlot.setFontRenderer(this.fontRenderer);
                 this.guiSlots.add(tankSlot);
             }
@@ -146,6 +162,36 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
             this.itemRender
         );
         this.buttonList.add(this.pollingRateButton);
+
+        // Clear filters button (right of the hotbar)
+        // For Import interface, only clears filters where tank is empty
+        this.clearFiltersButton = new GuiClearFiltersButton(
+            2,  // Button ID
+            this.guiLeft + 186,
+            this.guiTop + 232,
+            () -> I18n.format("gui.cells.import_interface.clear_filters") + "\n\n"
+                + I18n.format("gui.cells.import_interface.clear_filters.tooltip")
+        );
+        this.buttonList.add(this.clearFiltersButton);
+
+        // Page navigation (only visible when capacity cards are installed)
+        // Position: 26x10 at (181, 3) relative to GUI
+        this.pageNavigation = new GuiPageNavigation(
+            3,  // Button ID
+            this.guiLeft + 181,
+            this.guiTop + 3,
+            () -> this.container.currentPage,
+            () -> this.container.totalPages,
+            () -> {
+                this.container.prevPage();
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketChangePage(this.container.currentPage));
+            },
+            () -> {
+                this.container.nextPage();
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketChangePage(this.container.currentPage));
+            }
+        );
+        this.buttonList.add(this.pageNavigation);
     }
 
     @Override
@@ -158,6 +204,7 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
             this.guiLeft,
             this.guiTop,
             this.ySize,
+            true,
             true
         );
     }
@@ -211,6 +258,13 @@ public class GuiFluidImportInterface extends AEBaseGui implements IJEIGhostIngre
                     CellsGuiHandler.GUI_POLLING_RATE
                 ));
             }
+
+            return;
+        }
+
+        if (btn == this.clearFiltersButton) {
+            // Clear all filters (server handles orphan prevention)
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketClearFilters());
         }
     }
 

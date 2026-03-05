@@ -85,7 +85,40 @@ public interface IImportInterfaceInventoryHost extends IImportInterfaceHost {
     BlockPos getHostPos();
 
     /**
+     * Clear all filter slots. For Import interfaces, only clears slots where
+     * the corresponding storage slot is empty (to prevent orphaning items).
+     */
+    void clearFilters();
+
+    /**
      * @return The settings of this host as an NBTTagCompound, for saving to memory cards or other uses.
      */
     public NBTTagCompound downloadSettings(SettingsFrom from);
+
+    // Pagination support
+
+    /**
+     * @return The number of installed capacity upgrades.
+     */
+    int getInstalledCapacityUpgrades();
+
+    /**
+     * @return Total number of pages (1 base + 1 per capacity card).
+     */
+    int getTotalPages();
+
+    /**
+     * @return The current page index (0-based).
+     */
+    int getCurrentPage();
+
+    /**
+     * Set the current page index (0-based), clamped to valid range.
+     */
+    void setCurrentPage(int page);
+
+    /**
+     * @return The starting slot index for the current page.
+     */
+    int getCurrentPageStartSlot();
 }

@@ -24,6 +24,8 @@ import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
 import appeng.api.config.Actionable;
+import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.implementations.items.IMemoryCard;
 import appeng.api.implementations.items.MemoryCardMessages;
 import appeng.api.networking.IGridNode;
@@ -81,8 +83,11 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
     @PartModels
     public static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/import_interface_has_channel"));
 
-    public static final int FILTER_SLOTS = 36;
-    public static final int STORAGE_SLOTS = 36;
+    public static final int SLOTS_PER_PAGE = 36;
+    public static final int MAX_CAPACITY_CARDS = 4;
+    public static final int MAX_PAGES = 1 + MAX_CAPACITY_CARDS;
+    public static final int FILTER_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
+    public static final int STORAGE_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
     public static final int UPGRADE_SLOTS = 4;
 
     // Filter inventory - ghost items only
@@ -104,6 +109,10 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
     // Upgrade cache
     private boolean installedOverflowUpgrade = false;
     private boolean installedTrashUnselectedUpgrade = false;
+    private int installedCapacityUpgrades = 0;
+
+    // Current GUI page index (0-based)
+    private int currentPage = 0;
 
     // Filter mapping
     final Map<ItemStackKey, Integer> filterToSlotMap = new HashMap<>();
@@ -195,8 +204,12 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
 
     @Override
     public void setMaxSlotSize(int size) {
+        int oldSize = this.maxSlotSize;
+
         this.maxSlotSize = Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, size);
         this.getHost().markForSave();
+
+        if (this.pollingRate <= 0 && oldSize < this.maxSlotSize) this.wakeDevice();
     }
 
     @Override
@@ -215,6 +228,7 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
      * @param player Player to notify if re-registration fails, or null to skip notification
      */
     public void setPollingRate(int ticks, EntityPlayer player) {
+        int oldRate = this.pollingRate;
         this.pollingRate = Math.max(0, ticks);
         this.getHost().markForSave();
 
@@ -223,6 +237,9 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
                 player.sendMessage(new TextComponentTranslation("chat.cells.polling_rate_delayed"));
             }
         }
+
+        // Wake up the device when switching to adaptive mode (rate = 0)
+        if (this.pollingRate <= 0 && oldRate > 0) this.wakeDevice();
     }
 
     @Override
@@ -467,12 +484,30 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
         if (inv == this.filterInventory) {
             this.refreshFilterMap();
             this.getHost().markForSave();
+
+            // Wake up the device when filter changes in adaptive polling mode
+            if (this.pollingRate <= 0) this.wakeDevice();
         } else if (inv == this.upgradeInventory) {
             this.refreshUpgrades();
             this.getHost().markForSave();
+        } else if (inv == this.storageInventory && !added.isEmpty()) {
+            // Wake up the part to import items in adaptive mode
+            if (this.pollingRate <= 0) this.wakeDevice();
         }
 
         this.getHost().markForUpdate();
+    }
+
+    /**
+     * Wake up the device to process items immediately.
+     * Only effective in adaptive polling mode (pollingRate = 0).
+     */
+    private void wakeDevice() {
+        try {
+            this.getProxy().getTick().alertDevice(this.getProxy().getNode());
+        } catch (GridAccessException e) {
+            // Not connected to grid
+        }
     }
 
     // IGridTickable
@@ -532,6 +567,18 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
     public void refreshUpgrades() {
         this.installedOverflowUpgrade = hasOverflowUpgrade();
         this.installedTrashUnselectedUpgrade = hasTrashUnselectedUpgrade();
+
+        int oldCapacityCount = this.installedCapacityUpgrades;
+        this.installedCapacityUpgrades = countCapacityUpgrades();
+
+        // Handle capacity card removal - shrink pages
+        if (this.installedCapacityUpgrades < oldCapacityCount) {
+            handleCapacityReduction(oldCapacityCount, this.installedCapacityUpgrades);
+        }
+
+        // Clamp current page to valid range
+        int maxPage = this.installedCapacityUpgrades;
+        if (this.currentPage > maxPage) this.currentPage = maxPage;
     }
 
     public void refreshFilterMap() {
@@ -559,6 +606,130 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
         return count;
     }
 
+    /**
+     * Count the number of installed capacity upgrades.
+     */
+    public int countCapacityUpgrades() {
+        int count = 0;
+
+        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            if (!(stack.getItem() instanceof IUpgradeModule)) continue;
+
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == Upgrades.CAPACITY) count++;
+        }
+
+        return count;
+    }
+
+    /**
+     * Get the number of installed capacity upgrades.
+     */
+    public int getInstalledCapacityUpgrades() {
+        return this.installedCapacityUpgrades;
+    }
+
+    /**
+     * Get the total number of pages (1 base + 1 per capacity card).
+     */
+    public int getTotalPages() {
+        return 1 + this.installedCapacityUpgrades;
+    }
+
+    /**
+     * Get the current page index (0-based).
+     */
+    public int getCurrentPage() {
+        return this.currentPage;
+    }
+
+    /**
+     * Set the current page index (0-based), clamped to valid range.
+     */
+    public void setCurrentPage(int page) {
+        this.currentPage = Math.max(0, Math.min(page, this.installedCapacityUpgrades));
+    }
+
+    /**
+     * Get the starting slot index for the current page.
+     */
+    public int getCurrentPageStartSlot() {
+        return this.currentPage * SLOTS_PER_PAGE;
+    }
+
+    /**
+     * Handle capacity reduction by clearing filters and returning/dropping items from removed pages.
+     */
+    private void handleCapacityReduction(int oldCount, int newCount) {
+        int newTotalSlots = (1 + newCount) * SLOTS_PER_PAGE;
+        int oldTotalSlots = (1 + oldCount) * SLOTS_PER_PAGE;
+
+        // Process slots that are being removed (from newTotalSlots to oldTotalSlots-1)
+        for (int slot = newTotalSlots; slot < oldTotalSlots && slot < this.storageInventory.getSlots(); slot++) {
+            // Clear the filter
+            if (slot < this.filterInventory.getSlots()) {
+                this.filterInventory.setStackInSlot(slot, ItemStack.EMPTY);
+            }
+
+            // Return items to network or drop on floor
+            ItemStack items = this.storageInventory.getStackInSlot(slot);
+            if (!items.isEmpty()) {
+                ItemStack remaining = returnItemsToNetwork(items);
+                if (!remaining.isEmpty()) dropItemsOnGround(remaining);
+                this.storageInventory.setStackInSlot(slot, ItemStack.EMPTY);
+            }
+        }
+
+        this.refreshFilterMap();
+    }
+
+    /**
+     * Try to return items to the ME network.
+     * @return Items that could not be inserted (empty if all inserted)
+     */
+    private ItemStack returnItemsToNetwork(ItemStack stack) {
+        if (stack.isEmpty()) return ItemStack.EMPTY;
+
+        try {
+            IStorageGrid storage = this.getProxy().getStorage();
+            IMEInventory<IAEItemStack> itemStorage = storage.getInventory(
+                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
+            );
+
+            IAEItemStack toInsert = AEItemStack.fromItemStack(stack);
+            if (toInsert == null) return stack;
+
+            IAEItemStack notInserted = itemStorage.injectItems(toInsert, Actionable.MODULATE, this.actionSource);
+            if (notInserted == null || notInserted.getStackSize() == 0) return ItemStack.EMPTY;
+
+            return notInserted.createItemStack();
+        } catch (GridAccessException e) {
+            return stack;
+        }
+    }
+
+    /**
+     * Drop items on the ground at the part's host position.
+     */
+    private void dropItemsOnGround(ItemStack stack) {
+        if (stack.isEmpty()) return;
+
+        net.minecraft.tileentity.TileEntity te = this.getHost().getTile();
+        if (te == null || te.getWorld() == null) return;
+
+        BlockPos pos = te.getPos();
+        net.minecraft.entity.item.EntityItem entity = new net.minecraft.entity.item.EntityItem(
+            te.getWorld(),
+            pos.getX() + 0.5,
+            pos.getY() + 0.5,
+            pos.getZ() + 0.5,
+            stack
+        );
+        te.getWorld().spawnEntity(entity);
+    }
+
     public boolean hasOverflowUpgrade() {
         return countUpgrade(ItemOverflowCard.class) > 0;
     }
@@ -573,7 +744,33 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
         if (stack.getItem() instanceof ItemOverflowCard) return !hasOverflowUpgrade();
         if (stack.getItem() instanceof ItemTrashUnselectedCard) return !hasTrashUnselectedUpgrade();
 
+        // Check for AE2 capacity card
+        if (stack.getItem() instanceof IUpgradeModule) {
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == Upgrades.CAPACITY) {
+                return countCapacityUpgrades() < MAX_CAPACITY_CARDS;
+            }
+        }
+
         return false;
+    }
+
+    /**
+     * Clear filter slots only where the corresponding storage slot is empty.
+     * This prevents orphaning items in the import interface.
+     */
+    @Override
+    public void clearFilters() {
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            // Only clear filter if the corresponding storage slot is empty
+            if (i >= STORAGE_SLOTS || this.storageInventory.getStackInSlot(i).isEmpty()) {
+                this.filterInventory.setStackInSlot(i, ItemStack.EMPTY);
+            }
+        }
+
+        this.refreshFilterMap();
+        this.getHost().markForSave();
+        this.getHost().markForUpdate();
     }
 
     public boolean isItemValidForSlot(int slot, ItemStack stack) {

@@ -9,6 +9,8 @@ tooltip.cells.type.hyperdensity_compact=Hyper-Density ME Compacting Cell
 tooltip.cells.type.import_interface=Import Interface
 tooltip.cells.nbt_size=NBT Size: %s
 tooltip.cells.nbt_size.warning=§c⚠ NBT size exceeds safe limit! This may cause lag or crashes. §r
+tooltip.cells.previous_page=Previous page
+tooltip.cells.next_page=Next page
 
 # Messages
 message.cells.disassemble_fail_content=Cannot disassemble cell with content! Empty the cell first.
@@ -286,16 +288,20 @@ gui.cells.import_interface.max_slot_size=Max Slot Size
 gui.cells.import_interface.max_slot_size.tooltip=Maximum number of items (or mB) to keep in the slots.
 gui.cells.import_interface.max_slot_size.items.tooltip=Slot Size: §b%d§r items
 gui.cells.import_interface.max_slot_size.fluids.tooltip=Slot Size: §b%d§r mB
+gui.cells.polling_rate.title=Polling Rate
 gui.cells.import_interface.polling_rate=Polling Rate
 gui.cells.import_interface.polling_rate.tooltip=Fixed interval for importing items (0 = AE2's default, nonzero = interval in ticks)
 gui.cells.import_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
 gui.cells.import_interface.polling_rate.custom.tooltip=Polling Rate: §rimport every §b%s§r
+gui.cells.import_interface.clear_filters=Clear Filters
+gui.cells.import_interface.clear_filters.tooltip=Clear all filter slots. Filters with items/fluids will be skipped.
 tooltip.cells.import_interface.info=Import items into the ME network through filtered slots. Does not support stocking or crafting.
 message.cells.memory_card.filters_saved=Settings and filters saved to memory card.
 
 # Import Interface warnings
 message.cells.import_interface.storage_not_empty=Cannot change filter while the storage slot is not empty.
 message.cells.import_interface.filter_duplicate=This filter already exists in another slot.
+message.cells.import_interface.filters_not_added=%d filter(s) could not be added (no empty slots):\n- %s
 
 # Configurable Cell warnings
 message.cells.configurable_cell.split_stack=Split the cell stack first, before inserting a component.
@@ -315,13 +321,55 @@ tooltip.cells.fluid_import_interface.amount=%d/%d mB
 # Fluid Import Interface warnings
 message.cells.import_fluid_interface.filter_duplicate=This fluid filter already exists in another slot.
 message.cells.import_fluid_interface.not_fluid_container=This item does not contain a fluid.
+message.cells.import_fluid_interface.filters_not_added=%d fluid filter(s) could not be added (no empty slots):\n- %s
 
 # Import Interface no space error
 message.cells.import_interface.no_filter_space=No free filter slots available.
 
+# Export Interface
+tile.cells.export_interface.name=Export Interface
+item.cells.part.export_interface.name=Export Interface
+gui.cells.export_interface.title=Export Interface
+gui.cells.export_interface.max_slot_size=Max Slot Size
+gui.cells.export_interface.max_slot_size.tooltip=Maximum number of items to keep in the slots.
+gui.cells.export_interface.max_slot_size.items.tooltip=Slot Size: §b%d§r items
+gui.cells.export_interface.polling_rate=Polling Rate
+gui.cells.export_interface.polling_rate.tooltip=Fixed interval for exporting items (0 = AE2's default, nonzero = interval in ticks)
+gui.cells.export_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
+gui.cells.export_interface.polling_rate.custom.tooltip=Polling Rate: §rexport every §b%s§r
+gui.cells.export_interface.clear_filters=Clear Filters
+gui.cells.export_interface.clear_filters.tooltip=Clear all filters and send stored items/fluids back to the network.
+tooltip.cells.export_interface.info=Export items from the ME network through filtered slots. Items can be extracted by pipes and hoppers.
+tooltip.cells.type.export_interface=Export Interface
+
+# Export Interface warnings
+message.cells.export_interface.filter_duplicate=This filter already exists in another slot.
+message.cells.export_interface.filters_not_added=%d filter(s) could not be added (no empty slots):\n- %s
+
+# Fluid Export Interface
+tile.cells.export_fluid_interface.name=Fluid Export Interface
+item.cells.part.export_fluid_interface.name=Fluid Export Interface
+gui.cells.export_fluid_interface.title=Fluid Export Interface
+gui.cells.export_fluid_interface.max_slot_size=Max Slot Size  
+gui.cells.export_fluid_interface.max_slot_size.tooltip=Maximum amount of fluid (mB) to keep in each tank.
+gui.cells.export_fluid_interface.max_slot_size.fluids.tooltip=Slot Size: §b%d§r mB
+gui.cells.export_fluid_interface.polling_rate=Polling Rate
+gui.cells.export_fluid_interface.polling_rate.tooltip=Fixed interval for exporting fluids (0 = AE2's default, nonzero = interval in ticks)
+gui.cells.export_fluid_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
+gui.cells.export_fluid_interface.polling_rate.custom.tooltip=Polling Rate: §rexport every §b%s§r
+tooltip.cells.export_fluid_interface.info=Export fluids from the ME network through filtered slots. Fluids can be extracted by pipes.
+tooltip.cells.type.export_fluid_interface=Fluid Export Interface
+tooltip.cells.export_fluid_interface.amount=%d/%d mB
+
+# Fluid Export Interface warnings
+message.cells.export_fluid_interface.filter_duplicate=This fluid filter already exists in another slot.
+message.cells.export_fluid_interface.not_fluid_container=This item does not contain a fluid.
+message.cells.export_fluid_interface.filters_not_added=%d fluid filter(s) could not be added (no empty slots):\n- %s
+
 # Import Interface Controls Help
 gui.cells.controls.use_settings=For best performance, set the §bSlot Size§r and §bPolling Rate§r to a high enough value.
 gui.cells.controls.use_cards=The §6Overflow Voiding Card§r and §6Trash Unselected Card§r should be prefered to other solutions like Trash Cans.
+gui.cells.controls.capacity_cards=Use §6Capacity Cards§r to add more filter pages.
 gui.cells.controls.memory_card_sneak=Sneak + right-click: Save settings.
 gui.cells.controls.memory_card_filter=Sneak + §b%s§r + right-click: Save with filters.
 gui.cells.controls.key_not_set=(unset)
