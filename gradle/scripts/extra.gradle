@@ -8,9 +8,13 @@ tasks.register('printChangelog') {
             throw new GradleException('CHANGELOG.md does not exist!')
         }
 
+        // Access the OutputType enum via the plugin's classloader at execution time
+        def changelogClass = project.buildscript.classLoader.loadClass('org.jetbrains.changelog.Changelog$OutputType')
+        def outputTypeMarkdown = changelogClass.enumConstants.find { it.name() == 'MARKDOWN' }
+
         def cl = changelog.renderItem(
             changelog.get(propertyString('mod_version')).withHeader(false).withEmptySections(false),
-            org.jetbrains.changelog.Changelog.OutputType.MARKDOWN
+            outputTypeMarkdown
         )
 
         if (cl.isEmpty()) {
