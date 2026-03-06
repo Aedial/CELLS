@@ -24,8 +24,8 @@ cells.config.hdItemMaxTypes=超高密度物品元件最大类型数
 cells.config.hdFluidMaxTypes=超高密度流体元件最大类型数
 cells.config.hdItemMaxTypes.tooltip=超高密度物品存储元件能容纳的最大物品类型数量（1-16384）。注意：设置过高可能导致NBT数据过大致使崩溃。
 cells.config.hdFluidMaxTypes.tooltip=超高密度流体存储元件能容纳的最大流体类型数量（1-16384）。注意：设置过高可能导致NBT数据过大致使崩溃。
-cells.config.nbtSizeWarningThresholdMB=NBT大小警告阈值（MB）
-cells.config.nbtSizeWarningThresholdMB.tooltip=NBT大小的警告阈值，以MB为单位（0.1-10.0）。NBT大小超出该阈值时，元件的提示框中会显示警告信息。
+cells.config.nbtSizeWarningThresholdKB=NBT大小警告阈值（KB）
+cells.config.nbtSizeWarningThresholdKB.tooltip=NBT大小的警告阈值，以KB为单位（1-10000）。NBT大小超出该阈值时，元件的提示框中会显示警告信息。
 cells.config.enableNbtSizeTooltip=启用NBT大小提示框
 cells.config.enableNbtSizeTooltip.tooltip=启用NBT大小计算并显示在元件提示框中。禁用该功能以提高元件性能。
 

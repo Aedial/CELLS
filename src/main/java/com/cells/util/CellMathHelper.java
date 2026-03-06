@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
+import net.minecraftforge.oredict.OreDictionary;
 
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -166,6 +167,73 @@ public final class CellMathHelper {
 
         return a.getItem() == b.getItem() && a.getMetadata() == b.getMetadata()
             && ItemStack.areItemStackTagsEqual(a, b);
+    }
+
+    /**
+     * Checks if two ItemStacks are equivalent via the Ore Dictionary.
+     * <p>
+     * Two stacks are ore dictionary equivalent if they share at least one
+     * ore dictionary entry AND have matching NBT tags.
+     * </p>
+     * <p>
+     * This does NOT check if the items are directly equal - use 
+     * {@link #areItemsEqual(ItemStack, ItemStack)} for that.
+     * </p>
+     *
+     * @param a First stack
+     * @param b Second stack
+     * @return true if stacks share an ore dictionary entry and have equal NBT
+     */
+    public static boolean areOreDictEquivalent(ItemStack a, ItemStack b) {
+        if (a.isEmpty() || b.isEmpty()) return false;
+
+        // If items are the same, they're equivalent (but don't use this for direct equality)
+        if (a.getItem() == b.getItem() && a.getMetadata() == b.getMetadata()) {
+            return ItemStack.areItemStackTagsEqual(a, b);
+        }
+
+        // Don't match wildcard damage values
+        if (a.getMetadata() == OreDictionary.WILDCARD_VALUE || b.getMetadata() == OreDictionary.WILDCARD_VALUE) {
+            return false;
+        }
+
+        // Get ore IDs for both stacks
+        int[] idsA = OreDictionary.getOreIDs(a);
+        int[] idsB = OreDictionary.getOreIDs(b);
+
+        // Either has no ore entries - not equivalent
+        if (idsA.length == 0 || idsB.length == 0) return false;
+
+        // Check for matching ore IDs
+        // FIXME: seems a bit... lenient? Would it allow exploits with items that share an ore entry?
+        //        Probably good to add a config of blacklisted items.
+        // TODO: probably a good source of lag.
+        //       Would be more efficient to convert the {proto: index} to a HashMap and cache it.
+        for (int idA : idsA) {
+            for (int idB : idsB) {
+                // Found matching ore entry - check NBT tags
+                if (idA == idB) return ItemStack.areItemStackTagsEqual(a, b);
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Checks if two ItemStacks are equal directly OR equivalent via Ore Dictionary.
+     * <p>
+     * This is a convenience method that first checks direct equality, then
+     * falls back to ore dictionary equivalence.
+     * </p>
+     *
+     * @param a First stack
+     * @param b Second stack
+     * @return true if stacks are equal or ore dictionary equivalent
+     */
+    public static boolean areItemsEqualOrOreDictEquivalent(ItemStack a, ItemStack b) {
+        if (areItemsEqual(a, b)) return true;
+
+        return areOreDictEquivalent(a, b);
     }
 
     /**

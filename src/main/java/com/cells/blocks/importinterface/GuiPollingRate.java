@@ -73,8 +73,6 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
             I18n.format(this.host.getGuiTitleLangKey()),
             this.itemRender
         ));
-
-        // TODO: add a footer with what this does (gui.cells.polling_rate.tooltip)
     }
 
     @Override

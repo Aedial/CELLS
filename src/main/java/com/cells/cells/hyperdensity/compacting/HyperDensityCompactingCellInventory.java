@@ -24,13 +24,10 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.util.Platform;
 
-import com.cells.cells.common.INBTSizeProvider;
 import com.cells.cells.compacting.CompactingHelper;
-import com.cells.config.CellsConfig;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.DeferredCellOperations;
-import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -110,7 +107,7 @@ import com.cells.util.NBTSizeHelper;
  * @see IItemHyperDensityCompactingCell
  * @see CompactingHelper
  */
-public class HyperDensityCompactingCellInventory implements ICellInventory<IAEItemStack>, INBTSizeProvider {
+public class HyperDensityCompactingCellInventory implements ICellInventory<IAEItemStack> {
 
     /** NBT key prefix for stored base units (saved as _hi and _lo integer pairs for long support). */
     private static final String NBT_STORED_BASE_UNITS = "storedBaseUnits";
@@ -219,13 +216,13 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     /** Cached value for whether the Overflow Card is installed. */
     private boolean cachedHasOverflowCard = false;
 
+    /** Cached value for whether the Ore Dictionary Card is installed. */
+    private boolean cachedHasOreDictCard = false;
+
     // Cached state to avoid repeated checks during normal operation
     // These are set after initialization and don't change until the cell is removed from the drive
     private boolean cachedHasPartition = false;
     private boolean chainFullyInitialized = false;
-
-    /** Tracked total NBT size in bytes for tooltip display. */
-    private int totalNbtSize = 0;
 
     /**
      * Version counter for the compression chain. Incremented when the chain is initialized or replaced.
@@ -318,6 +315,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     private void updateCachedUpgradeState() {
         IItemHandler upgrades = getUpgradesInventory();
         cachedHasOverflowCard = CellUpgradeHelper.hasOverflowCard(upgrades);
+        cachedHasOreDictCard = CellUpgradeHelper.hasOreDictCard(upgrades);
 
         int compressionTiers = CellUpgradeHelper.getCompressionTiers(upgrades);
         int decompressionTiers = CellUpgradeHelper.getDecompressionTiers(upgrades);
@@ -375,6 +373,20 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     }
 
     /**
+     * Check if the input item is a direct match to the proto stack at the given slot.
+     * Returns false if the item was matched via ore dictionary equivalence.
+     * 
+     * @param input The input item
+     * @param slot The slot index
+     * @return true if direct match, false if ore dict equivalent
+     */
+    private boolean isDirectMatch(@Nonnull IAEItemStack input, int slot) {
+        if (slot < 0 || slot >= currentMaxTiers) return false;
+
+        return CellMathHelper.areItemsEqual(protoStack[slot], input.getDefinition());
+    }
+
+    /**
      * Notifies the ME network that item counts have changed across all compression tiers
      * and stores pending changes for the handler to notify listeners.
      * <p>
@@ -383,8 +395,16 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * to the storage grid so autocrafting and terminals update correctly.
      * </p>
      * <p>
-     * The tier that was directly operated on is skipped (operatedSlot) because AE2's
-     * standard injection/extraction already handles that notification.
+     * The tier that was directly operated on is skipped (operatedSlot) unless it was an
+     * ore dict equivalent insertion, because AE2's standard injection/extraction already
+     * handles that notification for direct matches.
+     * </p>
+     * <p>
+     * When an ore dict equivalent item is inserted, we need to emit correction deltas:
+     * <ul>
+     *   <li>Negative delta for the input item (AE2 thinks it was stored, but it wasn't)</li>
+     *   <li>Positive delta for the proto item (the actual stored item)</li>
+     * </ul>
      * </p>
      * <p>
      * <b>Important:</b> Uses deferred notification system to batch notifications
@@ -394,15 +414,25 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * @param src          The action source for the operation (used for grid lookup only)
      * @param oldBaseUnits The base unit count before the operation
      * @param operatedSlot The tier that was directly operated on (-1 to notify all tiers)
+     * @param oreDictInput The ore dict equivalent input item, or null if direct match
+     * @param oreDictCount The count of ore dict items inserted (for correction delta)
      */
-    private void queueCrossTierNotification(@Nullable IActionSource src, long oldBaseUnits, int operatedSlot) {
+    private void queueCrossTierNotification(@Nullable IActionSource src, long oldBaseUnits, int operatedSlot,
+                                            @Nullable IAEItemStack oreDictInput, long oreDictCount) {
         // Calculate changes for each tier
-        // Skip the operated slot since AE2's standard injection/extraction already handles that notification
+        // Skip the operated slot ONLY if it was a direct match (not ore dict equivalent)
         // Note: AE2 does NOT deduplicate notifications, so including the operated slot causes double-counting
+        // for direct matches. But for ore dict equivalents, AE2 doesn't know about the conversion.
         List<IAEItemStack> changes = new ArrayList<>();
 
+        // If ore dict conversion occurred, we need to correct the deltas:
+        // 1. AE2 thinks the input item was stored - emit negative delta to cancel
+        // 2. The proto item was actually stored - emit positive delta
+        boolean isOreDictConversion = (oreDictInput != null && oreDictCount > 0);
+
         for (int i = 0; i < currentMaxTiers; i++) {
-            if (i == operatedSlot) continue;
+            // Skip operated slot only for direct matches
+            if (i == operatedSlot && !isOreDictConversion) continue;
             if (protoStack[i].isEmpty() || convRate[i] <= 0) continue;
 
             long oldCount = oldBaseUnits / convRate[i];
@@ -416,6 +446,13 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
                 stack.setStackSize(delta);
                 changes.add(stack);
             }
+        }
+
+        // Add ore dict correction: negate the input item since AE2 thinks it was stored
+        if (isOreDictConversion) {
+            IAEItemStack correction = oreDictInput.copy();
+            correction.setStackSize(-oreDictCount);
+            changes.add(correction);
         }
 
         if (changes.isEmpty()) return;
@@ -475,13 +512,6 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         // This handles cases where old NBT had mainTier saved incorrectly
         if (mainTier < 0 && !isCompressionChainEmpty() && !cachedPartitionItem.isEmpty()) {
             recalculateMainTierFromCachedPartition();
-        }
-
-        // Calculate total NBT size from protoItems compound (if enabled)
-        if (CellsConfig.enableNbtSizeTooltip && tagCompound.hasKey(NBT_PROTO_ITEMS)) {
-            totalNbtSize = NBTSizeHelper.calculateSize(tagCompound.getCompoundTag(NBT_PROTO_ITEMS));
-        } else {
-            totalNbtSize = 0;
         }
     }
 
@@ -547,11 +577,6 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             }
             tagCompound.setTag(NBT_PROTO_ITEMS, protoNbt);
 
-            // Update NBT size tracking (if enabled)
-            if (CellsConfig.enableNbtSizeTooltip) {
-                totalNbtSize = NBTSizeHelper.calculateSize(protoNbt);
-            }
-
             // Save cached partition for reversion protection
             if (!cachedPartitionItem.isEmpty()) {
                 NBTTagCompound partNbt = new NBTTagCompound();
@@ -567,8 +592,6 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             tagCompound.removeTag(NBT_CHAIN_VERSION);
             tagCompound.removeTag(NBT_TIERS_UP);
             tagCompound.removeTag(NBT_TIERS_DOWN);
-
-            totalNbtSize = 0;
         }
         // If chain is empty but partition exists, or if we're stale, don't touch chain NBT
     }
@@ -645,6 +668,10 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
     /**
      * Finds which tier slot an item belongs to in the compression chain.
+     * <p>
+     * When ore dictionary card is installed, also matches ore dictionary
+     * equivalent items to their corresponding proto stack slot.
+     * </p>
      *
      * @param stack The item to find
      * @return The tier index (0-2), or -1 if not in the chain
@@ -652,8 +679,16 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     private int getSlotForItem(@Nonnull IAEItemStack stack) {
         ItemStack definition = stack.getDefinition();
 
+        // First try direct match
         for (int i = 0; i < currentMaxTiers; i++) {
             if (CellMathHelper.areItemsEqual(protoStack[i], definition)) return i;
+        }
+
+        // If ore dict card installed, try ore dictionary equivalence
+        if (cachedHasOreDictCard) {
+            for (int i = 0; i < currentMaxTiers; i++) {
+                if (CellMathHelper.areOreDictEquivalent(protoStack[i], definition)) return i;
+            }
         }
 
         return -1;
@@ -819,6 +854,10 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
     /**
      * Checks if an item is part of the current compression chain.
+     * <p>
+     * When ore dictionary card is installed, also matches ore dictionary
+     * equivalent items to their corresponding proto stack slot.
+     * </p>
      *
      * @param stack The item to check
      * @return true if the item matches any tier in the chain
@@ -826,8 +865,16 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     public boolean isInCompressionChain(@Nonnull IAEItemStack stack) {
         ItemStack definition = stack.getDefinition();
 
+        // First try direct match
         for (int i = 0; i < currentMaxTiers; i++) {
             if (CellMathHelper.areItemsEqual(protoStack[i], definition)) return true;
+        }
+
+        // If ore dict card installed, try ore dictionary equivalence
+        if (cachedHasOreDictCard) {
+            for (int i = 0; i < currentMaxTiers; i++) {
+                if (CellMathHelper.areOreDictEquivalent(protoStack[i], definition)) return true;
+            }
         }
 
         return false;
@@ -1060,7 +1107,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * Checks if an item is allowed by the current partition/compression chain.
      * <p>
      * An item is allowed if it matches any tier in the compression chain OR
-     * if it matches the partition config directly.
+     * if it matches the partition config directly. When ore dictionary card is
+     * installed, also allows ore dictionary equivalent items.
      * </p>
      *
      * @param stack The item to check
@@ -1072,7 +1120,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         ItemStack definition = stack.getDefinition();
 
-        // Check against compression chain first
+        // Check against compression chain first (exact match)
         for (int i = 0; i < currentMaxTiers; i++) {
             if (CellMathHelper.areItemsEqual(protoStack[i], definition)) return true;
         }
@@ -1081,6 +1129,22 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         for (int i = 0; i < configInv.getSlots(); i++) {
             ItemStack partItem = configInv.getStackInSlot(i);
             if (!partItem.isEmpty() && CellMathHelper.areItemsEqual(partItem, definition)) return true;
+        }
+
+        // If ore dict card is installed, also allow ore dictionary equivalent items
+        if (cachedHasOreDictCard) {
+            // Check against compression chain via ore dict
+            for (int i = 0; i < currentMaxTiers; i++) {
+                if (CellMathHelper.areOreDictEquivalent(protoStack[i], definition)) return true;
+            }
+
+            // Check partition slots via ore dict (for initial setup)
+            for (int i = 0; i < configInv.getSlots(); i++) {
+                ItemStack partItem = configInv.getStackInSlot(i);
+                if (!partItem.isEmpty() && CellMathHelper.areOreDictEquivalent(partItem, definition)) {
+                    return true;
+                }
+            }
         }
 
         return false;
@@ -1378,13 +1442,18 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         // Get remaining capacity - expensive call, do it once
         long remainingCapacity = getRemainingCapacityInBaseUnits();
 
+        // Check if input is an ore dict equivalent (not direct match)
+        // If so, we need to emit correction deltas
+        boolean directMatch = isDirectMatch(input, slot);
+
         // Fast path: all items fit
         if (inputInBaseUnits <= remainingCapacity) {
             if (mode == Actionable.MODULATE) {
                 long oldBaseUnits = storedBaseUnits;
                 storedBaseUnits = CellMathHelper.addWithOverflowProtection(storedBaseUnits, inputInBaseUnits);
                 saveChangesDeferred();
-                queueCrossTierNotification(src, oldBaseUnits, slot);
+                queueCrossTierNotification(src, oldBaseUnits, slot,
+                    directMatch ? null : input, directMatch ? 0 : inputCount);
             }
 
             return null;
@@ -1406,7 +1475,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             long oldBaseUnits = storedBaseUnits;
             storedBaseUnits = CellMathHelper.addWithOverflowProtection(storedBaseUnits, actualBaseUnits);
             saveChangesDeferred();
-            queueCrossTierNotification(src, oldBaseUnits, slot);
+            queueCrossTierNotification(src, oldBaseUnits, slot,
+                directMatch ? null : input, directMatch ? 0 : canInsert);
         }
 
         // Overflow card voids the remainder
@@ -1457,7 +1527,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             long oldBaseUnits = storedBaseUnits;
             storedBaseUnits -= toExtract * rate;
             saveChangesDeferred();
-            queueCrossTierNotification(src, oldBaseUnits, slot);
+            // For extraction, we always return the proto item, so no ore dict correction needed
+            queueCrossTierNotification(src, oldBaseUnits, slot, null, 0);
         }
 
         IAEItemStack result = request.copy();
@@ -1685,10 +1756,5 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     @Override
     public void persist() {
         saveToNBT();
-    }
-
-    @Override
-    public int getTotalNbtSize() {
-        return totalNbtSize;
     }
 }

@@ -52,6 +52,7 @@ import appeng.util.item.AEItemStack;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.items.ItemOverflowCard;
 import com.cells.items.ItemTrashUnselectedCard;
+import com.cells.util.InventoryMigrationHelper;
 import com.cells.util.ItemStackKey;
 import com.cells.util.TickManagerHelper;
 
@@ -445,7 +446,8 @@ public class TileImportInterface extends AENetworkInvTile implements IGridTickab
     @Override
     public void readFromNBT(final NBTTagCompound data) {
         super.readFromNBT(data);
-        this.filterInventory.readFromNBT(data, "filter");
+        // Use migration helper to prevent old saves from shrinking our inventory
+        InventoryMigrationHelper.readFromNBTWithoutShrinking(this.filterInventory, data, "filter");
         // Note: storageInventory is saved by AEBaseInvTile via getInternalInventory() as "inv"
         this.upgradeInventory.readFromNBT(data, "upgrades");
         this.maxSlotSize = data.getInteger("maxSlotSize");

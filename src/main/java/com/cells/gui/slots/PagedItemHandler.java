@@ -5,6 +5,7 @@ import java.util.function.IntSupplier;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 
 /**
@@ -13,8 +14,11 @@ import net.minecraftforge.items.IItemHandler;
  * <p>
  * This allows pagination by having slot indices 0-35 always map to the current
  * page's actual inventory indices.
+ * <p>
+ * Implements IItemHandlerModifiable to support AE2's slot setting mechanisms
+ * which use setStackInSlot() for fake/ghost slots.
  */
-public class PagedItemHandler implements IItemHandler {
+public class PagedItemHandler implements IItemHandlerModifiable {
 
     private final IItemHandler delegate;
     private final int slotsPerPage;
@@ -35,6 +39,20 @@ public class PagedItemHandler implements IItemHandler {
         this.slotsPerPage = slotsPerPage;
         this.currentPageSupplier = currentPageSupplier;
         this.totalPagesSupplier = totalPagesSupplier;
+    }
+
+    /**
+     * Set the stack in a slot, translating from display slot to actual slot.
+     * Required for AE2's fake slot mechanics which use IItemHandlerModifiable.
+     */
+    @Override
+    public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+        int actualSlot = getActualSlot(slot);
+        if (actualSlot >= delegate.getSlots()) return;
+
+        if (delegate instanceof IItemHandlerModifiable) {
+            ((IItemHandlerModifiable) delegate).setStackInSlot(actualSlot, stack);
+        }
     }
 
     /**

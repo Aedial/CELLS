@@ -8,7 +8,7 @@ tooltip.cells.type.hyperdensity=Hyper-Density ME Storage Cell
 tooltip.cells.type.hyperdensity_compact=Hyper-Density ME Compacting Cell
 tooltip.cells.type.import_interface=Import Interface
 tooltip.cells.nbt_size=NBT Size: %s
-tooltip.cells.nbt_size.warning=§c⚠ NBT size exceeds safe limit! This may cause lag or crashes. §r
+tooltip.cells.nbt_size.warning=§c⚠ NBT size exceeds safe limit! This may cause lag or crashes. Move some NBT-heavy content to another chunk and network to avoid corruption.§r
 tooltip.cells.previous_page=Previous page
 tooltip.cells.next_page=Next page
 
@@ -24,8 +24,8 @@ cells.config.hdItemMaxTypes=HD Item Cells Max Types
 cells.config.hdFluidMaxTypes=HD Fluid Cells Max Types
 cells.config.hdItemMaxTypes.tooltip=Maximum item types for hyper-density item storage cells (1-16384). CAUTION: Setting this too high can result in NBT size issues and potential crashloops.
 cells.config.hdFluidMaxTypes.tooltip=Maximum item types for hyper-density fluid storage cells (1-16384). CAUTION: Setting this too high can result in NBT size issues and potential crashloops.
-cells.config.nbtSizeWarningThresholdMB=NBT Size Warning Threshold (MB)
-cells.config.nbtSizeWarningThresholdMB.tooltip=Warning threshold for NBT size in megabytes (0.1-10.0). Cells with NBT size exceeding this value will show a warning tooltip.
+cells.config.nbtSizeWarningThresholdKB=NBT Size Warning Threshold (KB)
+cells.config.nbtSizeWarningThresholdKB.tooltip=Warning threshold for NBT size in kilobytes (1-10000). Cells with NBT size exceeding this value will show a warning tooltip.
 cells.config.enableNbtSizeTooltip=Enable NBT Size Tooltip
 cells.config.enableNbtSizeTooltip.tooltip=Enable NBT size computation and display in cell tooltips. Disable for better cell performance.
 
@@ -78,6 +78,10 @@ item.cells.compacting_component.2g.name=2G ME Compacting Component
 # Overflow Card
 item.cells.overflow_card.name=Overflow Voiding Card
 tooltip.cells.overflow_card.desc=Voids overflow items when cell is full
+
+# Ore Dictionary Card
+item.cells.oredict_card.name=Ore Dictionary Card
+tooltip.cells.oredict_card.desc=Allows ore dictionary equivalent items to be inserted
 
 # Trash Unselected Card
 item.cells.trash_unselected_card.name=Trash Unselected Card
@@ -211,6 +215,7 @@ tooltip.cells.upgrade.equal_distribution_active=Split in %d types
 tooltip.cells.upgrade.equal_distribution_active.infinite=Equal distribution active
 tooltip.cells.upgrade.compression_tier_active=Compression tiers: %d
 tooltip.cells.upgrade.decompression_tier_active=Decompression tiers: %d
+tooltip.cells.upgrade.oredict_active=Oredict conversion active
 
 # Configurable Storage Cell
 item.cells.configurable_cell.name=Configurable ME Storage Cell
@@ -334,7 +339,7 @@ gui.cells.export_interface.max_slot_size=Max Slot Size
 gui.cells.export_interface.max_slot_size.tooltip=Maximum number of items to keep in the slots.
 gui.cells.export_interface.max_slot_size.items.tooltip=Slot Size: §b%d§r items
 gui.cells.export_interface.polling_rate=Polling Rate
-gui.cells.export_interface.polling_rate.tooltip=Fixed interval for exporting items (0 = AE2's default, nonzero = interval in ticks)
+gui.cells.export_interface.polling_rate.tooltip=Interval for exporting items (0 = AE2's default, nonzero = interval in ticks)
 gui.cells.export_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
 gui.cells.export_interface.polling_rate.custom.tooltip=Polling Rate: §rexport every §b%s§r
 gui.cells.export_interface.clear_filters=Clear Filters
@@ -354,7 +359,7 @@ gui.cells.export_fluid_interface.max_slot_size=Max Slot Size
 gui.cells.export_fluid_interface.max_slot_size.tooltip=Maximum amount of fluid (mB) to keep in each tank.
 gui.cells.export_fluid_interface.max_slot_size.fluids.tooltip=Slot Size: §b%d§r mB
 gui.cells.export_fluid_interface.polling_rate=Polling Rate
-gui.cells.export_fluid_interface.polling_rate.tooltip=Fixed interval for exporting fluids (0 = AE2's default, nonzero = interval in ticks)
+gui.cells.export_fluid_interface.polling_rate.tooltip=Interval for exporting fluids (0 = AE2's default, nonzero = interval in ticks)
 gui.cells.export_fluid_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
 gui.cells.export_fluid_interface.polling_rate.custom.tooltip=Polling Rate: §rexport every §b%s§r
 tooltip.cells.export_fluid_interface.info=Export fluids from the ME network through filtered slots. Fluids can be extracted by pipes.

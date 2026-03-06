@@ -49,6 +49,21 @@ public final class ThaumicEnergisticsIntegration {
     }
 
     /**
+     * Get the storage channel from AE2.
+     * Returns null if Thaumic Energistics is not loaded.
+     */
+    public static IStorageChannel<?> getStorageChannel() {
+        if (!isModLoaded()) return null;
+
+        try {
+            return EssentiaIntegrationImpl.getChannel();
+        } catch (Exception e) {
+            Cells.LOGGER.error("Failed to get essentia storage channel from AE2", e);
+            return null;
+        }
+    }
+
+    /**
      * Get the cell inventory handler for an essentia cell.
      * Returns null if Thaumic Energistics is not loaded.
      */
@@ -70,15 +85,18 @@ public final class ThaumicEnergisticsIntegration {
      */
     static final class EssentiaIntegrationImpl {
 
+        static IStorageChannel<?> getChannel() {
+            return AEApi.instance().storage().getStorageChannel(
+                thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
+        }
+
         @SuppressWarnings("unchecked")
         static <T extends IAEStack<T>> ICellInventoryHandler<T> getCellInventory(
                 ItemStack is, ISaveProvider container, ComponentInfo info, IStorageChannel<T> channel) {
 
             try {
                 IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack> essentiaChannel =
-                    AEApi.instance().storage().getStorageChannel(
-                        thaumicenergistics.api.storage.IEssentiaStorageChannel.class);
-
+                    (IStorageChannel<thaumicenergistics.api.storage.IAEEssentiaStack>) getChannel();
                 if (channel != essentiaChannel) return null;
 
                 ConfigurableCellEssentiaInventory inventory = new ConfigurableCellEssentiaInventory(is, container, info);
@@ -106,7 +124,7 @@ public final class ThaumicEnergisticsIntegration {
 
                     if (cellInv instanceof INBTSizeProvider) {
                         int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
-                        long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
+                        long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
                         String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
 
                         tooltip.add("");

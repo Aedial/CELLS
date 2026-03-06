@@ -13,8 +13,10 @@ import net.minecraft.nbt.NBTTagCompound;
  * <p>
  * NBT size matters because:
  * - Cells store item data in NBT on the ItemStack
- * - Large NBT can cause network issues (packet size limits ~2MB)
+ * - Large NBT can cause network issues (packet size limits ~2MB).
+ *   AE2 will kick the player if the combined NBT of all cells in the network exceeds the limit
  * - Excessive NBT causes lag during serialization/deserialization
+ * - Chunkban can occur when the combined NBT of all TEs in a chunk exceeds the limit
  * <p>
  * This helper provides efficient size calculation and human-readable formatting.
  */
@@ -118,12 +120,12 @@ public final class NBTSizeHelper {
     }
 
     /**
-     * Get the warning threshold in bytes from config value in MB.
+     * Get the warning threshold in bytes from config value in KB.
      *
-     * @param thresholdMB Threshold in megabytes
+     * @param thresholdKB Threshold in kilobytes
      * @return Threshold in bytes
      */
-    public static long mbToBytes(double thresholdMB) {
-        return (long) (thresholdMB * MB);
+    public static long kbToBytes(double thresholdKB) {
+        return (long) (thresholdKB * KB);
     }
 }

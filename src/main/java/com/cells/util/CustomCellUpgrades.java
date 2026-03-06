@@ -22,6 +22,7 @@ import com.cells.ItemRegistry;
 import com.cells.items.ItemCompressionTierCard;
 import com.cells.items.ItemDecompressionTierCard;
 import com.cells.items.ItemEqualDistributionCard;
+import com.cells.items.ItemOreDictCard;
 import com.cells.items.ItemOverflowCard;
 
 
@@ -38,12 +39,14 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
         OVERFLOW,
         EQUAL_DISTRIBUTION,
         COMPRESSION_TIER,
-        DECOMPRESSION_TIER
+        DECOMPRESSION_TIER,
+        OREDICT
     }
 
     private static final Map<Item, CustomUpgrades> UPGRADE_ITEM_CLASSES = new HashMap<>();
     static {
         UPGRADE_ITEM_CLASSES.put(ItemRegistry.OVERFLOW_CARD, CustomUpgrades.OVERFLOW);
+        UPGRADE_ITEM_CLASSES.put(ItemRegistry.OREDICT_CARD, CustomUpgrades.OREDICT);
         UPGRADE_ITEM_CLASSES.put(ItemRegistry.EQUAL_DISTRIBUTION_CARD, CustomUpgrades.EQUAL_DISTRIBUTION);
         UPGRADE_ITEM_CLASSES.put(ItemRegistry.COMPRESSION_TIER_CARD, CustomUpgrades.COMPRESSION_TIER);
         UPGRADE_ITEM_CLASSES.put(ItemRegistry.DECOMPRESSION_TIER_CARD, CustomUpgrades.DECOMPRESSION_TIER);
@@ -132,6 +135,10 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
             if (customUpgrade == CustomUpgrades.DECOMPRESSION_TIER) {
                 return countInstalled(ItemDecompressionTierCard.class) < 1
                     && countInstalled(ItemCompressionTierCard.class) < 1;
+            }
+
+            if (customUpgrade == CustomUpgrades.OREDICT) {
+                return countInstalled(ItemOreDictCard.class) < 1; // Max 1
             }
 
             Cells.LOGGER.warn("Upgrade item {} is not recognized as a valid upgrade for this cell", stack);

@@ -153,7 +153,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         // Add NBT size information (if enabled in config)
         if (CellsConfig.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
             int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
-            long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
+            long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
             String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
 
             tooltip.add("");

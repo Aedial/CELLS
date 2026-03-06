@@ -12,6 +12,7 @@ import net.minecraftforge.items.IItemHandler;
 import com.cells.items.ItemCompressionTierCard;
 import com.cells.items.ItemDecompressionTierCard;
 import com.cells.items.ItemEqualDistributionCard;
+import com.cells.items.ItemOreDictCard;
 import com.cells.items.ItemOverflowCard;
 
 
@@ -131,6 +132,29 @@ public final class CellUpgradeHelper {
     }
 
     /**
+     * Checks if an Ore Dictionary Card is installed in the given upgrade inventory.
+     * <p>
+     * When installed, the cell will accept ore dictionary equivalent items and
+     * convert them to the partitioned item type.
+     * </p>
+     *
+     * @param upgrades The upgrade inventory to check
+     * @return true if an Ore Dictionary Card is found
+     */
+    public static boolean hasOreDictCard(IItemHandler upgrades) {
+        if (upgrades == null) return false;
+
+        for (int i = 0; i < upgrades.getSlots(); i++) {
+            ItemStack stack = upgrades.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+
+            if (stack.getItem() instanceof ItemOreDictCard) return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Adds upgrade information to a tooltip list.
      * <p>
      * Lists all custom upgrades installed in the cell.
@@ -171,6 +195,10 @@ public final class CellUpgradeHelper {
             if (stack.getItem() instanceof ItemDecompressionTierCard) {
                 int tiers = ItemDecompressionTierCard.getTierValue(stack);
                 tooltip.add("§e" + I18n.format("tooltip.cells.upgrade.decompression_tier_active", tiers));
+            }
+
+            if (stack.getItem() instanceof ItemOreDictCard) {
+                tooltip.add("§d" + I18n.format("tooltip.cells.upgrade.oredict_active"));
             }
         }
     }

@@ -62,6 +62,7 @@ import com.cells.blocks.importinterface.TileImportInterface;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.items.ItemOverflowCard;
 import com.cells.items.ItemTrashUnselectedCard;
+import com.cells.util.InventoryMigrationHelper;
 import com.cells.util.ItemStackKey;
 import com.cells.util.TickManagerHelper;
 
@@ -311,8 +312,9 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
     @Override
     public void readFromNBT(final NBTTagCompound data) {
         super.readFromNBT(data);
-        this.filterInventory.readFromNBT(data, "filter");
-        this.storageInventory.readFromNBT(data, "storage");
+        // Use migration helper to prevent old saves from shrinking our inventories
+        InventoryMigrationHelper.readFromNBTWithoutShrinking(this.filterInventory, data, "filter");
+        InventoryMigrationHelper.readFromNBTWithoutShrinking(this.storageInventory, data, "storage");
         this.upgradeInventory.readFromNBT(data, "upgrades");
         this.maxSlotSize = data.getInteger("maxSlotSize");
         this.pollingRate = data.getInteger("pollingRate");
@@ -413,7 +415,7 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
 
         // Load filter inventory when memory card has filters
         if (compound.hasKey("filter")) {
-            this.filterInventory.readFromNBT(compound, "filter");
+            InventoryMigrationHelper.readFromNBTWithoutShrinking(this.filterInventory, compound, "filter");
             this.refreshFilterMap();
         }
     }

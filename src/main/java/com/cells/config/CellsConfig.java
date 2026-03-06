@@ -81,8 +81,8 @@ public class CellsConfig {
     /** Maximum types for configurable gas cells */
     public static int configurableCellGasMaxTypes = 63;
 
-    /** NBT size warning threshold in MB (tooltip shows warning when exceeded) */
-    public static double nbtSizeWarningThresholdMB = 1.0;
+    /** NBT size warning threshold in KB (tooltip shows warning when exceeded) */
+    public static int nbtSizeWarningThresholdKB = 100;
 
     /** Enable NBT size computation and display in cell tooltips */
     public static boolean enableNbtSizeTooltip = true;
@@ -243,11 +243,11 @@ public class CellsConfig {
 
         // General: NBT size warning threshold
         p = config.get(CATEGORY_GENERAL,
-            "nbtSizeWarningThresholdMB", 1.0D,
-            "NBT size warning threshold in MB. Tooltip shows warning when cell NBT exceeds this.", 0.1D, 10.0D
+            "nbtSizeWarningThresholdKB", 100,
+            "NBT size warning threshold in KB. Tooltip shows warning when cell NBT exceeds this.", 1, 10000
         );
-        p.setLanguageKey(Tags.MODID + ".config.nbtSizeWarningThresholdMB");
-        nbtSizeWarningThresholdMB = p.getDouble();
+        p.setLanguageKey(Tags.MODID + ".config.nbtSizeWarningThresholdKB");
+        nbtSizeWarningThresholdKB = p.getInt();
 
         // General: Enable NBT size tooltip
         p = config.get(CATEGORY_GENERAL,

@@ -37,6 +37,7 @@ import com.cells.items.ItemCompressedSiliconPrint;
 import com.cells.items.ItemCompressionTierCard;
 import com.cells.items.ItemDecompressionTierCard;
 import com.cells.items.ItemEqualDistributionCard;
+import com.cells.items.ItemOreDictCard;
 import com.cells.items.ItemOverclockedProcessor;
 import com.cells.items.ItemOverflowCard;
 import com.cells.items.ItemSingularityProcessor;
@@ -56,6 +57,7 @@ public class ItemRegistry {
     public static ItemFluidHyperDensityComponent FLUID_HYPER_DENSITY_COMPONENT;
     public static ItemConfigurableCell CONFIGURABLE_CELL;
     public static ItemOverflowCard OVERFLOW_CARD;
+    public static ItemOreDictCard OREDICT_CARD;
     public static ItemTrashUnselectedCard TRASH_UNSELECTED_CARD;
     public static ItemEqualDistributionCard EQUAL_DISTRIBUTION_CARD;
     public static ItemCompressionTierCard COMPRESSION_TIER_CARD;
@@ -93,6 +95,7 @@ public class ItemRegistry {
 
         // Upgrades are always available
         OVERFLOW_CARD = new ItemOverflowCard();
+        OREDICT_CARD = new ItemOreDictCard();
         TRASH_UNSELECTED_CARD = new ItemTrashUnselectedCard();
         EQUAL_DISTRIBUTION_CARD = new ItemEqualDistributionCard();
         COMPRESSION_TIER_CARD = new ItemCompressionTierCard();
@@ -132,6 +135,7 @@ public class ItemRegistry {
         if (CONFIGURABLE_CELL != null) event.getRegistry().register(CONFIGURABLE_CELL);
 
         event.getRegistry().register(OVERFLOW_CARD);
+        event.getRegistry().register(OREDICT_CARD);
         event.getRegistry().register(TRASH_UNSELECTED_CARD);
         event.getRegistry().register(EQUAL_DISTRIBUTION_CARD);
         event.getRegistry().register(COMPRESSION_TIER_CARD);
@@ -160,6 +164,10 @@ public class ItemRegistry {
         // Overflow card lives under upgrades
         ModelLoader.setCustomModelResourceLocation(OVERFLOW_CARD, 0,
             makeModelLocation(OVERFLOW_CARD, "upgrades"));
+
+        // Ore dictionary card lives under upgrades
+        ModelLoader.setCustomModelResourceLocation(OREDICT_CARD, 0,
+            makeModelLocation(OREDICT_CARD, "upgrades"));
 
         // Trash unselected card also lives under upgrades
         ModelLoader.setCustomModelResourceLocation(TRASH_UNSELECTED_CARD, 0,
@@ -354,8 +362,8 @@ public class ItemRegistry {
             folder = "cells/hyper_density_compacting";
         } else if (item instanceof ItemConfigurableCell) {
             folder = "cells/configurable";
-        } else if (item instanceof ItemOverflowCard || item instanceof ItemTrashUnselectedCard
-            || item instanceof ItemEqualDistributionCard
+        } else if (item instanceof ItemOverflowCard || item instanceof ItemOreDictCard
+            || item instanceof ItemTrashUnselectedCard || item instanceof ItemEqualDistributionCard
             || item instanceof ItemCompressionTierCard || item instanceof ItemDecompressionTierCard) {
             folder = "upgrades";
         } else {

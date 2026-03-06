@@ -3,8 +3,11 @@
 An AE2-UEL addon providing additional storage cells with extended capacities and special features.
 
 ## FAQ
-### My Compacting Cells are not refreshing in the ME Chest until I reopen it
-This is a limitation of the ME Chest's implementation, which doesn't listen for changes on the network. It handles everything by itself, which doesn't work well with the virtual items of the Compacting Cells. This issue is purely visual, and the cell is working correctly.
+### My Compacting Cells are not refreshing in the ME Chest's GUI until I reopen it
+This is a limitation of the ME Chest's implementation, which doesn't listen for changes on the network. It only listens to what the player manually inserts, which doesn't work well with the virtual items of the Compacting Cells. This issue is purely visual, and resolves itself when leaving the GUI and reopening it.
+
+### I have 9.2+ Quintillion items but the terminal shows way less than that
+It may be that your version of AE2 does not handle Long overflows (so far, AE2-UEL 0.56.7 doesn't), causing the count to wrap around and show incorrect values. This is purely a display issue, and your items are safe in the cells. Cell Terminal should show the correct values as it does not accumulate the content of multiple cells, but rather shows each cell separately.
 
 ### What mods does C.E.L.L.S. support?
 The mod requires AE2-UEL. It also has support for:
@@ -13,13 +16,20 @@ The mod requires AE2-UEL. It also has support for:
 - Thaumic Energistics: Configurable Cell components
 - Mekanism Energistics: Configurable Cell components
 
+### Why such heavy warnings on increasing number of types?
+Because of limitations in Minecraft and AE2 :
+- Let's take the default packet size of 2MB. It's what you are fixed to unless you use a mod to increase it. An enchanted piece of armor can take 100s-1000s of bytes of NBT data, a normal drive can store 10 cells, so 2MB / 1000B / 10 cells = a measly 200 different items before you hit the limit. That's really not a lot!
+- If a chunk contains more than that limit *across all machines/containers*, the chunk will fail to load and kick all players trying to load it. This is a vanilla Minecraft limitation. That's why you should isolate and separate your NBT-heavy content into different chunks and networks, to avoid chunk-banning yourself. Getting stuck in that chunk will result in a crash loop until you manually move your player with an NBT editor to a different chunk, or remove the offending machines. There are ways to avoid this issue, but they come at a performance cost and do not solvee the issue below, which is inherent to AE2's design.
+- AE2 will kick you from the network if the total NBT size of the network's storage exceeds this limit. This means the total combined NBT size of all your cells on a single network. Of course, making a separate network can alleviate this issue, but not solve the root of it. Hyper-Density Cells are not much bigger than regular cells in terms of NBT size, as the extra capacity is negligible compared to the NBT size of the items themselves.
+- TL;DR: The item count itself doesn't matter, what you store does.
+
 
 ## Features
 
 ### Import Interface/Fluid Import Interface
 A block that acts as a filtered interface for importing items/fluids into the ME network. It needs to be configured to allow specific content, and can be used to import items/fluids into the network from machines that don't necessarily have a filtered export capability (Woot, Ultimate Mob Farm, etc). It does not have any exporting/stocking or crafting capabilities, and only works as an import interface. The top part of each slot is used for the filter, while the bottom part is used for the actual import. The size of the slots can be configured in the GUI, allowing higher/lower amount of each item/fluid to be kept in the interface if the export targets are full. The polling rate can also be configured, allowing content to be imported at a fixed interval instead of AE2's adaptive rates.
 
-They hold 36 slots, extendable up to 5x with capacity cards.
+They hold 36 slots, expandable up to 5x with capacity cards.
 
 ### Export Interface/Fluid Export Interface
 The counterpart to the Import Interface, allowing items/fluids to be exported from the ME network to any outside piping. Slot size and polling rate apply all the same as the Import Interface.
@@ -95,10 +105,12 @@ Install in a cell's upgrade slots to void excess items when full. Useful for aut
 
 **Compatible with**: Compacting Cells, Hyper-Density Cells, Hyper-Density Compacting Cells, Configurable Storage Cells, Import Interfaces
 
+
 #### Trash Unselected Card
 Install in an Import Interface to void items that don't match any filter. This is useful to prevent clogging the machine with leftover items, especially when used with machines that export items without filtering capabilities.
 
 **Compatible with**: Import Interfaces
+
 
 #### Equal Distribution Card
 Limits the number of types a cell can hold and divides capacity equally among them. Available in 7 variants:
@@ -117,6 +129,12 @@ Use cases:
 - Ensure fair storage distribution across multiple stored items
 
 **Compatible with**: Hyper-Density Storage Cells
+
+
+#### Oredict Card
+Install in a Compacting Cell's upgrade slots to enable oredict support for compression/decompression. When enabled, the cell will consider items in the same oredict group as equivalent. For example, if you have both Copper Ingots from mod A and mod B in the same oredict group, the cell accepts both and converts them into the partitioned item, unifying the storage. This is equivalent to the "Convertion Upgrade" from Storage Drawers, but for Compacting Cells.
+
+**Compatible with**: Compacting Cells
 
 
 #### Compression/Decompression Cards
@@ -138,7 +156,7 @@ The mod includes a server-side configuration file with an in-game GUI editor:
 Configure the maximum number of types allowed per cell:
 - Hyper-Density Storage Cells
 - Hyper-Density Fluid Storage Cells
-- Configurable Storage Cells
+- Configurable Storage Cells (each content type has its own config)
 
 ### Idle Power Drain
 Configure power drain per tick for each cell type:
@@ -154,7 +172,12 @@ Enable or disable entire cell categories:
 - Hyper-Density Cells
 - Hyper-Density Compacting Cells
 - Hyper-Density Fluid Cells
-- Configurable Cells
+- Configurable Cells (single categories can be disabled by removing all components of that category from the whitelist)
+
+### NBT Debug
+Enable or disable the NBT Size tooltip for all cells. This tooltip shows an upper bound estimation of the NBT size of the cell's content, to help with realizing when to move NBT-heavy content somewhere else, to avoid chunkbanning or AE2's network kick.
+This setting may take some performance away if your cells have items with large NBT data flickering in and out of them, but this should be rare in practice and is generally not a problem for most use cases.
+
 
 ## Commands
 
@@ -164,6 +187,7 @@ Fill a storage cell with a specified quantity of items or fluids, for testing pu
 - Supports suffixes for count: k (thousand), m (million), b (billion), t (trillion), q (quadrillion), qq (quintillion).
 - The storage cell must be held in the main hand.
 - Example: `/fillCell minecraft:iron_ingot 10k` fills the held cell with 10,000 Iron Ingots.
+
 
 ## Credits
 - Chinese translation: @ZHAY10086

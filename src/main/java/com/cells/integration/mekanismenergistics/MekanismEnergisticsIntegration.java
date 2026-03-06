@@ -49,6 +49,21 @@ public final class MekanismEnergisticsIntegration {
     }
 
     /**
+     * Get the storage channel from AE2.
+     * Returns null if Mekanism Energistics is not loaded.
+     */
+    public static IStorageChannel<?> getStorageChannel() {
+        if (!isModLoaded()) return null;
+
+        try {
+            return GasIntegrationImpl.getChannel();
+        } catch (Exception e) {
+            Cells.LOGGER.error("Failed to get gas storage channel from AE2", e);
+            return null;
+        }
+    }
+
+    /**
      * Get the cell inventory handler for a gas cell.
      * Returns null if Mekanism Energistics is not loaded.
      */
@@ -80,15 +95,18 @@ public final class MekanismEnergisticsIntegration {
      */
     static final class GasIntegrationImpl {
 
+        static IStorageChannel<?> getChannel() {
+            return AEApi.instance().storage().getStorageChannel(
+                com.mekeng.github.common.me.storage.IGasStorageChannel.class);
+        }
+
         @SuppressWarnings("unchecked")
         static <T extends IAEStack<T>> ICellInventoryHandler<T> getCellInventory(
                 ItemStack is, ISaveProvider container, ComponentInfo info, IStorageChannel<T> channel) {
 
             try {
                 IStorageChannel<com.mekeng.github.common.me.data.IAEGasStack> gasChannel =
-                    AEApi.instance().storage().getStorageChannel(
-                        com.mekeng.github.common.me.storage.IGasStorageChannel.class);
-
+                    (IStorageChannel<com.mekeng.github.common.me.data.IAEGasStack>) getChannel();
                 if (channel != gasChannel) return null;
 
                 ConfigurableCellGasInventory inventory = new ConfigurableCellGasInventory(is, container, info);
@@ -116,7 +134,7 @@ public final class MekanismEnergisticsIntegration {
 
                     if (cellInv instanceof INBTSizeProvider) {
                         int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
-                        long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
+                        long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
                         String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
 
                         tooltip.add("");

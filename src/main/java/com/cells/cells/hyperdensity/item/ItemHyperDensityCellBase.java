@@ -85,7 +85,7 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
             ICellInventory<IAEItemStack> cellInv = cellHandler.getCellInv();
             if (cellInv instanceof INBTSizeProvider) {
                 int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
-                long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
+                long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
                 String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
 
                 tooltip.add("");

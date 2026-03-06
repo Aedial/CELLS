@@ -8,15 +8,24 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.2] - 2026-03-06
+### Added
+- Add NAE2 JEI Cell View feature as a built-in feature. It does not depend on NAE2 because hooking into it requires either:
+  - Heavy use of mixins to NAE2.
+  - Tagging our cells as IStorageCell<?>, which then overrides our custom handlers and break the cells. Compacting loses compacting power, Hyper-Density loses the extra space, etc.
+- Add a keybind for the JEI Cell View.
+
+
 ## [0.5.1] - 2026-03-05
 ### Added
 - Add Oredict card support for Compacting Cells. The cell will convert the items into the partitioned item based on the Oredict entry.
 
 ### Fixed
-- Fix item filters not being able to be set on page 2+.
+- Fix item filters not being able to be set on page 2+ for Import Interfaces placed before 0.5.0
 
 ### Changed
 - Remove NBT size for Compacting Cells, as they shouldn't have any issue with large NBT sizes, storing only 1 "real" item.
+- Lower the warning threshold for NBT size to 100kB, as 1MB is probably already too late for most cases, and it's better to be safe and warn earlier. That's still only 20 cells away from the 2MB packet size limit, but will see how it goes in practice.
 
 
 ## [0.5.0] - 2026-03-04

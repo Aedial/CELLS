@@ -21,13 +21,11 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 
 import com.cells.cells.common.AbstractTieredCellItem;
-import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
-import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -84,20 +82,6 @@ public abstract class ItemHyperDensityCompactingCellBase extends AbstractTieredC
 
             if (cellInv instanceof HyperDensityCompactingCellInventory) {
                 addHDCompactingCellInfo((HyperDensityCompactingCellInventory) cellInv, tooltip);
-
-                // Add NBT size information (if enabled in config)
-                if (CellsConfig.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
-                    int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
-                    long warningThreshold = NBTSizeHelper.mbToBytes(CellsConfig.nbtSizeWarningThresholdMB);
-                    String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
-
-                    tooltip.add("");
-                    tooltip.add(I18n.format("tooltip.cells.nbt_size", sizeStr));
-
-                    if (NBTSizeHelper.exceedsThreshold(nbtSize, warningThreshold)) {
-                        tooltip.add(I18n.format("tooltip.cells.nbt_size.warning"));
-                    }
-                }
             }
         }
 
@@ -219,6 +203,7 @@ public abstract class ItemHyperDensityCompactingCellBase extends AbstractTieredC
     public IItemHandler getUpgradesInventory(ItemStack is) {
         return new CustomCellUpgrades(is, 2, Arrays.asList(
             CustomCellUpgrades.CustomUpgrades.OVERFLOW,
+            CustomCellUpgrades.CustomUpgrades.OREDICT,
             CustomCellUpgrades.CustomUpgrades.COMPRESSION_TIER,
             CustomCellUpgrades.CustomUpgrades.DECOMPRESSION_TIER
         ));
