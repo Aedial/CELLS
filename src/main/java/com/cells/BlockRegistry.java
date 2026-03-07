@@ -31,14 +31,19 @@ public class BlockRegistry {
     public static BlockFluidExportInterface FLUID_EXPORT_INTERFACE;
 
     public static void init() {
-        IMPORT_INTERFACE = new BlockImportInterface();
-        FLUID_IMPORT_INTERFACE = new BlockFluidImportInterface();
-        EXPORT_INTERFACE = new BlockExportInterface();
-        FLUID_EXPORT_INTERFACE = new BlockFluidExportInterface();
+        // Block construction is deferred to registry events
+        // to ensure Material class fields are properly remapped on Cleanroom
+        // Material fields (like Material.IRON) are not yet remapped during preInit on modern JVMs (Java 17+).
+        // The registry event fires after remapping is complete, avoiding NoSuchFieldError.
     }
 
     @SubscribeEvent
     public void registerBlocks(RegistryEvent.Register<Block> event) {
+        IMPORT_INTERFACE = new BlockImportInterface();
+        FLUID_IMPORT_INTERFACE = new BlockFluidImportInterface();
+        EXPORT_INTERFACE = new BlockExportInterface();
+        FLUID_EXPORT_INTERFACE = new BlockFluidExportInterface();
+
         event.getRegistry().register(IMPORT_INTERFACE);
         event.getRegistry().register(FLUID_IMPORT_INTERFACE);
         event.getRegistry().register(EXPORT_INTERFACE);

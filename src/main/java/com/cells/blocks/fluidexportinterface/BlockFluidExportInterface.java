@@ -32,8 +32,7 @@ import com.cells.gui.CellsGuiHandler;
 public class BlockFluidExportInterface extends AEBaseTileBlock {
 
     public BlockFluidExportInterface() {
-        // Use ROCK instead of IRON to avoid runtime remapping issues with Cleanroom/Foundation
-        super(Material.ROCK);
+        super(Material.IRON);
         this.setRegistryName(Tags.MODID, "export_fluid_interface");
         this.setTranslationKey(Tags.MODID + ".export_fluid_interface");
         this.setCreativeTab(CellsCreativeTab.instance);
