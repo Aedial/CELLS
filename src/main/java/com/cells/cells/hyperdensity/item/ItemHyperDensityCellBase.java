@@ -23,6 +23,7 @@ import appeng.api.storage.data.IAEItemStack;
 import com.cells.cells.common.AbstractTieredCellItem;
 import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
+import com.cells.integration.jei.CellsJEIPlugin;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
@@ -97,7 +98,9 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
             }
         }
 
-        // Add hyper-density explanation - simple one-liner
+        // Add JEI cell view hint if JEI is loaded and cell view is enabled
+        if (CellsJEIPlugin.enableCellView) addJeiCellViewHint(tooltip);
+
         tooltip.add("");
         tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_cell.info"));
     }

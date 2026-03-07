@@ -5,6 +5,10 @@ import java.util.List;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
 
+import net.minecraft.client.resources.I18n;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
+
 import appeng.api.AEApi;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
@@ -18,8 +22,6 @@ import com.cells.cells.configurable.ComponentInfo;
 import com.cells.cells.configurable.ConfigurableCellInventoryHandler;
 import com.cells.config.CellsConfig;
 import com.cells.util.NBTSizeHelper;
-
-import net.minecraft.client.resources.I18n;
 
 
 /**
@@ -148,6 +150,120 @@ public final class MekanismEnergisticsIntegration {
             } catch (Exception e) {
                 Cells.LOGGER.error("Failed to add gas cell info to tooltip", e);
             }
+        }
+
+        /**
+         * Check if the given IAEStack is a gas stack.
+         */
+        static boolean isGasStack(IAEStack<?> stack) {
+            return stack instanceof com.mekeng.github.common.me.data.IAEGasStack;
+        }
+
+        /**
+         * Render a gas stack at the given position in GUI.
+         * Matches GuiGasTerminal.drawSlot rendering to get proper animated texture.
+         *
+         * @param stack The IAEStack to render (must be IAEGasStack)
+         * @param x     The x position
+         * @param y     The y position
+         * @param width The width to render
+         * @param height The height to render
+         */
+        @SideOnly(Side.CLIENT)
+        static void renderGasInGui(IAEStack<?> stack, int x, int y, int width, int height) {
+            if (!(stack instanceof com.mekeng.github.common.me.data.IAEGasStack)) return;
+
+            com.mekeng.github.common.me.data.IAEGasStack gasStack =
+                (com.mekeng.github.common.me.data.IAEGasStack) stack;
+            mekanism.api.gas.GasStack gs = gasStack.getGasStack();
+            if (gs == null) return;
+
+            mekanism.api.gas.Gas gas = gs.getGas();
+            if (gas == null) return;
+
+            // Use gas.getSprite() directly - this properly handles fluid-based gases
+            // and uses the cached/animated sprite
+            net.minecraft.client.renderer.texture.TextureAtlasSprite sprite = gas.getSprite();
+            if (sprite == null) return;
+
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+
+            // Match GuiGasTerminal.drawSlot GL state setu:
+            // - Enable lighting (required for proper texture sampling with animation)
+            // - Enable blend
+            // - Bind texture atlas
+            // - Apply gas color tint
+            // - Draw the textured rectangle using vanilla approach
+            net.minecraft.client.renderer.GlStateManager.enableLighting();
+            net.minecraft.client.renderer.GlStateManager.enableBlend();
+
+            mc.renderEngine.bindTexture(net.minecraft.client.renderer.texture.TextureMap.LOCATION_BLOCKS_TEXTURE);
+
+            mekanism.client.render.MekanismRenderer.color(gas);
+
+            // FIXME: Tint is right, but texture doesn't get applied
+            // Draw using the same approach as Gui.drawTexturedModalRect(x, y, sprite, w, h)
+            drawTexturedModalRect(x, y, sprite, width, height);
+
+            mekanism.client.render.MekanismRenderer.resetColor();
+
+            net.minecraft.client.renderer.GlStateManager.disableBlend();
+            net.minecraft.client.renderer.GlStateManager.disableLighting();
+        }
+
+        /**
+         * Draw a textured rectangle using a sprite - exactly like vanilla Gui.drawTexturedModalRect.
+         * This ensures proper UV mapping for animated textures.
+         */
+        @SideOnly(Side.CLIENT)
+        private static void drawTexturedModalRect(int x, int y,
+                net.minecraft.client.renderer.texture.TextureAtlasSprite sprite, int width, int height) {
+
+            net.minecraft.client.renderer.Tessellator tessellator = net.minecraft.client.renderer.Tessellator.getInstance();
+            net.minecraft.client.renderer.BufferBuilder buffer = tessellator.getBuffer();
+
+            buffer.begin(org.lwjgl.opengl.GL11.GL_QUADS, net.minecraft.client.renderer.vertex.DefaultVertexFormats.POSITION_TEX);
+            buffer.pos(x, y + height, 0.0).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
+            buffer.pos(x + width, y + height, 0.0).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
+            buffer.pos(x + width, y, 0.0).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
+            buffer.pos(x, y, 0.0).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
+
+            tessellator.draw();
+        }
+    }
+
+    /**
+     * Check if the given IAEStack is a gas stack.
+     * Safe to call even if Mekanism Energistics is not loaded.
+     */
+    public static boolean isGasStack(IAEStack<?> stack) {
+        if (!isModLoaded()) return false;
+
+        try {
+            return GasIntegrationImpl.isGasStack(stack);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Render a gas stack at the given position in GUI.
+     * Does nothing if Mekanism Energistics is not loaded.
+     *
+     * @param stack The IAEStack to render (must be IAEGasStack)
+     * @param x     The x position
+     * @param y     The y position
+     * @param width The width to render
+     * @param height The height to render
+     */
+    @SideOnly(Side.CLIENT)
+    public static void renderGasInGui(IAEStack<?> stack, int x, int y, int width, int height) {
+        if (!isModLoaded()) return;
+
+        try {
+            GasIntegrationImpl.renderGasInGui(stack, x, y, width, height);
+        } catch (Exception e) {
+            Cells.LOGGER.error("Failed to render gas in GUI", e);
         }
     }
 }

@@ -35,6 +35,16 @@ tasks.register('printVersion') {
     }
 }
 
+// Task to print the mod full version for CI usage
+// Usage: ./gradlew -q printFullVersion
+tasks.register('printFullVersion') {
+    group 'publishing'
+    description 'Prints the full mod version (mod_name + mod_version) to stdout'
+    doLast {
+        println "${propertyString('mod_name')} ${propertyString('mod_version')}"
+    }
+}
+
 // Task to infer release type from mod_version (release, beta, alpha)
 // Usage: ./gradlew -q printReleaseType
 tasks.register('printReleaseType') {

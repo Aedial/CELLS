@@ -44,6 +44,7 @@ import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
 import com.cells.core.CellsCreativeTab;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.integration.jei.CellsJEIPlugin;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.mixin.MixinState;
@@ -100,6 +101,21 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
     // =====================
     // Tooltip
     // =====================
+
+    /**
+     * Add JEI keybind hint for cell view feature.
+     * Separated to handle JEI not being loaded gracefully.
+     */
+    @SideOnly(Side.CLIENT)
+    private void addJeiCellViewHint(List<String> tooltip) {
+        try {
+            String keybind = mezz.jei.config.KeyBindings.showRecipe.getDisplayName();
+            tooltip.add("");
+            tooltip.add(net.minecraft.client.resources.I18n.format("tooltip.cells.jei_view_contents", keybind));
+        } catch (NoClassDefFoundError e) {
+            // JEI not loaded, skip hint
+        }
+    }
 
     @Override
     @SideOnly(Side.CLIENT)
@@ -176,6 +192,9 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
         // Show upgrade information
         CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
+
+        // Add JEI cell view hint if JEI is loaded and cell view is enabled
+        if (CellsJEIPlugin.enableCellView) addJeiCellViewHint(tooltip);
 
         // Show cell description
         tooltip.add("");

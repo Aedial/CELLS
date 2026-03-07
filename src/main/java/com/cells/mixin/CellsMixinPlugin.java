@@ -1,8 +1,9 @@
 package com.cells.mixin;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 
 import zone.rong.mixinbooter.ILateMixinLoader;
@@ -28,6 +29,13 @@ public class CellsMixinPlugin implements ILateMixinLoader {
     @Optional.Method(modid = "mixinbooter")
     public List<String> getMixinConfigs() {
         MixinState.markMixinsEnabled();
-        return Collections.singletonList("mixins.cells.json");
+
+        List<String> configs = new ArrayList<>();
+        configs.add("mixins.cells.json");
+
+        // Load JEI mixin only if JEI is present
+        if (Loader.isModLoaded("jei")) configs.add("mixins.cells.jei.json");
+
+        return configs;
     }
 }

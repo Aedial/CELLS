@@ -13,9 +13,12 @@ import mezz.jei.api.IJeiRuntime;
 import mezz.jei.api.JEIPlugin;
 import mezz.jei.api.IIngredientListOverlay;
 import mezz.jei.api.IBookmarkOverlay;
+import mezz.jei.api.recipe.IRecipeCategoryRegistration;
 
 import com.cells.ItemRegistry;
 import com.cells.config.CellsConfig;
+import com.cells.integration.jei.cellview.CellViewCategory;
+import com.cells.integration.jei.cellview.CellViewRegistryPlugin;
 
 
 /**
@@ -31,12 +34,27 @@ public class CellsJEIPlugin implements IModPlugin {
 
     private static IJeiRuntime jeiRuntime = null;
 
+    // TODO: add config
+    /** Config flag for enabling cell view feature */
+    public static boolean enableCellView = true;
+
+    @Override
+    public void registerCategories(@Nonnull IRecipeCategoryRegistration registry) {
+        // Register cell view category
+        if (enableCellView) {
+            registry.addRecipeCategories(new CellViewCategory(registry.getJeiHelpers()));
+        }
+    }
+
     @Override
     public void register(@Nonnull IModRegistry registry) {
         // Register configurable cell assembly recipe plugin
         if (CellsConfig.enableConfigurableCells && ItemRegistry.CONFIGURABLE_CELL != null) {
             registry.addRecipeRegistryPlugin(new ConfigurableCellRegistryPlugin());
         }
+
+        // Register cell view feature
+        if (enableCellView) registry.addRecipeRegistryPlugin(new CellViewRegistryPlugin());
     }
 
     @Override

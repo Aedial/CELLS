@@ -23,6 +23,7 @@ import appeng.api.storage.data.IAEFluidStack;
 import com.cells.cells.common.AbstractTieredCellItem;
 import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
+import com.cells.integration.jei.CellsJEIPlugin;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
@@ -97,6 +98,9 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
             }
         }
 
+        // Add JEI cell view hint if JEI is loaded and cell view is enabled
+        if (CellsJEIPlugin.enableCellView) addJeiCellViewHint(tooltip);
+
         tooltip.add("");
         tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_fluid_cell.info"));
     }
@@ -143,9 +147,7 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
         // Effective max types: config value, possibly limited by equal distribution card
         int effectiveMaxTypes = getMaxTypes();
         int eqDistLimit = CellUpgradeHelper.getEqualDistributionLimit(getUpgradesInventory(cellItem));
-        if (eqDistLimit > 0 && eqDistLimit < effectiveMaxTypes) {
-            effectiveMaxTypes = eqDistLimit;
-        }
+        if (eqDistLimit > 0 && eqDistLimit < effectiveMaxTypes) effectiveMaxTypes = eqDistLimit;
 
         long displayBpt = displayBytesValue / 2 / effectiveMaxTypes;
 

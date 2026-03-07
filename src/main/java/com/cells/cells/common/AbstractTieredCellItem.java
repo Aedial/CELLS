@@ -29,6 +29,7 @@ import appeng.items.contents.CellConfig;
 import appeng.util.Platform;
 
 import com.cells.core.CellsCreativeTab;
+import com.cells.integration.jei.CellsJEIPlugin;
 import com.cells.mixin.MixinState;
 import com.cells.util.CellDisassemblyHelper;
 
@@ -127,6 +128,21 @@ public abstract class AbstractTieredCellItem extends Item implements ICellWorkbe
     public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
                                @Nonnull ITooltipFlag flag) {
         addCellInformation(stack, world, tooltip, flag);
+    }
+
+    /**
+     * Add JEI keybind hint for cell view feature.
+     * Separated to handle JEI not being loaded gracefully.
+     */
+    @SideOnly(Side.CLIENT)
+    protected void addJeiCellViewHint(List<String> tooltip) {
+        try {
+            String keybind = mezz.jei.config.KeyBindings.showRecipe.getDisplayName();
+            tooltip.add("");
+            tooltip.add(net.minecraft.client.resources.I18n.format("tooltip.cells.jei_view_contents", keybind));
+        } catch (NoClassDefFoundError e) {
+            // JEI not loaded, skip hint
+        }
     }
 
     // =====================

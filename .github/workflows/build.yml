@@ -64,6 +64,7 @@ jobs:
 
           # Get version and release type from Gradle
           VERSION=$(./gradlew -q printVersion)
+          FULL_VERSION=$(./gradlew -q printFullVersion)
           RELEASE_TYPE=$(./gradlew -q printReleaseType)
 
           # Get changelog from Gradle
@@ -76,7 +77,7 @@ jobs:
 
           # TODO: get "C.E.L.L.S" from gradle
           gh release create "$TAG" build/libs/*.jar \
-            --title "C.E.L.L.S $VERSION" \
+            --title "$FULL_VERSION" \
             --notes-file "$NOTES_FILE" \
             $(if [[ "$RELEASE_TYPE" != "release" ]]; then echo "--prerelease"; fi)
 
