@@ -11,6 +11,7 @@ tooltip.cells.nbt_size=NBT大小：%s
 tooltip.cells.nbt_size.warning=§c⚠ NBT大小超出安全上限！可能会导致卡顿或崩溃。将一些NBT过大的物品转移至其他区块和网络中，以避免崩溃。§r
 tooltip.cells.previous_page=上一页
 tooltip.cells.next_page=下一页
+tooltip.cells.jei_view_contents=§7按[§b%s§7]查看内容§r
 
 # Messages
 message.cells.disassemble_fail_content=无法拆解存有内容的元件！请先清空元件。
@@ -388,3 +389,54 @@ chat.cells.polling_rate_delayed=§e轮询率已保存，会在下次连接到AE2
 key.cells.category=C.E.L.L.S
 key.cells.memory_card_include_filters.desc=将设置与过滤项保存至内存卡
 key.cells.quick_add_to_filter.desc=快速添加到过滤项
+
+# JEI Cell View
+jei.cells.cellview.title=元件内容
+jei.cells.cellview.size=大小：
+jei.cells.cellview.types=类型：
+jei.cells.cellview.per_type=每种类型
+jei.cells.cellview.nbt_size=NBT大小：
+jei.cells.cellview.no_data=无可用元件数据
+jei.cells.cellview.not_partitioned=未分区
+jei.cells.cellview.chain_pending=等待首次放入
+jei.cells.cellview.compression_tiers=（压缩%s级，解压%s级）
+jei.cells.cellview.tier=等级
+jei.cells.cellview.tiers=等级
+
+# JEI Cell View - Units
+jei.cells.cellview.unit.items=物品
+jei.cells.cellview.unit.fluid=mB
+jei.cells.cellview.unit.essentia=源质
+jei.cells.cellview.unit.gas=mB 气体
+
+# JEI Cell View - Item Tooltips
+jei.cells.cellview.tooltip.stored_units=已存储：%s %s
+jei.cells.cellview.tooltip.bytes_used=字节：%s
+jei.cells.cellview.tooltip.virtual_form=压缩/解压自（虚拟）
+
+# JEI Cell View - Size Row Tooltips
+jei.cells.cellview.tooltip.size_full=大小：%s / %s 字节
+jei.cells.cellview.tooltip.hd_explanation=超高密度元件内部具有存储倍率
+jei.cells.cellview.tooltip.hd_multiplier=每字节存储约%s物品/桶流体
+
+# JEI Cell View - Types Row Tooltips
+jei.cells.cellview.tooltip.types_info=每种存储的类型都会预留开销字节
+jei.cells.cellview.tooltip.overhead_info=每种类型字节：%s
+jei.cells.cellview.tooltip.overhead_total=类型总开销：%s 字节
+jei.cells.cellview.tooltip.equal_distribution_builtin=内置均分（可配置元件）
+jei.cells.cellview.tooltip.equal_distribution_upgrade=均分已启用（来自升级卡）
+jei.cells.cellview.tooltip.equal_distribution_explain=总容量在所有类型槽位间均分
+jei.cells.cellview.tooltip.configurable_types=均分：容量按类型分割
+jei.cells.cellview.tooltip.per_type_limit=每种类型最大数量：%s
+jei.cells.cellview.tooltip.max_types_limit=最大类型数量：%s
+
+# JEI Cell View - Compacting Cell Tooltips
+jei.cells.cellview.tooltip.partition_required=元件使用前需进行分区
+jei.cells.cellview.tooltip.chain_pending_explain=物品压缩链将在首次放入时设定
+jei.cells.cellview.tooltip.compression_explain=物品会以单一池形式存储，可呈现多种形态
+jei.cells.cellview.tooltip.tiers_up=%s层更高%s（压缩）
+jei.cells.cellview.tooltip.tiers_down=%s层更低%s（解压）
+jei.cells.cellview.tooltip.oredict_enabled=矿物词典：接受等效物品
+
+# JEI Cell View - NBT Tooltip
+jei.cells.cellview.tooltip.nbt_info=NBT数据过大会致使崩溃或存档损坏。
