@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.4] - 2026-03-08
+### Fixed
+- Fix Configurable Cells' weird behavior with max types (no max showing -1)
+
+
 ## [0.5.3] - 2026-03-07
 ### Fixed
 - (Really) fix the mod crashing on some versions of Cleanroom due to blocks registry not being mapped yet.
