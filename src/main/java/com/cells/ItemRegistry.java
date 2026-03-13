@@ -21,6 +21,7 @@ import com.cells.cells.configurable.ChannelType;
 import com.cells.cells.configurable.ComponentHelper;
 import com.cells.cells.configurable.ComponentInfo;
 import com.cells.cells.configurable.ItemConfigurableCell;
+import com.cells.cells.creative.ItemCreativeCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingComponent;
 import com.cells.cells.hyperdensity.item.ItemHyperDensityCell;
@@ -56,6 +57,7 @@ public class ItemRegistry {
     public static ItemFluidHyperDensityCell FLUID_HYPER_DENSITY_CELL;
     public static ItemFluidHyperDensityComponent FLUID_HYPER_DENSITY_COMPONENT;
     public static ItemConfigurableCell CONFIGURABLE_CELL;
+    public static ItemCreativeCell CREATIVE_CELL;
     public static ItemOverflowCard OVERFLOW_CARD;
     public static ItemOreDictCard OREDICT_CARD;
     public static ItemTrashUnselectedCard TRASH_UNSELECTED_CARD;
@@ -92,6 +94,9 @@ public class ItemRegistry {
         }
 
         if (CellsConfig.enableConfigurableCells) CONFIGURABLE_CELL = new ItemConfigurableCell();
+
+        // Creative cell is always available (no config toggle)
+        CREATIVE_CELL = new ItemCreativeCell();
 
         // Upgrades are always available
         OVERFLOW_CARD = new ItemOverflowCard();
@@ -133,6 +138,9 @@ public class ItemRegistry {
         }
 
         if (CONFIGURABLE_CELL != null) event.getRegistry().register(CONFIGURABLE_CELL);
+
+        // Creative cell is always registered
+        event.getRegistry().register(CREATIVE_CELL);
 
         event.getRegistry().register(OVERFLOW_CARD);
         event.getRegistry().register(OREDICT_CARD);
@@ -295,6 +303,10 @@ public class ItemRegistry {
                     makeModelLocation(FLUID_HYPER_DENSITY_COMPONENT, "cells/hyper_density_fluid", "_" + fluidHdComponentTiers[i]));
             }
         }
+
+        // Register creative cell model (cells folder)
+        ModelLoader.setCustomModelResourceLocation(CREATIVE_CELL, 0,
+            makeModelLocation(CREATIVE_CELL, "cells"));
     }
 
     @SideOnly(Side.CLIENT)

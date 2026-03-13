@@ -11,6 +11,7 @@ import com.cells.BlockRegistry;
 import com.cells.ItemRegistry;
 import com.cells.core.CellsCreativeTab;
 import com.cells.cells.configurable.ConfigurableCellHandler;
+import com.cells.cells.creative.CreativeCellHandler;
 import com.cells.cells.normal.compacting.CompactingCellHandler;
 import com.cells.cells.hyperdensity.fluid.FluidHyperDensityCellHandler;
 import com.cells.cells.hyperdensity.item.HyperDensityCellHandler;
@@ -57,6 +58,9 @@ public class CommonProxy {
 
         // Register the configurable cell handler with AE2
         AEApi.instance().registries().cell().addCellHandler(new ConfigurableCellHandler());
+
+        // Register the creative cell handler with AE2
+        AEApi.instance().registries().cell().addCellHandler(CreativeCellHandler.INSTANCE);
 
         // Register custom inscriber recipes for compressed prints and processors
         InscriberRecipeHandler.registerRecipes();

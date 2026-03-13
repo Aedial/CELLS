@@ -48,6 +48,8 @@ public class ContainerConfigurableCell extends AEBaseContainer {
     @SideOnly(Side.CLIENT)
     private GuiTextField typesField;
 
+    // long values because they are treated as short, otherwise
+
     @GuiSync(0)
     public long maxPerType = Long.MAX_VALUE;
 
@@ -61,13 +63,13 @@ public class ContainerConfigurableCell extends AEBaseContainer {
     public int componentPresent = 0;
 
     @GuiSync(4)
-    public int currentTypes = 0;
+    public long currentTypes = 0;
 
     @GuiSync(5)
-    public int maxTypesConfig = 0;
+    public long maxTypesConfig = 0;
 
     @GuiSync(6)
-    public int userMaxTypes = Integer.MAX_VALUE;
+    public long userMaxTypes = Integer.MAX_VALUE;
 
     public ContainerConfigurableCell(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, null, null);

@@ -8,12 +8,26 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.5] - 2026-03-13
+### Added
+Add Creative Cell, a Cell that can only be configured in Creative mode, and exposes 4.6 quintillion of each set item.
+
+
+## [0.5.4] - 2026-03-08
+### Fixed
+- Fix Configurable Cells' weird behavior with max types (no max showing -1)
+
+
+## [0.5.3] - 2026-03-07
+### Fixed
+- (Really) fix the mod crashing on some versions of Cleanroom due to blocks registry not being mapped yet.
+
+
 ## [0.5.2] - 2026-03-06
 ### Added
 - Add NAE2 JEI Cell View feature as a built-in feature. It does not depend on NAE2 because hooking into it requires either:
   - Heavy use of mixins to NAE2.
   - Tagging our cells as IStorageCell<?>, which then overrides our custom handlers and break the cells. Compacting loses compacting power, Hyper-Density loses the extra space, etc.
-- Add a keybind for the JEI Cell View.
 
 
 ## [0.5.1] - 2026-03-05

@@ -451,6 +451,13 @@ public class CellViewRecipe implements IRecipeWrapper {
         return cellType;
     }
 
+    /**
+     * Check if this is a Creative Cell (infinite item source, no bytes consumed).
+     */
+    public boolean isCreative() {
+        return cellType == CellType.CREATIVE;
+    }
+
     // Compacting cell getters
 
     public boolean isCompacting() {

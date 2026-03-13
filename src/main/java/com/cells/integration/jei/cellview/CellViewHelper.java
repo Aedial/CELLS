@@ -13,6 +13,7 @@ import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEStack;
 
 import com.cells.cells.configurable.ItemConfigurableCell;
+import com.cells.cells.creative.ItemCreativeCell;
 import com.cells.cells.hyperdensity.compacting.IItemHyperDensityCompactingCell;
 import com.cells.cells.hyperdensity.fluid.IItemFluidHyperDensityCell;
 import com.cells.cells.hyperdensity.item.IItemHyperDensityCell;
@@ -47,6 +48,8 @@ public final class CellViewHelper {
         HYPER_DENSITY_COMPACTING,
         /** Configurable cell (component-based, equal distribution) */
         CONFIGURABLE,
+        /** Creative cell (infinite source of partitioned items) */
+        CREATIVE,
         /** Unknown/external cell (vanilla AE2 or other addon) */
         UNKNOWN
     }
@@ -80,6 +83,10 @@ public final class CellViewHelper {
 
         if (stack.getItem() instanceof ItemConfigurableCell) {
             return CellType.CONFIGURABLE;
+        }
+
+        if (stack.getItem() instanceof ItemCreativeCell) {
+            return CellType.CREATIVE;
         }
 
         return CellType.UNKNOWN;

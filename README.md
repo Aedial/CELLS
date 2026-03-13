@@ -11,8 +11,8 @@ It may be that your version of AE2 does not handle Long overflows (so far, AE2-U
 
 ### What mods does C.E.L.L.S. support?
 The mod requires AE2-UEL. It also has support for:
-- MixinBooter: Allows C.E.L.L.S.'s Storage Cells to stack to 64. Without it, allowing them to stack enables a duplication exploit with the ME Chest
-- JEI: Import Interface drag-and-drop and quick-add features
+- MixinBooter: Allows C.E.L.L.S.'s Storage Cells to stack to 64. Without it, allowing them to stack enables a duplication exploit with the ME Chest. Also provides the item count display for the JEI Cell Preview.
+- JEI: Import Interface drag-and-drop and quick-add features, Creative Cell drag-and-drop feature, and JEI Cell Preview feature
 - Thaumic Energistics: Configurable Cell components
 - Mekanism Energistics: Configurable Cell components
 
@@ -33,6 +33,10 @@ They hold 36 slots, expandable up to 5x with capacity cards.
 
 ### Export Interface/Fluid Export Interface
 The counterpart to the Import Interface, allowing items/fluids to be exported from the ME network to any outside piping. Slot size and polling rate apply all the same as the Import Interface.
+
+
+### Creative Cell
+A cell that can only be set in creative mode, providing 4.6 quintillion of each set item (up to 63 different items per cell). It is the equivalent of a Drawer with the Vending upgrade.
 
 
 ### Compacting Storage Cells

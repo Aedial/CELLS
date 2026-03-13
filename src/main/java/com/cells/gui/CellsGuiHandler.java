@@ -32,6 +32,8 @@ import com.cells.blocks.fluidexportinterface.IFluidExportInterfaceInventoryHost;
 import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
 import com.cells.cells.configurable.ContainerConfigurableCell;
 import com.cells.cells.configurable.GuiConfigurableCell;
+import com.cells.cells.creative.ContainerCreativeCell;
+import com.cells.cells.creative.GuiCreativeCell;
 import com.cells.parts.PartImportInterface;
 import com.cells.parts.PartFluidImportInterface;
 import com.cells.parts.PartExportInterface;
@@ -59,6 +61,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_FLUID_IMPORT_INTERFACE = 4;
     public static final int GUI_EXPORT_INTERFACE = 5;
     public static final int GUI_FLUID_EXPORT_INTERFACE = 6;
+    public static final int GUI_CREATIVE_CELL = 7;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
@@ -208,6 +211,13 @@ public class CellsGuiHandler implements IGuiHandler {
             case GUI_CONFIGURABLE_CELL:
                 return new ContainerConfigurableCell(player.inventory, EnumHand.values()[x]);
 
+            case GUI_CREATIVE_CELL:
+                // Only allow creative mode players to open this GUI
+                if (player.isCreative()) {
+                    return new ContainerCreativeCell(player.inventory, EnumHand.values()[x]);
+                }
+                return null;
+
             case GUI_EXPORT_INTERFACE:
                 if (tile instanceof TileExportInterface) {
                     return new ContainerExportInterface(player.inventory, (TileExportInterface) tile);
@@ -303,6 +313,13 @@ public class CellsGuiHandler implements IGuiHandler {
 
             case GUI_CONFIGURABLE_CELL:
                 return new GuiConfigurableCell(player.inventory, EnumHand.values()[x]);
+
+            case GUI_CREATIVE_CELL:
+                // Only allow creative mode players to open this GUI
+                if (player.isCreative()) {
+                    return new GuiCreativeCell(player.inventory, EnumHand.values()[x]);
+                }
+                return null;
 
             case GUI_EXPORT_INTERFACE:
                 if (tile instanceof TileExportInterface) {

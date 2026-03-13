@@ -238,6 +238,16 @@ gui.cells.configurable_cell.capacity_title.gas=Per-type capacity (mB gas):
 gui.cells.configurable_cell.no_component=Unknown
 gui.cells.configurable_cell.types_title=Types:
 
+# Creative ME Cell
+item.cells.creative_cell.name=Creative ME Storage Cell
+tooltip.cells.creative_cell.info=Infinite item source. Exposes set items in massive quantities.
+tooltip.cells.creative_cell.exposes=Exposes %s of each item (%d items)
+tooltip.cells.creative_cell.creative_hint=Right-click to configure filters
+tooltip.cells.creative_cell.survival_hint=Creative mode required to configure
+gui.cells.creative_cell.title=Creative Cell Filters
+gui.cells.creative_cell.clear=Clear Filters
+gui.cells.creative_cell.clear_tooltip=Clear all filter slots
+
 # Configurable Cell Config
 cells.config.configurableCellIdleDrain=Configurable Cells Idle drain
 cells.config.configurableCellIdleDrain.tooltip=Idle drain for configurable cells (passive AE/t consumption)

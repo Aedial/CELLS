@@ -1,6 +1,6 @@
 {
     "package": "com.cells.mixin.jei",
-    "refmap": "mixins.cells.jei.refmap.json",
+    "refmap": "mixins.cells.refmap.json",
     "target": "@env(DEFAULT)",
     "minVersion": "0.8",
     "compatibilityLevel": "JAVA_8",

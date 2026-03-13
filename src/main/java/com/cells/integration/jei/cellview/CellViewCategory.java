@@ -292,8 +292,9 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
                     }
                 }
 
-                // Show bytes used by this stack (if not virtual form)
-                if (!virtualForm) {
+                // Show bytes used by this stack (if not virtual form or creative cell)
+                // Creative cells don't consume bytes - they're infinite sources
+                if (!virtualForm && !recipeRef.isCreative()) {
                     tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
                         format.format(info.bytesUsed)));
                 }
@@ -455,7 +456,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
             Point pos = slotPositions.get(i);
 
             // Render gas with proper sprite and color
-            Cells.LOGGER.info("Rendering gas stack: " + info.stack);
+            // Cells.LOGGER.info("Rendering gas stack: " + info.stack);
             MekanismEnergisticsIntegration.renderGasInGui(info.stack, pos.x + 1, pos.y + 1, 16, 16);
         }
 

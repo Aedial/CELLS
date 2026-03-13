@@ -35,8 +35,7 @@ import com.cells.gui.CellsGuiHandler;
 public class BlockExportInterface extends AEBaseTileBlock {
 
     public BlockExportInterface() {
-        // Use ROCK instead of IRON to avoid runtime remapping issues with Cleanroom/Foundation
-        super(Material.ROCK);
+        super(Material.IRON);
         this.setRegistryName(Tags.MODID, "export_interface");
         this.setTranslationKey(Tags.MODID + ".export_interface");
         this.setCreativeTab(CellsCreativeTab.instance);
