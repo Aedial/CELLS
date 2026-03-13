@@ -121,7 +121,7 @@ public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> i
 
     @Override
     public IItemHandler getUpgradesInventory() {
-        return new CustomCellUpgrades(cellStack, 2, Arrays.asList(
+        return new CustomCellUpgrades(cellStack, CellsConfig.configurableCellUpgradeSlots, Arrays.asList(
             CustomCellUpgrades.CustomUpgrades.OVERFLOW
         ));
     }

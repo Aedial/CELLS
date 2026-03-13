@@ -39,6 +39,17 @@ cells.config.hdIdleDrain.tooltip=Idle drain for hyper-density cells (passive AE/
 cells.config.hdCompactingIdleDrain.tooltip=Idle drain for hyper-density compacting cells (passive AE/t consumption)
 cells.config.fluidHdIdleDrain.tooltip=Idle drain for fluid hyper-density cells (passive AE/t consumption)
 
+cells.config.compactingCellUpgradeSlots=Compacting Cells Upgrade Slots
+cells.config.compactingCellUpgradeSlots.tooltip=Number of upgrade slots for compacting cells (1-16)
+cells.config.hdItemCellUpgradeSlots=HD Item Cells Upgrade Slots
+cells.config.hdItemCellUpgradeSlots.tooltip=Number of upgrade slots for hyper-density item cells (1-16)
+cells.config.hdCompactingCellUpgradeSlots=HD Compacting Cells Upgrade Slots
+cells.config.hdCompactingCellUpgradeSlots.tooltip=Number of upgrade slots for hyper-density compacting cells (1-16)
+cells.config.hdFluidCellUpgradeSlots=HD Fluid Cells Upgrade Slots
+cells.config.hdFluidCellUpgradeSlots.tooltip=Number of upgrade slots for hyper-density fluid cells (1-16)
+cells.config.configurableCellUpgradeSlots=Configurable Cells Upgrade Slots
+cells.config.configurableCellUpgradeSlots.tooltip=Number of upgrade slots for configurable cells (1-16)
+
 cells.config.enableCompactingCell=Enable Compacting Cell
 cells.config.enableHDCells=Enable HD Cell
 cells.config.enableHDCompactingCells=Enable HD Compacting Cell

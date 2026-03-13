@@ -187,7 +187,7 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, 2, Arrays.asList(
+        return new CustomCellUpgrades(is, CellsConfig.hdItemCellUpgradeSlots, Arrays.asList(
             CustomCellUpgrades.CustomUpgrades.OVERFLOW,
             CustomCellUpgrades.CustomUpgrades.EQUAL_DISTRIBUTION
         ));

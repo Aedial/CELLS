@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.7] - 2026-03-14
+### Added
+- Add a config to control the number of upgrade slots for each cell type.
+- Increase the default number of upgrade slots for all cell types from 2 to 4.
+
+
 ## [0.5.6] - 2026-03-13
 ### Added
 - Add shift + right-click to set a Creative Cell filter from inventory.

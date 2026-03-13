@@ -177,7 +177,7 @@ public abstract class ItemCompactingCellBase extends AbstractTieredCellItem impl
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, 2, Arrays.asList(
+        return new CustomCellUpgrades(is, CellsConfig.compactingCellUpgradeSlots, Arrays.asList(
             CustomCellUpgrades.CustomUpgrades.OVERFLOW,
             CustomCellUpgrades.CustomUpgrades.OREDICT,
             CustomCellUpgrades.CustomUpgrades.COMPRESSION_TIER,
