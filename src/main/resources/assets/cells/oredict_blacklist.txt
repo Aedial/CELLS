@@ -1,0 +1,92 @@
+# Ore Dictionary Blacklist for CELLS Compacting Cells
+# One ore name per line. Lines starting with # are comments.
+# These entries are NEVER allowed for ore dict equivalence matching.
+#
+# Format:
+#   oreName    - Exact match blacklist (e.g., logWood)
+#   *prefix    - Prefix blacklist (e.g., *dye blocks dyeBlue, dyeBlack, etc.)
+#
+# WARNING: Overly broad entries (like 'dye') can enable exploits!
+# For example, Ink Sac (dyeBlack) and Lapis (dyeBlue) both have 'dye' tags.
+#
+# To customize, copy this file to: config/cells/oredict_blacklist.txt
+# The config file will take precedence over this bundled default.
+
+# ====================
+# Prefix Blacklist
+# ====================
+# These block ALL ore names starting with the given prefix.
+# Example: *dye blocks dyeRed, dyeBlue, dyeBlack, etc.
+
+# Dyes - would allow Ink Sac to match Lapis Lazuli (both are dyes)
+*dye
+
+# List tags are too generic
+*list
+
+# Glass panes have too many colored variants
+*paneGlass
+
+# ====================
+# Wood Products
+# ====================
+# Too many variants from different tree types
+
+logWood
+plankWood
+slabWood
+stairWood
+stickWood
+treeSapling
+treeLeaves
+leavesTree
+
+# ====================
+# Glass
+# ====================
+# Too many colored/tinted variants
+
+blockGlass
+glass
+
+# ====================
+# Stone Types
+# ====================
+# Too many textured/colored variants
+
+stone
+cobblestone
+sand
+sandstone
+obsidian
+glowstone
+
+# ====================
+# Generic Metal Tags
+# ====================
+# These are too broad - use specific types like ingotIron instead
+
+blockMetal
+ingotMetal
+nuggetMetal
+dustMetal
+oreMetal
+
+# ====================
+# Miscellaneous
+# ====================
+
+# Music discs are unique items
+record
+
+# Slimeballs from different slime types should not match
+slimeball
+
+# Tainted resources from Thaumcraft
+resourceTaint
+
+# Ars Magica spell materials
+accioMaterial
+crucioMaterial
+imperioMaterial
+zivicioMaterial

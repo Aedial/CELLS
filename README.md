@@ -88,7 +88,7 @@ A universal storage cell that accepts a ME Storage Component (AE2) to define its
 - Components cannot be removed while the cell has content. Swapping to another component of the same type (item↔item, fluid↔fluid) is allowed if the new component has enough capacity for the existing data.
 
 #### Component Whitelist
-The list of accepted storage components is defined in [configurable\_components.cfg](https://github.com/Aedial/CELLS/blob/main/src/main/resources/assets/cells/configurable_components.cfg). To add or remove supported components, place a copy of this file in your **Forge config directory** (`config/configurable_components.cfg`). The config override takes priority over the bundled file.
+The list of accepted storage components is defined in [configurable\_components.cfg](https://github.com/Aedial/CELLS/blob/main/src/main/resources/assets/cells/configurable_components.cfg). To add or remove supported components, place a copy of this file in your **Forge config directory** (`config/cells/configurable_components.cfg`). The config override takes priority over the bundled file.
 
 **This means you can define custom components past the default ones provided by the mods in your modlist.**
 
@@ -139,6 +139,16 @@ Use cases:
 Install in a Compacting Cell's upgrade slots to enable oredict support for compression/decompression. When enabled, the cell will consider items in the same oredict group as equivalent. For example, if you have both Copper Ingots from mod A and mod B in the same oredict group, the cell accepts both and converts them into the partitioned item, unifying the storage. This is equivalent to the "Convertion Upgrade" from Storage Drawers, but for Compacting Cells.
 
 **Compatible with**: Compacting Cells
+
+##### Technical: Oredict Whitelist/Blacklist
+To prevent exploits where items share overly broad ore tags (e.g., Ink Sac and Lapis both being "dye"), the mod uses a whitelist/blacklist system for ore dictionary matching (whitelist, blacklist, then dynamic validation). This mirrors Storage Drawers' filtering logic.
+
+- **Whitelist**: Ore entries that are always allowed for equivalence matching
+- **Blacklist**: Ore entries that are never allowed (supports exact match and prefix patterns like `*dye`)
+
+Default lists are bundled with the mod, but can be customized by placing override files in `config/cells/`:
+- `config/cells/oredict_whitelist.txt` - [bundled whitelist](https://github.com/Aedial/CELLS/blob/main/src/main/resources/assets/cells/oredict_whitelist.txt)
+- `config/cells/oredict_blacklist.txt` - [bundled blacklist](https://github.com/Aedial/CELLS/blob/main/src/main/resources/assets/cells/oredict_blacklist.txt)
 
 
 #### Compression/Decompression Cards

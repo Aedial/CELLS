@@ -8,6 +8,34 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.8] - 2026-03-16
+### Added
+- Optimize oredict matching for the Ore Dictionary Card, from O(n*m) to O(m) where n is the number of ore dict entries in the cell and m is the number of ore dict entries for the input item. This should mainly affect cases with a big compacting chain (e.g., using Compression/Decompression Cards). m is usually small (most items have 0-2 ore dict entries), so this should be a significant improvement in those cases, while not causing much overhead in the general case.
+- Add whitelist and blacklist files for the Oredict matching of the Ore Dictionary Card, to allow modpacks to control which ore dictionary entries are valid for the card.
+- Extend the list of default Thaumcraft and Mekanism components for the Configurable Cell.
+
+### Fixed
+- Fix the Ore Dictionary Card being too lenient in its matching, allowing every oredict <-> oredict match without restriction, which could be exploited in some cases (e.g., any dye -> lapis or any log -> any other log). The card now matches only via whitelist/blacklist in the config file (defaults to bundled if not present). This matches what the Storage Drawers's Conversion Upgrade does, and should be less exploitable. The whitelist/blacklist can be configured by modpacks to allow/deny specific entries if needed.
+
+### Changed
+- Move the default configurable_components.cfg file to config/cells. The config/ path is still valid, but the new location takes precedence if both exist.
+
+
+## [0.5.7] - 2026-03-13
+### Added
+- Add a config to control the number of upgrade slots for each cell type.
+- Increase the default number of upgrade slots for all cell types from 2 to 4.
+
+
+## [0.5.6] - 2026-03-13
+### Added
+- Add shift + right-click to set a Creative Cell filter from inventory.
+- Optimize the Creative Cell. Shouldn't make a huge difference in most cases, but who knows.
+
+### Fixed
+- Fixed Creative Cell not notifying the grid the items are not consumed. It's not that big of a deal as it has a ton of items, but could cause problem in some fringe cases.
+
+
 ## [0.5.5] - 2026-03-13
 ### Added
 Add Creative Cell, a Cell that can only be configured in Creative mode, and exposes 4.6 quintillion of each set item.

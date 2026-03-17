@@ -313,7 +313,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, 2, Arrays.asList(
+        return new CustomCellUpgrades(is, CellsConfig.configurableCellUpgradeSlots, Arrays.asList(
             CustomCellUpgrades.CustomUpgrades.OVERFLOW
         ));
     }

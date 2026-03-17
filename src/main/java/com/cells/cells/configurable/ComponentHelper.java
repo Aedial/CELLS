@@ -1,7 +1,5 @@
 package com.cells.cells.configurable;
 
-import javax.annotation.Nullable;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
@@ -14,6 +12,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.annotation.Nullable;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -55,6 +55,7 @@ import com.cells.Tags;
 public final class ComponentHelper {
 
     private static final String WHITELIST_RESOURCE = "/assets/" + Tags.MODID + "/configurable_components.cfg";
+    private static final String CONFIG_SUBDIR = Tags.MODID;
     public static final String WHITELIST_CONFIG_NAME = "configurable_components.cfg";
 
     /**
@@ -83,9 +84,12 @@ public final class ComponentHelper {
     // =====================
 
     /**
-     * Load the component whitelist. Checks the Forge config directory first
-     * for a user override ({@code config/configurable_components.cfg}), then
-     * falls back to the bundled resource inside the JAR.
+     * Load the component whitelist. Checks for user overrides in the following order:
+     * <ol>
+     *   <li>{@code config/cells/configurable_components.cfg}</li>
+     *   <li>{@code config/configurable_components.cfg}</li>
+     *   <li>Bundled resource inside the JAR</li>
+     * </ol>
      * <p>
      * Called from {@link com.cells.Cells#preInit} after the config directory
      * is available.
@@ -96,11 +100,27 @@ public final class ComponentHelper {
         WHITELIST.clear();
         for (ChannelType type : ChannelType.values()) REGISTERED_TIER_NAMES_BY_CHANNEL.get(type).clear();
 
-        // Try config directory override first
+        // Try config/cells/ first (preferred location)
+        if (configDir != null) {
+            File cellsConfigDir = new File(configDir, CONFIG_SUBDIR);
+            File override = new File(cellsConfigDir, WHITELIST_CONFIG_NAME);
+            if (override.isFile()) {
+                Cells.LOGGER.info("Loading component whitelist override from {}", override.getAbsolutePath());
+                try (InputStream is = Files.newInputStream(override.toPath())) {
+                    parseWhitelist(is, override.getAbsolutePath());
+                    return;
+                } catch (Exception e) {
+                    Cells.LOGGER.error("Failed to load whitelist from config/cells/, trying config/", e);
+                }
+            }
+        }
+
+        // Try config/ for backward compatibility
         if (configDir != null) {
             File override = new File(configDir, WHITELIST_CONFIG_NAME);
             if (override.isFile()) {
-                Cells.LOGGER.info("Loading component whitelist override from {}", override.getAbsolutePath());
+                Cells.LOGGER.info("Loading component whitelist override from {} (legacy location, consider moving to config/cells/)",
+                    override.getAbsolutePath());
                 try (InputStream is = Files.newInputStream(override.toPath())) {
                     parseWhitelist(is, override.getAbsolutePath());
                     return;

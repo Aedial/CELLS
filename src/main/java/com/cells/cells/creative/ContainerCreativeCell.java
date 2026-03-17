@@ -142,13 +142,31 @@ public class ContainerCreativeCell extends AEBaseContainer {
     }
 
     /**
-     * Override transferStackInSlot to prevent shift-clicking items into filter slots.
+     * Handle shift-click: add the clicked item as a ghost filter (if from player inventory).
+     * The actual item stays in place (return empty), only the filter is set.
      */
     @Override
     @Nonnull
     public ItemStack transferStackInSlot(EntityPlayer player, int slotIndex) {
-        // Don't allow shift-click transfers to filter slots
-        // FIXME: add filter when shift-clicking, then return empty
+        if (slotIndex < 0 || slotIndex >= inventorySlots.size()) return ItemStack.EMPTY;
+
+        Slot slot = inventorySlots.get(slotIndex);
+        if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
+
+        // Only process shift-clicks from the player inventory (not from filter slots)
+        if (slotIndex < FILTER_SLOTS) return ItemStack.EMPTY;
+
+        ItemStack clickedStack = slot.getStack();
+
+        // Find the first empty filter slot and set the ghost filter
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            if (filterHandler.getStackInSlot(i).isEmpty()) {
+                filterHandler.setStackInSlot(i, clickedStack);
+                break;
+            }
+        }
+
+        // Return empty so the actual item stays in place
         return ItemStack.EMPTY;
     }
 }

@@ -1,7 +1,10 @@
 package com.cells.cells.hyperdensity.compacting;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,6 +31,7 @@ import com.cells.cells.compacting.CompactingHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.DeferredCellOperations;
+import com.cells.util.OreDictValidator;
 
 
 /**
@@ -235,6 +239,13 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * Compared against NBT to detect external changes.
      */
     private int localChainVersion = 0;
+
+    /**
+     * Cached mapping from valid ore dictionary ID to slot indice.
+     * Built during chain initialization for O(1) slot lookup during ore dict matching.
+     * Empty map if no ore dict card is installed or chain has no valid ore entries.
+     */
+    private Map<Integer, Integer> oreIdToSlot = Collections.emptyMap();
 
     /**
      * Creates a new inventory wrapper for an HD Compacting Cell.
@@ -513,6 +524,9 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         if (mainTier < 0 && !isCompressionChainEmpty() && !cachedPartitionItem.isEmpty()) {
             recalculateMainTierFromCachedPartition();
         }
+
+        // Rebuild ore dictionary mapping from loaded protoStack
+        rebuildCachedOreIds();
     }
 
     /**
@@ -643,6 +657,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
             protoStack[0].setCount(1);
             convRate[0] = 1;
             mainTier = 0;
+            rebuildCachedOreIds();
 
             return;
         }
@@ -664,6 +679,22 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         // Use the main tier index from the chain
         mainTier = chain.getMainTierIndex();
+
+        // Pre-compute valid ore IDs for the compression chain
+        rebuildCachedOreIds();
+    }
+
+    /**
+     * Rebuild the cached ore dictionary ID to slot mapping for the compression chain.
+     * Called after chain initialization or when ore dict card state changes.
+     */
+    private void rebuildCachedOreIds() {
+        if (!cachedHasOreDictCard) {
+            oreIdToSlot = Collections.emptyMap();
+            return;
+        }
+
+        oreIdToSlot = OreDictValidator.getOreIdToSlotMapping(protoStack);
     }
 
     /**
@@ -671,6 +702,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * <p>
      * When ore dictionary card is installed, also matches ore dictionary
      * equivalent items to their corresponding proto stack slot.
+     * Uses cached ore ID to slot mapping for O(1) candidate lookup.
      * </p>
      *
      * @param stack The item to find
@@ -685,9 +717,13 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         }
 
         // If ore dict card installed, try ore dictionary equivalence
-        if (cachedHasOreDictCard) {
-            for (int i = 0; i < currentMaxTiers; i++) {
-                if (CellMathHelper.areOreDictEquivalent(protoStack[i], definition)) return i;
+        if (cachedHasOreDictCard && !oreIdToSlot.isEmpty()) {
+            // Get candidate slots that share a valid ore ID with the input
+            Set<Integer> candidateSlots = OreDictValidator.getMatchingSlots(definition, oreIdToSlot);
+
+            // Check each candidate for NBT equality
+            for (int slot : candidateSlots) {
+                if (ItemStack.areItemStackTagsEqual(protoStack[slot], definition)) return slot;
             }
         }
 
@@ -857,6 +893,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
      * <p>
      * When ore dictionary card is installed, also matches ore dictionary
      * equivalent items to their corresponding proto stack slot.
+     * Uses cached ore ID to slot mapping for O(1) candidate lookup.
      * </p>
      *
      * @param stack The item to check
@@ -871,9 +908,13 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         }
 
         // If ore dict card installed, try ore dictionary equivalence
-        if (cachedHasOreDictCard) {
-            for (int i = 0; i < currentMaxTiers; i++) {
-                if (CellMathHelper.areOreDictEquivalent(protoStack[i], definition)) return true;
+        if (cachedHasOreDictCard && !oreIdToSlot.isEmpty()) {
+            // Get candidate slots that share a valid ore ID with the input
+            Set<Integer> candidateSlots = OreDictValidator.getMatchingSlots(definition, oreIdToSlot);
+
+            // Check each candidate for NBT equality
+            for (int slot : candidateSlots) {
+                if (ItemStack.areItemStackTagsEqual(protoStack[slot], definition)) return true;
             }
         }
 
@@ -1133,16 +1174,21 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
 
         // If ore dict card is installed, also allow ore dictionary equivalent items
         if (cachedHasOreDictCard) {
-            // Check against compression chain via ore dict
-            for (int i = 0; i < currentMaxTiers; i++) {
-                if (CellMathHelper.areOreDictEquivalent(protoStack[i], definition)) return true;
-            }
+            // Get candidate slots that share a valid ore ID with the input
+            if (oreIdToSlot.isEmpty()) {
+                // Check partition slots via ore dict if the ore ID map is empty (shouldn't happen)
+                for (int i = 0; i < configInv.getSlots(); i++) {
+                    ItemStack partItem = configInv.getStackInSlot(i);
+                    if (!partItem.isEmpty() && OreDictValidator.areOreDictEquivalent(partItem, definition)) {
+                        return true;
+                    }
+                }
+            } else {
+                Set<Integer> candidateSlots = OreDictValidator.getMatchingSlots(definition, oreIdToSlot);
 
-            // Check partition slots via ore dict (for initial setup)
-            for (int i = 0; i < configInv.getSlots(); i++) {
-                ItemStack partItem = configInv.getStackInSlot(i);
-                if (!partItem.isEmpty() && CellMathHelper.areOreDictEquivalent(partItem, definition)) {
-                    return true;
+                // Check each candidate for NBT equality
+                for (int slot : candidateSlots) {
+                    if (ItemStack.areItemStackTagsEqual(protoStack[slot], definition)) return true;
                 }
             }
         }

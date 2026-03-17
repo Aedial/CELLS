@@ -1,7 +1,6 @@
 package com.cells.cells.creative;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
 
 import javax.annotation.Nonnull;
 
@@ -18,6 +17,9 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
+
+import com.cells.util.DeferredCellOperations;
+import com.cells.util.ItemStackKey;
 
 
 /**
@@ -46,20 +48,10 @@ public class CreativeCellInventory implements ICellInventory<IAEItemStack> {
     }
 
     /**
-     * Get all partitioned items from the filter handler.
+     * Check if the cell has any partitioned items.
      */
-    @Nonnull
-    public List<ItemStack> getPartitionedItems() {
-        List<ItemStack> items = new ArrayList<>();
-
-        // FIXME: it's only used for a binary check. We do not need to accumulate
-
-        for (int i = 0; i < filterHandler.getSlots(); i++) {
-            ItemStack stack = filterHandler.getStackInSlot(i);
-            if (!stack.isEmpty()) items.add(stack);
-        }
-
-        return items;
+    public boolean hasPartitionedItems() {
+        return filterHandler.getFilterCount() > 0;
     }
 
     // =====================
@@ -157,9 +149,8 @@ public class CreativeCellInventory implements ICellInventory<IAEItemStack> {
 
     @Override
     public long getStoredItemCount() {
-        // Each partitioned item reports REPORTED_AMOUNT
-        // FIXME: Overflow?
-        return (long) filterHandler.getFilterCount() * REPORTED_AMOUNT;
+        // Amount is irrelevant for this cell, report *something* ¯\_(ツ)_/¯
+        return filterHandler.getFilterCount() > 0 ? REPORTED_AMOUNT : 0;
     }
 
     @Override
@@ -208,27 +199,30 @@ public class CreativeCellInventory implements ICellInventory<IAEItemStack> {
     public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
         if (request == null) return null;
 
-        // FIXME: use ItemStackKey
-
         // Check if requested item is in the partition list
-        ItemStack requestStack = request.getDefinition();
+        ItemStackKey requestKey = ItemStackKey.of(request.getDefinition());
+        if (requestKey == null) return null;
 
-        for (int i = 0; i < filterHandler.getSlots(); i++) {
-            ItemStack filterStack = filterHandler.getStackInSlot(i);
+        if (!filterHandler.isInFilter(requestKey)) return null;
 
-            if (!filterStack.isEmpty()
-                && ItemStack.areItemsEqual(filterStack, requestStack)
-                && ItemStack.areItemStackTagsEqual(filterStack, requestStack)) {
-                // Found in filters - return the requested amount (creative source)
-                IAEItemStack result = request.copy();
-                result.setStackSize(Math.min(request.getStackSize(), REPORTED_AMOUNT));
+        // Found in filters - return the requested amount (creative source)
+        IAEItemStack result = request.copy();
+        result.setStackSize(Math.min(request.getStackSize(), REPORTED_AMOUNT));
 
-                return result;
-            }
+        // Cancel out the negative delta that DriveWatcher will post.
+        // Since the creative cell has infinite items, the count should never change.
+        // We emit a positive delta equal to the extracted amount to counteract the
+        // negative delta that AE2's DriveWatcher posts after extraction.
+        if (mode == Actionable.MODULATE) {
+            IAEItemStack counterDelta = result.copy();
+            // Positive delta to cancel the negative delta from DriveWatcher
+            DeferredCellOperations.queueCrossTierNotification(
+                this, saveProvider, channel,
+                Collections.singletonList(counterDelta), src
+            );
         }
 
-        // Not in filter list
-        return null;
+        return result;
     }
 
     @Override

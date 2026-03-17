@@ -21,6 +21,7 @@ import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.proxy.CommonProxy;
+import com.cells.util.OreDictValidator;
 
 
 @Mod(
@@ -54,6 +55,9 @@ public class Cells {
         // Load configurable cell component whitelist (checks config/ for override)
         ComponentHelper.loadWhitelist(configDir);
 
+        // Load ore dictionary whitelist/blacklist for compacting cells
+        OreDictValidator.loadConfig(configDir);
+
         // Initialize network
         CellsNetworkHandler.init();
 
@@ -70,6 +74,9 @@ public class Cells {
 
     @EventHandler
     public void postInit(FMLPostInitializationEvent event) {
+        // Pre-validate all ore dictionary entries for O(1) lookup during gameplay
+        OreDictValidator.preValidateAllEntries();
+
         proxy.postInit(event);
     }
 

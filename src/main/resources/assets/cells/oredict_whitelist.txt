@@ -1,0 +1,275 @@
+# Ore Dictionary Whitelist for CELLS Compacting Cells
+# One ore name per line. Lines starting with # are comments.
+# These entries are ALWAYS allowed for ore dict equivalence matching.
+# Format: oreName (e.g., ingotCopper, oreIron)
+#
+# Whitelisted entries bypass blacklist checks and dynamic validation.
+# Use this for entries that are incorrectly rejected by the validator.
+#
+# To customize, copy this file to: config/cells/oredict_whitelist.txt
+# The config file will take precedence over this bundled default.
+
+# === Vanilla Ores ===
+oreIron
+oreGold
+oreCoal
+oreLapis
+oreRedstone
+oreDiamond
+oreEmerald
+oreQuartz
+
+# === Vanilla Blocks ===
+blockIron
+blockGold
+blockCoal
+blockLapis
+blockRedstone
+blockDiamond
+blockEmerald
+blockQuartz
+
+# === Vanilla Ingots/Nuggets ===
+ingotIron
+ingotGold
+nuggetIron
+nuggetGold
+
+# === Vanilla Gems ===
+gemDiamond
+gemEmerald
+gemLapis
+gemQuartz
+
+# === Common Modded Metals (Ores) ===
+oreCopper
+oreTin
+oreSilver
+oreLead
+oreAluminum
+oreAluminium
+oreNickel
+orePlatinum
+oreOsmium
+oreZinc
+oreUranium
+oreTitanium
+oreTungsten
+oreCobalt
+oreArdite
+oreMithril
+
+# === Common Modded Metals (Blocks) ===
+blockCopper
+blockTin
+blockSilver
+blockLead
+blockAluminum
+blockAluminium
+blockNickel
+blockPlatinum
+blockOsmium
+blockZinc
+blockUranium
+blockTitanium
+blockCobalt
+blockArdite
+blockMithril
+
+# === Common Modded Metals (Ingots) ===
+ingotCopper
+ingotTin
+ingotSilver
+ingotLead
+ingotAluminum
+ingotAluminium
+ingotNickel
+ingotPlatinum
+ingotOsmium
+ingotZinc
+ingotUranium
+ingotTitanium
+ingotTungsten
+ingotCobalt
+ingotArdite
+ingotMithril
+
+# === Common Modded Metals (Nuggets) ===
+nuggetCopper
+nuggetTin
+nuggetSilver
+nuggetLead
+nuggetAluminum
+nuggetAluminium
+nuggetNickel
+nuggetPlatinum
+nuggetOsmium
+nuggetZinc
+nuggetCobalt
+nuggetArdite
+
+# === Common Modded Metals (Dusts) ===
+dustIron
+dustGold
+dustCopper
+dustTin
+dustSilver
+dustLead
+dustAluminum
+dustAluminium
+dustNickel
+dustPlatinum
+dustOsmium
+dustZinc
+dustCobalt
+dustArdite
+dustCoal
+dustCharcoal
+dustDiamond
+dustEmerald
+
+# === Common Modded Metals (Gears) ===
+gearIron
+gearGold
+gearCopper
+gearTin
+gearSilver
+gearLead
+gearNickel
+gearPlatinum
+gearBronze
+gearSteel
+
+# === Common Modded Metals (Plates) ===
+plateIron
+plateGold
+plateCopper
+plateTin
+plateSilver
+plateLead
+plateNickel
+platePlatinum
+plateBronze
+plateSteel
+
+# === Alloys (Ingots) ===
+ingotSteel
+ingotBronze
+ingotInvar
+ingotElectrum
+ingotEnderium
+ingotSignalum
+ingotLumium
+ingotConstantan
+ingotBrass
+ingotManyullyn
+
+# === Alloys (Blocks) ===
+blockSteel
+blockBronze
+blockInvar
+blockElectrum
+blockEnderium
+blockSignalum
+blockLumium
+blockConstantan
+blockBrass
+blockManyullyn
+
+# === Alloys (Nuggets) ===
+nuggetSteel
+nuggetBronze
+nuggetInvar
+nuggetElectrum
+nuggetEnderium
+nuggetSignalum
+nuggetLumium
+nuggetConstantan
+nuggetBrass
+nuggetManyullyn
+
+# === Alloys (Dusts) ===
+dustSteel
+dustBronze
+dustInvar
+dustElectrum
+dustEnderium
+dustSignalum
+dustLumium
+dustConstantan
+dustBrass
+
+# === Applied Energistics 2 ===
+gemCertusQuartz
+crystalCertusQuartz
+gemChargedCertusQuartz
+crystalChargedCertusQuartz
+gemFluix
+crystalFluix
+dustCertusQuartz
+dustFluix
+
+# === Modded Gems ===
+gemRuby
+gemSapphire
+gemPeridot
+gemTopaz
+gemTanzanite
+gemMalachite
+gemAmber
+gemApatite
+gemAmethyst
+oreRuby
+oreSapphire
+orePeridot
+oreTopaz
+oreApatite
+oreAmethyst
+
+# === Thaumcraft ===
+ingotThaumium
+ingotVoid
+nuggetThaumium
+nuggetVoid
+blockThaumium
+blockVoid
+oreAmber
+oreCinnabar
+
+# === Botania ===
+ingotManasteel
+ingotTerrasteel
+ingotElementium
+nuggetManasteel
+nuggetTerrasteel
+nuggetElementium
+blockManasteel
+blockTerrasteel
+blockElementium
+
+# === Draconic Evolution ===
+ingotDraconium
+ingotDraconiumAwakened
+nuggetDraconium
+nuggetDraconiumAwakened
+blockDraconium
+blockDraconiumAwakened
+oreDraconium
+
+# === Big/Extreme Reactors ===
+ingotYellorium
+ingotCyanite
+ingotBlutonium
+ingotLudicrite
+blockYellorium
+blockCyanite
+blockBlutonium
+blockLudicrite
+oreYellorium
+
+# === Crops ===
+cropWheat
+cropPotato
+cropCarrot
+cropBeetroot
+cropNetherWart

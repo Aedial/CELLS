@@ -37,7 +37,7 @@ public class CreativeCellInventoryHandler extends MEInventoryHandler<IAEItemStac
     @Override
     public boolean isPreformatted() {
         // Creative cells are always "preformatted" since they only provide partitioned items
-        return inventory.getPartitionedItems().size() > 0;
+        return inventory.hasPartitionedItems();
     }
 
     @Override

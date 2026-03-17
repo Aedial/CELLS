@@ -9,6 +9,9 @@ import javax.annotation.Nonnull;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.config.Upgrades;
@@ -60,14 +63,59 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
             final List<CustomUpgrades> allowedCustomUpgrades) {
         super(cellStack, null, slots);
         this.cellStack = cellStack;
-        this.readFromNBT(Platform.openNbtData(cellStack), "upgrades");
+        int lostUpgrades = this.readFromNBTWithoutShrinking(Platform.openNbtData(cellStack), "upgrades");
         this.setFilter(new CustomUpgradeFilter());
+
+        if (lostUpgrades > 0) {
+            Cells.LOGGER.warn(
+                "Lost {} upgrades while loading cell {} due to change in upgrades inventory size",
+                lostUpgrades, cellStack);
+        }
 
         if (allowedCustomUpgrades == null) {
             this.allowedCustomUpgrades = Arrays.asList(CustomUpgrades.values());
         } else {
             this.allowedCustomUpgrades = allowedCustomUpgrades;
         }
+    }
+
+    /**
+     * Read upgrades from NBT without allowing the inventory to shrink.
+     * <p>
+     * The parent class's readFromNBT calls deserializeNBT which resizes the inventory
+     * based on the stored "Size" value. This would cause upgrade loss when config increases
+     * the slot count (old NBT has Size=2, new config has Size=4, inventory shrinks to 2).
+     * </p>
+     * <p>
+     * This method preserves the current inventory size and only loads items into valid slots.
+     * </p>
+     *
+     * @param data The NBT compound containing the inventory data
+     * @param name The key name for the inventory in NBT
+     *
+     * @return The number of items due to a change in inventory size (newSize < oldSize)
+     */
+    private int readFromNBTWithoutShrinking(NBTTagCompound data, String name) {
+        NBTTagCompound invData = data.getCompoundTag(name);
+        if (invData == null || invData.isEmpty()) return 0;
+
+        // Read items WITHOUT calling setSize - preserve our current inventory size
+        int itemsLost = 0;
+        NBTTagList tagList = invData.getTagList("Items", Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < tagList.tagCount(); i++) {
+            NBTTagCompound itemTags = tagList.getCompoundTagAt(i);
+            int slot = itemTags.getInteger("Slot");
+
+            // Only load into valid slots within our current inventory size
+            if (slot >= 0 && slot < this.getSlots()) {
+                ItemStack stack = new ItemStack(itemTags);
+                this.setStackInSlot(slot, stack);
+            } else {
+                itemsLost++;
+            }
+        }
+
+        return itemsLost;
     }
 
     @Override

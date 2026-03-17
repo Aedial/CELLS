@@ -81,6 +81,21 @@ public class CellsConfig {
     /** Maximum types for configurable gas cells */
     public static int configurableCellGasMaxTypes = 63;
 
+    /** Upgrade slots for compacting cells */
+    public static int compactingCellUpgradeSlots = 4;
+
+    /** Upgrade slots for hyper-density item cells */
+    public static int hdItemCellUpgradeSlots = 4;
+
+    /** Upgrade slots for hyper-density compacting cells */
+    public static int hdCompactingCellUpgradeSlots = 4;
+
+    /** Upgrade slots for hyper-density fluid cells */
+    public static int hdFluidCellUpgradeSlots = 4;
+
+    /** Upgrade slots for configurable cells */
+    public static int configurableCellUpgradeSlots = 4;
+
     /** NBT size warning threshold in KB (tooltip shows warning when exceeded) */
     public static int nbtSizeWarningThresholdKB = 100;
 
@@ -240,6 +255,45 @@ public class CellsConfig {
         );
         p.setLanguageKey(Tags.MODID + ".config.configurableCellGasMaxTypes");
         configurableCellGasMaxTypes = p.getInt();
+
+        // Was for Cell Terminal, but seems Cell Workbench automatically adapts (lol)
+        // 4 is the max we can show on 1 Terminal row safely, but can always accommodate more if needed
+
+        // General: Upgrade slots per cell type
+        p = config.get(CATEGORY_GENERAL,
+            "compactingCellUpgradeSlots", 4,
+            "Number of upgrade slots for compacting cells (1-16)", 1, 16
+        );
+        p.setLanguageKey(Tags.MODID + ".config.compactingCellUpgradeSlots");
+        compactingCellUpgradeSlots = p.getInt();
+
+        p = config.get(CATEGORY_GENERAL,
+            "hdItemCellUpgradeSlots", 4,
+            "Number of upgrade slots for hyper-density item cells (1-16)", 1, 16
+        );
+        p.setLanguageKey(Tags.MODID + ".config.hdItemCellUpgradeSlots");
+        hdItemCellUpgradeSlots = p.getInt();
+
+        p = config.get(CATEGORY_GENERAL,
+            "hdCompactingCellUpgradeSlots", 4,
+            "Number of upgrade slots for hyper-density compacting cells (1-16)", 1, 16
+        );
+        p.setLanguageKey(Tags.MODID + ".config.hdCompactingCellUpgradeSlots");
+        hdCompactingCellUpgradeSlots = p.getInt();
+
+        p = config.get(CATEGORY_GENERAL,
+            "hdFluidCellUpgradeSlots", 4,
+            "Number of upgrade slots for hyper-density fluid cells (1-16)", 1, 16
+        );
+        p.setLanguageKey(Tags.MODID + ".config.hdFluidCellUpgradeSlots");
+        hdFluidCellUpgradeSlots = p.getInt();
+
+        p = config.get(CATEGORY_GENERAL,
+            "configurableCellUpgradeSlots", 4,
+            "Number of upgrade slots for configurable cells (1-16)", 1, 16
+        );
+        p.setLanguageKey(Tags.MODID + ".config.configurableCellUpgradeSlots");
+        configurableCellUpgradeSlots = p.getInt();
 
         // General: NBT size warning threshold
         p = config.get(CATEGORY_GENERAL,

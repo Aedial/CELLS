@@ -1,5 +1,8 @@
 package com.cells.cells.creative;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import javax.annotation.Nonnull;
 
 import net.minecraft.item.ItemStack;
@@ -9,6 +12,8 @@ import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.util.Platform;
+
+import com.cells.util.ItemStackKey;
 
 
 /**
@@ -26,8 +31,12 @@ public class CreativeCellFilterHandler implements IItemHandlerModifiable {
 
     private final ItemStack cellStack;
 
+    /** Cache of filter keys for quick matching */
+    private Set<ItemStackKey> cachedFilterKeys = new HashSet<>();
+
     public CreativeCellFilterHandler(@Nonnull ItemStack cellStack) {
         this.cellStack = cellStack;
+        loadCacheFromNBT();
     }
 
     @Override
@@ -49,6 +58,21 @@ public class CreativeCellFilterHandler implements IItemHandlerModifiable {
         if (slotNBT.isEmpty()) return ItemStack.EMPTY;
 
         return new ItemStack(slotNBT);
+    }
+
+    public void loadCacheFromNBT() {
+        cachedFilterKeys.clear();
+
+        NBTTagCompound cellNBT = Platform.openNbtData(cellStack);
+        NBTTagList filters = cellNBT.getTagList(NBT_KEY_FILTERS, Constants.NBT.TAG_COMPOUND);
+
+        for (int i = 0; i < filters.tagCount(); i++) {
+            NBTTagCompound slotNBT = filters.getCompoundTagAt(i);
+            if (!slotNBT.isEmpty()) {
+                ItemStack filterStack = new ItemStack(slotNBT);
+                cachedFilterKeys.add(ItemStackKey.of(filterStack));
+            }
+        }
     }
 
     @Override
@@ -75,6 +99,17 @@ public class CreativeCellFilterHandler implements IItemHandlerModifiable {
         }
 
         cellNBT.setTag(NBT_KEY_FILTERS, filters);
+
+        // Update cache
+        loadCacheFromNBT();
+    }
+
+    public boolean isInFilter(@Nonnull ItemStackKey key) {
+        return cachedFilterKeys.contains(key);
+    }
+
+    public boolean isInFilter(@Nonnull ItemStack stack) {
+        return isInFilter(ItemStackKey.of(stack));
     }
 
     @Override
@@ -109,13 +144,7 @@ public class CreativeCellFilterHandler implements IItemHandlerModifiable {
      * Get the count of non-empty filter slots.
      */
     public int getFilterCount() {
-        int count = 0;
-
-        for (int i = 0; i < SLOT_COUNT; i++) {
-            if (!getStackInSlot(i).isEmpty()) count++;
-        }
-
-        return count;
+        return cachedFilterKeys.size();
     }
 
     /**
@@ -124,5 +153,6 @@ public class CreativeCellFilterHandler implements IItemHandlerModifiable {
     public void clearAll() {
         NBTTagCompound cellNBT = Platform.openNbtData(cellStack);
         cellNBT.setTag(NBT_KEY_FILTERS, new NBTTagList());
+        loadCacheFromNBT();
     }
 }
