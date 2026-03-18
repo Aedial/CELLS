@@ -8,10 +8,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.cells.blocks.exportinterface.ContainerExportInterface;
-import com.cells.blocks.fluidexportinterface.ContainerFluidExportInterface;
-import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
-import com.cells.blocks.importinterface.ContainerImportInterface;
+import com.cells.blocks.interfacebase.ContainerItemInterface;
+import com.cells.blocks.interfacebase.ContainerFluidInterface;
 
 
 /**
@@ -43,14 +41,10 @@ public class PacketClearFilters implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
 
-                if (container instanceof ContainerImportInterface) {
-                    ((ContainerImportInterface) container).clearFilters();
-                } else if (container instanceof ContainerExportInterface) {
-                    ((ContainerExportInterface) container).clearFilters();
-                } else if (container instanceof ContainerFluidImportInterface) {
-                    ((ContainerFluidImportInterface) container).clearFilters();
-                } else if (container instanceof ContainerFluidExportInterface) {
-                    ((ContainerFluidExportInterface) container).clearFilters();
+                if (container instanceof ContainerItemInterface) {
+                    ((ContainerItemInterface) container).clearFilters();
+                } else if (container instanceof ContainerFluidInterface) {
+                    ((ContainerFluidInterface) container).clearFilters();
                 }
             });
 

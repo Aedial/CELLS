@@ -11,23 +11,26 @@ import appeng.util.Platform;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.cells.blocks.interfacebase.IInterfaceHost;
+import com.cells.blocks.interfacebase.ItemInterfaceLogic;
+
 
 /**
  * Container for the Polling Rate configuration GUI.
  * Similar to ContainerMaxSlotSize but for polling rate configuration.
- * Works with any host implementing {@link IImportInterfaceHost} (both TileEntity and IPart).
+ * Works with any host implementing {@link IInterfaceHost} (both TileEntity and IPart).
  */
 public class ContainerPollingRate extends AEBaseContainer {
 
-    private final IImportInterfaceHost host;
+    private final IInterfaceHost host;
 
     @SideOnly(Side.CLIENT)
     private IPollingRateListener listener;
 
     @GuiSync(0)
-    public long pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
+    public long pollingRate = ItemInterfaceLogic.DEFAULT_POLLING_RATE;
 
-    public ContainerPollingRate(final InventoryPlayer ip, final IImportInterfaceHost host) {
+    public ContainerPollingRate(final InventoryPlayer ip, final IInterfaceHost host) {
         super(ip, host instanceof TileEntity ? (TileEntity) host : null, host instanceof IPart ? (IPart) host : null);
         this.host = host;
     }
@@ -60,7 +63,7 @@ public class ContainerPollingRate extends AEBaseContainer {
         super.onUpdate(field, oldValue, newValue);
     }
 
-    public IImportInterfaceHost getHost() {
+    public IInterfaceHost getHost() {
         return this.host;
     }
 

@@ -45,14 +45,24 @@ public final class TickManagerHelper {
      * Safely re-register a tickable node with the tick manager.
      * Cleans up stale TickTracker entries from AE2's internal PriorityQueue
      * before calling removeNode/addNode, preventing phantom tick accumulation.
+     * <p>
+     * Callers should ensure the node is valid (proxy.isReady()) before calling.
+     * If the node is null or has no grid, returns false without error.
      *
      * @param node     the grid node to re-register
-     * @param tickable the tickable machine (must also implement IGridHost, typically the tile entity itself)
-     * @return true if re-registration succeeded, false if it failed
+     * @param tickable the tickable machine (must also implement IGridHost at runtime)
+     * @return true if re-registration succeeded, false if skipped or failed
      */
-    public static <T extends IGridTickable & IGridHost> boolean reRegisterTickable(IGridNode node, T tickable) {
+    public static boolean reRegisterTickable(IGridNode node, IGridTickable tickable) {
         if (node == null) return false;
         if (node.getGrid() == null) return false;
+
+        if (!(tickable instanceof IGridHost)) {
+            Cells.LOGGER.warn("Tickable is not an IGridHost: {}", tickable);
+            return false;
+        }
+
+        IGridHost gridHost = (IGridHost) tickable;
 
         // Purge stale entries from the PriorityQueue before AE2's removeNode leaves them behind
         ITickManager tickManager = node.getGrid().getCache(ITickManager.class);
@@ -60,8 +70,8 @@ public final class TickManagerHelper {
 
         purgeStaleTrackers(tickManager, node);
 
-        tickManager.removeNode(node, tickable);
-        tickManager.addNode(node, tickable);
+        tickManager.removeNode(node, gridHost);
+        tickManager.addNode(node, gridHost);
 
         return true;
     }

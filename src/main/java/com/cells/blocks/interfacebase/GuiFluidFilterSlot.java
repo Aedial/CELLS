@@ -1,4 +1,4 @@
-package com.cells.blocks.fluidimportinterface;
+package com.cells.blocks.interfacebase;
 
 import java.util.Collections;
 import java.util.function.IntSupplier;
@@ -22,10 +22,13 @@ import appeng.core.sync.packets.PacketFluidSlot;
 import appeng.fluids.util.AEFluidStack;
 
 
+// FIXME: Could extract the fluid rendering (drawContent) into a shared helper method reusable
+//        by other fluid-displaying GUI widgets (e.g. fluid terminal, fluid level emitter).
+//        The color extraction, sprite lookup, and GlStateManager setup are generic fluid rendering.
 /**
- * GUI widget for rendering fluid filter slots in the Fluid Import Interface.
+ * Unified GUI widget for rendering fluid filter slots in both Fluid Import and Export Interfaces.
  * <p>
- * Similar to AE2's GuiFluidSlot but reads from the host's filter inventory directly.
+ * Reads from the host's filter inventory directly via {@link IFluidInterfaceHost}.
  * When clicked, extracts the fluid from the held container item and sends a PacketFluidSlot
  * to update the filter on the server.
  * <p>
@@ -34,9 +37,9 @@ import appeng.fluids.util.AEFluidStack;
  */
 public class GuiFluidFilterSlot extends GuiCustomSlot implements IJEITargetSlot {
 
-    private final IFluidImportInterfaceInventoryHost host;
-    private final int displaySlot;  // The slot index displayed in the GUI (0-35)
-    private final IntSupplier pageOffsetSupplier;  // Supplies the current page offset (page * slotsPerPage)
+    private final IFluidInterfaceHost host;
+    private final int displaySlot;
+    private final IntSupplier pageOffsetSupplier;
 
     /**
      * Create a filter slot with pagination support.
@@ -47,19 +50,12 @@ public class GuiFluidFilterSlot extends GuiCustomSlot implements IJEITargetSlot 
      * @param y Y position in GUI
      * @param pageOffsetSupplier Supplier that returns the current page's starting slot index
      */
-    public GuiFluidFilterSlot(final IFluidImportInterfaceInventoryHost host, final int displaySlot,
+    public GuiFluidFilterSlot(final IFluidInterfaceHost host, final int displaySlot,
                               final int x, final int y, final IntSupplier pageOffsetSupplier) {
         super(displaySlot, x, y);
         this.host = host;
         this.displaySlot = displaySlot;
         this.pageOffsetSupplier = pageOffsetSupplier;
-    }
-
-    /**
-     * Create a filter slot without pagination (legacy support, page 0 only).
-     */
-    public GuiFluidFilterSlot(final IFluidImportInterfaceInventoryHost host, final int slot, final int x, final int y) {
-        this(host, slot, x, y, () -> 0);
     }
 
     /**
@@ -120,9 +116,8 @@ public class GuiFluidFilterSlot extends GuiCustomSlot implements IJEITargetSlot 
     @Override
     public String getMessage() {
         final IAEFluidStack fluid = this.getFluidStack();
-        if (fluid != null) {
-            return fluid.getFluidStack().getLocalizedName();
-        }
+        if (fluid != null) return fluid.getFluidStack().getLocalizedName();
+
         return null;
     }
 
@@ -136,8 +131,6 @@ public class GuiFluidFilterSlot extends GuiCustomSlot implements IJEITargetSlot 
     }
 
     public void setFluidStack(final IAEFluidStack stack) {
-        // Send the fluid slot update to the server via PacketFluidSlot
-        // The server will validate and apply the change
         NetworkHandler.instance().sendToServer(new PacketFluidSlot(Collections.singletonMap(this.getSlot(), stack)));
     }
 

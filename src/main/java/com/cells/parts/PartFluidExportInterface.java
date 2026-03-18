@@ -1,42 +1,26 @@
 package com.cells.parts;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import io.netty.buffer.ByteBuf;
-
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.Constants;
-import net.minecraftforge.fluids.Fluid;
-import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidTankProperties;
 import net.minecraftforge.items.IItemHandler;
 
-import appeng.api.AEApi;
-import appeng.api.config.Actionable;
 import appeng.api.implementations.items.IMemoryCard;
 import appeng.api.implementations.items.MemoryCardMessages;
 import appeng.api.networking.IGridNode;
@@ -44,25 +28,18 @@ import appeng.api.networking.events.MENetworkChannelsChanged;
 import appeng.api.networking.events.MENetworkEventSubscribe;
 import appeng.api.networking.events.MENetworkPowerStatusChange;
 import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.networking.ticking.IGridTickable;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.parts.IPartCollisionHelper;
 import appeng.api.parts.IPartModel;
-import appeng.api.storage.IMEInventory;
-import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
-import appeng.api.implementations.items.IUpgradeModule;
-import appeng.core.settings.TickRates;
-import appeng.fluids.util.AEFluidInventory;
-import appeng.fluids.util.AEFluidStack;
 import appeng.fluids.util.IAEFluidInventory;
 import appeng.fluids.util.IAEFluidTank;
 import appeng.items.parts.PartModels;
-import appeng.me.GridAccessException;
+import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.PartBasicState;
 import appeng.parts.PartModel;
@@ -70,22 +47,21 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
-import appeng.util.item.AEItemStack;
 
 import com.cells.Tags;
-import com.cells.blocks.fluidexportinterface.IFluidExportInterfaceInventoryHost;
-import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.blocks.interfacebase.FluidInterfaceLogic;
+import com.cells.blocks.interfacebase.IFluidInterfaceHost;
 import com.cells.gui.CellsGuiHandler;
-import com.cells.util.FluidStackKey;
-import com.cells.util.TickManagerHelper;
 
 
 /**
  * Part version of the Fluid Export Interface.
  * Can be placed on cables and behaves identically to the block version.
- * Requests fluids from the network and exposes them for extraction.
+ * <p>
+ * Business logic is delegated to {@link FluidInterfaceLogic} to avoid code
+ * duplication with tile and import variants.
  */
-public class PartFluidExportInterface extends PartBasicState implements IGridTickable, IAEAppEngInventory, IAEFluidInventory, IFluidExportInterfaceInventoryHost {
+public class PartFluidExportInterface extends PartBasicState implements IGridTickable, IAEAppEngInventory, IAEFluidInventory, IFluidInterfaceHost, FluidInterfaceLogic.Host {
 
     public static final ResourceLocation MODEL_BASE = new ResourceLocation(Tags.MODID, "part/export_fluid_interface_base");
 
@@ -98,99 +74,47 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
     @PartModels
     public static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/export_fluid_interface_has_channel"));
 
-    // Pagination constants
-    public static final int SLOTS_PER_PAGE = 36;
-    public static final int MAX_CAPACITY_CARDS = 4;
-    public static final int MAX_PAGES = MAX_CAPACITY_CARDS + 1;  // Base page + 4 capacity card pages
-
-    // Total slots/tanks = base page (36) + 4 capacity pages (36 each) = 180
-    public static final int FILTER_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
-    public static final int TANK_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
-    public static final int TOTAL_SLOTS = Math.min(FILTER_SLOTS, TANK_SLOTS);
-    public static final int UPGRADE_SLOTS = 4;
-    public static final int DEFAULT_MAX_SLOT_SIZE = 16000; // mB (16 buckets)
-
-    // Filter inventory - fluid filters (sized for max capacity)
-    private final AEFluidInventory filterInventory = new AEFluidInventory(this, FILTER_SLOTS, 1);
-
-    // Internal fluid storage (sized for max capacity)
-    private final FluidStack[] fluidTanks = new FluidStack[TANK_SLOTS];
-
-    // Upgrade inventory
-    private final AppEngInternalInventory upgradeInventory;
-
-    // External access wrapper
-    private final ExportFluidHandler exportFluidHandler;
-
-    // Config
-    private int maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
-    private int pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
-
-    // Pagination state
-    private int installedCapacityUpgrades = 0;
-    private int currentPage = 0;
-
-    // Filter mapping
-    final Map<FluidStackKey, Integer> filterToSlotMap = new HashMap<>();
-    List<FluidStackKey> filterFluidList = new ArrayList<>();
-
-    // Action source
+    private final FluidInterfaceLogic logic;
     private final IActionSource actionSource;
 
     public PartFluidExportInterface(final ItemStack is) {
         super(is);
         this.actionSource = new MachineSource(this);
-
-        this.upgradeInventory = new AppEngInternalInventory(this, UPGRADE_SLOTS, 1) {
-            @Override
-            public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-                return PartFluidExportInterface.this.isValidUpgrade(stack);
-            }
-        };
-
-        this.exportFluidHandler = new ExportFluidHandler(this);
-
-        refreshUpgrades();
-        refreshFilterMap();
+        this.logic = new FluidInterfaceLogic(this);
     }
 
-    // IFluidExportInterfaceInventoryHost implementation
+    // ============================== Host callbacks ==============================
 
     @Override
-    public int getMaxSlotSize() {
-        return this.maxSlotSize;
+    public AENetworkProxy getGridProxy() {
+        return this.getProxy();
     }
 
     @Override
-    public void setMaxSlotSize(int size) {
-        int oldSize = this.maxSlotSize;
+    public IActionSource getActionSource() {
+        return this.actionSource;
+    }
 
-        this.maxSlotSize = Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, size);
+    @Override
+    public boolean isExport() {
+        return true;
+    }
+
+    @Override
+    public void markDirtyAndSave() {
         this.getHost().markForSave();
-
-        // Tanks may now have room for more fluid after increasing the limit
-        if (oldSize < this.maxSlotSize) this.wakeUpIfAdaptive();
     }
 
     @Override
-    public int getPollingRate() {
-        return this.pollingRate;
+    public void markForNetworkUpdate() {
+        this.getHost().markForUpdate();
     }
 
     @Override
-    public void setPollingRate(int ticks) {
-        this.setPollingRate(ticks, null);
-    }
-
-    public void setPollingRate(int ticks, EntityPlayer player) {
-        this.pollingRate = Math.max(0, ticks);
-        this.getHost().markForSave();
-
-        if (!TickManagerHelper.reRegisterTickable(this.getProxy().getNode(), this)) {
-            if (player != null) {
-                player.sendMessage(new TextComponentTranslation("chat.cells.polling_rate_delayed"));
-            }
-        }
+    @Nullable
+    public World getHostWorld() {
+        TileEntity te = this.getHost().getTile();
+        return te != null ? te.getWorld() : null;
     }
 
     @Override
@@ -199,41 +123,129 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
     }
 
     @Override
-    public World getHostWorld() {
-        return this.getHost().getLocation().getWorld();
+    public IGridTickable getTickable() {
+        return this;
+    }
+
+    // ============================== IFluidInterfaceHost delegation ==============================
+
+    @Override
+    public IAEFluidTank getFilterInventory() {
+        return this.logic.getFilterInventory();
+    }
+
+    @Override
+    public AppEngInternalInventory getUpgradeInventory() {
+        return this.logic.getUpgradeInventory();
+    }
+
+    @Override
+    public void refreshFilterMap() {
+        this.logic.refreshFilterMap();
+    }
+
+    @Override
+    public void refreshUpgrades() {
+        this.logic.refreshUpgrades();
+    }
+
+    @Override
+    public boolean isValidUpgrade(ItemStack stack) {
+        return this.logic.isValidUpgrade(stack);
+    }
+
+    @Override
+    public void clearFilters() {
+        this.logic.clearFilters();
     }
 
     @Override
     public boolean isTankEmpty(int slot) {
-        if (slot < 0 || slot >= TANK_SLOTS) return true;
+        return this.logic.isTankEmpty(slot);
+    }
 
-        return fluidTanks[slot] == null || fluidTanks[slot].amount <= 0;
+    @Nullable
+    @Override
+    public IAEFluidStack getFilterFluid(int slot) {
+        return this.logic.getFilterFluid(slot);
     }
 
     @Override
-    @Nullable
-    public FluidStack drainFluidFromTank(int slot, int maxDrain, boolean doDrain) {
-        if (slot < 0 || slot >= TANK_SLOTS) return null;
-
-        FluidStack existing = this.fluidTanks[slot];
-        if (existing == null || existing.amount <= 0) return null;
-
-        int toDrain = Math.min(maxDrain, existing.amount);
-        FluidStack result = new FluidStack(existing, toDrain);
-
-        if (doDrain) {
-            existing.amount -= toDrain;
-            if (existing.amount <= 0) this.fluidTanks[slot] = null;
-
-            this.getHost().markForSave();
-            this.getHost().markForUpdate();
-
-            // Wake up to request more from network
-            this.wakeUpIfAdaptive();
-        }
-
-        return result;
+    public void setFilterFluid(int slot, @Nullable IAEFluidStack fluid) {
+        this.logic.setFilterFluid(slot, fluid);
     }
+
+    @Nullable
+    @Override
+    public FluidStack getFluidInTank(int slot) {
+        return this.logic.getFluidInTank(slot);
+    }
+
+    @Override
+    public int getMaxSlotSize() {
+        return this.logic.getMaxSlotSize();
+    }
+
+    @Override
+    public void setMaxSlotSize(int size) {
+        this.logic.setMaxSlotSize(size);
+    }
+
+    @Override
+    public int getPollingRate() {
+        return this.logic.getPollingRate();
+    }
+
+    @Override
+    public void setPollingRate(int ticks) {
+        this.logic.setPollingRate(ticks);
+    }
+
+    public void setPollingRate(int ticks, EntityPlayer player) {
+        this.logic.setPollingRate(ticks, player);
+    }
+
+    @Override
+    public int getInstalledCapacityUpgrades() {
+        return this.logic.getInstalledCapacityUpgrades();
+    }
+
+    @Override
+    public int getTotalPages() {
+        return this.logic.getTotalPages();
+    }
+
+    @Override
+    public int getCurrentPage() {
+        return this.logic.getCurrentPage();
+    }
+
+    @Override
+    public void setCurrentPage(int page) {
+        this.logic.setCurrentPage(page);
+    }
+
+    @Override
+    public int getCurrentPageStartSlot() {
+        return this.logic.getCurrentPageStartSlot();
+    }
+
+    @Override
+    public boolean hasOverflowUpgrade() {
+        return this.logic.hasOverflowUpgrade();
+    }
+
+    @Override
+    public boolean hasTrashUnselectedUpgrade() {
+        return this.logic.hasTrashUnselectedUpgrade();
+    }
+
+    @Override
+    public FluidStack drainFluidFromTank(int slot, int maxDrain, boolean doDrain) {
+        return this.logic.drainFluidFromTank(slot, maxDrain, doDrain);
+    }
+
+    // ============================== IInterfaceHost ==============================
 
     @Override
     public int getMainGuiId() {
@@ -242,7 +254,7 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
 
     @Override
     public String getGuiTitleLangKey() {
-        return "gui.cells.fluid_export_interface.title";
+        return "gui.cells.export_fluid_interface.title";
     }
 
     @Override
@@ -255,7 +267,7 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
         return this.getItemStack();
     }
 
-    // Part model and rendering
+    // ============================== Part model and rendering ==============================
 
     @Override
     @Nonnull
@@ -280,94 +292,39 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
         return 4;
     }
 
-    // Network events
+    // ============================== Network events ==============================
 
     @Override
     @MENetworkEventSubscribe
     public void chanRender(final MENetworkChannelsChanged c) {
         this.getHost().markForUpdate();
+        this.logic.wakeUpIfAdaptive();
     }
 
     @Override
     @MENetworkEventSubscribe
     public void powerRender(final MENetworkPowerStatusChange c) {
         this.getHost().markForUpdate();
+        this.logic.wakeUpIfAdaptive();
     }
 
-    // NBT serialization
+    @Override
+    public void gridChanged() {
+        this.logic.wakeUpIfAdaptive();
+    }
+
+    // ============================== NBT serialization ==============================
 
     @Override
     public void readFromNBT(final NBTTagCompound data) {
         super.readFromNBT(data);
-        this.filterInventory.readFromNBT(data, "fluidFilters");
-        this.upgradeInventory.readFromNBT(data, "upgrades");
-        this.maxSlotSize = data.getInteger("maxSlotSize");
-        this.pollingRate = data.getInteger("pollingRate");
-
-        if (this.maxSlotSize < TileImportInterface.MIN_MAX_SLOT_SIZE) {
-            this.maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
-        }
-
-        if (this.pollingRate < 0) this.pollingRate = TileImportInterface.DEFAULT_POLLING_RATE;
-
-        // Read fluid tanks
-        if (data.hasKey("fluidTanks", Constants.NBT.TAG_LIST)) {
-            NBTTagList tankList = data.getTagList("fluidTanks", Constants.NBT.TAG_COMPOUND);
-            for (int i = 0; i < tankList.tagCount() && i < TANK_SLOTS; i++) {
-                NBTTagCompound tankTag = tankList.getCompoundTagAt(i);
-                if (tankTag.hasKey("Empty")) {
-                    this.fluidTanks[i] = null;
-                } else {
-                    this.fluidTanks[i] = FluidStack.loadFluidStackFromNBT(tankTag);
-                }
-            }
-        }
-
-        this.refreshFilterMap();
-        this.refreshUpgrades();
+        this.logic.readFromNBT(data);
     }
 
     @Override
     public void writeToNBT(final NBTTagCompound data) {
         super.writeToNBT(data);
-        this.filterInventory.writeToNBT(data, "fluidFilters");
-        this.upgradeInventory.writeToNBT(data, "upgrades");
-        data.setInteger("maxSlotSize", this.maxSlotSize);
-        data.setInteger("pollingRate", this.pollingRate);
-
-        // Write fluid tanks
-        NBTTagList tankList = new NBTTagList();
-        for (int i = 0; i < TANK_SLOTS; i++) {
-            NBTTagCompound tankTag = new NBTTagCompound();
-            if (this.fluidTanks[i] != null) {
-                this.fluidTanks[i].writeToNBT(tankTag);
-            } else {
-                tankTag.setBoolean("Empty", true);
-            }
-            tankList.appendTag(tankTag);
-        }
-        data.setTag("fluidTanks", tankList);
-    }
-
-    @Override
-    public void writeToStream(final ByteBuf data) throws IOException {
-        super.writeToStream(data);
-
-        // Write fluid tanks to stream for client sync
-        for (int i = 0; i < TANK_SLOTS; i++) {
-            FluidStack fluid = this.fluidTanks[i];
-            if (fluid != null && fluid.amount > 0) {
-                data.writeBoolean(true);
-
-                byte[] nameBytes = fluid.getFluid().getName().getBytes(StandardCharsets.UTF_8);
-                data.writeShort(nameBytes.length);
-                data.writeBytes(nameBytes);
-
-                data.writeInt(fluid.amount);
-            } else {
-                data.writeBoolean(false);
-            }
-        }
+        this.logic.writeToNBT(data);
     }
 
     @Nonnull
@@ -376,29 +333,38 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
         NBTTagCompound output = super.downloadSettings(from);
         if (output == null) output = new NBTTagCompound();
 
-        output.setInteger("maxSlotSize", this.maxSlotSize);
-        output.setInteger("pollingRate", this.pollingRate);
+        NBTTagCompound logicSettings = (from == SettingsFrom.DISMANTLE_ITEM)
+            ? this.logic.downloadSettingsForDismantle()
+            : this.logic.downloadSettings();
 
-        if (from == SettingsFrom.DISMANTLE_ITEM) {
-            this.filterInventory.writeToNBT(output, "fluidFilters");
-        }
-
+        output.merge(logicSettings);
         return output;
     }
 
+    @Override
+    public NBTTagCompound downloadSettingsWithFilter() {
+        return this.logic.downloadSettingsWithFilter();
+    }
+
+    /**
+     * Use the block's translation key for memory card compatibility.
+     * This allows memory cards to work between block and part versions.
+     */
     @Override
     public boolean useStandardMemoryCard() {
         return false;
     }
 
+    /**
+     * Custom memory card handling that uses the block's translation key.
+     */
     private boolean useMemoryCard(final EntityPlayer player) {
         final ItemStack memCardIS = player.inventory.getCurrentItem();
         if (memCardIS.isEmpty()) return false;
         if (!(memCardIS.getItem() instanceof IMemoryCard)) return false;
 
         final IMemoryCard memoryCard = (IMemoryCard) memCardIS.getItem();
-
-        final String name = "tile.cells.fluid_export_interface";
+        final String name = "tile.cells.export_fluid_interface";
 
         if (player.isSneaking()) {
             final NBTTagCompound data = this.downloadSettings(SettingsFrom.MEMORY_CARD);
@@ -423,58 +389,18 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
     @Override
     public void uploadSettings(SettingsFrom from, NBTTagCompound compound, EntityPlayer player) {
         super.uploadSettings(from, compound, player);
-
-        if (compound == null) return;
-
-        if (compound.hasKey("maxSlotSize")) {
-            this.setMaxSlotSize(compound.getInteger("maxSlotSize"));
-        }
-        if (compound.hasKey("pollingRate")) {
-            this.setPollingRate(compound.getInteger("pollingRate"), player);
-        }
-
-        if (compound.hasKey("fluidFilters")) {
-            this.filterInventory.readFromNBT(compound, "fluidFilters");
-            this.refreshFilterMap();
-        }
+        this.logic.uploadSettings(compound, player);
     }
 
     @Override
-    public boolean readFromStream(final ByteBuf data) throws IOException {
-        boolean changed = super.readFromStream(data);
-
-        // Read fluid tanks from stream
-        for (int i = 0; i < TANK_SLOTS; i++) {
-            boolean hasFluid = data.readBoolean();
-            if (hasFluid) {
-                int nameLen = data.readShort();
-                byte[] nameBytes = new byte[nameLen];
-                data.readBytes(nameBytes);
-                String fluidName = new String(nameBytes, StandardCharsets.UTF_8);
-
-                int amount = data.readInt();
-
-                Fluid fluid = FluidRegistry.getFluid(fluidName);
-                if (fluid != null) {
-                    FluidStack oldFluid = this.fluidTanks[i];
-                    this.fluidTanks[i] = new FluidStack(fluid, amount);
-                    if (oldFluid == null || !oldFluid.isFluidStackIdentical(this.fluidTanks[i])) {
-                        changed = true;
-                    }
-                } else {
-                    if (this.fluidTanks[i] != null) changed = true;
-                    this.fluidTanks[i] = null;
-                }
-            } else {
-                if (this.fluidTanks[i] != null) changed = true;
-                this.fluidTanks[i] = null;
-            }
+    public void onPlacement(final EntityPlayer player, final EnumHand hand, final ItemStack held, final AEPartLocation side) {
+        super.onPlacement(player, hand, held, side);
+        if (held.hasTagCompound()) {
+            this.uploadSettings(SettingsFrom.DISMANTLE_ITEM, held.getTagCompound(), player);
         }
-
-        return changed;
     }
 
-    // GUI handling
+    // ============================== GUI handling ==============================
 
     @Override
     public boolean onPartActivate(final EntityPlayer p, final EnumHand hand, final Vec3d pos) {
@@ -493,15 +419,17 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
         return this.useMemoryCard(p);
     }
 
-    // Drops
+    // ============================== Drops ==============================
 
     @Override
     public void getDrops(final List<ItemStack> drops, final boolean wrenched) {
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
-            if (!stack.isEmpty()) drops.add(stack);
+        if (wrenched) {
+            // Upgrades are saved to NBT via downloadSettings(DISMANTLE_ITEM),
+            // but stored items must still drop
+            this.logic.getStorageDrops(drops);
+        } else {
+            this.logic.getDrops(drops);
         }
-        // Fluids cannot be dropped as items
     }
 
     public EnumSet<EnumFacing> getTargets() {
@@ -512,554 +440,59 @@ public class PartFluidExportInterface extends PartBasicState implements IGridTic
         return this.getHost().getTile();
     }
 
-    // Inventory access
-
-    public IAEFluidTank getFilterInventory() {
-        return this.filterInventory;
-    }
-
-    public AppEngInternalInventory getUpgradeInventory() {
-        return this.upgradeInventory;
-    }
-
-    @Nullable
-    public FluidStack getFluidInTank(int slot) {
-        if (slot < 0 || slot >= TANK_SLOTS) return null;
-
-        return this.fluidTanks[slot];
-    }
-
-    @Nullable
-    public IAEFluidStack getFilterFluid(int slot) {
-        if (slot < 0 || slot >= FILTER_SLOTS) return null;
-
-        return this.filterInventory.getFluidInSlot(slot);
-    }
-
-    public void setFilterFluid(int slot, @Nullable IAEFluidStack fluid) {
-        if (slot < 0 || slot >= FILTER_SLOTS) return;
-
-        this.filterInventory.setFluidInSlot(slot, fluid);
-    }
-
-    // Pagination methods (IFluidExportInterfaceInventoryHost)
-
-    @Override
-    public int getInstalledCapacityUpgrades() {
-        return this.installedCapacityUpgrades;
-    }
-
-    @Override
-    public int getTotalPages() {
-        return 1 + this.installedCapacityUpgrades;
-    }
-
-    @Override
-    public int getCurrentPage() {
-        return this.currentPage;
-    }
-
-    @Override
-    public void setCurrentPage(int page) {
-        int maxPage = getTotalPages() - 1;
-        this.currentPage = Math.max(0, Math.min(page, maxPage));
-    }
-
-    @Override
-    public int getCurrentPageStartSlot() {
-        return this.currentPage * SLOTS_PER_PAGE;
-    }
-
-    // IAEAppEngInventory
+    // ============================== IAEAppEngInventory ==============================
 
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
-        if (inv == this.upgradeInventory) {
-            this.refreshUpgrades();
-            this.getHost().markForSave();
+        if (inv == this.logic.getUpgradeInventory()) {
+            this.logic.onUpgradeChanged();
         }
+        this.getHost().markForUpdate();
     }
 
-    // IAEFluidInventory
+    // ============================== IAEFluidInventory ==============================
 
     @Override
     public void onFluidInventoryChanged(IAEFluidTank inv, int slot, InvOperation operation, FluidStack added, FluidStack removed) {
-        if (inv == this.filterInventory) {
-            refreshFilterMap();
-            this.wakeUpIfAdaptive();
-            this.getHost().markForSave();
+        if (inv == this.logic.getFilterInventory()) {
+            this.logic.onFluidFilterChanged(slot);
         }
     }
 
     @Override
     public void onFluidInventoryChanged(IAEFluidTank inv, int slot) {
-        if (inv == this.filterInventory) {
-            refreshFilterMap();
-            this.wakeUpIfAdaptive();
-            this.getHost().markForSave();
+        if (inv == this.logic.getFilterInventory()) {
+            this.logic.onFluidFilterChanged(slot);
         }
     }
 
-    // IGridTickable
+    // ============================== IGridTickable ==============================
 
     @Override
     @Nonnull
     public TickingRequest getTickingRequest(@Nonnull final IGridNode node) {
-        if (this.pollingRate > 0) {
-            return new TickingRequest(
-                this.pollingRate,
-                this.pollingRate,
-                false,
-                true
-            );
-        }
-
-        return new TickingRequest(
-            TickRates.Interface.getMin(),
-            TickRates.Interface.getMax(),
-            !hasWorkToDo(),
-            true
-        );
+        return this.logic.getTickingRequest();
     }
 
     @Override
     @Nonnull
     public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
-        if (!this.getProxy().isActive()) return TickRateModulation.SLEEP;
-
-        boolean didWork = exportFluids();
-
-        if (this.pollingRate > 0) return TickRateModulation.SAME;
-
-        return didWork ? TickRateModulation.FASTER : (hasWorkToDo() ? TickRateModulation.SLOWER : TickRateModulation.SLEEP);
+        return this.logic.onTick();
     }
 
-    // Capability handling
+    // ============================== Capability handling ==============================
 
     @Override
     public boolean hasCapability(Capability<?> capability) {
         if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) return true;
-
         return super.hasCapability(capability);
     }
 
     @Override
     public <T> T getCapability(Capability<T> capability) {
         if (capability == CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY) {
-            return CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY.cast(this.exportFluidHandler);
+            return CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY.cast(this.logic.getExternalHandler());
         }
-
         return super.getCapability(capability);
-    }
-
-    // Internal methods
-
-    public void refreshUpgrades() {
-        int oldCapacity = this.installedCapacityUpgrades;
-        this.installedCapacityUpgrades = countCapacityUpgrades();
-
-        // Handle capacity reduction: return fluids and clear filters from removed pages
-        if (this.installedCapacityUpgrades < oldCapacity) {
-            handleCapacityReduction(oldCapacity, this.installedCapacityUpgrades);
-        }
-    }
-
-    /**
-     * Counts the number of AE2 capacity cards installed.
-     */
-    private int countCapacityUpgrades() {
-        int count = 0;
-
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-
-            if (stack.getItem() instanceof IUpgradeModule) {
-                IUpgradeModule module = (IUpgradeModule) stack.getItem();
-                if (module.getType(stack) == appeng.api.config.Upgrades.CAPACITY) {
-                    count += stack.getCount();
-                }
-            }
-        }
-
-        return Math.min(count, MAX_CAPACITY_CARDS);
-    }
-
-    /**
-     * Handles capacity reduction when capacity cards are removed.
-     * Returns fluids to network, clears filters on removed pages.
-     */
-    private void handleCapacityReduction(int oldCapacity, int newCapacity) {
-        int oldMaxSlot = (oldCapacity + 1) * SLOTS_PER_PAGE;
-        int newMaxSlot = (newCapacity + 1) * SLOTS_PER_PAGE;
-
-        // Process slots that are being removed
-        for (int i = newMaxSlot; i < oldMaxSlot; i++) {
-            // Return fluid to network
-            FluidStack fluid = this.fluidTanks[i];
-            if (fluid != null && fluid.amount > 0) {
-                returnFluidToNetwork(fluid);
-                this.fluidTanks[i] = null;
-            }
-
-            // Clear the filter
-            this.filterInventory.setFluidInSlot(i, null);
-        }
-
-        // Clamp current page to valid range
-        int maxPage = newCapacity;
-        if (this.currentPage > maxPage) this.currentPage = maxPage;
-
-        this.refreshFilterMap();
-    }
-
-    /**
-     * Attempts to return fluid to the AE2 network.
-     * If unable to return, fluid is voided.
-     */
-    private void returnFluidToNetwork(FluidStack fluid) {
-        if (fluid == null || fluid.amount <= 0) return;
-
-        try {
-            IStorageGrid storage = this.getProxy().getStorage();
-            IMEInventory<IAEFluidStack> fluidStorage = storage.getInventory(
-                AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class)
-            );
-
-            IAEFluidStack toInsert = AEFluidStack.fromFluidStack(fluid);
-            IAEFluidStack remaining = fluidStorage.injectItems(toInsert, Actionable.MODULATE, this.actionSource);
-
-            // Any remainder is voided (no good way to drop fluid items)
-        } catch (GridAccessException e) {
-            // Network unavailable, fluid is voided
-        }
-    }
-
-    public void refreshFilterMap() {
-        this.filterToSlotMap.clear();
-
-        for (int i = 0; i < TOTAL_SLOTS; i++) {
-            IAEFluidStack filterFluid = this.filterInventory.getFluidInSlot(i);
-            if (filterFluid == null) continue;
-
-            FluidStack fluid = filterFluid.getFluidStack();
-            if (fluid == null) continue;
-
-            FluidStackKey key = FluidStackKey.of(fluid);
-            if (key != null) this.filterToSlotMap.put(key, i);
-        }
-
-        this.filterFluidList = new ArrayList<>(filterToSlotMap.keySet());
-    }
-
-    private int countUpgrade(Class<?> itemClass) {
-        int count = 0;
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack existing = this.upgradeInventory.getStackInSlot(i);
-            if (!existing.isEmpty() && itemClass.isInstance(existing.getItem())) {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    public boolean isValidUpgrade(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-
-        // Accept AE2 capacity cards (max 4)
-        if (stack.getItem() instanceof IUpgradeModule) {
-            IUpgradeModule module = (IUpgradeModule) stack.getItem();
-            if (module.getType(stack) == appeng.api.config.Upgrades.CAPACITY) {
-                return countCapacityUpgrades() < MAX_CAPACITY_CARDS;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Clear all filters.
-     * Orphaned fluids will be returned to network on the next tick.
-     */
-    @Override
-    public void clearFilters() {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            this.filterInventory.setFluidInSlot(i, null);
-        }
-
-        this.refreshFilterMap();
-        this.getHost().markForSave();
-        this.getHost().markForUpdate();
-    }
-
-    /**
-     * Try to return all fluids in a specific tank slot back to the ME network.
-     * Fluids that cannot be returned stay in the tank.
-     *
-     * @param slot The tank slot index to return fluids from
-     * @return true if all fluids were returned, false if some remain
-     */
-    public boolean returnTankToNetwork(int slot) {
-        if (slot < 0 || slot >= TANK_SLOTS) return true;
-
-        FluidStack fluid = this.fluidTanks[slot];
-        if (fluid == null || fluid.amount <= 0) return true;
-
-        int notInserted = insertFluidsIntoNetwork(fluid);
-
-        // Update the tank with whatever couldn't be returned
-        if (notInserted <= 0) {
-            this.fluidTanks[slot] = null;
-        } else {
-            fluid.amount = notInserted;
-        }
-
-        this.getHost().markForSave();
-        this.getHost().markForUpdate();
-
-        return notInserted <= 0;
-    }
-
-    /**
-     * Return overflow fluids (fluids exceeding maxSlotSize) back to the ME network.
-     */
-    private void returnOverflowToNetwork() {
-        for (int i = 0; i < TANK_SLOTS; i++) {
-            FluidStack fluid = this.fluidTanks[i];
-            if (fluid == null) continue;
-
-            int overflow = fluid.amount - this.maxSlotSize;
-            if (overflow <= 0) continue;
-
-            FluidStack overflowFluid = fluid.copy();
-            overflowFluid.amount = overflow;
-
-            int notInserted = insertFluidsIntoNetwork(overflowFluid);
-
-            // Reduce the fluid in the tank by amount successfully returned
-            fluid.amount -= (overflow - notInserted);
-            if (fluid.amount <= 0) this.fluidTanks[i] = null;
-        }
-
-        this.getHost().markForSave();
-        this.getHost().markForUpdate();
-    }
-
-    /**
-     * Return all orphaned fluids (fluids that don't match their filter) to the ME network.
-     */
-    private void returnOrphanedFluidsToNetwork() {
-        for (int i = 0; i < TANK_SLOTS; i++) {
-            FluidStack tankFluid = this.fluidTanks[i];
-            if (tankFluid == null || tankFluid.amount <= 0) continue;
-
-            IAEFluidStack filterFluid = this.filterInventory.getFluidInSlot(i);
-
-            // If no filter or fluids don't match filter, try to return them
-            boolean isOrphaned = filterFluid == null ||
-                !filterFluid.getFluidStack().isFluidEqual(tankFluid);
-
-            if (isOrphaned) returnTankToNetwork(i);
-        }
-    }
-
-    /**
-     * Try to insert fluids into the ME network.
-     */
-    private int insertFluidsIntoNetwork(FluidStack fluid) {
-        if (fluid == null || fluid.amount <= 0) return 0;
-
-        try {
-            IStorageGrid storage = this.getProxy().getStorage();
-            IMEInventory<IAEFluidStack> fluidStorage = storage.getInventory(
-                AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class)
-            );
-
-            IAEFluidStack toInsert = AEFluidStack.fromFluidStack(fluid);
-            if (toInsert == null) return fluid.amount;
-
-            IAEFluidStack notInserted = fluidStorage.injectItems(toInsert, Actionable.MODULATE, this.actionSource);
-
-            if (notInserted == null || notInserted.getStackSize() == 0) return 0;
-
-            return (int) notInserted.getStackSize();
-        } catch (GridAccessException e) {
-            // Not connected to grid, return all
-            return fluid.amount;
-        }
-    }
-
-    private boolean hasWorkToDo() {
-        for (int i : this.filterToSlotMap.values()) {
-            FluidStack existing = this.fluidTanks[i];
-            if (existing == null || existing.amount < this.maxSlotSize) return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Wake up the tick manager if using adaptive polling (rate=0).
-     * Called when filters or settings change to ensure the device starts ticking
-     * to push fluids that now match the updated configuration.
-     */
-    private void wakeUpIfAdaptive() {
-        if (this.pollingRate > 0) return;
-
-        try {
-            this.getProxy().getTick().alertDevice(this.getProxy().getNode());
-        } catch (GridAccessException e) {
-            // Not connected to grid
-        }
-    }
-
-    private boolean exportFluids() {
-        boolean didWork = false;
-
-        try {
-            IStorageGrid storage = this.getProxy().getStorage();
-            IMEInventory<IAEFluidStack> fluidStorage = storage.getInventory(
-                AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class)
-            );
-
-            // First, return any orphaned or overflow fluids to the network
-            // This must happen before requesting new fluids
-            returnOrphanedFluidsToNetwork();
-            returnOverflowToNetwork();
-
-            for (Map.Entry<FluidStackKey, Integer> entry : this.filterToSlotMap.entrySet()) {
-                int slot = entry.getValue();
-                FluidStackKey filterKey = entry.getKey();
-                Fluid filterFluid = filterKey.getFluid();
-                if (filterFluid == null) continue;
-
-                FluidStack existing = this.fluidTanks[slot];
-
-                // Skip slots where current fluids don't match filter (orphaned fluids)
-                // This prevents requesting more fluids when the tank has mismatched content
-                if (existing != null && existing.amount > 0) {
-                    if (!existing.getFluid().equals(filterFluid)) continue;
-                }
-
-                int currentAmount = existing == null ? 0 : existing.amount;
-                int space = this.maxSlotSize - currentAmount;
-                if (space <= 0) continue;
-
-                IAEFluidStack request = AEFluidStack.fromFluidStack(new FluidStack(filterFluid, space));
-                if (request == null) continue;
-
-                IAEFluidStack extracted = fluidStorage.extractItems(request, Actionable.MODULATE, this.actionSource);
-                if (extracted == null || extracted.getStackSize() <= 0) continue;
-
-                if (existing == null) {
-                    this.fluidTanks[slot] = extracted.getFluidStack();
-                } else {
-                    existing.amount += (int) extracted.getStackSize();
-                }
-
-                didWork = true;
-            }
-        } catch (GridAccessException e) {
-            // Not connected to grid
-        }
-
-        if (didWork) this.getHost().markForUpdate();
-
-        return didWork;
-    }
-
-    /**
-     * Wrapper handler for external fluid extraction access.
-     * Only allows draining fluids, not filling.
-     */
-    private static class ExportFluidHandler implements IFluidHandler {
-        private final PartFluidExportInterface part;
-
-        public ExportFluidHandler(PartFluidExportInterface part) {
-            this.part = part;
-        }
-
-        @Override
-        public IFluidTankProperties[] getTankProperties() {
-            List<IFluidTankProperties> props = new ArrayList<>();
-
-            for (Map.Entry<FluidStackKey, Integer> entry : part.filterToSlotMap.entrySet()) {
-                int slot = entry.getValue();
-                FluidStack contents = part.fluidTanks[slot];
-                int capacity = part.maxSlotSize;
-
-                props.add(new IFluidTankProperties() {
-                    @Nullable
-                    @Override
-                    public FluidStack getContents() {
-                        return contents != null ? contents.copy() : null;
-                    }
-
-                    @Override
-                    public int getCapacity() {
-                        return capacity;
-                    }
-
-                    @Override
-                    public boolean canFill() {
-                        return false;
-                    }
-
-                    @Override
-                    public boolean canDrain() {
-                        return true;
-                    }
-
-                    @Override
-                    public boolean canFillFluidType(FluidStack fluidStack) {
-                        return false;
-                    }
-
-                    @Override
-                    public boolean canDrainFluidType(FluidStack fluidStack) {
-                        return entry.getKey().matches(fluidStack);
-                    }
-                });
-            }
-
-            return props.toArray(new IFluidTankProperties[0]);
-        }
-
-        @Override
-        public int fill(FluidStack resource, boolean doFill) {
-            // Export interface does not allow external filling
-            return 0;
-        }
-
-        @Nullable
-        @Override
-        public FluidStack drain(FluidStack resource, boolean doDrain) {
-            if (resource == null || resource.amount <= 0) return null;
-
-            FluidStackKey key = FluidStackKey.of(resource);
-            if (key == null) return null;
-
-            Integer slot = part.filterToSlotMap.get(key);
-            if (slot == null) return null;
-
-            return part.drainFluidFromTank(slot, resource.amount, doDrain);
-        }
-
-        @Nullable
-        @Override
-        public FluidStack drain(int maxDrain, boolean doDrain) {
-            if (maxDrain <= 0) return null;
-
-            // Drain from the first non-empty tank
-            for (int slot : part.filterToSlotMap.values()) {
-                FluidStack existing = part.fluidTanks[slot];
-                if (existing != null && existing.amount > 0) {
-                    return part.drainFluidFromTank(slot, maxDrain, doDrain);
-                }
-            }
-
-            return null;
-        }
     }
 }

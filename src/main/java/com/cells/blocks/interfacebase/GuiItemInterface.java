@@ -1,4 +1,4 @@
-package com.cells.blocks.exportinterface;
+package com.cells.blocks.interfacebase;
 
 import java.awt.Rectangle;
 import java.io.IOException;
@@ -17,6 +17,7 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 
@@ -32,7 +33,6 @@ import appeng.util.item.AEItemStack;
 import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
 import com.cells.Tags;
-import com.cells.blocks.importinterface.TileImportInterface;
 import com.cells.client.KeyBindings;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.gui.DynamicTooltipTabButton;
@@ -48,15 +48,26 @@ import com.cells.network.packets.PacketQuickAddItemFilter;
 
 
 /**
- * GUI for the Export Interface.
+ * Unified GUI for both Item Import Interface and Item Export Interface.
  * Shows 4 rows of 9 paired slots (filter on top, storage below).
  * <p>
- * Works with both TileExportInterface (block) and PartExportInterface (part).
+ * Uses the host's {@link IItemInterfaceHost#isExport()} to parameterize import/export differences:
+ * <ul>
+ *   <li>Title lang key from {@link IItemInterfaceHost#getGuiTitleLangKey()}</li>
+ *   <li>Controls help widget shows import or export variant</li>
+ *   <li>Tooltip lang key prefix: "import_interface" or "export_interface"</li>
+ * </ul>
+ * <p>
+ * Implements IJEIGhostIngredients for JEI drag and drop support.
+ * Works with both tile entities and parts via {@link IItemInterfaceHost}.
  */
-public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredients {
+public class GuiItemInterface extends AEBaseGui implements IJEIGhostIngredients {
 
-    private final ContainerExportInterface container;
-    private final IExportInterfaceInventoryHost host;
+    private final ResourceLocation BACKGROUND_TEXTURE = new ResourceLocation(Tags.MODID, "textures/guis/import_interface.png");
+
+    private final ContainerItemInterface container;
+    private final IItemInterfaceHost host;
+    private final String langPrefix; // "import_interface" or "export_interface"
     private DynamicTooltipTabButton configButton;
     private DynamicTooltipTabButton pollingRateButton;
     private GuiClearFiltersButton clearFiltersButton;
@@ -66,10 +77,11 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
     /**
      * Constructor for tile entity.
      */
-    public GuiExportInterface(final InventoryPlayer inventoryPlayer, final TileExportInterface tile) {
-        super(new ContainerExportInterface(inventoryPlayer, tile));
-        this.container = (ContainerExportInterface) this.inventorySlots;
-        this.host = tile;
+    public GuiItemInterface(final InventoryPlayer inventoryPlayer, final TileEntity tile) {
+        super(new ContainerItemInterface(inventoryPlayer, tile));
+        this.container = (ContainerItemInterface) this.inventorySlots;
+        this.host = (IItemInterfaceHost) tile;
+        this.langPrefix = host.isExport() ? "export_interface" : "import_interface";
         this.ySize = 256;
         this.xSize = 210;
     }
@@ -77,10 +89,11 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
     /**
      * Constructor for part.
      */
-    public GuiExportInterface(final InventoryPlayer inventoryPlayer, final IPart part) {
-        super(new ContainerExportInterface(inventoryPlayer, part));
-        this.container = (ContainerExportInterface) this.inventorySlots;
-        this.host = (IExportInterfaceInventoryHost) part;
+    public GuiItemInterface(final InventoryPlayer inventoryPlayer, final IPart part) {
+        super(new ContainerItemInterface(inventoryPlayer, part));
+        this.container = (ContainerItemInterface) this.inventorySlots;
+        this.host = (IItemInterfaceHost) part;
+        this.langPrefix = host.isExport() ? "export_interface" : "import_interface";
         this.ySize = 256;
         this.xSize = 210;
     }
@@ -94,14 +107,14 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
             this.guiLeft + 154,
             this.guiTop,
             2 + 4 * 16,
-            () -> I18n.format("gui.cells.export_interface.max_slot_size") + "\n\n"
-                + I18n.format("gui.cells.export_interface.max_slot_size.items.tooltip", (int) this.container.maxSlotSize) + "\n"
-                + I18n.format("gui.cells.export_interface.max_slot_size.tooltip"),
+            () -> I18n.format("gui.cells." + langPrefix + ".max_slot_size") + "\n\n"
+                + I18n.format("gui.cells." + langPrefix + ".max_slot_size.items.tooltip", (int) this.container.maxSlotSize) + "\n"
+                + I18n.format("gui.cells." + langPrefix + ".max_slot_size.tooltip"),
             this.itemRender
         );
         this.buttonList.add(this.configButton);
 
-        // Polling rate button
+        // Polling rate button (below the max slot size button)
         this.pollingRateButton = new DynamicTooltipTabButton(
             this.guiLeft + 154 - 22,
             this.guiTop,
@@ -109,31 +122,29 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
             () -> {
                 int rate = (int) this.container.pollingRate;
                 String value = rate <= 0
-                    ? I18n.format("gui.cells.export_interface.polling_rate.adaptive.tooltip")
-                    : I18n.format("gui.cells.export_interface.polling_rate.custom.tooltip", TileImportInterface.formatPollingRate(rate));
-                return I18n.format("gui.cells.export_interface.polling_rate") + "\n\n"
+                    ? I18n.format("gui.cells." + langPrefix + ".polling_rate.adaptive.tooltip")
+                    : I18n.format("gui.cells." + langPrefix + ".polling_rate.custom.tooltip", ItemInterfaceLogic.formatPollingRate(rate));
+                return I18n.format("gui.cells." + langPrefix + ".polling_rate") + "\n\n"
                     + value + "\n"
-                    + I18n.format("gui.cells.export_interface.polling_rate.tooltip");
+                    + I18n.format("gui.cells." + langPrefix + ".polling_rate.tooltip");
             },
             this.itemRender
         );
         this.buttonList.add(this.pollingRateButton);
 
         // Clear filters button (right of the hotbar)
-        // For Export interface, clears all filters and sends items back to network
         this.clearFiltersButton = new GuiClearFiltersButton(
-            2,  // Button ID
+            2,
             this.guiLeft + 186,
             this.guiTop + 232,
-            () -> I18n.format("gui.cells.export_interface.clear_filters") + "\n\n"
-                + I18n.format("gui.cells.export_interface.clear_filters.tooltip")
+            () -> I18n.format("gui.cells." + langPrefix + ".clear_filters") + "\n\n"
+                + I18n.format("gui.cells." + langPrefix + ".clear_filters.tooltip")
         );
         this.buttonList.add(this.clearFiltersButton);
 
         // Page navigation (only visible when capacity cards are installed)
-        // Position: 26x10 at (181, 3) relative to GUI
         this.pageNavigation = new GuiPageNavigation(
-            3,  // Button ID
+            3,
             this.guiLeft + 181,
             this.guiTop + 3,
             () -> this.container.currentPage,
@@ -152,23 +163,23 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
 
     @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        this.fontRenderer.drawString(I18n.format("gui.cells.export_interface.title"), 8, 6, 0x404040);
+        this.fontRenderer.drawString(I18n.format(this.host.getGuiTitleLangKey()), 8, 6, 0x404040);
 
         // Draw controls help widget on the left side
+        // isFluid=false, isImport=!isExport
         ImportInterfaceControlsHelper.drawControlsHelpWidget(
             this.fontRenderer,
             this.guiLeft,
             this.guiTop,
             this.ySize,
             false,
-            false
+            !this.host.isExport()
         );
     }
 
     @Override
     public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        // Use the same texture as import interface
-        this.bindCellsTexture("guis/import_interface.png");
+        this.mc.getTextureManager().bindTexture(BACKGROUND_TEXTURE);
         this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, this.ySize);
     }
 
@@ -211,20 +222,18 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
                     CellsGuiHandler.GUI_POLLING_RATE
                 ));
             }
-
             return;
         }
 
         if (btn == this.clearFiltersButton) {
-            // Clear all filters (server handles orphan return to network)
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketClearFilters());
         }
     }
 
-    public void bindCellsTexture(final String path) {
-        this.mc.getTextureManager().bindTexture(new ResourceLocation(Tags.MODID, "textures/" + path));
-    }
-
+    /**
+     * Override drawSlot to render filter (fake) slots without item count.
+     * This makes them appear as "ghost" items, which is the standard UX for filters.
+     */
     @Override
     public void drawSlot(Slot slot) {
         if (slot instanceof SlotFake) {
@@ -233,6 +242,7 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
                 this.zLevel = 100.0F;
                 this.itemRender.zLevel = 100.0F;
 
+                // TODO: ghost overlay?
                 RenderHelper.enableGUIStandardItemLighting();
                 GlStateManager.enableDepth();
                 this.itemRender.renderItemIntoGUI(stack, slot.xPos, slot.yPos);
@@ -241,12 +251,16 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
                 this.itemRender.zLevel = 0.0F;
                 this.zLevel = 0.0F;
             }
+
             return;
         }
 
         super.drawSlot(slot);
     }
 
+    /**
+     * JEI ghost ingredient support - returns targets for dragging items from JEI.
+     */
     @Override
     public List<Target<?>> getPhantomTargets(Object ingredient) {
         if (!(ingredient instanceof ItemStack)) return Collections.emptyList();
@@ -255,7 +269,7 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
         ItemStack itemStack = (ItemStack) ingredient;
 
         for (Slot slot : this.inventorySlots.inventorySlots) {
-            if (!(slot instanceof SlotFake)) continue;
+            if (!(slot instanceof ContainerItemInterface.SlotFilter)) continue;
 
             Target<Object> target = new Target<Object>() {
                 @Override
@@ -293,6 +307,7 @@ public class GuiExportInterface extends AEBaseGui implements IJEIGhostIngredient
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        // Handle quick-add keybind
         if (KeyBindings.QUICK_ADD_TO_FILTER.isActiveAndMatches(keyCode)) {
             Slot hoveredSlot = this.getSlotUnderMouse();
             ItemStack item = QuickAddHelper.getItemUnderCursor(hoveredSlot);

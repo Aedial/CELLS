@@ -12,23 +12,26 @@ import appeng.util.Platform;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import com.cells.blocks.interfacebase.IInterfaceHost;
+import com.cells.blocks.interfacebase.ItemInterfaceLogic;
+
 
 /**
  * Container for the Max Slot Size configuration GUI.
  * Similar to AE2's ContainerPriority but for slot size configuration.
- * Works with any host implementing {@link IImportInterfaceHost} (both TileEntity and IPart).
+ * Works with any host implementing {@link IInterfaceHost} (both TileEntity and IPart).
  */
 public class ContainerMaxSlotSize extends AEBaseContainer {
 
-    private final IImportInterfaceHost host;
+    private final IInterfaceHost host;
 
     @SideOnly(Side.CLIENT)
     private GuiTextField textField;
 
     @GuiSync(0)
-    public long maxSlotSize = TileImportInterface.DEFAULT_MAX_SLOT_SIZE;
+    public long maxSlotSize = ItemInterfaceLogic.DEFAULT_MAX_SLOT_SIZE;
 
-    public ContainerMaxSlotSize(final InventoryPlayer ip, final IImportInterfaceHost host) {
+    public ContainerMaxSlotSize(final InventoryPlayer ip, final IInterfaceHost host) {
         super(ip, host instanceof TileEntity ? (TileEntity) host : null, host instanceof IPart ? (IPart) host : null);
         this.host = host;
     }
@@ -40,7 +43,7 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     }
 
     public void setMaxSlotSize(final int newValue) {
-        int clamped = Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, newValue);
+        int clamped = Math.max(ItemInterfaceLogic.MIN_MAX_SLOT_SIZE, newValue);
         this.host.setMaxSlotSize(clamped);
         this.maxSlotSize = clamped;
     }
@@ -61,7 +64,7 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
         super.onUpdate(field, oldValue, newValue);
     }
 
-    public IImportInterfaceHost getHost() {
+    public IInterfaceHost getHost() {
         return this.host;
     }
 }

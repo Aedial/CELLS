@@ -16,9 +16,9 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.fluids.util.AEFluidStack;
 import appeng.fluids.util.IAEFluidTank;
 
-import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
-import com.cells.blocks.fluidimportinterface.IFluidImportInterfaceInventoryHost;
-import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
+import com.cells.blocks.interfacebase.ContainerFluidInterface;
+import com.cells.blocks.interfacebase.FluidInterfaceLogic;
+import com.cells.blocks.interfacebase.IFluidInterfaceHost;
 
 
 /**
@@ -57,10 +57,10 @@ public class PacketQuickAddFluidFilter implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
 
-                if (!(container instanceof ContainerFluidImportInterface)) return;
+                if (!(container instanceof ContainerFluidInterface)) return;
 
-                ContainerFluidImportInterface fluidContainer = (ContainerFluidImportInterface) container;
-                IFluidImportInterfaceInventoryHost host = fluidContainer.getHost();
+                ContainerFluidInterface fluidContainer = (ContainerFluidInterface) container;
+                IFluidInterfaceHost host = fluidContainer.getHost();
                 IAEFluidTank filterInventory = host.getFilterInventory();
 
                 if (message.fluidStack == null) {
@@ -74,8 +74,11 @@ public class PacketQuickAddFluidFilter implements IMessage {
                     return;
                 }
 
+                // Only check slots within effective capacity (based on installed capacity upgrades)
+                int effectiveSlots = host.getTotalPages() * FluidInterfaceLogic.SLOTS_PER_PAGE;
+
                 // Check if this fluid filter already exists
-                for (int i = 0; i < TileFluidImportInterface.FILTER_SLOTS; i++) {
+                for (int i = 0; i < effectiveSlots; i++) {
                     IAEFluidStack existing = filterInventory.getFluidInSlot(i);
                     if (existing != null && existing.getFluid() == toAdd.getFluid()) {
                         player.sendMessage(new TextComponentTranslation("message.cells.import_fluid_interface.filter_duplicate"));
@@ -84,7 +87,7 @@ public class PacketQuickAddFluidFilter implements IMessage {
                 }
 
                 // Find first empty filter slot whose tank is also empty
-                for (int i = 0; i < TileFluidImportInterface.FILTER_SLOTS; i++) {
+                for (int i = 0; i < effectiveSlots; i++) {
                     IAEFluidStack existingFilter = filterInventory.getFluidInSlot(i);
                     boolean tankEmpty = host.isTankEmpty(i);
 

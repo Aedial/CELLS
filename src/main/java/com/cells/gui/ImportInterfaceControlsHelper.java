@@ -50,7 +50,7 @@ public class ImportInterfaceControlsHelper {
             : I18n.format("gui.cells.controls.key_not_set");
         lines.add(I18n.format("gui.cells.controls.memory_card_filter", filterKey));
 
-        // lines.add(I18n.format("gui.cells.controls.disassemble"));
+        lines.add(I18n.format("gui.cells.controls.disassemble"));
 
         lines.add("");
 

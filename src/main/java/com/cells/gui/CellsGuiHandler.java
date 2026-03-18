@@ -11,33 +11,21 @@ import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
 
 import com.cells.Cells;
-import com.cells.blocks.importinterface.ContainerImportInterface;
+import com.cells.blocks.interfacebase.ContainerFluidInterface;
+import com.cells.blocks.interfacebase.ContainerItemInterface;
+import com.cells.blocks.interfacebase.GuiFluidInterface;
+import com.cells.blocks.interfacebase.GuiItemInterface;
+import com.cells.blocks.interfacebase.IFluidInterfaceHost;
+import com.cells.blocks.interfacebase.IInterfaceHost;
+import com.cells.blocks.interfacebase.IItemInterfaceHost;
 import com.cells.blocks.importinterface.ContainerMaxSlotSize;
 import com.cells.blocks.importinterface.ContainerPollingRate;
-import com.cells.blocks.importinterface.GuiImportInterface;
 import com.cells.blocks.importinterface.GuiMaxSlotSize;
 import com.cells.blocks.importinterface.GuiPollingRate;
-import com.cells.blocks.importinterface.IImportInterfaceHost;
-import com.cells.blocks.importinterface.TileImportInterface;
-import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
-import com.cells.blocks.fluidimportinterface.GuiFluidImportInterface;
-import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
-import com.cells.blocks.exportinterface.ContainerExportInterface;
-import com.cells.blocks.exportinterface.GuiExportInterface;
-import com.cells.blocks.exportinterface.IExportInterfaceInventoryHost;
-import com.cells.blocks.exportinterface.TileExportInterface;
-import com.cells.blocks.fluidexportinterface.ContainerFluidExportInterface;
-import com.cells.blocks.fluidexportinterface.GuiFluidExportInterface;
-import com.cells.blocks.fluidexportinterface.IFluidExportInterfaceInventoryHost;
-import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
 import com.cells.cells.configurable.ContainerConfigurableCell;
 import com.cells.cells.configurable.GuiConfigurableCell;
 import com.cells.cells.creative.ContainerCreativeCell;
 import com.cells.cells.creative.GuiCreativeCell;
-import com.cells.parts.PartImportInterface;
-import com.cells.parts.PartFluidImportInterface;
-import com.cells.parts.PartExportInterface;
-import com.cells.parts.PartFluidExportInterface;
 
 import net.minecraft.util.EnumHand;
 
@@ -143,38 +131,38 @@ public class CellsGuiHandler implements IGuiHandler {
 
             switch (baseId) {
                 case GUI_PART_IMPORT_INTERFACE:
-                    if (part instanceof PartImportInterface) {
-                        return new ContainerImportInterface(player.inventory, part);
+                    if (part instanceof IItemInterfaceHost) {
+                        return new ContainerItemInterface(player.inventory, part);
                     }
                     break;
 
                 case GUI_PART_FLUID_IMPORT_INTERFACE:
-                    if (part instanceof PartFluidImportInterface) {
-                        return new ContainerFluidImportInterface(player.inventory, part);
+                    if (part instanceof IFluidInterfaceHost) {
+                        return new ContainerFluidInterface(player.inventory, part);
                     }
                     break;
 
                 case GUI_PART_MAX_SLOT_SIZE:
-                    if (part instanceof IImportInterfaceHost) {
-                        return new ContainerMaxSlotSize(player.inventory, (IImportInterfaceHost) part);
+                    if (part instanceof IInterfaceHost) {
+                        return new ContainerMaxSlotSize(player.inventory, (IInterfaceHost) part);
                     }
                     break;
 
                 case GUI_PART_POLLING_RATE:
-                    if (part instanceof IImportInterfaceHost) {
-                        return new ContainerPollingRate(player.inventory, (IImportInterfaceHost) part);
+                    if (part instanceof IInterfaceHost) {
+                        return new ContainerPollingRate(player.inventory, (IInterfaceHost) part);
                     }
                     break;
 
                 case GUI_PART_EXPORT_INTERFACE:
-                    if (part instanceof PartExportInterface) {
-                        return new ContainerExportInterface(player.inventory, part);
+                    if (part instanceof IItemInterfaceHost) {
+                        return new ContainerItemInterface(player.inventory, part);
                     }
                     break;
 
                 case GUI_PART_FLUID_EXPORT_INTERFACE:
-                    if (part instanceof PartFluidExportInterface) {
-                        return new ContainerFluidExportInterface(player.inventory, part);
+                    if (part instanceof IFluidInterfaceHost) {
+                        return new ContainerFluidInterface(player.inventory, part);
                     }
                     break;
             }
@@ -185,26 +173,26 @@ public class CellsGuiHandler implements IGuiHandler {
         // Handle block-based GUIs
         switch (id) {
             case GUI_IMPORT_INTERFACE:
-                if (tile instanceof TileImportInterface) {
-                    return new ContainerImportInterface(player.inventory, (TileImportInterface) tile);
+                if (tile instanceof IItemInterfaceHost) {
+                    return new ContainerItemInterface(player.inventory, tile);
                 }
                 break;
 
             case GUI_FLUID_IMPORT_INTERFACE:
-                if (tile instanceof TileFluidImportInterface) {
-                    return new ContainerFluidImportInterface(player.inventory, (TileFluidImportInterface) tile);
+                if (tile instanceof IFluidInterfaceHost) {
+                    return new ContainerFluidInterface(player.inventory, tile);
                 }
                 break;
 
             case GUI_MAX_SLOT_SIZE:
-                if (tile instanceof IImportInterfaceHost) {
-                    return new ContainerMaxSlotSize(player.inventory, (IImportInterfaceHost) tile);
+                if (tile instanceof IInterfaceHost) {
+                    return new ContainerMaxSlotSize(player.inventory, (IInterfaceHost) tile);
                 }
                 break;
 
             case GUI_POLLING_RATE:
-                if (tile instanceof IImportInterfaceHost) {
-                    return new ContainerPollingRate(player.inventory, (IImportInterfaceHost) tile);
+                if (tile instanceof IInterfaceHost) {
+                    return new ContainerPollingRate(player.inventory, (IInterfaceHost) tile);
                 }
                 break;
 
@@ -219,14 +207,14 @@ public class CellsGuiHandler implements IGuiHandler {
                 return null;
 
             case GUI_EXPORT_INTERFACE:
-                if (tile instanceof TileExportInterface) {
-                    return new ContainerExportInterface(player.inventory, (TileExportInterface) tile);
+                if (tile instanceof IItemInterfaceHost) {
+                    return new ContainerItemInterface(player.inventory, tile);
                 }
                 break;
 
             case GUI_FLUID_EXPORT_INTERFACE:
-                if (tile instanceof TileFluidExportInterface) {
-                    return new ContainerFluidExportInterface(player.inventory, (TileFluidExportInterface) tile);
+                if (tile instanceof IFluidInterfaceHost) {
+                    return new ContainerFluidInterface(player.inventory, tile);
                 }
                 break;
         }
@@ -246,38 +234,38 @@ public class CellsGuiHandler implements IGuiHandler {
 
             switch (baseId) {
                 case GUI_PART_IMPORT_INTERFACE:
-                    if (part instanceof PartImportInterface) {
-                        return new GuiImportInterface(player.inventory, part);
+                    if (part instanceof IItemInterfaceHost) {
+                        return new GuiItemInterface(player.inventory, part);
                     }
                     break;
 
                 case GUI_PART_FLUID_IMPORT_INTERFACE:
-                    if (part instanceof PartFluidImportInterface) {
-                        return new GuiFluidImportInterface(player.inventory, part);
+                    if (part instanceof IFluidInterfaceHost) {
+                        return new GuiFluidInterface(player.inventory, part);
                     }
                     break;
 
                 case GUI_PART_MAX_SLOT_SIZE:
-                    if (part instanceof IImportInterfaceHost) {
-                        return new GuiMaxSlotSize(player.inventory, (IImportInterfaceHost) part);
+                    if (part instanceof IInterfaceHost) {
+                        return new GuiMaxSlotSize(player.inventory, (IInterfaceHost) part);
                     }
                     break;
 
                 case GUI_PART_POLLING_RATE:
-                    if (part instanceof IImportInterfaceHost) {
-                        return new GuiPollingRate(player.inventory, (IImportInterfaceHost) part);
+                    if (part instanceof IInterfaceHost) {
+                        return new GuiPollingRate(player.inventory, (IInterfaceHost) part);
                     }
                     break;
 
                 case GUI_PART_EXPORT_INTERFACE:
-                    if (part instanceof PartExportInterface) {
-                        return new GuiExportInterface(player.inventory, part);
+                    if (part instanceof IItemInterfaceHost) {
+                        return new GuiItemInterface(player.inventory, part);
                     }
                     break;
 
                 case GUI_PART_FLUID_EXPORT_INTERFACE:
-                    if (part instanceof PartFluidExportInterface) {
-                        return new GuiFluidExportInterface(player.inventory, part);
+                    if (part instanceof IFluidInterfaceHost) {
+                        return new GuiFluidInterface(player.inventory, part);
                     }
                     break;
             }
@@ -288,26 +276,26 @@ public class CellsGuiHandler implements IGuiHandler {
         // Handle block-based GUIs
         switch (id) {
             case GUI_IMPORT_INTERFACE:
-                if (tile instanceof TileImportInterface) {
-                    return new GuiImportInterface(player.inventory, (TileImportInterface) tile);
+                if (tile instanceof IItemInterfaceHost) {
+                    return new GuiItemInterface(player.inventory, tile);
                 }
                 break;
 
             case GUI_FLUID_IMPORT_INTERFACE:
-                if (tile instanceof TileFluidImportInterface) {
-                    return new GuiFluidImportInterface(player.inventory, (TileFluidImportInterface) tile);
+                if (tile instanceof IFluidInterfaceHost) {
+                    return new GuiFluidInterface(player.inventory, tile);
                 }
                 break;
 
             case GUI_MAX_SLOT_SIZE:
-                if (tile instanceof IImportInterfaceHost) {
-                    return new GuiMaxSlotSize(player.inventory, (IImportInterfaceHost) tile);
+                if (tile instanceof IInterfaceHost) {
+                    return new GuiMaxSlotSize(player.inventory, (IInterfaceHost) tile);
                 }
                 break;
 
             case GUI_POLLING_RATE:
-                if (tile instanceof IImportInterfaceHost) {
-                    return new GuiPollingRate(player.inventory, (IImportInterfaceHost) tile);
+                if (tile instanceof IInterfaceHost) {
+                    return new GuiPollingRate(player.inventory, (IInterfaceHost) tile);
                 }
                 break;
 
@@ -322,14 +310,14 @@ public class CellsGuiHandler implements IGuiHandler {
                 return null;
 
             case GUI_EXPORT_INTERFACE:
-                if (tile instanceof TileExportInterface) {
-                    return new GuiExportInterface(player.inventory, (TileExportInterface) tile);
+                if (tile instanceof IItemInterfaceHost) {
+                    return new GuiItemInterface(player.inventory, tile);
                 }
                 break;
 
             case GUI_FLUID_EXPORT_INTERFACE:
-                if (tile instanceof TileFluidExportInterface) {
-                    return new GuiFluidExportInterface(player.inventory, (TileFluidExportInterface) tile);
+                if (tile instanceof IFluidInterfaceHost) {
+                    return new GuiFluidInterface(player.inventory, tile);
                 }
                 break;
         }

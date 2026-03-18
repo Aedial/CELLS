@@ -7,9 +7,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.cells.blocks.importinterface.ContainerImportInterface;
+import com.cells.blocks.interfacebase.ContainerItemInterface;
+import com.cells.blocks.interfacebase.ContainerFluidInterface;
 import com.cells.blocks.importinterface.ContainerMaxSlotSize;
-import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
 
 
 /**
@@ -44,10 +44,10 @@ public class PacketSetMaxSlotSize implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
 
-                if (container instanceof ContainerImportInterface) {
-                    ((ContainerImportInterface) container).setMaxSlotSize(message.maxSlotSize);
-                } else if (container instanceof ContainerFluidImportInterface) {
-                    ((ContainerFluidImportInterface) container).setMaxSlotSize(message.maxSlotSize);
+                if (container instanceof ContainerItemInterface) {
+                    ((ContainerItemInterface) container).setMaxSlotSize(message.maxSlotSize);
+                } else if (container instanceof ContainerFluidInterface) {
+                    ((ContainerFluidInterface) container).setMaxSlotSize(message.maxSlotSize);
                 } else if (container instanceof ContainerMaxSlotSize) {
                     ((ContainerMaxSlotSize) container).setMaxSlotSize(message.maxSlotSize);
                 }

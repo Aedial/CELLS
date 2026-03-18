@@ -7,9 +7,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.cells.blocks.importinterface.ContainerImportInterface;
+import com.cells.blocks.interfacebase.ContainerItemInterface;
+import com.cells.blocks.interfacebase.ContainerFluidInterface;
 import com.cells.blocks.importinterface.ContainerPollingRate;
-import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
 
 
 /**
@@ -44,10 +44,10 @@ public class PacketSetPollingRate implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
 
-                if (container instanceof ContainerImportInterface) {
-                    ((ContainerImportInterface) container).setPollingRate(message.pollingRate);
-                } else if (container instanceof ContainerFluidImportInterface) {
-                    ((ContainerFluidImportInterface) container).setPollingRate(message.pollingRate);
+                if (container instanceof ContainerItemInterface) {
+                    ((ContainerItemInterface) container).setPollingRate(message.pollingRate);
+                } else if (container instanceof ContainerFluidInterface) {
+                    ((ContainerFluidInterface) container).setPollingRate(message.pollingRate);
                 } else if (container instanceof ContainerPollingRate) {
                     ((ContainerPollingRate) container).setPollingRate(message.pollingRate);
                 }

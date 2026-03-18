@@ -8,6 +8,18 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.9-rc] - 2026-03-17
+### Fixed
+- Fix bug where the Import/Export Interface may never wake up in Adaptive mode (polling rate = 0) when there was nothing to import/export and the grid was cut (power loss or not enough channels) then reconnected.
+- Fix placing disassembled Import/Export Interfaces resetting them to default settings and filters.
+- Fix right-click then left-click on an Export Interface slot putting (Slot size - 32) items in the player's hand, instead of a stack/half a stack.
+- Unify the logic of Import/Export Interfaces, squashing a few minor bugs and inconsistencies.
+- Mitigate base AE2-UEL crash when handling oversized stack counts in slotClick for some specific mods configurations.
+
+### Changed
+- Change disassembly behavior to keep upgrades for Import/Export Interfaces, so that filters are not lost due to capacity shrinkage. The upgrades are still dropped on breaking and the inventory is dropped on both actions.
+
+
 ## [0.5.8] - 2026-03-16
 ### Added
 - Optimize oredict matching for the Ore Dictionary Card, from O(n*m) to O(m) where n is the number of ore dict entries in the cell and m is the number of ore dict entries for the input item. This should mainly affect cases with a big compacting chain (e.g., using Compression/Decompression Cards). m is usually small (most items have 0-2 ore dict entries), so this should be a significant improvement in those cases, while not causing much overhead in the general case.

@@ -13,6 +13,8 @@ import net.minecraft.util.math.BlockPos;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
 
+import com.cells.blocks.interfacebase.IInterfaceHost;
+import com.cells.blocks.interfacebase.ItemInterfaceLogic;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketSetMaxSlotSize;
@@ -21,9 +23,9 @@ import javax.annotation.Nonnull;
 
 
 /**
- * GUI for configuring the max slot size of an Import Interface.
+ * GUI for configuring the max slot size of an Interface.
  * Similar to AE2's Priority GUI with +/- buttons and a number field.
- * Works with any host implementing {@link IImportInterfaceHost} (both TileEntity and IPart).
+ * Works with any host implementing {@link IInterfaceHost} (both TileEntity and IPart).
  */
 public class GuiMaxSlotSize extends AEBaseGui {
 
@@ -39,9 +41,9 @@ public class GuiMaxSlotSize extends AEBaseGui {
     private GuiButton minus100;
     private GuiButton minus1000;
 
-    private final IImportInterfaceHost host;
+    private final IInterfaceHost host;
 
-    public GuiMaxSlotSize(final InventoryPlayer inventoryPlayer, final IImportInterfaceHost host) {
+    public GuiMaxSlotSize(final InventoryPlayer inventoryPlayer, final IInterfaceHost host) {
         super(new ContainerMaxSlotSize(inventoryPlayer, host));
         this.host = host;
     }
@@ -146,7 +148,7 @@ public class GuiMaxSlotSize extends AEBaseGui {
             // Parse as long to handle values > Integer.MAX_VALUE, then clamp
             long parsed = Long.parseLong(out);
             parsed += delta;
-            int result = (int) Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, Math.min(Integer.MAX_VALUE, parsed));
+            int result = (int) Math.max(ItemInterfaceLogic.MIN_MAX_SLOT_SIZE, Math.min(Integer.MAX_VALUE, parsed));
 
             this.sizeField.setText(Integer.toString(result));
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetMaxSlotSize(result));
@@ -178,7 +180,7 @@ public class GuiMaxSlotSize extends AEBaseGui {
                 try {
                     // Parse as long to handle values > Integer.MAX_VALUE, then clamp
                     long parsed = Long.parseLong(out);
-                    int value = (int) Math.max(TileImportInterface.MIN_MAX_SLOT_SIZE, Math.min(Integer.MAX_VALUE, parsed));
+                    int value = (int) Math.max(ItemInterfaceLogic.MIN_MAX_SLOT_SIZE, Math.min(Integer.MAX_VALUE, parsed));
                     CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetMaxSlotSize(value));
                 } catch (final NumberFormatException e) {
                     // Ignore invalid input

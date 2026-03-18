@@ -13,6 +13,8 @@ import net.minecraftforge.fml.common.registry.GameRegistry;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import appeng.block.AEBaseItemBlock;
+
 import com.cells.blocks.importinterface.BlockImportInterface;
 import com.cells.blocks.importinterface.TileImportInterface;
 import com.cells.blocks.fluidimportinterface.BlockFluidImportInterface;
@@ -69,7 +71,7 @@ public class BlockRegistry {
     }
 
     private ItemBlock createItemBlock(Block block) {
-        ItemBlock itemBlock = new ItemBlock(block);
+        ItemBlock itemBlock = new AEBaseItemBlock(block);
         itemBlock.setRegistryName(block.getRegistryName());
 
         return itemBlock;

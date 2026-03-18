@@ -12,6 +12,8 @@ import net.minecraft.util.math.BlockPos;
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
 
+import com.cells.blocks.interfacebase.IInterfaceHost;
+import com.cells.blocks.interfacebase.ItemInterfaceLogic;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketSetPollingRate;
@@ -20,10 +22,10 @@ import javax.annotation.Nonnull;
 
 
 /**
- * GUI for configuring the polling rate of an Import Interface.
+ * GUI for configuring the polling rate of an Interface.
  * Has +/- buttons for 1s, 1m, 1h, 1d. Holding shift multiplies by 10.
  * Time is displayed in format "1d 2h 3m 4s" (skipping zero parts) or "0".
- * Works with any host implementing {@link IImportInterfaceHost} (both TileEntity and IPart).
+ * Works with any host implementing {@link IInterfaceHost} (both TileEntity and IPart).
  */
 public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IPollingRateListener {
 
@@ -38,10 +40,10 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
     private GuiButton minusHour;
     private GuiButton minusDay;
 
-    private final IImportInterfaceHost host;
+    private final IInterfaceHost host;
     private long currentPollingRate = 0;
 
-    public GuiPollingRate(final InventoryPlayer inventoryPlayer, final IImportInterfaceHost host) {
+    public GuiPollingRate(final InventoryPlayer inventoryPlayer, final IInterfaceHost host) {
         super(new ContainerPollingRate(inventoryPlayer, host));
         this.host = host;
     }
@@ -85,7 +87,7 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
         this.fontRenderer.drawString(I18n.format("gui.cells.polling_rate.title"), 8, 6, 0x404040);
 
         // Draw the current polling rate centered in the display area
-        String timeStr = TileImportInterface.formatPollingRate(this.currentPollingRate);
+        String timeStr = ItemInterfaceLogic.formatPollingRate(this.currentPollingRate);
         int textWidth = this.fontRenderer.getStringWidth(timeStr);
         int centerX = (this.xSize - textWidth) / 2;
         this.fontRenderer.drawString(timeStr, centerX, 57, 0xFFFFFF);
@@ -121,15 +123,15 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
         boolean shift = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
         int multiplier = shift ? 10 : 1;
 
-        if (btn == this.plusSec) return TileImportInterface.TICKS_PER_SECOND * multiplier;
-        if (btn == this.plusMin) return TileImportInterface.TICKS_PER_MINUTE * multiplier;
-        if (btn == this.plusHour) return TileImportInterface.TICKS_PER_HOUR * multiplier;
-        if (btn == this.plusDay) return TileImportInterface.TICKS_PER_DAY * multiplier;
+        if (btn == this.plusSec) return ItemInterfaceLogic.TICKS_PER_SECOND * multiplier;
+        if (btn == this.plusMin) return ItemInterfaceLogic.TICKS_PER_MINUTE * multiplier;
+        if (btn == this.plusHour) return ItemInterfaceLogic.TICKS_PER_HOUR * multiplier;
+        if (btn == this.plusDay) return ItemInterfaceLogic.TICKS_PER_DAY * multiplier;
 
-        if (btn == this.minusSec) return -TileImportInterface.TICKS_PER_SECOND * multiplier;
-        if (btn == this.minusMin) return -TileImportInterface.TICKS_PER_MINUTE * multiplier;
-        if (btn == this.minusHour) return -TileImportInterface.TICKS_PER_HOUR * multiplier;
-        if (btn == this.minusDay) return -TileImportInterface.TICKS_PER_DAY * multiplier;
+        if (btn == this.minusSec) return -ItemInterfaceLogic.TICKS_PER_SECOND * multiplier;
+        if (btn == this.minusMin) return -ItemInterfaceLogic.TICKS_PER_MINUTE * multiplier;
+        if (btn == this.minusHour) return -ItemInterfaceLogic.TICKS_PER_HOUR * multiplier;
+        if (btn == this.minusDay) return -ItemInterfaceLogic.TICKS_PER_DAY * multiplier;
 
         return 0;
     }

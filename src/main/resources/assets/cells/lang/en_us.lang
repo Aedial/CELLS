@@ -360,6 +360,7 @@ gui.cells.export_interface.title=Export Interface
 gui.cells.export_interface.max_slot_size=Max Slot Size
 gui.cells.export_interface.max_slot_size.tooltip=Maximum number of items to keep in the slots.
 gui.cells.export_interface.max_slot_size.items.tooltip=Slot Size: §b%d§r items
+gui.cells.export_interface.max_slot_size.fluids.tooltip=Slot Size: §b%d§r mB
 gui.cells.export_interface.polling_rate=Polling Rate
 gui.cells.export_interface.polling_rate.tooltip=Interval for exporting items (0 = AE2's default, nonzero = interval in ticks)
 gui.cells.export_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
@@ -377,13 +378,6 @@ message.cells.export_interface.filters_not_added=%d filter(s) could not be added
 tile.cells.export_fluid_interface.name=Fluid Export Interface
 item.cells.part.export_fluid_interface.name=Fluid Export Interface
 gui.cells.export_fluid_interface.title=Fluid Export Interface
-gui.cells.export_fluid_interface.max_slot_size=Max Slot Size  
-gui.cells.export_fluid_interface.max_slot_size.tooltip=Maximum amount of fluid (mB) to keep in each tank.
-gui.cells.export_fluid_interface.max_slot_size.fluids.tooltip=Slot Size: §b%d§r mB
-gui.cells.export_fluid_interface.polling_rate=Polling Rate
-gui.cells.export_fluid_interface.polling_rate.tooltip=Interval for exporting fluids (0 = AE2's default, nonzero = interval in ticks)
-gui.cells.export_fluid_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
-gui.cells.export_fluid_interface.polling_rate.custom.tooltip=Polling Rate: §rexport every §b%s§r
 tooltip.cells.export_fluid_interface.info=Export fluids from the ME network through filtered slots. Fluids can be extracted by pipes.
 tooltip.cells.type.export_fluid_interface=Fluid Export Interface
 tooltip.cells.export_fluid_interface.amount=%d/%d mB

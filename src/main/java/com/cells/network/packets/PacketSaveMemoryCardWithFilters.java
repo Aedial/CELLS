@@ -7,7 +7,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -18,21 +17,10 @@ import appeng.api.implementations.items.IMemoryCard;
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
-import appeng.util.SettingsFrom;
 
-import com.cells.blocks.exportinterface.IExportInterfaceInventoryHost;
-import com.cells.blocks.exportinterface.TileExportInterface;
-import com.cells.blocks.fluidexportinterface.IFluidExportInterfaceInventoryHost;
-import com.cells.blocks.fluidimportinterface.IFluidImportInterfaceInventoryHost;
-import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
-import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
-import com.cells.blocks.importinterface.IImportInterfaceInventoryHost;
-import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.blocks.interfacebase.IInterfaceHost;
+import com.cells.blocks.interfacebase.IFluidInterfaceHost;
 import com.cells.network.MemoryCardSaveTracker;
-import com.cells.parts.PartExportInterface;
-import com.cells.parts.PartFluidExportInterface;
-import com.cells.parts.PartFluidImportInterface;
-import com.cells.parts.PartImportInterface;
 
 
 /**
@@ -82,7 +70,6 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
                 MemoryCardSaveTracker.markPendingSave(player, message.pos);
 
                 // Find which hand has the memory card
-                EnumHand hand = null;
                 ItemStack heldItem = player.getHeldItemMainhand();
                 if (heldItem.isEmpty() || !(heldItem.getItem() instanceof IMemoryCard)) {
                     heldItem = player.getHeldItemOffhand();
@@ -96,48 +83,27 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
                 NBTTagCompound data = null;
                 String name = null;
 
+                // Resolve the IInterfaceHost from either a part or tile entity
+                IInterfaceHost interfaceHost = null;
+
                 if (message.isPart) {
-                    // Handle part
                     if (!(te instanceof IPartHost)) return;
                     IPartHost host = (IPartHost) te;
                     IPart part = host.getPart(AEPartLocation.fromFacing(message.side));
-
-                    if (part instanceof PartImportInterface) {
-                        IImportInterfaceInventoryHost importPart = (PartImportInterface) part;
-                        data = importPart.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-                        name = "tile.cells.import_interface";
-                    } else if (part instanceof PartFluidImportInterface) {
-                        IFluidImportInterfaceInventoryHost fluidPart = (PartFluidImportInterface) part;
-                        data = fluidPart.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-                        name = "tile.cells.import_fluid_interface";
-                    } else if (part instanceof PartExportInterface) {
-                        IExportInterfaceInventoryHost exportPart = (PartExportInterface) part;
-                        data = exportPart.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-                        name = "tile.cells.export_interface";
-                    } else if (part instanceof PartFluidExportInterface) {
-                        IFluidExportInterfaceInventoryHost fluidExportPart = (PartFluidExportInterface) part;
-                        data = fluidExportPart.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-                        name = "tile.cells.export_fluid_interface";
-                    }
+                    if (part instanceof IInterfaceHost) interfaceHost = (IInterfaceHost) part;
                 } else {
-                    // Handle tile entity
-                    if (te instanceof TileImportInterface) {
-                        IImportInterfaceInventoryHost tile = (TileImportInterface) te;
-                        data = tile.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-                        name = "tile.cells.import_interface";
-                    } else if (te instanceof TileFluidImportInterface) {
-                        IFluidImportInterfaceInventoryHost tile = (TileFluidImportInterface) te;
-                        data = tile.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-                        name = "tile.cells.import_fluid_interface";
-                    } else if (te instanceof TileExportInterface) {
-                        IExportInterfaceInventoryHost tile = (TileExportInterface) te;
-                        data = tile.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-                        name = "tile.cells.export_interface";
-                    } else if (te instanceof TileFluidExportInterface) {
-                        IFluidExportInterfaceInventoryHost tile = (TileFluidExportInterface) te;
-                        data = tile.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-                        name = "tile.cells.export_fluid_interface";
-                    }
+                    if (te instanceof IInterfaceHost) interfaceHost = (IInterfaceHost) te;
+                }
+
+                if (interfaceHost != null) {
+                    // Use downloadSettingsWithFilter() to include filters but NOT upgrades
+                    // (upgrades stay in the source interface, we're just copying settings)
+                    data = interfaceHost.downloadSettingsWithFilter();
+
+                    // Determine the memory card name based on host type
+                    boolean isFluid = interfaceHost instanceof IFluidInterfaceHost;
+                    String ioType = interfaceHost.isExport() ? "export" : "import";
+                    name = "tile.cells." + ioType + "_" + (isFluid ? "fluid_" : "") + "interface";
                 }
 
                 if (data != null && name != null && !data.isEmpty()) {

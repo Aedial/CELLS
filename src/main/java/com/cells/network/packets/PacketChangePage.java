@@ -8,10 +8,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.cells.blocks.exportinterface.ContainerExportInterface;
-import com.cells.blocks.fluidexportinterface.ContainerFluidExportInterface;
-import com.cells.blocks.fluidimportinterface.ContainerFluidImportInterface;
-import com.cells.blocks.importinterface.ContainerImportInterface;
+import com.cells.blocks.interfacebase.ContainerItemInterface;
+import com.cells.blocks.interfacebase.ContainerFluidInterface;
 
 
 /**
@@ -48,14 +46,10 @@ public class PacketChangePage implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
 
-                if (container instanceof ContainerImportInterface) {
-                    ((ContainerImportInterface) container).setCurrentPage(message.page);
-                } else if (container instanceof ContainerExportInterface) {
-                    ((ContainerExportInterface) container).setCurrentPage(message.page);
-                } else if (container instanceof ContainerFluidImportInterface) {
-                    ((ContainerFluidImportInterface) container).setCurrentPage(message.page);
-                } else if (container instanceof ContainerFluidExportInterface) {
-                    ((ContainerFluidExportInterface) container).setCurrentPage(message.page);
+                if (container instanceof ContainerItemInterface) {
+                    ((ContainerItemInterface) container).setCurrentPage(message.page);
+                } else if (container instanceof ContainerFluidInterface) {
+                    ((ContainerFluidInterface) container).setCurrentPage(message.page);
                 }
             });
 

@@ -13,8 +13,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import appeng.tile.inventory.AppEngInternalInventory;
 
-import com.cells.blocks.importinterface.ContainerImportInterface;
-import com.cells.blocks.importinterface.IImportInterfaceInventoryHost;
+import com.cells.blocks.interfacebase.ContainerItemInterface;
+import com.cells.blocks.interfacebase.IItemInterfaceHost;
+import com.cells.blocks.interfacebase.ItemInterfaceLogic;
 import com.cells.util.ItemStackKey;
 
 
@@ -52,19 +53,22 @@ public class PacketQuickAddItemFilter implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
 
-                if (!(container instanceof ContainerImportInterface)) return;
+                if (!(container instanceof ContainerItemInterface)) return;
 
-                ContainerImportInterface importContainer = (ContainerImportInterface) container;
-                IImportInterfaceInventoryHost host = importContainer.getHost();
+                ContainerItemInterface importContainer = (ContainerItemInterface) container;
+                IItemInterfaceHost host = importContainer.getHost();
                 AppEngInternalInventory filterInventory = host.getFilterInventory();
                 AppEngInternalInventory storageInventory = host.getStorageInventory();
 
                 ItemStack toAdd = message.itemStack.copy();
                 toAdd.setCount(1);
 
+                // Only check slots within effective capacity (based on installed capacity upgrades)
+                int effectiveSlots = host.getTotalPages() * ItemInterfaceLogic.SLOTS_PER_PAGE;
+
                 // Check if this filter already exists
                 ItemStackKey newKey = ItemStackKey.of(toAdd);
-                for (int i = 0; i < filterInventory.getSlots(); i++) {
+                for (int i = 0; i < effectiveSlots; i++) {
                     ItemStack existing = filterInventory.getStackInSlot(i);
                     if (!existing.isEmpty() && ItemStackKey.of(existing).equals(newKey)) {
                         player.sendMessage(new TextComponentTranslation("message.cells.import_interface.filter_duplicate"));
@@ -73,7 +77,7 @@ public class PacketQuickAddItemFilter implements IMessage {
                 }
 
                 // Find first empty filter slot whose storage slot is also empty
-                for (int i = 0; i < filterInventory.getSlots(); i++) {
+                for (int i = 0; i < effectiveSlots; i++) {
                     ItemStack existingFilter = filterInventory.getStackInSlot(i);
                     ItemStack existingStorage = storageInventory.getStackInSlot(i);
 
