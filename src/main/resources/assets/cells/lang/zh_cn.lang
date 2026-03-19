@@ -258,6 +258,21 @@ tooltip.cells.creative_cell.survival_hint=需要创造模式才能配置
 gui.cells.creative_cell.title=创造元件过滤项
 gui.cells.creative_cell.clear=清空过滤项
 gui.cells.creative_cell.clear_tooltip=清除所有过滤槽位
+message.cells.creative_cell.filter_duplicate=该物品已在过滤列表中！
+message.cells.creative_cell.no_filter_space=无可用的空闲过滤槽位。
+
+# Creative ME Fluid Cell
+item.cells.creative_fluid_cell.name=创造ME流体存储元件
+tooltip.cells.creative_fluid_cell.info=无限流体来源。提供海量的设定流体。
+tooltip.cells.creative_fluid_cell.exposes=提供每种流体各%s mB（共%d种流体）
+tooltip.cells.creative_fluid_cell.creative_hint=右击以配置过滤项
+tooltip.cells.creative_fluid_cell.survival_hint=需要创造模式才能配置
+gui.cells.creative_fluid_cell.title=创造流体元件过滤项
+gui.cells.creative_fluid_cell.clear=清空过滤项
+gui.cells.creative_fluid_cell.clear_tooltip=清除所有过滤槽位
+message.cells.creative_fluid_cell.not_fluid_container=非有效流体！
+message.cells.creative_fluid_cell.filter_duplicate=该流体已在过滤列表中！
+message.cells.creative_fluid_cell.no_filter_space=无可用的空闲过滤槽位。
 
 # Configurable Cell Config
 cells.config.configurableCellIdleDrain=可配置元件的待机能耗
