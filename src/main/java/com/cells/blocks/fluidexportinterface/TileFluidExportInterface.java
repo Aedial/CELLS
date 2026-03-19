@@ -32,7 +32,6 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
-import appeng.fluids.util.IAEFluidInventory;
 import appeng.fluids.util.IAEFluidTank;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.MachineSource;
@@ -55,7 +54,7 @@ import com.cells.gui.CellsGuiHandler;
  * Business logic is delegated to {@link FluidInterfaceLogic} to avoid code
  * duplication with part and import variants.
  */
-public class TileFluidExportInterface extends AENetworkInvTile implements IGridTickable, IAEFluidInventory, IFluidInterfaceHost, FluidInterfaceLogic.Host {
+public class TileFluidExportInterface extends AENetworkInvTile implements IGridTickable, IFluidInterfaceHost, FluidInterfaceLogic.Host {
 
     private final FluidInterfaceLogic logic;
     private final IActionSource actionSource;

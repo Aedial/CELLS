@@ -1,4 +1,4 @@
-package com.cells.cells.creative;
+package com.cells.cells.creative.item;
 
 import java.awt.Rectangle;
 import java.io.IOException;
@@ -31,7 +31,11 @@ import appeng.helpers.InventoryAction;
 import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
 import com.cells.Tags;
+import com.cells.client.KeyBindings;
 import com.cells.gui.GuiClearFiltersButton;
+import com.cells.gui.QuickAddHelper;
+import com.cells.network.CellsNetworkHandler;
+import com.cells.network.packets.PacketQuickAddCreativeItemFilter;
 
 
 /**
@@ -97,6 +101,17 @@ public class GuiCreativeCell extends AEBaseGui implements IJEIGhostIngredients {
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
         if (this.checkHotbarKeys(keyCode)) return;
+
+        // Handle quick-add keybind
+        if (KeyBindings.QUICK_ADD_TO_FILTER.isActiveAndMatches(keyCode)) {
+            Slot hoveredSlot = this.getSlotUnderMouse();
+            ItemStack item = QuickAddHelper.getItemUnderCursor(hoveredSlot);
+
+            if (!item.isEmpty()) {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddCreativeItemFilter(item));
+                return;
+            }
+        }
 
         super.keyTyped(typedChar, keyCode);
     }

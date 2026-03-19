@@ -258,6 +258,21 @@ tooltip.cells.creative_cell.survival_hint=Creative mode required to configure
 gui.cells.creative_cell.title=Creative Cell Filters
 gui.cells.creative_cell.clear=Clear Filters
 gui.cells.creative_cell.clear_tooltip=Clear all filter slots
+message.cells.creative_cell.filter_duplicate=This item is already in the filter list!
+message.cells.creative_cell.no_filter_space=No empty filter slots available!
+
+# Creative ME Fluid Cell
+item.cells.creative_fluid_cell.name=Creative ME Fluid Storage Cell
+tooltip.cells.creative_fluid_cell.info=Infinite fluid source. Exposes set fluids in massive quantities.
+tooltip.cells.creative_fluid_cell.exposes=Exposes %s mB of each fluid (%d fluids)
+tooltip.cells.creative_fluid_cell.creative_hint=Right-click to configure filters
+tooltip.cells.creative_fluid_cell.survival_hint=Creative mode required to configure
+gui.cells.creative_fluid_cell.title=Creative Fluid Cell Filters
+gui.cells.creative_fluid_cell.clear=Clear Filters
+gui.cells.creative_fluid_cell.clear_tooltip=Clear all filter slots
+message.cells.creative_fluid_cell.not_fluid_container=Not a valid fluid!
+message.cells.creative_fluid_cell.filter_duplicate=This fluid is already in the filter list!
+message.cells.creative_fluid_cell.no_filter_space=No empty filter slots available!
 
 # Configurable Cell Config
 cells.config.configurableCellIdleDrain=Configurable Cells Idle drain

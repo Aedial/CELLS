@@ -24,8 +24,10 @@ import com.cells.blocks.importinterface.GuiMaxSlotSize;
 import com.cells.blocks.importinterface.GuiPollingRate;
 import com.cells.cells.configurable.ContainerConfigurableCell;
 import com.cells.cells.configurable.GuiConfigurableCell;
-import com.cells.cells.creative.ContainerCreativeCell;
-import com.cells.cells.creative.GuiCreativeCell;
+import com.cells.cells.creative.item.ContainerCreativeCell;
+import com.cells.cells.creative.item.GuiCreativeCell;
+import com.cells.cells.creative.fluid.ContainerCreativeFluidCell;
+import com.cells.cells.creative.fluid.GuiCreativeFluidCell;
 
 import net.minecraft.util.EnumHand;
 
@@ -50,6 +52,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_EXPORT_INTERFACE = 5;
     public static final int GUI_FLUID_EXPORT_INTERFACE = 6;
     public static final int GUI_CREATIVE_CELL = 7;
+    public static final int GUI_CREATIVE_FLUID_CELL = 8;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
@@ -206,6 +209,13 @@ public class CellsGuiHandler implements IGuiHandler {
                 }
                 return null;
 
+            case GUI_CREATIVE_FLUID_CELL:
+                // Only allow creative mode players to open this GUI
+                if (player.isCreative()) {
+                    return new ContainerCreativeFluidCell(player.inventory, EnumHand.values()[x]);
+                }
+                return null;
+
             case GUI_EXPORT_INTERFACE:
                 if (tile instanceof IItemInterfaceHost) {
                     return new ContainerItemInterface(player.inventory, tile);
@@ -306,6 +316,13 @@ public class CellsGuiHandler implements IGuiHandler {
                 // Only allow creative mode players to open this GUI
                 if (player.isCreative()) {
                     return new GuiCreativeCell(player.inventory, EnumHand.values()[x]);
+                }
+                return null;
+
+            case GUI_CREATIVE_FLUID_CELL:
+                // Only allow creative mode players to open this GUI
+                if (player.isCreative()) {
+                    return new GuiCreativeFluidCell(player.inventory, EnumHand.values()[x]);
                 }
                 return null;
 

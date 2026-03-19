@@ -7,7 +7,6 @@ import java.util.Set;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.IRecipe;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.ModelRegistryEvent;
@@ -21,7 +20,8 @@ import com.cells.cells.configurable.ChannelType;
 import com.cells.cells.configurable.ComponentHelper;
 import com.cells.cells.configurable.ComponentInfo;
 import com.cells.cells.configurable.ItemConfigurableCell;
-import com.cells.cells.creative.ItemCreativeCell;
+import com.cells.cells.creative.item.ItemCreativeCell;
+import com.cells.cells.creative.fluid.ItemCreativeFluidCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingComponent;
 import com.cells.cells.hyperdensity.item.ItemHyperDensityCell;
@@ -58,6 +58,7 @@ public class ItemRegistry {
     public static ItemFluidHyperDensityComponent FLUID_HYPER_DENSITY_COMPONENT;
     public static ItemConfigurableCell CONFIGURABLE_CELL;
     public static ItemCreativeCell CREATIVE_CELL;
+    public static ItemCreativeFluidCell CREATIVE_FLUID_CELL;
     public static ItemOverflowCard OVERFLOW_CARD;
     public static ItemOreDictCard OREDICT_CARD;
     public static ItemTrashUnselectedCard TRASH_UNSELECTED_CARD;
@@ -95,8 +96,9 @@ public class ItemRegistry {
 
         if (CellsConfig.enableConfigurableCells) CONFIGURABLE_CELL = new ItemConfigurableCell();
 
-        // Creative cell is always available (no config toggle)
+        // Creative cells are always available (no config toggle)
         CREATIVE_CELL = new ItemCreativeCell();
+        CREATIVE_FLUID_CELL = new ItemCreativeFluidCell();
 
         // Upgrades are always available
         OVERFLOW_CARD = new ItemOverflowCard();
@@ -139,8 +141,9 @@ public class ItemRegistry {
 
         if (CONFIGURABLE_CELL != null) event.getRegistry().register(CONFIGURABLE_CELL);
 
-        // Creative cell is always registered
+        // Creative cells are always registered
         event.getRegistry().register(CREATIVE_CELL);
+        event.getRegistry().register(CREATIVE_FLUID_CELL);
 
         event.getRegistry().register(OVERFLOW_CARD);
         event.getRegistry().register(OREDICT_CARD);
@@ -304,9 +307,11 @@ public class ItemRegistry {
             }
         }
 
-        // Register creative cell model (cells folder)
+        // Register creative cell models (cells folder)
         ModelLoader.setCustomModelResourceLocation(CREATIVE_CELL, 0,
             makeModelLocation(CREATIVE_CELL, "cells"));
+        ModelLoader.setCustomModelResourceLocation(CREATIVE_FLUID_CELL, 0,
+            makeModelLocation(CREATIVE_FLUID_CELL, "cells"));
     }
 
     @SideOnly(Side.CLIENT)

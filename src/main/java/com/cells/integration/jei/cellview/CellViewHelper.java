@@ -13,7 +13,8 @@ import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEStack;
 
 import com.cells.cells.configurable.ItemConfigurableCell;
-import com.cells.cells.creative.ItemCreativeCell;
+import com.cells.cells.creative.item.ItemCreativeCell;
+import com.cells.cells.creative.fluid.ItemCreativeFluidCell;
 import com.cells.cells.hyperdensity.compacting.IItemHyperDensityCompactingCell;
 import com.cells.cells.hyperdensity.fluid.IItemFluidHyperDensityCell;
 import com.cells.cells.hyperdensity.item.IItemHyperDensityCell;
@@ -85,7 +86,7 @@ public final class CellViewHelper {
             return CellType.CONFIGURABLE;
         }
 
-        if (stack.getItem() instanceof ItemCreativeCell) {
+        if (stack.getItem() instanceof ItemCreativeCell || stack.getItem() instanceof ItemCreativeFluidCell) {
             return CellType.CREATIVE;
         }
 

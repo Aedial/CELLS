@@ -8,6 +8,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.10] - 2026-03-18
+### Added
+- Add Creative Fluid Cell, the fluid counterpart of the Creative Cell, with the same behavior but for fluids.
+- Add quick-add keybind handling for the Creative Cell, like is done for Import/Export interfaces.
+- Add Essentia Import/Export interface.
+- Add Gas Import/Export interface.
+
+
 ## [0.5.9-rc] - 2026-03-17
 ### Fixed
 - Fix bug where the Import/Export Interface may never wake up in Adaptive mode (polling rate = 0) when there was nothing to import/export and the grid was cut (power loss or not enough channels) then reconnected.

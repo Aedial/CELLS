@@ -35,8 +35,8 @@ They hold 36 slots, expandable up to 5x with capacity cards.
 The counterpart to the Import Interface, allowing items/fluids to be exported from the ME network to any outside piping. Slot size and polling rate apply all the same as the Import Interface.
 
 
-### Creative Cell
-A cell that can only be set in creative mode, providing 4.6 quintillion of each set item (up to 63 different items per cell). It is the equivalent of a Drawer with the Vending upgrade.
+### Creative Cell (Item/Fluid)
+A cell that can only be set in creative mode, providing 4.6 quintillion of each set item/fluid (up to 63 different types per cell). It is the equivalent of a Drawer with the Vending upgrade.
 
 
 ### Compacting Storage Cells

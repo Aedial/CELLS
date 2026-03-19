@@ -219,8 +219,11 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
                     IAEFluidStack fluidAeStack = (IAEFluidStack) aeStack;
                     FluidStack fluidStack = fluidAeStack.getFluidStack();
                     if (fluidStack != null) {
-                        // Init with proper capacity for rendering (use 1000 mB as the "full" amount for visual)
-                        fluidStacks.init(i, true, pos.x + 1, pos.y + 1, 16, 16, 1000, false, null);
+                        // Normalize both to a small fixed value so the slot always renders
+                        // full. The real quantity is shown via the tooltip's extra text.
+                        int displayCapacity = 1000;
+                        fluidStack.amount = displayCapacity;
+                        fluidStacks.init(i, true, pos.x + 1, pos.y + 1, 16, 16, displayCapacity, false, null);
                         fluidStacks.set(i, fluidStack);
                     }
                 }
@@ -239,7 +242,11 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
                 tooltip.add("");
                 tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
-                    format.format(info.count / 1000.0), I18n.format("jei.cells.cellview.unit.fluid")));
+                    format.format(info.count), I18n.format("jei.cells.cellview.unit.fluid")));
+
+                // Skip bytes as it is meaningless for creative cells
+                if (recipeRef.isCreative()) return;
+
                 tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
                     format.format(info.bytesUsed)));
             }
@@ -338,7 +345,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
                 tooltip.add("");
                 tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
-                    format.format(info.count / 1000.0), I18n.format("jei.cells.cellview.unit.gas")));
+                    format.format(info.count), I18n.format("jei.cells.cellview.unit.gas")));
                 tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
                     format.format(info.bytesUsed)));
             }
@@ -743,11 +750,9 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
                     offsetX + pos.x + 1, offsetY + pos.y + 1);
             } else if (isGasChannel) {
                 // Gas stacks: use fluidStackSizeRenderer with a synthetic fluid stack for consistent formatting
-                // The gas count is in mB (already raw units), need to display as "B" (buckets)
                 AEItemStack aeStack = AEItemStack.fromItemStack(info.stack.asItemStackRepresentation());
                 if (aeStack != null) {
-                    // Divide by 1000 for mB to B conversion, consistent with how gases work
-                    aeStack.setStackSize(info.count / 1000);
+                    aeStack.setStackSize(info.count);
                     stackSizeRenderer.renderStackSize(minecraft.fontRenderer, aeStack,
                         offsetX + pos.x + 1, offsetY + pos.y + 1);
                 }

@@ -1,4 +1,4 @@
-package com.cells.cells.creative;
+package com.cells.cells.creative.item;
 
 import appeng.api.config.AccessRestriction;
 import appeng.api.config.IncludeExclude;

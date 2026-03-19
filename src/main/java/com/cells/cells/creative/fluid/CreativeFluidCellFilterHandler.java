@@ -1,63 +1,62 @@
-package com.cells.cells.creative;
+package com.cells.cells.creative.fluid;
 
 import java.util.HashSet;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraftforge.common.util.Constants;
-import net.minecraftforge.items.IItemHandlerModifiable;
+import net.minecraftforge.fluids.FluidStack;
 
 import appeng.util.Platform;
 
-import com.cells.util.ItemStackKey;
+import com.cells.util.FluidStackKey;
 
 
 /**
- * NBT-backed item handler for storing filter items in a Creative Cell.
+ * NBT-backed handler for storing filter fluids in a Creative Fluid Cell.
  * <p>
- * Stores 63 filter slots (9x7 grid) as ghost items in the cell's NBT.
- * Each slot holds a single-count copy of an item for filtering purposes.
+ * Stores 63 filter slots (9x7 grid) as ghost fluids in the cell's NBT.
+ * Each slot holds a single-mB copy of a fluid for filtering purposes.
  */
-public class CreativeCellFilterHandler implements IItemHandlerModifiable {
+public class CreativeFluidCellFilterHandler {
 
     /** Total number of filter slots (9x7 grid) */
     public static final int SLOT_COUNT = 63;
 
-    private static final String NBT_KEY_FILTERS = "CreativeFilters";
+    private static final String NBT_KEY_FILTERS = "CreativeFluidFilters";
 
     private final ItemStack cellStack;
 
     /** Cache of filter keys for quick matching */
-    private Set<ItemStackKey> cachedFilterKeys = new HashSet<>();
+    private Set<FluidStackKey> cachedFilterKeys = new HashSet<>();
 
-    public CreativeCellFilterHandler(@Nonnull ItemStack cellStack) {
+    public CreativeFluidCellFilterHandler(@Nonnull ItemStack cellStack) {
         this.cellStack = cellStack;
         loadCacheFromNBT();
     }
 
-    @Override
     public int getSlots() {
         return SLOT_COUNT;
     }
 
-    @Override
-    @Nonnull
-    public ItemStack getStackInSlot(int slot) {
-        if (slot < 0 || slot >= SLOT_COUNT) return ItemStack.EMPTY;
+    @Nullable
+    public FluidStack getFluidInSlot(int slot) {
+        if (slot < 0 || slot >= SLOT_COUNT) return null;
 
         NBTTagCompound cellNBT = Platform.openNbtData(cellStack);
         NBTTagList filters = cellNBT.getTagList(NBT_KEY_FILTERS, Constants.NBT.TAG_COMPOUND);
 
-        if (slot >= filters.tagCount()) return ItemStack.EMPTY;
+        if (slot >= filters.tagCount()) return null;
 
         NBTTagCompound slotNBT = filters.getCompoundTagAt(slot);
-        if (slotNBT.isEmpty()) return ItemStack.EMPTY;
+        if (slotNBT.isEmpty()) return null;
 
-        return new ItemStack(slotNBT);
+        return FluidStack.loadFluidStackFromNBT(slotNBT);
     }
 
     public void loadCacheFromNBT() {
@@ -68,31 +67,30 @@ public class CreativeCellFilterHandler implements IItemHandlerModifiable {
 
         for (int i = 0; i < filters.tagCount(); i++) {
             NBTTagCompound slotNBT = filters.getCompoundTagAt(i);
+
             if (!slotNBT.isEmpty()) {
-                ItemStack filterStack = new ItemStack(slotNBT);
-                cachedFilterKeys.add(ItemStackKey.of(filterStack));
+                FluidStack filterStack = FluidStack.loadFluidStackFromNBT(slotNBT);
+                FluidStackKey key = FluidStackKey.of(filterStack);
+                if (key != null) cachedFilterKeys.add(key);
             }
         }
     }
 
-    @Override
-    public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+    public void setFluidInSlot(int slot, @Nullable FluidStack stack) {
         if (slot < 0 || slot >= SLOT_COUNT) return;
 
         NBTTagCompound cellNBT = Platform.openNbtData(cellStack);
         NBTTagList filters = cellNBT.getTagList(NBT_KEY_FILTERS, Constants.NBT.TAG_COMPOUND);
 
         // Ensure the list has enough entries
-        while (filters.tagCount() <= slot) {
-            filters.appendTag(new NBTTagCompound());
-        }
+        while (filters.tagCount() <= slot) filters.appendTag(new NBTTagCompound());
 
-        // Store as single-count ghost item
-        if (stack.isEmpty()) {
+        // Store as single-mB ghost fluid
+        if (stack == null) {
             filters.set(slot, new NBTTagCompound());
         } else {
-            ItemStack ghost = stack.copy();
-            ghost.setCount(1);
+            FluidStack ghost = stack.copy();
+            ghost.amount = 1;
             NBTTagCompound slotNBT = new NBTTagCompound();
             ghost.writeToNBT(slotNBT);
             filters.set(slot, slotNBT);
@@ -104,40 +102,15 @@ public class CreativeCellFilterHandler implements IItemHandlerModifiable {
         loadCacheFromNBT();
     }
 
-    public boolean isInFilter(@Nonnull ItemStackKey key) {
+    public boolean isInFilter(@Nonnull FluidStackKey key) {
         return cachedFilterKeys.contains(key);
     }
 
-    public boolean isInFilter(@Nonnull ItemStack stack) {
-        return isInFilter(ItemStackKey.of(stack));
-    }
+    public boolean isInFilter(@Nullable FluidStack stack) {
+        if (stack == null) return false;
 
-    @Override
-    @Nonnull
-    public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
-        // Ghost slots don't consume items - they just set the filter
-        if (!simulate) setStackInSlot(slot, stack);
-
-        return stack;
-    }
-
-    @Override
-    @Nonnull
-    public ItemStack extractItem(int slot, int amount, boolean simulate) {
-        // Ghost slots don't extract - clear the filter instead
-        if (!simulate) setStackInSlot(slot, ItemStack.EMPTY);
-
-        return ItemStack.EMPTY;
-    }
-
-    @Override
-    public int getSlotLimit(int slot) {
-        return 1;
-    }
-
-    @Override
-    public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-        return true;
+        FluidStackKey key = FluidStackKey.of(stack);
+        return key != null && isInFilter(key);
     }
 
     /**

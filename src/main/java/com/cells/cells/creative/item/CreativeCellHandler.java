@@ -1,4 +1,4 @@
-package com.cells.cells.creative;
+package com.cells.cells.creative.item;
 
 import net.minecraft.item.ItemStack;
 
@@ -8,7 +8,6 @@ import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IItemStorageChannel;
-import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 
 import com.cells.ItemRegistry;
