@@ -1,6 +1,7 @@
 package com.cells.cells.configurable;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -19,7 +20,6 @@ import com.cells.config.CellsConfig;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
 import com.cells.util.DeferredCellOperations;
-import com.cells.util.NBTSizeHelper;
 
 
 /**
@@ -121,9 +121,7 @@ public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> i
 
     @Override
     public IItemHandler getUpgradesInventory() {
-        return new CustomCellUpgrades(cellStack, CellsConfig.configurableCellUpgradeSlots, Arrays.asList(
-            CustomCellUpgrades.CustomUpgrades.OVERFLOW
-        ));
+        return new CustomCellUpgrades(cellStack, CellsConfig.configurableCellUpgradeSlots, Collections.singletonList(CustomCellUpgrades.CustomUpgrades.OVERFLOW));
     }
 
     @Override

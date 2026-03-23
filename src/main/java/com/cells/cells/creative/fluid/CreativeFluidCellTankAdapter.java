@@ -49,8 +49,7 @@ public class CreativeFluidCellTankAdapter implements IAEFluidTank {
         IFluidTankProperties[] props = new IFluidTankProperties[filterHandler.getSlots()];
 
         for (int i = 0; i < props.length; i++) {
-            final int slot = i;
-            final FluidStack fluid = filterHandler.getFluidInSlot(slot);
+            final FluidStack fluid = filterHandler.getFluidInSlot(i);
 
             props[i] = new IFluidTankProperties() {
                 @Override

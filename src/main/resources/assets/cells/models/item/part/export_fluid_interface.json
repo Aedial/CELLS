@@ -1,8 +1,8 @@
 {
     "textures": {
-        "sides": "cells:parts/export_fluid_interface_sides",
-        "back": "cells:parts/export_fluid_interface_back",
-        "front": "cells:blocks/export_fluid_interface"
+        "sides": "cells:parts/export_interface/fluid/sides",
+        "back": "cells:parts/export_interface/fluid/back",
+        "front": "cells:blocks/export_interface/fluid/front"
     },
     "elements": [
         {

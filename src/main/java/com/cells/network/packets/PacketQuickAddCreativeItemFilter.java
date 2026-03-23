@@ -12,8 +12,6 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import com.cells.cells.creative.item.ContainerCreativeCell;
-import com.cells.cells.creative.item.CreativeCellFilterHandler;
-import com.cells.util.ItemStackKey;
 
 
 /**
@@ -52,32 +50,18 @@ public class PacketQuickAddCreativeItemFilter implements IMessage {
 
                 if (!(container instanceof ContainerCreativeCell)) return;
 
-                ContainerCreativeCell itemContainer = (ContainerCreativeCell) container;
-                CreativeCellFilterHandler filterHandler = itemContainer.getFilterHandler();
-
                 ItemStack toAdd = message.itemStack.copy();
                 toAdd.setCount(1);
 
-                // Check if this filter already exists
-                ItemStackKey newKey = ItemStackKey.of(toAdd);
-                for (int i = 0; i < CreativeCellFilterHandler.SLOT_COUNT; i++) {
-                    ItemStack existing = filterHandler.getStackInSlot(i);
-                    if (!existing.isEmpty() && ItemStackKey.of(existing).equals(newKey)) {
-                        player.sendMessage(new TextComponentTranslation("message.cells.creative_cell.filter_duplicate"));
-                        return;
-                    }
+                ContainerCreativeCell itemContainer = (ContainerCreativeCell) container;
+                if (itemContainer.getFilterHandler().isInFilter(toAdd)) {
+                    player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
+                    return;
                 }
 
-                // Find first empty filter slot
-                for (int i = 0; i < CreativeCellFilterHandler.SLOT_COUNT; i++) {
-                    if (filterHandler.getStackInSlot(i).isEmpty()) {
-                        filterHandler.setStackInSlot(i, toAdd);
-                        return;
-                    }
+                if (!itemContainer.addToFilter(toAdd)) {
+                    player.sendMessage(new TextComponentTranslation("message.cells.no_filter_space"));
                 }
-
-                // No space available
-                player.sendMessage(new TextComponentTranslation("message.cells.creative_cell.no_filter_space"));
             });
 
             return null;

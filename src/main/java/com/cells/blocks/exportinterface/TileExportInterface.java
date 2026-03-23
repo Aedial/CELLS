@@ -37,8 +37,8 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
-import com.cells.blocks.interfacebase.IItemInterfaceHost;
-import com.cells.blocks.interfacebase.ItemInterfaceLogic;
+import com.cells.blocks.interfacebase.item.IItemInterfaceHost;
+import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
 
 
@@ -61,10 +61,6 @@ public class TileExportInterface extends AENetworkInvTile implements IGridTickab
         this.getProxy().setIdlePowerUsage(1.0);
         this.actionSource = new MachineSource(this);
         this.logic = new ItemInterfaceLogic(this);
-    }
-
-    public ItemInterfaceLogic getLogic() {
-        return this.logic;
     }
 
     // ============================== Host callbacks ==============================
@@ -209,8 +205,8 @@ public class TileExportInterface extends AENetworkInvTile implements IGridTickab
     }
 
     @Override
-    public String getGuiTitleLangKey() {
-        return "gui.cells.export_interface.title";
+    public String getTypeName() {
+        return this.logic.getTypeName();
     }
 
     @Override

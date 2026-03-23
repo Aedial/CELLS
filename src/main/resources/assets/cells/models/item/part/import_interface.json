@@ -1,8 +1,8 @@
 {
     "textures": {
-        "sides": "cells:parts/import_interface_sides",
-        "back": "cells:parts/import_interface_back",
-        "front": "cells:blocks/import_interface"
+        "sides": "cells:parts/import_interface/item/sides",
+        "back": "cells:parts/import_interface/item/back",
+        "front": "cells:blocks/import_interface/item/front"
     },
     "elements": [
         {

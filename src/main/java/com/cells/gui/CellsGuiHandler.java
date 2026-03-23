@@ -2,44 +2,42 @@ package com.cells.gui;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 
 import appeng.api.parts.IPart;
-import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
 
-import com.cells.Cells;
-import com.cells.blocks.interfacebase.ContainerFluidInterface;
-import com.cells.blocks.interfacebase.ContainerItemInterface;
-import com.cells.blocks.interfacebase.GuiFluidInterface;
-import com.cells.blocks.interfacebase.GuiItemInterface;
-import com.cells.blocks.interfacebase.IFluidInterfaceHost;
+import com.cells.blocks.interfacebase.fluid.ContainerFluidInterface;
+import com.cells.blocks.interfacebase.item.ContainerItemInterface;
+import com.cells.blocks.interfacebase.fluid.GuiFluidInterface;
+import com.cells.blocks.interfacebase.item.GuiItemInterface;
+import com.cells.blocks.interfacebase.fluid.IFluidInterfaceHost;
 import com.cells.blocks.interfacebase.IInterfaceHost;
-import com.cells.blocks.interfacebase.IItemInterfaceHost;
-import com.cells.blocks.importinterface.ContainerMaxSlotSize;
-import com.cells.blocks.importinterface.ContainerPollingRate;
-import com.cells.blocks.importinterface.GuiMaxSlotSize;
-import com.cells.blocks.importinterface.GuiPollingRate;
+import com.cells.blocks.interfacebase.item.IItemInterfaceHost;
+import com.cells.blocks.interfacebase.ContainerMaxSlotSize;
+import com.cells.blocks.interfacebase.ContainerPollingRate;
+import com.cells.blocks.interfacebase.GuiMaxSlotSize;
+import com.cells.blocks.interfacebase.GuiPollingRate;
 import com.cells.cells.configurable.ContainerConfigurableCell;
 import com.cells.cells.configurable.GuiConfigurableCell;
 import com.cells.cells.creative.item.ContainerCreativeCell;
 import com.cells.cells.creative.item.GuiCreativeCell;
 import com.cells.cells.creative.fluid.ContainerCreativeFluidCell;
 import com.cells.cells.creative.fluid.GuiCreativeFluidCell;
-
-import net.minecraft.util.EnumHand;
+import com.cells.integration.mekanismenergistics.CreativeGasCellGuiHandler;
+import com.cells.integration.mekanismenergistics.GasInterfaceGuiHandler;
+import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
+import com.cells.integration.thaumicenergistics.CreativeEssentiaCellGuiHandler;
+import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 
 
 /**
  * GUI handler for CELLS mod custom GUIs.
  * <p>
- * For parts, the GUI ID encodes both the base ID and the side:
- * - Bits 0-2: side ordinal (AEPartLocation, 0-6)
- * - Bits 3+: base GUI ID shifted left by 3
- * <p>
- * Use {@link #openPartGui} to open part GUIs with proper side encoding.
+ * See {@link GuiIdUtils} for GUI ID encoding/decoding utilities.
  */
 public class CellsGuiHandler implements IGuiHandler {
 
@@ -53,6 +51,8 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_FLUID_EXPORT_INTERFACE = 6;
     public static final int GUI_CREATIVE_CELL = 7;
     public static final int GUI_CREATIVE_FLUID_CELL = 8;
+    public static final int GUI_CREATIVE_GAS_CELL = 9;
+    public static final int GUI_CREATIVE_ESSENTIA_CELL = 10;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
@@ -62,75 +62,97 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_PART_EXPORT_INTERFACE = 104;
     public static final int GUI_PART_FLUID_EXPORT_INTERFACE = 105;
 
-    /**
-     * Encode a part GUI ID with side information.
-     *
-     * @param baseGuiId The base GUI ID (must be a part GUI ID >= 100)
-     * @param side The side the part is on
-     * @return The encoded GUI ID with side information
-     */
-    public static int encodePartGuiId(int baseGuiId, AEPartLocation side) {
-        return (baseGuiId << 3) | (side.ordinal() & 0x07);
-    }
+    // Lazily initialized gas GUI handler (null if MekanismEnergistics not loaded)
+    private GasInterfaceGuiHandler gasGuiHandler;
+    private boolean gasGuiHandlerChecked = false;
+
+    // Lazily initialized creative cell GUI handlers for optional mods
+    private CreativeGasCellGuiHandler creativeGasGuiHandler;
+    private boolean creativeGasGuiHandlerChecked = false;
+    private CreativeEssentiaCellGuiHandler creativeEssentiaGuiHandler;
+    private boolean creativeEssentiaGuiHandlerChecked = false;
 
     /**
      * Open a GUI for a part, encoding the side information.
-     *
-     * @param player The player opening the GUI
-     * @param tile The tile entity (usually IPartHost)
-     * @param side The side the part is on
-     * @param guiId The base GUI ID
+     * Convenience method that delegates to {@link GuiIdUtils#openPartGui}.
      */
     public static void openPartGui(EntityPlayer player, TileEntity tile, AEPartLocation side, int guiId) {
-        if (tile == null) return;
-
-        BlockPos pos = tile.getPos();
-        int encodedId = encodePartGuiId(guiId, side);
-
-        player.openGui(Cells.instance, encodedId, tile.getWorld(), pos.getX(), pos.getY(), pos.getZ());
+        GuiIdUtils.openPartGui(player, tile, side, guiId);
     }
 
     /**
-     * Extract the base GUI ID from an encoded ID.
+     * Get the gas GUI handler, creating it if necessary and MekanismEnergistics is loaded.
      */
-    private static int getBaseGuiId(int encodedId) {
-        return encodedId >> 3;
+    private GasInterfaceGuiHandler getGasGuiHandler() {
+        if (!gasGuiHandlerChecked) {
+            gasGuiHandlerChecked = true;
+            if (MekanismEnergisticsIntegration.isModLoaded()) {
+                gasGuiHandler = new GasInterfaceGuiHandler();
+            }
+        }
+        return gasGuiHandler;
     }
 
     /**
-     * Extract the side from an encoded ID.
+     * Get the creative gas cell GUI handler, creating if necessary and MekanismEnergistics is loaded.
      */
-    private static AEPartLocation getSideFromGuiId(int encodedId) {
-        return AEPartLocation.fromOrdinal(encodedId & 0x07);
+    private CreativeGasCellGuiHandler getCreativeGasGuiHandler() {
+        if (!creativeGasGuiHandlerChecked) {
+            creativeGasGuiHandlerChecked = true;
+            if (MekanismEnergisticsIntegration.isModLoaded()) {
+                creativeGasGuiHandler = new CreativeGasCellGuiHandler();
+            }
+        }
+        return creativeGasGuiHandler;
     }
 
     /**
-     * Check if a GUI ID is for a part (encoded with side).
+     * Get the creative essentia cell GUI handler, creating if necessary and ThaumicEnergistics is loaded.
      */
-    private static boolean isPartGui(int id) {
-        int baseId = getBaseGuiId(id);
-        return baseId >= 100;
-    }
-
-    /**
-     * Get the part from a tile entity given the encoded GUI ID.
-     */
-    private static IPart getPartFromTile(TileEntity tile, int encodedId) {
-        if (!(tile instanceof IPartHost)) return null;
-
-        AEPartLocation side = getSideFromGuiId(encodedId);
-        return ((IPartHost) tile).getPart(side);
+    private CreativeEssentiaCellGuiHandler getCreativeEssentiaGuiHandler() {
+        if (!creativeEssentiaGuiHandlerChecked) {
+            creativeEssentiaGuiHandlerChecked = true;
+            if (ThaumicEnergisticsIntegration.isModLoaded()) {
+                creativeEssentiaGuiHandler = new CreativeEssentiaCellGuiHandler();
+            }
+        }
+        return creativeEssentiaGuiHandler;
     }
 
     @Override
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+        // Delegate to gas GUI handler if this is a gas GUI ID
+        GasInterfaceGuiHandler gasHandler = getGasGuiHandler();
+        if (gasHandler != null && GasInterfaceGuiHandler.isGasInterfaceGuiId(id)) {
+            return gasHandler.getServerGuiElement(id, player, world, x, y, z);
+        }
+
+        // Delegate to creative gas cell GUI handler
+        if (id == GUI_CREATIVE_GAS_CELL) {
+            CreativeGasCellGuiHandler creativeGasHandler = getCreativeGasGuiHandler();
+            if (creativeGasHandler != null && player.isCreative()) {
+                return creativeGasHandler.getServerGuiElement(id, player, world, x, y, z);
+            }
+            return null;
+        }
+
+        // Delegate to creative essentia cell GUI handler
+        if (id == GUI_CREATIVE_ESSENTIA_CELL) {
+            CreativeEssentiaCellGuiHandler creativeEssentiaHandler = getCreativeEssentiaGuiHandler();
+            if (creativeEssentiaHandler != null && player.isCreative()) {
+                return creativeEssentiaHandler.getServerGuiElement(id, player, world, x, y, z);
+            }
+            return null;
+        }
+
         BlockPos pos = new BlockPos(x, y, z);
         TileEntity tile = world.getTileEntity(pos);
 
+        // TODO: refactor that
         // Handle part GUIs (encoded with side information)
-        if (isPartGui(id)) {
-            IPart part = getPartFromTile(tile, id);
-            int baseId = getBaseGuiId(id);
+        if (GuiIdUtils.isPartGui(id)) {
+            IPart part = GuiIdUtils.getPartFromTile(tile, id);
+            int baseId = GuiIdUtils.getBaseGuiId(id);
 
             switch (baseId) {
                 case GUI_PART_IMPORT_INTERFACE:
@@ -234,13 +256,37 @@ public class CellsGuiHandler implements IGuiHandler {
 
     @Override
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+        // Delegate to gas GUI handler if this is a gas GUI ID
+        GasInterfaceGuiHandler gasHandler = getGasGuiHandler();
+        if (gasHandler != null && GasInterfaceGuiHandler.isGasInterfaceGuiId(id)) {
+            return gasHandler.getClientGuiElement(id, player, world, x, y, z);
+        }
+
+        // Delegate to creative gas cell GUI handler
+        if (id == GUI_CREATIVE_GAS_CELL) {
+            CreativeGasCellGuiHandler creativeGasHandler = getCreativeGasGuiHandler();
+            if (creativeGasHandler != null && player.isCreative()) {
+                return creativeGasHandler.getClientGuiElement(id, player, world, x, y, z);
+            }
+            return null;
+        }
+
+        // Delegate to creative essentia cell GUI handler
+        if (id == GUI_CREATIVE_ESSENTIA_CELL) {
+            CreativeEssentiaCellGuiHandler creativeEssentiaHandler = getCreativeEssentiaGuiHandler();
+            if (creativeEssentiaHandler != null && player.isCreative()) {
+                return creativeEssentiaHandler.getClientGuiElement(id, player, world, x, y, z);
+            }
+            return null;
+        }
+
         BlockPos pos = new BlockPos(x, y, z);
         TileEntity tile = world.getTileEntity(pos);
 
         // Handle part GUIs (encoded with side information)
-        if (isPartGui(id)) {
-            IPart part = getPartFromTile(tile, id);
-            int baseId = getBaseGuiId(id);
+        if (GuiIdUtils.isPartGui(id)) {
+            IPart part = GuiIdUtils.getPartFromTile(tile, id);
+            int baseId = GuiIdUtils.getBaseGuiId(id);
 
             switch (baseId) {
                 case GUI_PART_IMPORT_INTERFACE:

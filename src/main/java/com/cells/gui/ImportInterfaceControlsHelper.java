@@ -27,42 +27,42 @@ public class ImportInterfaceControlsHelper {
     /**
      * Generate help lines for the Import Interface.
      *
-     * @param isFluid Whether this is for the fluid interface (changes some text)
+     * @param cardsHelp Whether to include help for upgrade cards
      * @return List of formatted help lines
      */
-    public static List<String> getHelpLines(boolean isFluid, boolean cardsHelp) {
+    public static List<String> getHelpLines(boolean cardsHelp) {
         List<String> lines = new ArrayList<>();
 
-        lines.add(I18n.format("gui.cells.controls.use_settings"));
+        lines.add(I18n.format("cells.controls.use_settings"));
         lines.add("");
 
-        lines.add(I18n.format("gui.cells.controls.capacity_cards"));
+        lines.add(I18n.format("cells.controls.capacity_cards"));
         if (cardsHelp) {
-            lines.add(I18n.format("gui.cells.controls.use_cards"));
+            lines.add(I18n.format("cells.controls.use_cards"));
             lines.add("");
         }
 
         // Memory card section
-        lines.add(I18n.format("gui.cells.controls.memory_card_sneak"));
+        lines.add(I18n.format("cells.controls.memory_card_sneak"));
 
         String filterKey = KeyBindings.MEMORY_CARD_INCLUDE_FILTERS.isBound()
             ? KeyBindings.MEMORY_CARD_INCLUDE_FILTERS.getDisplayName()
-            : I18n.format("gui.cells.controls.key_not_set");
-        lines.add(I18n.format("gui.cells.controls.memory_card_filter", filterKey));
+            : I18n.format("cells.controls.key_not_set");
+        lines.add(I18n.format("cells.controls.memory_card_filter", filterKey));
 
-        lines.add(I18n.format("gui.cells.controls.disassemble"));
+        lines.add(I18n.format("cells.controls.disassemble"));
 
         lines.add("");
 
         // Quick add keybind
         String quickAddKey = KeyBindings.QUICK_ADD_TO_FILTER.isBound()
             ? KeyBindings.QUICK_ADD_TO_FILTER.getDisplayName()
-            : I18n.format("gui.cells.controls.key_not_set");
-        lines.add(I18n.format("gui.cells.controls.quick_add", quickAddKey));
+            : I18n.format("cells.controls.key_not_set");
+        lines.add(I18n.format("cells.controls.quick_add", quickAddKey));
 
         // JEI drag info
         lines.add("");
-        lines.add(I18n.format("gui.cells.controls.jei_drag"));
+        lines.add(I18n.format("cells.controls.jei_drag"));
 
         return lines;
     }
@@ -74,17 +74,15 @@ public class ImportInterfaceControlsHelper {
      * @param guiLeft Left position of the main GUI
      * @param guiTop Top position of the main GUI
      * @param guiHeight Height of the main GUI
-     * @param isFluid Whether this is for the fluid interface
      */
     public static void drawControlsHelpWidget(
             FontRenderer fontRenderer,
             int guiLeft,
             int guiTop,
             int guiHeight,
-            boolean isFluid,
             boolean cardsHelp) {
 
-        List<String> lines = getHelpLines(isFluid, cardsHelp);
+        List<String> lines = getHelpLines(cardsHelp);
         if (lines.isEmpty()) return;
 
         // Calculate panel width

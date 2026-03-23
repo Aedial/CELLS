@@ -16,6 +16,8 @@ import com.cells.blocks.exportinterface.TileExportInterface;
 import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
 import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
 import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.integration.mekanismenergistics.TileGasExportInterface;
+import com.cells.integration.mekanismenergistics.TileGasImportInterface;
 
 
 /**
@@ -43,7 +45,7 @@ public class MemoryCardServerHandler {
 
         BlockPos pos = event.getPos();
 
-        // Check if this is one of our interfaces
+        // Check if this is one of our interfaces (Item, Fluid, or Gas)
         TileEntity te = event.getWorld().getTileEntity(pos);
         if (te == null) return;
 
@@ -51,6 +53,8 @@ public class MemoryCardServerHandler {
             || (te instanceof TileFluidImportInterface)
             || (te instanceof TileExportInterface)
             || (te instanceof TileFluidExportInterface)
+            || (te instanceof TileGasImportInterface)
+            || (te instanceof TileGasExportInterface)
             || (te instanceof IPartHost);  // Parts are handled via IPartHost
 
         if (!isOurInterface) return;

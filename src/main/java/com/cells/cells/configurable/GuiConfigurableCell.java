@@ -77,19 +77,19 @@ public class GuiConfigurableCell extends AEBaseGui {
         boolean hasComponent = container.componentPresent == 1;
 
         // TODO: draw component name if present otherwise "insert component here"
-        // Determine localization suffix based on channel type
-        String suffix = "none";
+        // Title for the size limit field. Use generic or type-specific based on component
+        String capacityTitle;
         if (hasComponent && container.componentChannelTypeOrdinal >= 0) {
             ChannelType channelType = ChannelType.values()[container.componentChannelTypeOrdinal];
-            suffix = channelType.getLocalizationSuffix();
+            String unitKey = "cells.unit." + channelType.getLocalizationSuffix();
+            capacityTitle = I18n.format("cells.configurable_cell.capacity_title.with_type", I18n.format(unitKey));
+        } else {
+            capacityTitle = I18n.format("cells.configurable_cell.capacity_title");
         }
-
-        // Title for the size limit field
-        String fieldTitleKey = "gui.cells.configurable_cell.capacity_title." + suffix;
-        this.fontRenderer.drawString(I18n.format(fieldTitleKey), 6, 29, 0x404040);
+        this.fontRenderer.drawString(capacityTitle, 6, 29, 0x404040);
 
         // Title for the types limit field
-        this.fontRenderer.drawString(I18n.format("gui.cells.configurable_cell.types_title"), 5, 55, 0x404040);
+        this.fontRenderer.drawString(I18n.format("cells.configurable_cell.types_title"), 5, 55, 0x404040);
 
         this.fontRenderer.drawString("/", 85, 40, 0x000000);
         this.fontRenderer.drawString("/", 85, 65, 0x000000);
@@ -102,7 +102,7 @@ public class GuiConfigurableCell extends AEBaseGui {
             // Max types display
             this.fontRenderer.drawStringWithShadow(String.valueOf(container.maxTypesConfig), 93, 65, 0x39E539);
         } else {
-            String noComponent = I18n.format("gui.cells.configurable_cell.no_component");
+            String noComponent = I18n.format("cells.configurable_cell.no_component");
             this.fontRenderer.drawStringWithShadow(noComponent, 93, 40, 0xCC2020);
             this.fontRenderer.drawStringWithShadow(noComponent, 93, 65, 0xCC2020);
         }

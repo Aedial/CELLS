@@ -2,21 +2,14 @@ package com.cells.items;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-
-import appeng.api.config.Upgrades;
-import appeng.api.implementations.items.IUpgradeModule;
-import com.cells.core.CellsCreativeTab;
-
-import com.cells.Tags;
-
-import javax.annotation.Nonnull;
 
 
 /**
@@ -24,74 +17,30 @@ import javax.annotation.Nonnull;
  * <p>
  * When installed in a cell's upgrade slot, excess items that cannot fit in the
  * cell are voided instead of being rejected back to the network.
- * </p>
  * <p>
  * <b>Important:</b> The overflow card only voids items of types that are already
  * stored in the cell. New types that the cell cannot accept (due to type limit,
  * blacklist, or partition restrictions) will still be rejected normally.
  * This prevents accidentally voiding valuable items that were never intended
  * for the cell.
- * </p>
  * <p>
  * This is useful for automated systems where you want to store as much as possible
  * and destroy the overflow, rather than having items back up in the network.
- * </p>
  * <p>
  * <b>Compatibility:</b> Only works with Compacting and Hyper-Density cells from
  * this mod. Standard AE2 cells do not support this upgrade.
- * </p>
- * <p>
- * Implements {@link IUpgradeModule} to integrate with AE2's upgrade system,
- * but returns null for the upgrade type since it's a custom upgrade not in
- * the standard {@link Upgrades} enum.
- * </p>
  */
-public class ItemOverflowCard extends Item implements IUpgradeModule {
+public class ItemOverflowCard extends AbstractCustomUpgrade {
 
     public ItemOverflowCard() {
-        setRegistryName(Tags.MODID, "overflow_card");
-        setTranslationKey(Tags.MODID + ".overflow_card");
-        setMaxStackSize(64);
-        setCreativeTab(CellsCreativeTab.instance);
+        super("overflow_card");
     }
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(@Nonnull ItemStack stack, World world, List<String> tooltip,
+    public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
                                @Nonnull ITooltipFlag flag) {
         tooltip.add("§7" + I18n.format("tooltip.cells.overflow_card.desc"));
-        tooltip.add("");
-
-        String compatibleTypes = String.join(
-            I18n.format("tooltip.cells.card.separator"),
-            I18n.format("tooltip.cells.type.compact"),
-            I18n.format("tooltip.cells.type.hyperdensity"),
-            I18n.format("tooltip.cells.type.hyperdensity_compact"),
-            I18n.format("tooltip.cells.type.import_interface"),
-            I18n.format("tooltip.cells.type.import_fluid_interface")
-        );
-        tooltip.add("§8" + I18n.format("tooltip.cells.card.compatible", compatibleTypes));
-    }
-
-    /**
-     * Returns the AE2 upgrade type for this card.
-     * <p>
-     * Returns {@link Upgrades#QUANTUM_LINK} as a placeholder to pass slot validation
-     * in the Cell Workbench GUI. The actual filtering and limits are handled by
-     * {@link com.cells.util.CustomCellUpgrades} which checks for this specific
-     * item class.
-     * </p>
-     * <p>
-     * Note: We use QUANTUM_LINK because it's not supposed to go there and won't
-     * conflict with common cell upgrades. The cells' upgrade inventory filter
-     * correctly identifies and limits our custom cards regardless of this type.
-     * </p>
-     *
-     * @param itemstack The upgrade item stack
-     * @return {@link Upgrades#QUANTUM_LINK} as a placeholder for slot validation
-     */
-    @Override
-    public Upgrades getType(ItemStack itemstack) {
-        return Upgrades.QUANTUM_LINK;
+        addCompatibilityTooltip(tooltip, "compact", "hyperdensity", "hyperdensity_compact", "import_interface");
     }
 }

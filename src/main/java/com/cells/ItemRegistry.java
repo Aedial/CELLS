@@ -20,6 +20,7 @@ import com.cells.cells.configurable.ChannelType;
 import com.cells.cells.configurable.ComponentHelper;
 import com.cells.cells.configurable.ComponentInfo;
 import com.cells.cells.configurable.ItemConfigurableCell;
+import com.cells.cells.creative.AbstractCreativeCellItem;
 import com.cells.cells.creative.item.ItemCreativeCell;
 import com.cells.cells.creative.fluid.ItemCreativeFluidCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingCell;
@@ -31,6 +32,8 @@ import com.cells.cells.hyperdensity.fluid.ItemFluidHyperDensityComponent;
 import com.cells.cells.normal.compacting.ItemCompactingCell;
 import com.cells.cells.normal.compacting.ItemCompactingComponent;
 import com.cells.config.CellsConfig;
+import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
+import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.items.ItemCompressedCalculationPrint;
 import com.cells.items.ItemCompressedEngineeringPrint;
 import com.cells.items.ItemCompressedLogicPrint;
@@ -42,6 +45,7 @@ import com.cells.items.ItemOreDictCard;
 import com.cells.items.ItemOverclockedProcessor;
 import com.cells.items.ItemOverflowCard;
 import com.cells.items.ItemSingularityProcessor;
+import com.cells.items.ItemRecoveryContainer;
 import com.cells.items.ItemTrashUnselectedCard;
 import com.cells.recipes.ConfigurableCellAssemblyRecipe;
 
@@ -59,6 +63,9 @@ public class ItemRegistry {
     public static ItemConfigurableCell CONFIGURABLE_CELL;
     public static ItemCreativeCell CREATIVE_CELL;
     public static ItemCreativeFluidCell CREATIVE_FLUID_CELL;
+    // Optional creative cells - only non-null if the integration mod is loaded
+    public static Item CREATIVE_GAS_CELL;
+    public static Item CREATIVE_ESSENTIA_CELL;
     public static ItemOverflowCard OVERFLOW_CARD;
     public static ItemOreDictCard OREDICT_CARD;
     public static ItemTrashUnselectedCard TRASH_UNSELECTED_CARD;
@@ -71,6 +78,7 @@ public class ItemRegistry {
     public static ItemCompressedSiliconPrint COMPRESSED_SILICON_PRINT;
     public static ItemOverclockedProcessor OVERCLOCKED_PROCESSOR;
     public static ItemSingularityProcessor SINGULARITY_PROCESSOR;
+    public static ItemRecoveryContainer RECOVERY_CONTAINER;
 
     public static void init() {
         // Initialize items based on config
@@ -100,6 +108,14 @@ public class ItemRegistry {
         CREATIVE_CELL = new ItemCreativeCell();
         CREATIVE_FLUID_CELL = new ItemCreativeFluidCell();
 
+        // Optional creative cells for mod integrations
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            CREATIVE_GAS_CELL = MekanismEnergisticsIntegration.createCreativeGasCell();
+        }
+        if (ThaumicEnergisticsIntegration.isModLoaded()) {
+            CREATIVE_ESSENTIA_CELL = ThaumicEnergisticsIntegration.createCreativeEssentiaCell();
+        }
+
         // Upgrades are always available
         OVERFLOW_CARD = new ItemOverflowCard();
         OREDICT_CARD = new ItemOreDictCard();
@@ -115,6 +131,9 @@ public class ItemRegistry {
         COMPRESSED_SILICON_PRINT = new ItemCompressedSiliconPrint();
         OVERCLOCKED_PROCESSOR = new ItemOverclockedProcessor();
         SINGULARITY_PROCESSOR = new ItemSingularityProcessor();
+
+        // Utility items (no creative tab, spawned programmatically)
+        RECOVERY_CONTAINER = new ItemRecoveryContainer();
     }
 
     @SubscribeEvent
@@ -145,6 +164,10 @@ public class ItemRegistry {
         event.getRegistry().register(CREATIVE_CELL);
         event.getRegistry().register(CREATIVE_FLUID_CELL);
 
+        // Optional creative cells (if mods are loaded)
+        if (CREATIVE_GAS_CELL != null) event.getRegistry().register(CREATIVE_GAS_CELL);
+        if (CREATIVE_ESSENTIA_CELL != null) event.getRegistry().register(CREATIVE_ESSENTIA_CELL);
+
         event.getRegistry().register(OVERFLOW_CARD);
         event.getRegistry().register(OREDICT_CARD);
         event.getRegistry().register(TRASH_UNSELECTED_CARD);
@@ -157,6 +180,9 @@ public class ItemRegistry {
         event.getRegistry().register(COMPRESSED_SILICON_PRINT);
         event.getRegistry().register(OVERCLOCKED_PROCESSOR);
         event.getRegistry().register(SINGULARITY_PROCESSOR);
+
+        // Utility items
+        event.getRegistry().register(RECOVERY_CONTAINER);
     }
 
     @SubscribeEvent
@@ -185,21 +211,21 @@ public class ItemRegistry {
             makeModelLocation(TRASH_UNSELECTED_CARD, "upgrades"));
 
         // Register equal distribution card models for each tier (upgrades)
-        String[] equalDistTiers = ItemEqualDistributionCard.getTierNames();
+        String[] equalDistTiers = EQUAL_DISTRIBUTION_CARD.getTierNames();
         for (int i = 0; i < equalDistTiers.length; i++) {
             ModelLoader.setCustomModelResourceLocation(EQUAL_DISTRIBUTION_CARD, i,
                 makeModelLocation(EQUAL_DISTRIBUTION_CARD, "upgrades", "_" + equalDistTiers[i]));
         }
 
         // Register compression tier card models for each tier (upgrades)
-        String[] compressionTiers = ItemCompressionTierCard.getTierNames();
+        String[] compressionTiers = COMPRESSION_TIER_CARD.getTierNames();
         for (int i = 0; i < compressionTiers.length; i++) {
             ModelLoader.setCustomModelResourceLocation(COMPRESSION_TIER_CARD, i,
                 makeModelLocation(COMPRESSION_TIER_CARD, "upgrades", "_" + compressionTiers[i]));
         }
 
         // Register decompression tier card models for each tier (upgrades)
-        String[] decompressionTiers = ItemDecompressionTierCard.getTierNames();
+        String[] decompressionTiers = DECOMPRESSION_TIER_CARD.getTierNames();
         for (int i = 0; i < decompressionTiers.length; i++) {
             ModelLoader.setCustomModelResourceLocation(DECOMPRESSION_TIER_CARD, i,
                 makeModelLocation(DECOMPRESSION_TIER_CARD, "upgrades", "_" + decompressionTiers[i]));
@@ -309,9 +335,23 @@ public class ItemRegistry {
 
         // Register creative cell models (cells folder)
         ModelLoader.setCustomModelResourceLocation(CREATIVE_CELL, 0,
-            makeModelLocation(CREATIVE_CELL, "cells"));
+            makeModelLocation(CREATIVE_CELL, "cells/creative"));
         ModelLoader.setCustomModelResourceLocation(CREATIVE_FLUID_CELL, 0,
-            makeModelLocation(CREATIVE_FLUID_CELL, "cells"));
+            makeModelLocation(CREATIVE_FLUID_CELL, "cells/creative"));
+
+        // Register optional creative cell models
+        if (CREATIVE_GAS_CELL != null) {
+            ModelLoader.setCustomModelResourceLocation(CREATIVE_GAS_CELL, 0,
+                makeModelLocation(CREATIVE_GAS_CELL, "cells/creative"));
+        }
+        if (CREATIVE_ESSENTIA_CELL != null) {
+            ModelLoader.setCustomModelResourceLocation(CREATIVE_ESSENTIA_CELL, 0,
+                makeModelLocation(CREATIVE_ESSENTIA_CELL, "cells/creative"));
+        }
+
+        // Register recovery container model (no folder prefix - it's at root items level)
+        ModelLoader.setCustomModelResourceLocation(RECOVERY_CONTAINER, 0,
+            new ModelResourceLocation(Tags.MODID + ":recovery_container", "inventory"));
     }
 
     @SideOnly(Side.CLIENT)
@@ -379,6 +419,8 @@ public class ItemRegistry {
             folder = "cells/hyper_density_compacting";
         } else if (item instanceof ItemConfigurableCell) {
             folder = "cells/configurable";
+        } else if (item instanceof AbstractCreativeCellItem) {
+            folder = "cells/creative";
         } else if (item instanceof ItemOverflowCard || item instanceof ItemOreDictCard
             || item instanceof ItemTrashUnselectedCard || item instanceof ItemEqualDistributionCard
             || item instanceof ItemCompressionTierCard || item instanceof ItemDecompressionTierCard) {

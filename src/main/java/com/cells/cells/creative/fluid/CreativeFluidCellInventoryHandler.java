@@ -14,7 +14,7 @@ import appeng.me.storage.MEInventoryHandler;
  * Wraps the CreativeFluidCellInventory and provides the ICellInventoryHandler interface.
  * No partition filtering is needed since the inventory handles its own filter list.
  * <p>
- * Access is restricted to READ (extraction only).
+ * Access is READ_WRITE: provides infinite fluids for extraction, voids matching inserts.
  */
 public class CreativeFluidCellInventoryHandler extends MEInventoryHandler<IAEFluidStack>
     implements ICellInventoryHandler<IAEFluidStack> {
@@ -25,8 +25,8 @@ public class CreativeFluidCellInventoryHandler extends MEInventoryHandler<IAEFlu
         super(inventory, inventory.getChannel());
         this.inventory = inventory;
 
-        // Creative cells are extract-only
-        this.setBaseAccess(AccessRestriction.READ);
+        // Creative cells provide infinite fluids and void matching inserts
+        this.setBaseAccess(AccessRestriction.READ_WRITE);
     }
 
     @Override
@@ -37,7 +37,7 @@ public class CreativeFluidCellInventoryHandler extends MEInventoryHandler<IAEFlu
     @Override
     public boolean isPreformatted() {
         // Creative cells are always "preformatted" since they only provide partitioned fluids
-        return inventory.hasPartitionedFluids();
+        return inventory.hasPartitionedContent();
     }
 
     @Override

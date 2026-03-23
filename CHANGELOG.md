@@ -8,12 +8,29 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.5.10] - 2026-03-18
+## [0.5.10-beta] - 2026-03-24
+### Fixed
+- Fix Import/Export Fluid Interfaces not accepting the same fluid with different NBT (e.g. potions).
+- Fix some blocks using the wrong texture.
+- Fix inconsistencies with the Memory Card (now tested on all Full-block vs Part).
+
 ### Added
 - Add Creative Fluid Cell, the fluid counterpart of the Creative Cell, with the same behavior but for fluids.
 - Add quick-add keybind handling for the Creative Cell, like is done for Import/Export interfaces.
-- Add Essentia Import/Export interface.
+- Add Gas Creative Cell.
 - Add Gas Import/Export interface.
+- Add Essentia Creative Cell.
+- Add Essentia Import/Export interface.
+- Add Recovery Container item, an item that is dropped when a non-item interface is broken/shrunk and cannot send its contents back to the network.
+
+### Changed
+- Make the Creative Cell accept and void content that they produce, acting as both a producer and a sink, to avoid issues with items not being able to return to the network because we extracted them from the cell but they can't be inserted back.
+- Reject Cells as valid targets for Creative Cells
+
+### Technical
+- Unify Import/Export Interfaces even more, to allow for less tedious addition of Gas/Essentia types.
+- Unify Creative Cells for the same purpose.
+- Unify all slot behaviors (Sneak-click, left-click, right-click, quick-add, JEI add, rendering, etc.)
 
 
 ## [0.5.9-rc] - 2026-03-17

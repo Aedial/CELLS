@@ -24,6 +24,10 @@ import com.cells.blocks.exportinterface.TileExportInterface;
 import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
 import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
 import com.cells.blocks.importinterface.TileImportInterface;
+import com.cells.integration.mekanismenergistics.PartGasExportInterface;
+import com.cells.integration.mekanismenergistics.PartGasImportInterface;
+import com.cells.integration.mekanismenergistics.TileGasExportInterface;
+import com.cells.integration.mekanismenergistics.TileGasImportInterface;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketSaveMemoryCardWithFilters;
 import com.cells.parts.PartExportInterface;
@@ -67,9 +71,10 @@ public class MemoryCardInteractionHandler {
         EnumFacing partSide = null;
         boolean isImportExportInterface = false;
 
-        // Check if it's a direct Import Interface tile
+        // Check if it's a direct Import/Export Interface tile (Item, Fluid, or Gas)
         if (te instanceof TileImportInterface || te instanceof TileFluidImportInterface
-            || te instanceof TileExportInterface || te instanceof TileFluidExportInterface) {
+            || te instanceof TileExportInterface || te instanceof TileFluidExportInterface
+            || te instanceof TileGasImportInterface || te instanceof TileGasExportInterface) {
             isImportExportInterface = true;
         }
         // Check if it's a part host containing an Import Interface part
@@ -83,8 +88,10 @@ public class MemoryCardInteractionHandler {
                 SelectedPart selectedPart = host.selectPart(rayTrace.hitVec.subtract(pos.getX(), pos.getY(), pos.getZ()));
                 if (selectedPart.part != null) {
                     IPart part = selectedPart.part;
+                    // Check if the part is an Import/Export Interface (Item, Fluid, or Gas)
                     if (part instanceof PartImportInterface || part instanceof PartFluidImportInterface
-                        || part instanceof PartExportInterface || part instanceof PartFluidExportInterface) {
+                        || part instanceof PartExportInterface || part instanceof PartFluidExportInterface
+                        || part instanceof PartGasImportInterface || part instanceof PartGasExportInterface) {
                         isImportExportInterface = true;
                         partSide = selectedPart.side.getFacing();
                     }

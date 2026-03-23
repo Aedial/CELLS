@@ -13,9 +13,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import appeng.tile.inventory.AppEngInternalInventory;
 
-import com.cells.blocks.interfacebase.ContainerItemInterface;
-import com.cells.blocks.interfacebase.IItemInterfaceHost;
-import com.cells.blocks.interfacebase.ItemInterfaceLogic;
+import com.cells.blocks.interfacebase.item.ContainerItemInterface;
+import com.cells.blocks.interfacebase.item.IItemInterfaceHost;
+import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.util.ItemStackKey;
 
 
@@ -71,7 +71,7 @@ public class PacketQuickAddItemFilter implements IMessage {
                 for (int i = 0; i < effectiveSlots; i++) {
                     ItemStack existing = filterInventory.getStackInSlot(i);
                     if (!existing.isEmpty() && ItemStackKey.of(existing).equals(newKey)) {
-                        player.sendMessage(new TextComponentTranslation("message.cells.import_interface.filter_duplicate"));
+                        player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
                         return;
                     }
                 }
@@ -90,7 +90,7 @@ public class PacketQuickAddItemFilter implements IMessage {
                 }
 
                 // No space available
-                player.sendMessage(new TextComponentTranslation("message.cells.import_interface.no_filter_space"));
+                player.sendMessage(new TextComponentTranslation("message.cells.no_filter_space"));
             });
 
             return null;

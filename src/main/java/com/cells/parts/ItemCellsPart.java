@@ -8,6 +8,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
+import net.minecraft.client.resources.I18n;
+import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
@@ -89,6 +91,37 @@ public class ItemCellsPart extends Item implements IPartItem<IPart> {
                                       @Nonnull EnumHand hand, @Nonnull EnumFacing facing,
                                       float hitX, float hitY, float hitZ) {
         return AEApi.instance().partHelper().placeBus(player.getHeldItem(hand), pos, facing, player, hand, world);
+    }
+
+    @Override
+    @SideOnly(Side.CLIENT)
+    public void addInformation(@Nonnull ItemStack stack, @Nullable World world, @Nonnull List<String> tooltip,
+                               @Nonnull ITooltipFlag flag) {
+        CellsPartType type = CellsPartType.getById(stack.getItemDamage());
+        if (type == null) return;
+
+        // Generate tooltip key based on part type
+        String tooltipKey = getTooltipKeyForPartType(type);
+        if (tooltipKey != null) tooltip.add("§7" + I18n.format(tooltipKey));
+    }
+
+    /**
+     * Get the tooltip localization key for a given part type.
+     */
+    @Nullable
+    private static String getTooltipKeyForPartType(CellsPartType type) {
+        switch (type) {
+            case IMPORT_INTERFACE:
+                return "tooltip.cells.import_interface.info";
+            case EXPORT_INTERFACE:
+                return "tooltip.cells.export_interface.info";
+            case FLUID_IMPORT_INTERFACE:
+                return "tooltip.cells.import_interface.fluid.info";
+            case FLUID_EXPORT_INTERFACE:
+                return "tooltip.cells.export_interface.fluid.info";
+            default:
+                return null;
+        }
     }
 
     /**

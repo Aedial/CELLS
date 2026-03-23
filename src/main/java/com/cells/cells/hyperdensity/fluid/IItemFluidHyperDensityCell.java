@@ -1,9 +1,5 @@
 package com.cells.cells.hyperdensity.fluid;
 
-import javax.annotation.Nonnull;
-
-import net.minecraft.item.ItemStack;
-
 import appeng.api.storage.data.IAEFluidStack;
 
 import com.cells.cells.common.IHyperDensityCellType;

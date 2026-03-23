@@ -36,8 +36,6 @@ import appeng.api.parts.IPartModel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
-import appeng.fluids.util.IAEFluidInventory;
-import appeng.fluids.util.IAEFluidTank;
 import appeng.items.parts.PartModels;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.MachineSource;
@@ -45,12 +43,11 @@ import appeng.parts.PartBasicState;
 import appeng.parts.PartModel;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
-import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 
 import com.cells.Tags;
-import com.cells.blocks.interfacebase.FluidInterfaceLogic;
-import com.cells.blocks.interfacebase.IFluidInterfaceHost;
+import com.cells.blocks.interfacebase.item.FluidInterfaceLogic;
+import com.cells.blocks.interfacebase.fluid.IFluidInterfaceHost;
 import com.cells.gui.CellsGuiHandler;
 
 
@@ -61,18 +58,20 @@ import com.cells.gui.CellsGuiHandler;
  * Business logic is delegated to {@link FluidInterfaceLogic} to avoid code
  * duplication with tile and export variants.
  */
-public class PartFluidImportInterface extends PartBasicState implements IGridTickable, IAEAppEngInventory, IAEFluidInventory, IFluidInterfaceHost, FluidInterfaceLogic.Host {
+public class PartFluidImportInterface extends PartBasicState implements IGridTickable, IFluidInterfaceHost, FluidInterfaceLogic.Host {
 
-    public static final ResourceLocation MODEL_BASE = new ResourceLocation(Tags.MODID, "part/import_fluid_interface_base");
+    private static final String prefix = "part/import_interface/fluid/";
 
-    @PartModels
-    public static final PartModel MODELS_OFF = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/import_fluid_interface_off"));
-
-    @PartModels
-    public static final PartModel MODELS_ON = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/import_fluid_interface_on"));
+    public static final ResourceLocation MODEL_BASE = new ResourceLocation(Tags.MODID, prefix + "base");
 
     @PartModels
-    public static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/import_fluid_interface_has_channel"));
+    public static final PartModel MODELS_OFF = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, prefix + "off"));
+
+    @PartModels
+    public static final PartModel MODELS_ON = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, prefix + "on"));
+
+    @PartModels
+    public static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, prefix + "has_channel"));
 
     private final FluidInterfaceLogic logic;
     private final IActionSource actionSource;
@@ -128,11 +127,6 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
     }
 
     // ============================== IFluidInterfaceHost delegation ==============================
-
-    @Override
-    public IAEFluidTank getFilterInventory() {
-        return this.logic.getFilterInventory();
-    }
 
     @Override
     public AppEngInternalInventory getUpgradeInventory() {
@@ -253,8 +247,8 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
     }
 
     @Override
-    public String getGuiTitleLangKey() {
-        return "gui.cells.import_fluid_interface.title";
+    public String getTypeName() {
+        return this.logic.getTypeName();
     }
 
     @Override
@@ -364,7 +358,7 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
         if (!(memCardIS.getItem() instanceof IMemoryCard)) return false;
 
         final IMemoryCard memoryCard = (IMemoryCard) memCardIS.getItem();
-        final String name = "tile.cells.import_fluid_interface";
+        final String name = "tile.cells.import_interface" + "." + this.logic.getTypeName();
 
         if (player.isSneaking()) {
             final NBTTagCompound data = this.downloadSettings(SettingsFrom.MEMORY_CARD);
@@ -448,22 +442,6 @@ public class PartFluidImportInterface extends PartBasicState implements IGridTic
             this.logic.onUpgradeChanged();
         }
         this.getHost().markForUpdate();
-    }
-
-    // ============================== IAEFluidInventory ==============================
-
-    @Override
-    public void onFluidInventoryChanged(IAEFluidTank inv, int slot, InvOperation operation, FluidStack added, FluidStack removed) {
-        if (inv == this.logic.getFilterInventory()) {
-            this.logic.onFluidFilterChanged(slot);
-        }
-    }
-
-    @Override
-    public void onFluidInventoryChanged(IAEFluidTank inv, int slot) {
-        if (inv == this.logic.getFilterInventory()) {
-            this.logic.onFluidFilterChanged(slot);
-        }
     }
 
     // ============================== IGridTickable ==============================

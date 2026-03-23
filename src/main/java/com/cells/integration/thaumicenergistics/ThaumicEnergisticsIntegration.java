@@ -2,6 +2,7 @@ package com.cells.integration.thaumicenergistics;
 
 import java.util.List;
 
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
 
@@ -46,6 +47,14 @@ public final class ThaumicEnergisticsIntegration {
         }
 
         return modLoaded;
+    }
+
+    /**
+     * Create the Creative Essentia Cell item.
+     * Only call this if isModLoaded() returns true.
+     */
+    public static Item createCreativeEssentiaCell() {
+        return new com.cells.cells.creative.essentia.ItemCreativeEssentiaCell();
     }
 
     /**

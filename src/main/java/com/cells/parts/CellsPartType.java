@@ -19,6 +19,8 @@ import appeng.util.Platform;
 import com.cells.Tags;
 
 
+// TODO NOW: Refactor that to be in-line with the new standard
+
 /**
  * Enum defining all CELLS part types.
  */
@@ -33,7 +35,7 @@ public enum CellsPartType {
     private final int baseDamage;
     private final Set<ResourceLocation> models;
     private Constructor<? extends IPart> constructor;
-    private List<ModelResourceLocation> itemModels;
+    private final List<ModelResourceLocation> itemModels;
 
     CellsPartType(String id, Class<? extends IPart> partClass) {
         this.id = id;

@@ -1,8 +1,8 @@
 {
     "parent": "block/cube_bottom_top",
     "textures": {
-        "top": "cells:blocks/export_interface",
-        "side": "cells:blocks/export_interface_side",
-        "bottom": "cells:blocks/export_interface"
+        "top": "cells:blocks/export_interface/item/front",
+        "side": "cells:blocks/export_interface/item/side",
+        "bottom": "cells:blocks/export_interface/item/front"
     }
 }

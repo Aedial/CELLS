@@ -4,35 +4,26 @@ import java.awt.Rectangle;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.annotation.Nonnull;
 
-import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
-import net.minecraft.util.ResourceLocation;
 
-import appeng.client.gui.AEBaseGui;
-import appeng.container.interfaces.IJEIGhostIngredients;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.container.slot.IJEITargetSlot;
 import appeng.container.slot.SlotFake;
 import appeng.core.sync.network.NetworkHandler;
 import appeng.core.sync.packets.PacketInventoryAction;
-import appeng.api.storage.data.IAEItemStack;
-import appeng.util.item.AEItemStack;
 import appeng.helpers.InventoryAction;
+import appeng.util.item.AEItemStack;
 
 import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
-import com.cells.Tags;
-import com.cells.client.KeyBindings;
-import com.cells.gui.GuiClearFiltersButton;
+import com.cells.cells.creative.AbstractCreativeCellGui;
 import com.cells.gui.QuickAddHelper;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketQuickAddCreativeItemFilter;
@@ -40,97 +31,44 @@ import com.cells.network.packets.PacketQuickAddCreativeItemFilter;
 
 /**
  * GUI screen for the Creative ME Cell.
- * <p>
- * Layout (210x241):
- * - Title: "Creative Cell Filters" at top
- * - 9x7 grid of filter slots starting at (8, 19)
- * - Clear filters button (right of hotbar)
- * - Player inventory at y=159
- * <p>
- * Implements IJEIGhostIngredients for JEI drag-drop support.
+ * Displays a 9x7 grid of item filter slots with JEI drag-drop support.
  */
-public class GuiCreativeCell extends AEBaseGui implements IJEIGhostIngredients {
-
-    private static final ResourceLocation TEXTURE = new ResourceLocation(Tags.MODID, "textures/guis/creative_cell.png");
-
-    private final ContainerCreativeCell container;
-    private GuiClearFiltersButton clearButton;
-    private final Map<Target<?>, Object> mapTargetSlot = new HashMap<>();
+public class GuiCreativeCell extends AbstractCreativeCellGui<ContainerCreativeCell> {
 
     public GuiCreativeCell(InventoryPlayer playerInv, EnumHand hand) {
         super(new ContainerCreativeCell(playerInv, hand));
-        this.container = (ContainerCreativeCell) this.inventorySlots;
-        this.xSize = 210;
-        this.ySize = 241;
     }
 
     @Override
-    public void initGui() {
-        super.initGui();
-
-        // Clear filters button - positioned right of the hotbar, similar to Import/Export Interface
-        // Player inventory starts at y=159, hotbar is 58px below top of player inventory section
-        // Position: right side of GUI, aligned with hotbar
-        this.clearButton = new GuiClearFiltersButton(0, this.guiLeft + 176 + 2, this.guiTop + 159 + 58,
-            () -> I18n.format("gui.cells.creative_cell.clear") + "\n\n"
-                + I18n.format("gui.cells.creative_cell.clear_tooltip"));
-        this.buttonList.add(this.clearButton);
+    protected String getTitleKey() {
+        return "cells.creative_cell.item.title";
     }
 
-    private void clearFilters() {
+    @Override
+    protected void createFilterSlots() {
+        // Item cell uses SlotFake added by the container, no need to add GUI slots here
+    }
+
+    @Override
+    protected void doClearFilters() {
         container.clearAllFilters();
         // No need to send a packet - filter handler writes directly to cell NBT
     }
 
     @Override
-    public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        // Title
-        String title = I18n.format("gui.cells.creative_cell.title");
-        this.fontRenderer.drawString(title, 8, 6, 0x404040);
+    protected boolean handleQuickAdd(Slot hoveredSlot) {
+        ItemStack item = QuickAddHelper.getItemUnderCursor(hoveredSlot);
 
-        // "Inventory" label above player inventory slots
-        this.fontRenderer.drawString(I18n.format("container.inventory"), 8, 148, 0x404040);
-    }
-
-    @Override
-    public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        this.mc.getTextureManager().bindTexture(TEXTURE);
-        this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, this.ySize);
-    }
-
-    @Override
-    protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (this.checkHotbarKeys(keyCode)) return;
-
-        // Handle quick-add keybind
-        if (KeyBindings.QUICK_ADD_TO_FILTER.isActiveAndMatches(keyCode)) {
-            Slot hoveredSlot = this.getSlotUnderMouse();
-            ItemStack item = QuickAddHelper.getItemUnderCursor(hoveredSlot);
-
-            if (!item.isEmpty()) {
-                CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddCreativeItemFilter(item));
-                return;
-            }
+        if (!item.isEmpty()) {
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddCreativeItemFilter(item));
+            return true;
         }
 
-        super.keyTyped(typedChar, keyCode);
+        return false;
     }
 
     @Override
-    protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
-        super.actionPerformed(btn);
-
-        if (btn == this.clearButton) clearFilters();
-    }
-
-    // =====================
-    // IJEIGhostIngredients implementation for JEI drag-drop support
-    // =====================
-
-    @Override
-    public List<Target<?>> getPhantomTargets(Object ingredient) {
-        mapTargetSlot.clear();
-
+    protected List<Target<?>> createTargets(Object ingredient) {
         if (!(ingredient instanceof ItemStack)) return Collections.emptyList();
 
         ItemStack itemStack = (ItemStack) ingredient;
@@ -159,11 +97,17 @@ public class GuiCreativeCell extends AEBaseGui implements IJEIGhostIngredients {
                     ItemStack stack = (ItemStack) ingredient;
                     if (stack.isEmpty()) return;
 
+                    // Check for duplicates before adding
+                    if (container.getFilterHandler().isInFilter(stack)) {
+                        QuickAddHelper.sendDuplicateError();
+                        return;
+                    }
+
                     try {
                         IAEItemStack aeStack = AEItemStack.fromItemStack(stack);
                         PacketInventoryAction packet = new PacketInventoryAction(
                             InventoryAction.PLACE_JEI_GHOST_ITEM,
-                            (IJEITargetSlot) fakeSlot,
+                            fakeSlot,
                             aeStack
                         );
                         NetworkHandler.instance().sendToServer(packet);
@@ -178,10 +122,5 @@ public class GuiCreativeCell extends AEBaseGui implements IJEIGhostIngredients {
         }
 
         return targets;
-    }
-
-    @Override
-    public Map<Target<?>, Object> getFakeSlotTargetMap() {
-        return mapTargetSlot;
     }
 }

@@ -29,7 +29,6 @@ import appeng.items.contents.CellConfig;
 import appeng.util.Platform;
 
 import com.cells.core.CellsCreativeTab;
-import com.cells.integration.jei.CellsJEIPlugin;
 import com.cells.mixin.MixinState;
 import com.cells.util.CellDisassemblyHelper;
 
@@ -46,7 +45,7 @@ import com.cells.util.CellDisassemblyHelper;
  * - Disassembly action handling (shift-right-click)
  * <p>
  * Subclasses must implement:
- * - {@link #getTierNames()} - array of tier name suffixes
+ * - {@link #getTiers()} - array of tier name suffixes
  * - {@link #getUpgradesInventory(ItemStack)} - cell-specific upgrade slots
  * - {@link #disassembleCell(ItemStack, EntityPlayer)} - cell-specific disassembly
  * - {@link #addCellInformation(ItemStack, World, List, ITooltipFlag)} - cell-specific tooltip

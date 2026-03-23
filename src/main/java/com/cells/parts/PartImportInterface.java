@@ -41,12 +41,11 @@ import appeng.parts.PartBasicState;
 import appeng.parts.PartModel;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
-import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 
 import com.cells.Tags;
-import com.cells.blocks.interfacebase.IItemInterfaceHost;
-import com.cells.blocks.interfacebase.ItemInterfaceLogic;
+import com.cells.blocks.interfacebase.item.IItemInterfaceHost;
+import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
 
 
@@ -57,18 +56,20 @@ import com.cells.gui.CellsGuiHandler;
  * Business logic is delegated to {@link ItemInterfaceLogic} to avoid code
  * duplication with tile and export variants.
  */
-public class PartImportInterface extends PartBasicState implements IGridTickable, IAEAppEngInventory, IItemInterfaceHost, ItemInterfaceLogic.Host {
+public class PartImportInterface extends PartBasicState implements IGridTickable, IItemInterfaceHost, ItemInterfaceLogic.Host {
 
-    public static final ResourceLocation MODEL_BASE = new ResourceLocation(Tags.MODID, "part/import_interface_base");
+    private static final String prefix = "part/import_interface/item/";
 
-    @PartModels
-    public static final PartModel MODELS_OFF = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/import_interface_off"));
-
-    @PartModels
-    public static final PartModel MODELS_ON = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/import_interface_on"));
+    public static final ResourceLocation MODEL_BASE = new ResourceLocation(Tags.MODID, prefix + "base");
 
     @PartModels
-    public static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, "part/import_interface_has_channel"));
+    public static final PartModel MODELS_OFF = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, prefix + "off"));
+
+    @PartModels
+    public static final PartModel MODELS_ON = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, prefix + "on"));
+
+    @PartModels
+    public static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, prefix + "has_channel"));
 
     private final ItemInterfaceLogic logic;
     private final IActionSource actionSource;
@@ -230,10 +231,9 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
     public int getMainGuiId() {
         return CellsGuiHandler.GUI_PART_IMPORT_INTERFACE;
     }
-
     @Override
-    public String getGuiTitleLangKey() {
-        return "gui.cells.import_interface.title";
+    public String getTypeName() {
+        return this.logic.getTypeName();
     }
 
     @Override

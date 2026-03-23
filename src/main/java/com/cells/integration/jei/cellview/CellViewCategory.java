@@ -21,7 +21,6 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import appeng.api.AEApi;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.client.render.StackSizeRenderer;
@@ -40,11 +39,10 @@ import mezz.jei.api.gui.ITooltipCallback;
 import mezz.jei.api.ingredients.IIngredients;
 import mezz.jei.api.recipe.IRecipeCategory;
 
-import com.cells.Cells;
 import com.cells.Tags;
 import com.cells.config.CellsConfig;
+import com.cells.gui.ResourceRenderer;
 import com.cells.integration.jei.IRecipeCategoryWithOverlay;
-import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.util.NBTSizeHelper;
 
 
@@ -82,7 +80,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
     private final IDrawableStatic background;
     private final IDrawableStatic slotSprite;
     private final IDrawableStatic warningIcon;
-    private IDrawable icon;
+    private final IDrawable icon;
     private final StackSizeRenderer stackSizeRenderer = new StackSizeRenderer();
     private final FluidStackSizeRenderer fluidStackSizeRenderer = new FluidStackSizeRenderer();
 
@@ -90,7 +88,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
     private CellViewRecipe currentRecipe;
     private int currentPage = 0;
     private int totalPages = 1;
-    private List<Point> slotPositions = new ArrayList<>();
+    private final List<Point> slotPositions = new ArrayList<>();
     private boolean isFluidChannel = false;
     private boolean isGasChannel = false;
 
@@ -242,7 +240,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
                 tooltip.add("");
                 tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
-                    format.format(info.count), I18n.format("jei.cells.cellview.unit.fluid")));
+                    format.format(info.count), I18n.format("cells.unit.fluid")));
 
                 // Skip bytes as it is meaningless for creative cells
                 if (recipeRef.isCreative()) return;
@@ -299,13 +297,11 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
                     }
                 }
 
-                // Show bytes used by this stack (if not virtual form or creative cell)
-                // Creative cells don't consume bytes - they're infinite sources
-                if (!virtualForm && !recipeRef.isCreative()) {
-                    tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
-                        format.format(info.bytesUsed)));
-                }
+                // Skip bytes as it is meaningless for creative cells
+                if (recipeRef.isCreative()) return;
 
+                tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
+                    format.format(info.bytesUsed)));
             }
         });
     }
@@ -345,7 +341,10 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
                 tooltip.add("");
                 tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
-                    format.format(info.count), I18n.format("jei.cells.cellview.unit.gas")));
+                    format.format(info.count), I18n.format("cells.unit.gas")));
+
+                if (!recipeRef.isCreative()) return;
+
                 tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
                     format.format(info.bytesUsed)));
             }
@@ -356,14 +355,15 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
      * Get the appropriate unit localization key based on the storage channel.
      */
     private static String getUnitKey(CellViewRecipe recipe) {
-        if (recipe.getChannel() == null) return "jei.cells.cellview.unit.items";
+        if (recipe.getChannel() == null) return "cells.unit.item";
 
         String channelName = recipe.getChannel().getClass().getSimpleName().toLowerCase();
-        if (channelName.contains("fluid")) return "jei.cells.cellview.unit.fluid";
-        if (channelName.contains("gas")) return "jei.cells.cellview.unit.gas";
-        if (channelName.contains("essentia")) return "jei.cells.cellview.unit.essentia";
+        if (channelName.contains("item")) return "cells.unit.item";
+        if (channelName.contains("fluid")) return "cells.unit.fluid";
+        if (channelName.contains("gas")) return "cells.unit.gas";
+        if (channelName.contains("essentia")) return "cells.unit.essentia";
 
-        return "jei.cells.cellview.unit.items";
+        return "cells.unit.unknown";
     }
 
     @Override
@@ -462,9 +462,8 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
             CellViewRecipe.StoredStackInfo info = currentRecipe.getStoredStacks().get(startIdx + i);
             Point pos = slotPositions.get(i);
 
-            // Render gas with proper sprite and color
-            // Cells.LOGGER.info("Rendering gas stack: " + info.stack);
-            MekanismEnergisticsIntegration.renderGasInGui(info.stack, pos.x + 1, pos.y + 1, 16, 16);
+            // Render gas with unified renderer
+            ResourceRenderer.renderGas(info.stack, pos.x + 1, pos.y + 1, 16, 16);
         }
 
         GlStateManager.disableDepth();
@@ -497,7 +496,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
         String partitionName = partitioned.isEmpty() ? "?" : partitioned.getDisplayName();
         if (font.getStringWidth(partitionName) > 160 - tierInfoWidth) {
             partitionName = font.trimStringToWidth(partitionName, 160 - tierInfoWidth - 3) + "...";
-        };
+        }
 
         font.drawString(partitionName + "§r §8" + tiersInfo, leftMargin, y, 0x404040);
     }
@@ -509,7 +508,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
         int nbtSize = currentRecipe.getNbtSize();
         long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
         String nbtSizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
-        String nbtLabel = I18n.format("jei.cells.cellview.nbt_size") + " " + nbtSizeStr;
+        String nbtLabel = I18n.format("tooltip.cells.nbt_size", nbtSizeStr);
 
         // replace colors for dark background -> light background
         nbtLabel = nbtLabel.replace("§c", "§4").replace("§e", "§6").replace("§a", "§2");
@@ -518,8 +517,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
         // Draw warning icon if NBT size exceeds threshold
         if (NBTSizeHelper.exceedsThreshold(nbtSize, warningThreshold)) {
-            int nbtLabelWidth = font.getStringWidth(I18n.format("jei.cells.cellview.nbt_size") + " "
-                + NBTSizeHelper.formatSize(nbtSize));
+            int nbtLabelWidth = font.getStringWidth(I18n.format("tooltip.cells.nbt_size", NBTSizeHelper.formatSize(nbtSize)));
             GlStateManager.color(1f, 1f, 1f, 1f);
             warningIcon.draw(minecraft, leftMargin + nbtLabelWidth + 2, y);
         }
@@ -566,6 +564,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
         for (Point pos : slotPositions) slotSprite.draw(minecraft, pos.x, pos.y);
     }
 
+    // Used in the JEI overlay mixin to render stack sizes on top of the gas stacks
     private void drawStackSizes(Minecraft minecraft) {
         if (currentRecipe == null) return;
 

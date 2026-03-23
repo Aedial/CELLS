@@ -13,10 +13,14 @@ import com.cells.core.CellsCreativeTab;
 import com.cells.cells.configurable.ConfigurableCellHandler;
 import com.cells.cells.creative.item.CreativeCellHandler;
 import com.cells.cells.creative.fluid.CreativeFluidCellHandler;
+import com.cells.cells.creative.gas.CreativeGasCellHandler;
+import com.cells.cells.creative.essentia.CreativeEssentiaCellHandler;
 import com.cells.cells.normal.compacting.CompactingCellHandler;
 import com.cells.cells.hyperdensity.fluid.FluidHyperDensityCellHandler;
 import com.cells.cells.hyperdensity.item.HyperDensityCellHandler;
 import com.cells.cells.hyperdensity.compacting.HyperDensityCompactingCellHandler;
+import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
+import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.network.MemoryCardServerHandler;
 import com.cells.parts.PartRegistry;
 import com.cells.recipes.InscriberRecipeHandler;
@@ -63,6 +67,14 @@ public class CommonProxy {
         // Register the creative cell handlers with AE2
         AEApi.instance().registries().cell().addCellHandler(CreativeCellHandler.INSTANCE);
         AEApi.instance().registries().cell().addCellHandler(CreativeFluidCellHandler.INSTANCE);
+
+        // Register optional creative cell handlers
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            AEApi.instance().registries().cell().addCellHandler(CreativeGasCellHandler.INSTANCE);
+        }
+        if (ThaumicEnergisticsIntegration.isModLoaded()) {
+            AEApi.instance().registries().cell().addCellHandler(CreativeEssentiaCellHandler.INSTANCE);
+        }
 
         // Register custom inscriber recipes for compressed prints and processors
         InscriberRecipeHandler.registerRecipes();

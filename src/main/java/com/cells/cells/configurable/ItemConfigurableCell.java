@@ -1,6 +1,7 @@
 package com.cells.cells.configurable;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -94,8 +95,8 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         ComponentInfo info = ComponentHelper.getComponentInfo(ComponentHelper.getInstalledComponent(stack));
         if (info == null) return super.getItemStackDisplayName(stack);
 
-        return net.minecraft.util.text.translation.I18n.translateToLocalFormatted(
-            "item.cells.configurable_cell.name_configured", info.getTierName().toUpperCase()).trim();
+        return I18n.format("item.cells.configurable_cell.name_configured",
+            info.getTierName().toUpperCase()).trim();
     }
 
     // =====================
@@ -187,8 +188,9 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
         long effectivePerType = Math.min(maxPerType, physicalMax);
 
-        String unitKey = "tooltip.cells.configurable_cell.capacity_per_type." + channelType.getLocalizationSuffix();
-        tooltip.add("§b" + I18n.format(unitKey, ReadableNumberConverter.INSTANCE.toWideReadableForm(effectivePerType)));
+        String capacityStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(effectivePerType);
+        String unitStr = I18n.format("cells.unit." + channelType.getLocalizationSuffix());
+        tooltip.add("§b" + I18n.format("tooltip.cells.configurable_cell.capacity_per_type", capacityStr, unitStr));
 
         // Show upgrade information
         CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
@@ -313,9 +315,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, CellsConfig.configurableCellUpgradeSlots, Arrays.asList(
-            CustomCellUpgrades.CustomUpgrades.OVERFLOW
-        ));
+        return new CustomCellUpgrades(is, CellsConfig.configurableCellUpgradeSlots, Collections.singletonList(CustomCellUpgrades.CustomUpgrades.OVERFLOW));
     }
 
     @Override

@@ -1,0 +1,1429 @@
+package com.cells.blocks.interfacebase;
+
+import java.lang.reflect.Array;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import io.netty.buffer.ByteBuf;
+
+import net.minecraft.block.Block;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.world.World;
+import net.minecraftforge.common.util.Constants;
+
+import appeng.api.config.Actionable;
+import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
+import appeng.api.networking.security.IActionSource;
+import appeng.api.networking.storage.IStorageGrid;
+import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.networking.ticking.TickingRequest;
+import appeng.api.storage.IMEInventory;
+import appeng.api.storage.data.IAEStack;
+import appeng.core.settings.TickRates;
+import appeng.me.GridAccessException;
+import appeng.me.helpers.AENetworkProxy;
+import appeng.tile.inventory.AppEngInternalInventory;
+import appeng.util.inv.IAEAppEngInventory;
+
+import com.cells.items.ItemOverflowCard;
+import com.cells.items.ItemTrashUnselectedCard;
+import com.cells.util.TickManagerHelper;
+
+
+/**
+ * Abstract base class for resource interface logic (fluid, gas, item, essentia).
+ * Contains all shared business logic for import/export interfaces.
+ * <p>
+ * Type parameters:
+ * <ul>
+ *   <li>{@code R} - The native resource stack type (FluidStack, GasStack, etc.)</li>
+ *   <li>{@code AE} - The AE2 wrapped stack type (IAEFluidStack, IAEGasStack, etc.)</li>
+ *   <li>{@code K} - The hashable key type for the resource (FluidStackKey, GasStackKey, etc.)</li>
+ * </ul>
+ * <p>
+ * Subclasses must implement the type-specific operations for resource handling,
+ * NBT serialization, and ME network interactions.
+ */
+public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>, K> {
+
+    /**
+     * Callback interface that the host (tile or part) implements to provide
+     * platform-specific operations to the logic delegate.
+     */
+    public interface Host extends IAEAppEngInventory {
+
+        /** Get the AE2 grid proxy for network access. */
+        AENetworkProxy getGridProxy();
+
+        /** Get the action source for ME network operations. */
+        IActionSource getActionSource();
+
+        /** Whether this is an export interface (true) or import interface (false). */
+        boolean isExport();
+
+        /**
+         * Mark this host as dirty and save its state.
+         * Tile: markDirty(). Part: getHost().markForSave().
+         */
+        void markDirtyAndSave();
+
+        /**
+         * Mark this host for client update.
+         * Tile: markForUpdate(). Part: getHost().markForUpdate().
+         */
+        void markForNetworkUpdate();
+
+        /** Get the world this host is in (may be null during loading). */
+        @Nullable
+        World getHostWorld();
+
+        /** Get the position of this host in the world. */
+        BlockPos getHostPos();
+
+        /** Get the IGridTickable to re-register with tick manager. */
+        IGridTickable getTickable();
+    }
+
+    public static final int SLOTS_PER_PAGE = 36;
+    public static final int MAX_CAPACITY_CARDS = 4;
+    public static final int MAX_PAGES = 1 + MAX_CAPACITY_CARDS;
+    public static final int FILTER_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
+    public static final int STORAGE_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
+    public static final int TOTAL_SLOTS = Math.min(FILTER_SLOTS, STORAGE_SLOTS);
+    public static final int UPGRADE_SLOTS = 4;
+    public static final int DEFAULT_MAX_SLOT_SIZE = 16000; // mB (16 buckets)
+    public static final int MIN_MAX_SLOT_SIZE = 1;
+    // TODO: add a config option for max slot size, and enforce it in the GUI and logic
+    // TODO: move to Long after we migrate out of resourceStack[] and into long[] for amounts
+    public static int MAX_MAX_SLOT_SIZE = Integer.MAX_VALUE;
+
+    protected final Host host;
+
+    /** Filter array - stores the filter resource for each slot. */
+    protected final R[] filters;
+
+    /** Storage array - stores the current resource amount in each slot. */
+    protected final R[] storage;
+
+    /** Upgrade inventory (accepts only specific upgrade cards). */
+    protected final AppEngInternalInventory upgradeInventory;
+
+    /** Maximum amount per slot in whatever units this resource uses (e.g., mB for fluids). */
+    protected int maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
+
+    /** Polling rate in ticks (0 = adaptive). */
+    protected int pollingRate = 0;
+
+    /** Whether overflow upgrade is installed (import only). */
+    protected boolean installedOverflowUpgrade = false;
+
+    /** Whether trash unselected upgrade is installed (import only). */
+    protected boolean installedTrashUnselectedUpgrade = false;
+
+    /** Number of installed capacity cards. */
+    protected int installedCapacityUpgrades = 0;
+
+    /** Current GUI page index (0-based). */
+    protected int currentPage = 0;
+
+    /** Mapping of filter resource keys to their corresponding slot index. */
+    protected final Map<K, Integer> filterToSlotMap = new HashMap<>();
+
+    /** Reverse mapping: slot index to filter key. */
+    protected final Map<Integer, K> slotToFilterMap = new HashMap<>();
+
+    /** List of slot indices that have filters, in slot order. */
+    protected List<Integer> filterSlotList = new ArrayList<>();
+
+    @SuppressWarnings("unchecked")
+    protected AbstractResourceInterfaceLogic(Host host, Class<R> resourceClass) {
+        this.host = host;
+
+        // Create arrays for filters and storage
+        this.filters = (R[]) Array.newInstance(resourceClass, FILTER_SLOTS);
+        this.storage = (R[]) Array.newInstance(resourceClass, STORAGE_SLOTS);
+
+        // Create upgrade inventory with filtering for specific upgrade cards
+        this.upgradeInventory = new AppEngInternalInventory(host, UPGRADE_SLOTS, 1) {
+            @Override
+            public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
+                return AbstractResourceInterfaceLogic.this.isValidUpgrade(stack);
+            }
+        };
+
+        refreshUpgrades();
+        refreshFilterMap();
+    }
+
+    // ============================== Abstract methods ==============================
+
+    /**
+     * Create a hashable key for the given resource.
+     * @return The key, or null if resource is invalid
+     */
+    @Nullable
+    protected abstract K createKey(R resource);
+
+    /**
+     * Check if two resources match (same type, ignoring amount).
+     */
+    protected abstract boolean resourcesMatch(R a, R b);
+
+    /**
+     * Get the amount of resource in a stack.
+     */
+    protected abstract int getAmount(R resource);
+
+    /**
+     * Set the amount of resource in a stack.
+     */
+    protected abstract void setAmount(R resource, int amount);
+
+    /**
+     * Create a copy of a resource with the given amount.
+     */
+    protected abstract R copyWithAmount(R resource, int amount);
+
+    /**
+     * Create a copy of a resource.
+     */
+    protected abstract R copy(R resource);
+
+    /**
+     * Get the display name of a resource for chat messages.
+     */
+    protected abstract String getLocalizedName(R resource);
+
+    /**
+     * Convert a native resource to an AE stack.
+     */
+    protected abstract AE toAEStack(R resource);
+
+    /**
+     * Convert an AE stack to a native resource.
+     */
+    protected abstract R fromAEStack(AE aeStack);
+
+    /**
+     * Get the AE stack size.
+     */
+    protected abstract long getAEStackSize(AE aeStack);
+
+    /**
+     * Write a resource to NBT.
+     */
+    protected abstract void writeResourceToNBT(R resource, NBTTagCompound tag);
+
+    /**
+     * Read a resource from NBT.
+     */
+    @Nullable
+    protected abstract R readResourceFromNBT(NBTTagCompound tag);
+
+    /**
+     * Get the resource name string for stream serialization (e.g., fluid registry name).
+     */
+    protected abstract String getResourceName(R resource);
+
+    /**
+     * Look up a resource by name string.
+     */
+    @Nullable
+    protected abstract R getResourceByName(String name, int amount);
+
+    /**
+     * Get the ME inventory for this resource type.
+     */
+    protected abstract IMEInventory<AE> getMEInventory(IStorageGrid storage);
+
+    /**
+     * Get the type name of the resource interface (e.g., "fluid", "item").
+     */
+    public abstract String getTypeName();
+
+    /**
+     * Create a recovery item for remainder resources that couldn't be stored.
+     * Return ItemStack.EMPTY if no recovery item is available for this type.
+     */
+    protected abstract ItemStack createRecoveryItem(R resource);
+
+    public AppEngInternalInventory getUpgradeInventory() {
+        return this.upgradeInventory;
+    }
+
+    public boolean isSlotEmpty(int slot) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return true;
+
+        R stored = this.storage[slot];
+        return stored == null || getAmount(stored) <= 0;
+    }
+
+    @Nullable
+    public R getResourceInSlot(int slot) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return null;
+
+        return this.storage[slot];
+    }
+
+    @Nullable
+    public AE getFilterResource(int slot) {
+        if (slot < 0 || slot >= FILTER_SLOTS) return null;
+
+        R filter = this.filters[slot];
+        return filter != null ? toAEStack(filter) : null;
+    }
+
+    /**
+     * Set the filter for a slot. Subclasses may override to add callbacks.
+     */
+    public void setFilterResource(int slot, @Nullable AE aeResource) {
+        if (slot < 0 || slot >= FILTER_SLOTS) return;
+
+        this.filters[slot] = aeResource != null ? copyWithAmount(fromAEStack(aeResource), 1) : null;
+        onFilterChanged(slot);
+    }
+
+    /**
+     * Insert resource into a specific storage slot (import interface operation).
+     * @return The amount actually inserted
+     */
+    public int insertIntoSlot(int slot, R resource) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
+        if (resource == null || getAmount(resource) <= 0) return 0;
+
+        R current = this.storage[slot];
+
+        // If slot has resource, it must match
+        if (current != null && !resourcesMatch(current, resource)) return 0;
+
+        int capacity = this.maxSlotSize;
+        int currentAmount = current != null ? getAmount(current) : 0;
+        int spaceAvailable = capacity - currentAmount;
+        if (spaceAvailable <= 0) return 0;
+
+        int toInsert = Math.min(getAmount(resource), spaceAvailable);
+
+        if (current == null) {
+            this.storage[slot] = copyWithAmount(resource, toInsert);
+        } else {
+            setAmount(current, currentAmount + toInsert);
+        }
+
+        this.host.markDirtyAndSave();
+        this.host.markForNetworkUpdate();
+
+        return toInsert;
+    }
+
+    /**
+     * Drain resource from a specific storage slot (export interface operation).
+     * @return The resource extracted, or null if nothing extracted
+     */
+    @Nullable
+    public R drainFromSlot(int slot, int maxDrain, boolean doDrain) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return null;
+
+        R current = this.storage[slot];
+        if (current == null || getAmount(current) <= 0) return null;
+
+        int currentAmount = getAmount(current);
+        int toDrain = Math.min(maxDrain, currentAmount);
+        R drained = copyWithAmount(current, toDrain);
+
+        if (doDrain) {
+            int remaining = currentAmount - toDrain;
+            if (remaining <= 0) {
+                this.storage[slot] = null;
+            } else {
+                setAmount(current, remaining);
+            }
+
+            this.host.markDirtyAndSave();
+            this.host.markForNetworkUpdate();
+
+            // Wake up to request more resources (export replenishes)
+            this.wakeUpIfAdaptive();
+        }
+
+        return drained;
+    }
+
+    /**
+     * Receive a resource into this interface based on filter configuration.
+     * Used by import interface external handlers.
+     *
+     * @param resource The resource to receive
+     * @param doTransfer If true, actually perform the transfer; if false, simulate
+     * @return The amount accepted (may include voided amounts if upgrades are installed)
+     */
+    public int receiveFiltered(R resource, boolean doTransfer) {
+        if (resource == null || getAmount(resource) <= 0) return 0;
+
+        K key = createKey(resource);
+        if (key == null) return 0;
+
+        // No filter matches - void if trash unselected upgrade installed, reject otherwise
+        Integer slot = this.filterToSlotMap.get(key);
+        if (slot == null) return this.installedTrashUnselectedUpgrade ? getAmount(resource) : 0;
+
+        // Insert into matching slot
+        R existing = this.storage[slot];
+        int capacity = this.maxSlotSize;
+        int currentAmount = (existing == null) ? 0 : getAmount(existing);
+        int space = capacity - currentAmount;
+
+        // Slot full - void overflow if upgrade installed, reject otherwise
+        if (space <= 0) return this.installedOverflowUpgrade ? getAmount(resource) : 0;
+
+        int toInsert = Math.min(getAmount(resource), space);
+        if (doTransfer) {
+            if (existing == null) {
+                this.storage[slot] = copyWithAmount(resource, toInsert);
+            } else {
+                setAmount(existing, currentAmount + toInsert);
+            }
+
+            this.host.markDirtyAndSave();
+            this.host.markForNetworkUpdate();
+
+            // Wake up to import resources
+            this.wakeUpIfAdaptive();
+        }
+
+        // If overflow upgrade installed, accept all resource (void the excess)
+        int excess = getAmount(resource) - toInsert;
+        if (excess > 0 && this.installedOverflowUpgrade) return getAmount(resource);
+
+        return toInsert;
+    }
+
+    /**
+     * Drain any available resource from this interface.
+     * Used by export interface external handlers for untyped drain requests.
+     *
+     * @param maxDrain Maximum amount to drain
+     * @param doDrain If true, actually drain; if false, simulate
+     * @return The drained resource, or null if nothing available
+     */
+    @Nullable
+    public R drainAny(int maxDrain, boolean doDrain) {
+        // Drain from first non-empty slot
+        for (int slot : this.filterSlotList) {
+            R resource = this.storage[slot];
+            if (resource != null && getAmount(resource) > 0) {
+                return drainFromSlot(slot, maxDrain, doDrain);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Drain a specific resource from this interface.
+     * Used by export interface external handlers for typed drain requests.
+     *
+     * @param request The resource to drain (type and max amount)
+     * @param doDrain If true, actually drain; if false, simulate
+     * @return The drained resource, or null if not available
+     */
+    @Nullable
+    public R drainSpecific(R request, boolean doDrain) {
+        if (request == null || getAmount(request) <= 0) return null;
+
+        K key = createKey(request);
+        if (key == null) return null;
+
+        Integer slot = this.filterToSlotMap.get(key);
+        if (slot == null) return null;
+
+        return drainFromSlot(slot, getAmount(request), doDrain);
+    }
+
+    /**
+     * Check if this interface can receive the given resource type.
+     * Used by import interface external handlers for capability queries.
+     *
+     * @param resource The resource to check (only type matters, not amount)
+     * @return true if a filter exists for this resource type
+     */
+    public boolean canReceive(R resource) {
+        if (resource == null) return false;
+
+        K key = createKey(resource);
+        return key != null && this.filterToSlotMap.containsKey(key);
+    }
+
+    /**
+     * Check if this interface can drain the given resource type.
+     * Used by export interface external handlers for capability queries.
+     *
+     * @param resource The resource to check (only type matters, not amount)
+     * @return true if a filter exists for this resource type
+     */
+    public boolean canDrain(R resource) {
+        // Same logic as canReceive - we can drain what we have filters for
+        return canReceive(resource);
+    }
+
+    public int getMaxSlotSize() {
+        return this.maxSlotSize;
+    }
+
+    /**
+     * Set the maximum tank capacity.
+     * If export and reduced, returns overflow to the network.
+     */
+    public void setMaxSlotSize(int size) {
+        int oldSize = this.maxSlotSize;
+        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(size, MAX_MAX_SLOT_SIZE));
+
+        this.host.markDirtyAndSave();
+
+        if (this.host.isExport()) {
+            if (oldSize > this.maxSlotSize) returnOverflowToNetwork();
+            if (oldSize < this.maxSlotSize) this.wakeUpIfAdaptive();
+        }
+    }
+
+    public int getPollingRate() {
+        return this.pollingRate;
+    }
+
+    public void setPollingRate(int ticks) {
+        this.setPollingRate(ticks, null);
+    }
+
+    /**
+     * Set the polling rate with optional player notification on failure.
+     * @param ticks Polling rate in ticks (0 = adaptive)
+     * @param player Player to notify if re-registration fails, or null to skip notification
+     */
+    public void setPollingRate(int ticks, EntityPlayer player) {
+        this.pollingRate = Math.max(0, ticks);
+        this.host.markDirtyAndSave();
+
+        // Re-register with the tick manager to apply the new TickingRequest bounds.
+        AENetworkProxy proxy = this.host.getGridProxy();
+        if (proxy.isReady()) {
+            if (!TickManagerHelper.reRegisterTickable(proxy.getNode(), this.host.getTickable())) {
+                if (player != null) {
+                    player.sendMessage(new TextComponentTranslation("message.cells.polling_rate_delayed"));
+                }
+            }
+        }
+    }
+
+    /**
+     * Refresh the status of installed upgrades.
+     */
+    public void refreshUpgrades() {
+        if (!this.host.isExport()) {
+            this.installedOverflowUpgrade = countUpgrade(ItemOverflowCard.class) > 0;
+            this.installedTrashUnselectedUpgrade = countUpgrade(ItemTrashUnselectedCard.class) > 0;
+        }
+
+        int oldCapacityCount = this.installedCapacityUpgrades;
+        this.installedCapacityUpgrades = countCapacityUpgrades();
+
+        // Handle capacity card removal
+        if (this.installedCapacityUpgrades < oldCapacityCount) {
+            handleCapacityReduction(oldCapacityCount, this.installedCapacityUpgrades);
+        }
+
+        // Clamp current page to valid range
+        int maxPage = this.installedCapacityUpgrades;
+        if (this.currentPage > maxPage) this.currentPage = maxPage;
+    }
+
+    protected int countUpgrade(Class<?> itemClass) {
+        int count = 0;
+        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+            ItemStack existing = this.upgradeInventory.getStackInSlot(i);
+            if (!existing.isEmpty() && itemClass.isInstance(existing.getItem())) count++;
+        }
+
+        return count;
+    }
+
+    public boolean hasOverflowUpgrade() {
+        return this.installedOverflowUpgrade;
+    }
+
+    public boolean hasTrashUnselectedUpgrade() {
+        return this.installedTrashUnselectedUpgrade;
+    }
+
+    protected int countCapacityUpgrades() {
+        int count = 0;
+        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+            if (!(stack.getItem() instanceof IUpgradeModule)) continue;
+
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == Upgrades.CAPACITY) count++;
+        }
+
+        return count;
+    }
+
+    /**
+     * Check if an item is a valid upgrade for this interface.
+     */
+    public boolean isValidUpgrade(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+
+        // Overflow and Trash unselected are import-only (make no sense for export)
+        if (!this.host.isExport()) {
+            if (stack.getItem() instanceof ItemOverflowCard) {
+                return countUpgrade(ItemOverflowCard.class) < 1;
+            }
+
+            if (stack.getItem() instanceof ItemTrashUnselectedCard) {
+                return countUpgrade(ItemTrashUnselectedCard.class) < 1;
+            }
+        }
+
+        // Capacity card (both import and export)
+        if (stack.getItem() instanceof IUpgradeModule) {
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == Upgrades.CAPACITY) return true;
+        }
+
+        return false;
+    }
+
+    public int getInstalledCapacityUpgrades() {
+        return this.installedCapacityUpgrades;
+    }
+
+    public int getTotalPages() {
+        return 1 + this.installedCapacityUpgrades;
+    }
+
+    public int getCurrentPage() {
+        return this.currentPage;
+    }
+
+    public void setCurrentPage(int page) {
+        this.currentPage = Math.max(0, Math.min(page, this.installedCapacityUpgrades));
+    }
+
+    public int getCurrentPageStartSlot() {
+        return this.currentPage * SLOTS_PER_PAGE;
+    }
+
+    /**
+     * Handle capacity reduction by clearing filters and returning resources from removed pages.
+     */
+    protected void handleCapacityReduction(int oldCount, int newCount) {
+        int newMaxSlot = (1 + newCount) * SLOTS_PER_PAGE;
+        int oldMaxSlot = (1 + oldCount) * SLOTS_PER_PAGE;
+
+        World world = this.host.getHostWorld();
+        BlockPos pos = this.host.getHostPos();
+
+        // Process slots that are being removed
+        for (int slot = newMaxSlot; slot < oldMaxSlot && slot < STORAGE_SLOTS; slot++) {
+            // Clear the filter
+            this.filters[slot] = null;
+
+            // Return resource to network
+            R resource = this.storage[slot];
+            // TODO: Store quantity in a separate long[] array to avoid integer limits
+            if (resource != null && getAmount(resource) > 0) {
+                int notInserted = insertIntoNetwork(resource);
+
+                // Try to create recovery item for remainder
+                if (notInserted > 0) {
+                    R remainder = copyWithAmount(resource, notInserted);
+                    ItemStack drop = createRecoveryItem(remainder);
+                    if (!drop.isEmpty() && world != null && pos != null) {
+                        Block.spawnAsEntity(world, pos, drop);
+                    }
+                    // If no recovery item available, remainder is voided
+                    // This should never happen as we handle every type
+                }
+
+                this.storage[slot] = null;
+            }
+        }
+
+        this.refreshFilterMap();
+        this.host.markDirtyAndSave();
+    }
+
+    /**
+     * Refresh the filter to slot mapping.
+     */
+    public void refreshFilterMap() {
+        this.filterToSlotMap.clear();
+        this.slotToFilterMap.clear();
+
+        List<Integer> validSlots = new ArrayList<>();
+
+        for (int i = 0; i < TOTAL_SLOTS; i++) {
+            R filter = this.filters[i];
+            if (filter == null) continue;
+
+            K key = createKey(filter);
+            if (key != null) {
+                this.filterToSlotMap.put(key, i);
+                this.slotToFilterMap.put(i, key);
+                validSlots.add(i);
+            }
+        }
+
+        this.filterSlotList = validSlots;
+    }
+
+    /**
+     * Clear filter slots.
+     * Import: only clears filters where the corresponding slot is empty.
+     * Export: clears all filter slots.
+     */
+    public void clearFilters() {
+        if (this.host.isExport()) {
+            for (int i = 0; i < FILTER_SLOTS; i++) this.filters[i] = null;
+        } else {
+            for (int i = 0; i < FILTER_SLOTS; i++) {
+                // Only clear filter if the corresponding storage slot is empty
+                if (i >= STORAGE_SLOTS || this.storage[i] == null || getAmount(this.storage[i]) <= 0) {
+                    this.filters[i] = null;
+                }
+            }
+        }
+
+        this.refreshFilterMap();
+        this.host.markDirtyAndSave();
+        this.host.markForNetworkUpdate();
+    }
+
+    /**
+     * Find the first empty filter slot.
+     * @return The slot index, or -1 if no empty slots available
+     */
+    public int findEmptyFilterSlot() {
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            if (this.filters[i] == null) return i;
+        }
+
+        return -1;
+    }
+
+    /**
+     * Find the storage slot that matches the given resource.
+     * @return The slot index, or -1 if no matching filter found
+     */
+    public int findSlotForResource(R resource) {
+        if (resource == null) return -1;
+
+        K key = createKey(resource);
+        if (key == null) return -1;
+
+        Integer slot = this.filterToSlotMap.get(key);
+        return slot != null ? slot : -1;
+    }
+
+    /**
+     * Collect stored resources that should be dropped (not upgrades).
+     * Attempts to return stored resources to the ME network first.
+     * Creates ItemRecoveryContainer items for any resources that couldn't be returned.
+     */
+    public void getStorageDrops(List<ItemStack> drops) {
+        // Try to return all storage contents to the network
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            R storedResource = this.storage[i];
+            if (storedResource == null || getAmount(storedResource) <= 0) continue;
+
+            // Try to insert into network
+            int notInserted = insertIntoNetwork(storedResource);
+            if (notInserted > 0) {
+                // Create a recovery item for the remainder
+                R remainder = copyWithAmount(storedResource, notInserted);
+                ItemStack drop = createRecoveryItem(remainder);
+                if (!drop.isEmpty()) drops.add(drop);
+            }
+
+            // Clear the slot regardless
+            this.storage[i] = null;
+        }
+    }
+
+    /**
+     * Collect all items that should be dropped when this interface is broken normally.
+     * Includes both stored resources and upgrades.
+     */
+    public void getDrops(List<ItemStack> drops) {
+        getStorageDrops(drops);
+
+        // Drop upgrades
+        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
+            if (!stack.isEmpty()) drops.add(stack);
+        }
+    }
+
+    /**
+     * Get the NBT key for filters (e.g., "fluidFilters", "gasFilters").
+     * Default: getTypeName() + "Filters".
+     */
+    protected String getFiltersNBTKey() {
+        return getTypeName() + "Filters";
+    }
+
+    /**
+     * Get the NBT key for storage (e.g., "fluidStorage", "gasStorage", "itemStorage").
+     * Default: getTypeName() + "Storage".
+     */
+    protected String getStorageNBTKey() {
+        return getTypeName() + "Storage";
+    }
+
+    protected void writeFiltersToNBT(NBTTagCompound data, String name) {
+        NBTTagCompound filtersMap = new NBTTagCompound();
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            R filter = this.filters[i];
+            if (filter == null) continue;
+
+            NBTTagCompound filterTag = new NBTTagCompound();
+            writeResourceToNBT(filter, filterTag);
+            filtersMap.setTag("#" + i, filterTag);
+        }
+        data.setTag(name, filtersMap);
+    }
+
+    protected void readFiltersFromNBT(NBTTagCompound data, String name) {
+        if (!data.hasKey(name, Constants.NBT.TAG_COMPOUND)) return;
+
+        NBTTagCompound filtersMap = data.getCompoundTag(name);
+        for (String key : filtersMap.getKeySet()) {
+            if (!key.startsWith("#")) continue;
+
+            try {
+                int slot = Integer.parseInt(key.substring(1));
+                if (slot < 0 || slot >= FILTER_SLOTS) continue;
+
+                NBTTagCompound filterTag = filtersMap.getCompoundTag(key);
+                if (filterTag.isEmpty()) continue;
+
+                R filter = readResourceFromNBT(filterTag);
+                if (filter != null) this.filters[slot] = filter;
+            } catch (NumberFormatException e) {
+            }
+        }
+    }
+
+    /**
+     * Read logic state from NBT. Call from host's readFromNBT.
+     */
+    public void readFromNBT(NBTTagCompound data) {
+        readFiltersFromNBT(data, getFiltersNBTKey());
+        readStorageFromNBT(data);
+        this.upgradeInventory.readFromNBT(data, "upgrades");
+
+        this.maxSlotSize = data.getInteger("maxSlotSize");
+        this.pollingRate = data.getInteger("pollingRate");
+
+        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(this.maxSlotSize, MAX_MAX_SLOT_SIZE));
+        if (this.pollingRate < 0) this.pollingRate = 0;
+
+
+        this.refreshFilterMap();
+        this.refreshUpgrades();
+    }
+
+    /**
+     * Read storage data from NBT. Override in subclass for type-specific migration.
+     */
+    protected void readStorageFromNBT(NBTTagCompound data) {
+        String storageKey = getStorageNBTKey();
+        if (!data.hasKey(storageKey, Constants.NBT.TAG_COMPOUND)) return;
+
+        NBTTagCompound storageMap = data.getCompoundTag(storageKey);
+        for (String key : storageMap.getKeySet()) {
+            try {
+                int slot = Integer.parseInt(key);
+                if (slot >= 0 && slot < STORAGE_SLOTS) {
+                    this.storage[slot] = readResourceFromNBT(storageMap.getCompoundTag(key));
+                }
+            } catch (NumberFormatException e) {
+            }
+        }
+    }
+
+    /**
+     * Write logic state to NBT. Call from host's writeToNBT.
+     */
+    public void writeToNBT(NBTTagCompound data) {
+        writeFiltersToNBT(data, getFiltersNBTKey());
+        this.upgradeInventory.writeToNBT(data, "upgrades");
+        data.setInteger("maxSlotSize", this.maxSlotSize);
+        data.setInteger("pollingRate", this.pollingRate);
+
+        // Write storage - compound map format
+        NBTTagCompound storageMap = new NBTTagCompound();
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            if (this.storage[i] == null) continue;
+
+            NBTTagCompound slotTag = new NBTTagCompound();
+            writeResourceToNBT(this.storage[i], slotTag);
+            storageMap.setTag(String.valueOf(i), slotTag);
+        }
+        data.setTag(getStorageNBTKey(), storageMap);
+    }
+
+    // ============================== Stream serialization ==============================
+
+    /**
+     * Read storage data from a ByteBuf stream for client sync.
+     * @return true if any data changed
+     */
+    public boolean readStorageFromStream(ByteBuf data) {
+        boolean changed = false;
+
+        // Clear all storage first
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            if (this.storage[i] != null) {
+                this.storage[i] = null;
+                changed = true;
+            }
+        }
+
+        int count = data.readShort();
+        for (int idx = 0; idx < count; idx++) {
+            int slot = data.readShort();
+            int nameLen = data.readShort();
+            byte[] nameBytes = new byte[nameLen];
+            data.readBytes(nameBytes);
+            String resourceName = new String(nameBytes, StandardCharsets.UTF_8);
+            int amount = data.readInt();
+
+            if (slot < 0 || slot >= STORAGE_SLOTS) continue;
+
+            R resource = getResourceByName(resourceName, amount);
+            if (resource != null) {
+                this.storage[slot] = resource;
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
+    /**
+     * Write storage data to a ByteBuf stream for client sync.
+     */
+    public void writeStorageToStream(ByteBuf data) {
+        // Count non-empty storage slots first
+        int count = 0;
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            if (this.storage[i] != null && getAmount(this.storage[i]) > 0) count++;
+        }
+
+        data.writeShort(count);
+
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            R resource = this.storage[i];
+            if (resource == null || getAmount(resource) <= 0) continue;
+
+            data.writeShort(i);
+
+            byte[] nameBytes = getResourceName(resource).getBytes(StandardCharsets.UTF_8);
+            data.writeShort(nameBytes.length);
+            data.writeBytes(nameBytes);
+
+            data.writeInt(getAmount(resource));
+        }
+    }
+
+    /**
+     * Read filter data from a ByteBuf stream for client sync.
+     * @return true if any data changed
+     */
+    public boolean readFiltersFromStream(ByteBuf data) {
+        boolean changed = false;
+
+        // Clear all filters first
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            if (this.filters[i] != null) {
+                this.filters[i] = null;
+                changed = true;
+            }
+        }
+
+        int count = data.readShort();
+        for (int idx = 0; idx < count; idx++) {
+            int slot = data.readShort();
+            int nameLen = data.readShort();
+            byte[] nameBytes = new byte[nameLen];
+            data.readBytes(nameBytes);
+            String resourceName = new String(nameBytes, StandardCharsets.UTF_8);
+
+            if (slot < 0 || slot >= FILTER_SLOTS) continue;
+
+            R resource = getResourceByName(resourceName, 1);
+            if (resource != null) {
+                this.filters[slot] = resource;
+                changed = true;
+            }
+        }
+
+        this.refreshFilterMap();
+        return changed;
+    }
+
+    /**
+     * Write filter data to a ByteBuf stream for client sync.
+     */
+    public void writeFiltersToStream(ByteBuf data) {
+        // Count non-empty filters first
+        int count = 0;
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            if (this.filters[i] != null) count++;
+        }
+
+        data.writeShort(count);
+
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            R filter = this.filters[i];
+            if (filter == null) continue;
+
+            data.writeShort(i);
+
+            byte[] nameBytes = getResourceName(filter).getBytes(StandardCharsets.UTF_8);
+            data.writeShort(nameBytes.length);
+            data.writeBytes(nameBytes);
+        }
+    }
+
+    /**
+     * Download settings to NBT for memory cards.
+     */
+    public NBTTagCompound downloadSettings() {
+        NBTTagCompound output = new NBTTagCompound();
+
+        output.setInteger("maxSlotSize", this.maxSlotSize);
+        output.setInteger("pollingRate", this.pollingRate);
+
+        return output;
+    }
+
+    /**
+     * Download settings with filters for memory card + keybind.
+     */
+    public NBTTagCompound downloadSettingsWithFilter() {
+        NBTTagCompound output = downloadSettings();
+        writeFiltersToNBT(output, getFiltersNBTKey());
+
+        return output;
+    }
+
+    /**
+     * Download settings with filters AND upgrades for disassembly.
+     */
+    public NBTTagCompound downloadSettingsForDismantle() {
+        NBTTagCompound output = downloadSettingsWithFilter();
+        this.upgradeInventory.writeToNBT(output, "upgrades");
+
+        return output;
+    }
+
+    /**
+     * Upload settings from NBT (memory card or dismantle).
+     */
+    public void uploadSettings(NBTTagCompound compound, EntityPlayer player) {
+        if (compound == null) return;
+
+        if (compound.hasKey("maxSlotSize")) {
+            this.setMaxSlotSize(compound.getInteger("maxSlotSize"));
+        }
+        if (compound.hasKey("pollingRate")) {
+            this.setPollingRate(compound.getInteger("pollingRate"), player);
+        }
+
+        // Merge upgrades FIRST (capacity cards enable extra pages for filters)
+        if (compound.hasKey("upgrades")) {
+            mergeUpgradesFromNBT(compound, "upgrades");
+        }
+
+        // Merge filter inventory from memory card instead of replacing
+        if (compound.hasKey(getFiltersNBTKey())) {
+            mergeFiltersFromNBT(compound, getFiltersNBTKey(), player);
+        }
+    }
+
+    protected void mergeUpgradesFromNBT(NBTTagCompound data, String name) {
+        if (!data.hasKey(name)) return;
+
+        AppEngInternalInventory sourceUpgrades = new AppEngInternalInventory(null, UPGRADE_SLOTS, 1);
+        sourceUpgrades.readFromNBT(data, name);
+
+        for (int i = 0; i < sourceUpgrades.getSlots(); i++) {
+            ItemStack sourceUpgrade = sourceUpgrades.getStackInSlot(i);
+            if (sourceUpgrade.isEmpty()) continue;
+
+            int targetSlot = -1;
+            for (int j = 0; j < this.upgradeInventory.getSlots(); j++) {
+                if (this.upgradeInventory.getStackInSlot(j).isEmpty()) {
+                    targetSlot = j;
+                    break;
+                }
+            }
+
+            if (targetSlot >= 0) {
+                this.upgradeInventory.setStackInSlot(targetSlot, sourceUpgrade.copy());
+            }
+        }
+
+        this.refreshUpgrades();
+    }
+
+    protected void mergeFiltersFromNBT(NBTTagCompound data, String name, @Nullable EntityPlayer player) {
+        if (!data.hasKey(name)) return;
+
+        // Read source filters into temporary array
+        R[] sourceFilters = createFilterArray();
+        NBTTagCompound filtersMap = data.getCompoundTag(name);
+        for (String key : filtersMap.getKeySet()) {
+            if (!key.startsWith("#")) continue;
+
+            try {
+                int slot = Integer.parseInt(key.substring(1));
+                if (slot < 0 || slot >= FILTER_SLOTS) continue;
+
+                NBTTagCompound filterTag = filtersMap.getCompoundTag(key);
+                if (filterTag.isEmpty()) continue;
+
+                sourceFilters[slot] = readResourceFromNBT(filterTag);
+            } catch (NumberFormatException e) {
+            }
+        }
+
+        List<R> skippedFilters = new ArrayList<>();
+
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            R sourceFilter = sourceFilters[i];
+            if (sourceFilter == null) continue;
+
+            K sourceKey = createKey(sourceFilter);
+            if (sourceKey == null) continue;
+
+            // Skip if filter already exists in target
+            if (this.filterToSlotMap.containsKey(sourceKey)) continue;
+
+            // Find an empty slot
+            int targetSlot = findEmptyFilterSlot();
+            if (targetSlot < 0) {
+                skippedFilters.add(copy(sourceFilter));
+                continue;
+            }
+
+            // Add the filter
+            this.filters[targetSlot] = copy(sourceFilter);
+            this.filterToSlotMap.put(sourceKey, targetSlot);
+            this.slotToFilterMap.put(targetSlot, sourceKey);
+        }
+
+        this.refreshFilterMap();
+
+        // Notify player about skipped filters
+        if (player != null && !skippedFilters.isEmpty()) {
+            String filters = skippedFilters.stream()
+                .map(this::getLocalizedName)
+                .reduce((a, b) -> a + "\n- " + b)
+                .orElse("");
+            player.sendMessage(new TextComponentTranslation("message.cells.filters_not_added", skippedFilters.size(), filters));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    protected R[] createFilterArray() {
+        return (R[]) Array.newInstance(filters.getClass().getComponentType(), FILTER_SLOTS);
+    }
+
+    // ============================== Inventory change handling ==============================
+
+    /**
+     * Handle filter changes. Call from host or subclass.
+     */
+    public void onFilterChanged(int slot) {
+        if (this.host.isExport()) {
+            // Export: if filter changed, return orphaned resources in that slot
+            R stored = this.storage[slot];
+            if (stored != null && getAmount(stored) > 0) {
+                R filter = this.filters[slot];
+                boolean isOrphaned = filter == null || !resourcesMatch(filter, stored);
+
+                if (isOrphaned) returnSlotToNetwork(slot);
+            }
+        }
+
+        this.refreshFilterMap();
+        this.wakeUpIfAdaptive();
+        this.host.markDirtyAndSave();
+    }
+
+    /**
+     * Handle upgrade inventory changes. Call from host's onChangeInventory.
+     */
+    public void onUpgradeChanged() {
+        this.refreshUpgrades();
+        this.host.markDirtyAndSave();
+    }
+
+    // ============================== Tick handling ==============================
+
+    /**
+     * Create a TickingRequest based on current configuration.
+     */
+    public TickingRequest getTickingRequest() {
+        if (this.pollingRate > 0) {
+            return new TickingRequest(
+                this.pollingRate,
+                this.pollingRate,
+                false,
+                true
+            );
+        }
+
+        return new TickingRequest(
+            TickRates.Interface.getMin(),
+            TickRates.Interface.getMax(),
+            !hasWorkToDo(),
+            true
+        );
+    }
+
+    /**
+     * Handle a tick. Returns the appropriate rate modulation.
+     */
+    public TickRateModulation onTick() {
+        if (!this.host.getGridProxy().isActive()) return TickRateModulation.SLEEP;
+
+        boolean didWork = this.host.isExport() ? exportResources() : importResources();
+
+        if (this.pollingRate > 0) return TickRateModulation.SAME;
+        if (didWork) return TickRateModulation.FASTER;
+
+        return hasWorkToDo() ? TickRateModulation.SLOWER : TickRateModulation.SLEEP;
+    }
+
+    /**
+     * Check if there's work to do based on direction.
+     */
+    public boolean hasWorkToDo() {
+        if (this.host.isExport()) {
+            // Check if any configured slot needs resources
+            for (int i : this.filterSlotList) {
+                R current = this.storage[i];
+                int currentAmount = (current == null) ? 0 : getAmount(current);
+                if (currentAmount < this.maxSlotSize) return true;
+            }
+        } else {
+            // Check if any filtered slot has resources to import
+            for (int i : this.filterToSlotMap.values()) {
+                if (this.storage[i] != null && getAmount(this.storage[i]) > 0) return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Wake up the tick manager if using adaptive polling.
+     */
+    public void wakeUpIfAdaptive() {
+        if (this.pollingRate > 0) return;
+
+        try {
+            this.host.getGridProxy().getTick().alertDevice(this.host.getGridProxy().getNode());
+        } catch (GridAccessException e) {
+            // Not connected to grid
+        }
+    }
+
+    /**
+     * Import resources from internal storage into the ME network.
+     */
+    protected boolean importResources() {
+        boolean didWork = false;
+
+        try {
+            IStorageGrid storageGrid = this.host.getGridProxy().getStorage();
+            IMEInventory<AE> inventory = getMEInventory(storageGrid);
+
+            for (int i : this.filterToSlotMap.values()) {
+                R resource = this.storage[i];
+                if (resource == null || getAmount(resource) <= 0) continue;
+
+                AE aeStack = toAEStack(resource);
+                AE remaining = inventory.injectItems(aeStack, Actionable.MODULATE, this.host.getActionSource());
+
+                if (remaining == null) {
+                    this.storage[i] = null;
+                    didWork = true;
+                } else if (getAEStackSize(remaining) < getAmount(resource)) {
+                    setAmount(resource, (int) getAEStackSize(remaining));
+                    didWork = true;
+                }
+            }
+        } catch (GridAccessException e) {
+            // Not connected to grid
+        }
+
+        if (didWork) this.host.markForNetworkUpdate();
+
+        return didWork;
+    }
+
+    /**
+     * Export resources from the ME network into storage slots.
+     */
+    protected boolean exportResources() {
+        boolean didWork = false;
+
+        try {
+            IStorageGrid storageGrid = this.host.getGridProxy().getStorage();
+            IMEInventory<AE> inventory = getMEInventory(storageGrid);
+
+            // First, return any orphaned or overflow resources to the network
+            returnOrphanedToNetwork();
+            returnOverflowToNetwork();
+
+            for (int i : this.filterSlotList) {
+                R filter = this.filters[i];
+                if (filter == null) continue;
+
+                R current = this.storage[i];
+
+                // Skip slots where current resources don't match filter (orphaned)
+                if (current != null && getAmount(current) > 0) {
+                    if (!resourcesMatch(filter, current)) continue;
+                }
+
+                int currentAmount = (current == null) ? 0 : getAmount(current);
+                int space = this.maxSlotSize - currentAmount;
+                if (space <= 0) continue;
+
+                // Request resources from network
+                AE request = toAEStack(copyWithAmount(filter, space));
+                AE extracted = inventory.extractItems(request, Actionable.MODULATE, this.host.getActionSource());
+                if (extracted == null || getAEStackSize(extracted) <= 0) continue;
+
+                // Add to storage
+                int amount = (int) getAEStackSize(extracted);
+                if (current == null) {
+                    this.storage[i] = fromAEStack(extracted);
+                } else {
+                    setAmount(current, getAmount(current) + amount);
+                }
+
+                didWork = true;
+            }
+        } catch (GridAccessException e) {
+            // Not connected to grid
+        }
+
+        if (didWork) this.host.markForNetworkUpdate();
+
+        return didWork;
+    }
+
+    // ============================== Network operations ==============================
+
+    /**
+     * Insert resources into the ME network.
+     * @return Amount that could not be inserted
+     */
+    protected int insertIntoNetwork(R resource) {
+        if (resource == null || getAmount(resource) <= 0) return 0;
+
+        try {
+            IStorageGrid storage = this.host.getGridProxy().getStorage();
+            IMEInventory<AE> inventory = getMEInventory(storage);
+
+            AE aeStack = toAEStack(resource);
+            AE remaining = inventory.injectItems(aeStack, Actionable.MODULATE, this.host.getActionSource());
+
+            if (remaining == null) return 0;
+
+            return (int) getAEStackSize(remaining);
+        } catch (GridAccessException e) {
+            return getAmount(resource);
+        }
+    }
+
+    /**
+     * Return a slot's contents to the network.
+     */
+    protected void returnSlotToNetwork(int slot) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return;
+
+        R resource = this.storage[slot];
+        if (resource == null || getAmount(resource) <= 0) return;
+
+        int notInserted = insertIntoNetwork(resource);
+
+        if (notInserted <= 0) {
+            this.storage[slot] = null;
+        } else {
+            setAmount(resource, notInserted);
+        }
+
+        this.host.markForNetworkUpdate();
+    }
+
+    /**
+     * Return orphaned resources (no matching filter) to the network.
+     */
+    protected void returnOrphanedToNetwork() {
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            R stored = this.storage[i];
+            if (stored == null || getAmount(stored) <= 0) continue;
+
+            R filter = this.filters[i];
+            if (filter != null && resourcesMatch(filter, stored)) continue;
+
+            // Orphaned - return to network
+            returnSlotToNetwork(i);
+        }
+    }
+
+    /**
+     * Return overflow resources (above maxSlotSize) to the network.
+     */
+    protected void returnOverflowToNetwork() {
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            R stored = this.storage[i];
+            if (stored == null) continue;
+
+            int amount = getAmount(stored);
+            if (amount <= this.maxSlotSize) continue;
+
+            // Has overflow - return excess to network
+            int overflow = amount - this.maxSlotSize;
+            R overflowResource = copyWithAmount(stored, overflow);
+            int notInserted = insertIntoNetwork(overflowResource);
+
+            // Reduce slot by what was successfully returned
+            int returned = overflow - notInserted;
+            if (returned > 0) {
+                setAmount(stored, amount - returned);
+                this.host.markForNetworkUpdate();
+            }
+        }
+    }
+}

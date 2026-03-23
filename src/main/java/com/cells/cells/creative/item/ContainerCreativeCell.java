@@ -6,11 +6,13 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.ClickType;
 import net.minecraft.inventory.Slot;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 
-import appeng.container.AEBaseContainer;
 import appeng.container.slot.SlotFake;
+
+import com.cells.cells.creative.AbstractCreativeCellContainer;
 
 
 /**
@@ -19,41 +21,12 @@ import appeng.container.slot.SlotFake;
  * Provides a 9x7 grid of fake slots for setting filter items.
  * Only accessible in creative mode.
  */
-public class ContainerCreativeCell extends AEBaseContainer {
-
-    /** The hand holding the cell, used to lock the slot */
-    private final EnumHand hand;
-
-    /** Index of the held cell in the player's inventory (-1 for offhand) */
-    private final int lockedSlotIndex;
-
-    /** The cell ItemStack - cached reference to the held cell */
-    private final ItemStack cellStack;
-
-    /** The filter slot handler backed by cell NBT */
-    private final CreativeCellFilterHandler filterHandler;
-
-    /** Number of columns in the filter grid */
-    public static final int GRID_COLS = 9;
-
-    /** Number of rows in the filter grid */
-    public static final int GRID_ROWS = 7;
-
-    /** Total number of filter slots */
-    public static final int FILTER_SLOTS = GRID_COLS * GRID_ROWS;
-
-    /** X position where filter slots start */
-    public static final int FILTER_START_X = 8;
-
-    /** Y position where filter slots start */
-    public static final int FILTER_START_Y = 19;
+public class ContainerCreativeCell extends AbstractCreativeCellContainer<CreativeCellFilterHandler> {
 
     public ContainerCreativeCell(InventoryPlayer playerInv, EnumHand hand) {
-        super(playerInv, null, null);
-        this.hand = hand;
-        this.lockedSlotIndex = (hand == EnumHand.MAIN_HAND) ? playerInv.currentItem : -1;
-        this.cellStack = playerInv.player.getHeldItem(hand);
-        this.filterHandler = new CreativeCellFilterHandler(cellStack);
+        super(playerInv, hand, new CreativeCellFilterHandler(playerInv.player.getHeldItem(hand)));
+
+        // FIXME: could add a method to create a slot
 
         // Add 9x7 filter slots
         for (int row = 0; row < GRID_ROWS; row++) {
@@ -71,32 +44,16 @@ public class ContainerCreativeCell extends AEBaseContainer {
     }
 
     @Override
-    public boolean canInteractWith(EntityPlayer playerIn) {
-        // Must be in creative mode to interact
-        if (!playerIn.isCreative()) return false;
-
-        // Cell must still be in the player's hand
-        ItemStack held = playerIn.getHeldItem(hand);
-
-        return !held.isEmpty() && held.getItem() instanceof ItemCreativeCell;
+    protected Class<? extends Item> getCellItemClass() {
+        return ItemCreativeCell.class;
     }
 
     /**
-     * Prevent moving the held cell via hotbar swap, shift-click, etc.
      * Custom handling for filter slots to support ghost item setting.
      */
     @Override
     @Nonnull
     public ItemStack slotClick(int slotId, int dragType, ClickType clickTypeIn, @Nonnull EntityPlayer player) {
-        // Prevent interactions with the locked slot (the cell in hand) if the container is open
-        if (lockedSlotIndex >= 0 && slotId >= 0 && slotId < this.inventorySlots.size()) {
-            Slot slot = this.inventorySlots.get(slotId);
-            if (slot != null && slot.inventory instanceof InventoryPlayer) {
-                int playerSlot = slot.getSlotIndex();
-                if (playerSlot == lockedSlotIndex) return ItemStack.EMPTY;
-            }
-        }
-
         // Handle filter slot clicks (ghost items)
         if (slotId >= 0 && slotId < FILTER_SLOTS && clickTypeIn == ClickType.PICKUP) {
             return handleFilterSlotClick(slotId, player);
@@ -128,17 +85,29 @@ public class ContainerCreativeCell extends AEBaseContainer {
     }
 
     /**
-     * Clear all filter slots.
+     * Add an item filter at the first available slot (for quick-add).
+     * Returns true if successful.
      */
-    public void clearAllFilters() {
-        filterHandler.clearAll();
+    public boolean addToFilter(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+
+        // Check if already exists
+        if (filterHandler.isInFilter(stack)) return false;
+
+        // Find first empty slot
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            if (filterHandler.getStackInSlot(i).isEmpty()) {
+                filterHandler.setStackInSlot(i, stack);
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    /**
-     * Get the filter handler for external access.
-     */
-    public CreativeCellFilterHandler getFilterHandler() {
-        return filterHandler;
+    @Override
+    public void clearAllFilters() {
+        filterHandler.clearAll();
     }
 
     /**
@@ -157,14 +126,7 @@ public class ContainerCreativeCell extends AEBaseContainer {
         if (slotIndex < FILTER_SLOTS) return ItemStack.EMPTY;
 
         ItemStack clickedStack = slot.getStack();
-
-        // Find the first empty filter slot and set the ghost filter
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (filterHandler.getStackInSlot(i).isEmpty()) {
-                filterHandler.setStackInSlot(i, clickedStack);
-                break;
-            }
-        }
+        if (!clickedStack.isEmpty()) addToFilter(clickedStack);
 
         // Return empty so the actual item stays in place
         return ItemStack.EMPTY;

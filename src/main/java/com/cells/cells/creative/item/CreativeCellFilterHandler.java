@@ -1,18 +1,13 @@
 package com.cells.cells.creative.item;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import javax.annotation.Nonnull;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.nbt.NBTTagList;
-import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
-import appeng.util.Platform;
-
+import com.cells.cells.creative.AbstractCreativeCellFilterHandler;
+import com.cells.integration.jei.cellview.CellViewHelper;
 import com.cells.util.ItemStackKey;
 
 
@@ -21,95 +16,65 @@ import com.cells.util.ItemStackKey;
  * <p>
  * Stores 63 filter slots (9x7 grid) as ghost items in the cell's NBT.
  * Each slot holds a single-count copy of an item for filtering purposes.
+ * <p>
+ * Implements IItemHandlerModifiable for compatibility with AE2's config inventory API.
  */
-public class CreativeCellFilterHandler implements IItemHandlerModifiable {
-
-    /** Total number of filter slots (9x7 grid) */
-    public static final int SLOT_COUNT = 63;
+public class CreativeCellFilterHandler
+        extends AbstractCreativeCellFilterHandler<ItemStack, ItemStackKey>
+        implements IItemHandlerModifiable {
 
     private static final String NBT_KEY_FILTERS = "CreativeFilters";
 
-    private final ItemStack cellStack;
-
-    /** Cache of filter keys for quick matching */
-    private Set<ItemStackKey> cachedFilterKeys = new HashSet<>();
-
     public CreativeCellFilterHandler(@Nonnull ItemStack cellStack) {
-        this.cellStack = cellStack;
-        loadCacheFromNBT();
+        super(cellStack);
     }
 
     @Override
-    public int getSlots() {
-        return SLOT_COUNT;
+    protected String getNBTKey() {
+        return NBT_KEY_FILTERS;
+    }
+
+    @Override
+    protected ItemStack readStackFromNBT(@Nonnull NBTTagCompound nbt) {
+        return new ItemStack(nbt);
+    }
+
+    @Override
+    protected void writeStackToNBT(@Nonnull ItemStack stack, @Nonnull NBTTagCompound nbt) {
+        stack.writeToNBT(nbt);
+    }
+
+    @Override
+    protected ItemStackKey createKey(ItemStack stack) {
+        return stack == null || stack.isEmpty() ? null : ItemStackKey.of(stack);
+    }
+
+    @Override
+    @Nonnull
+    protected ItemStack createGhostCopy(@Nonnull ItemStack stack) {
+        ItemStack copy = stack.copy();
+        copy.setCount(1);
+        return copy;
+    }
+
+    @Override
+    protected boolean isStackEmpty(ItemStack stack) {
+        return stack == null || stack.isEmpty();
     }
 
     @Override
     @Nonnull
     public ItemStack getStackInSlot(int slot) {
-        if (slot < 0 || slot >= SLOT_COUNT) return ItemStack.EMPTY;
-
-        NBTTagCompound cellNBT = Platform.openNbtData(cellStack);
-        NBTTagList filters = cellNBT.getTagList(NBT_KEY_FILTERS, Constants.NBT.TAG_COMPOUND);
-
-        if (slot >= filters.tagCount()) return ItemStack.EMPTY;
-
-        NBTTagCompound slotNBT = filters.getCompoundTagAt(slot);
-        if (slotNBT.isEmpty()) return ItemStack.EMPTY;
-
-        return new ItemStack(slotNBT);
-    }
-
-    public void loadCacheFromNBT() {
-        cachedFilterKeys.clear();
-
-        NBTTagCompound cellNBT = Platform.openNbtData(cellStack);
-        NBTTagList filters = cellNBT.getTagList(NBT_KEY_FILTERS, Constants.NBT.TAG_COMPOUND);
-
-        for (int i = 0; i < filters.tagCount(); i++) {
-            NBTTagCompound slotNBT = filters.getCompoundTagAt(i);
-            if (!slotNBT.isEmpty()) {
-                ItemStack filterStack = new ItemStack(slotNBT);
-                cachedFilterKeys.add(ItemStackKey.of(filterStack));
-            }
-        }
+        ItemStack result = super.getStackInSlot(slot);
+        return result != null ? result : ItemStack.EMPTY;
     }
 
     @Override
     public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
-        if (slot < 0 || slot >= SLOT_COUNT) return;
+        // Reject invalid stacks (e.g., storage cells)
+        if (!stack.isEmpty() && !isItemValid(slot, stack)) return;
 
-        NBTTagCompound cellNBT = Platform.openNbtData(cellStack);
-        NBTTagList filters = cellNBT.getTagList(NBT_KEY_FILTERS, Constants.NBT.TAG_COMPOUND);
-
-        // Ensure the list has enough entries
-        while (filters.tagCount() <= slot) {
-            filters.appendTag(new NBTTagCompound());
-        }
-
-        // Store as single-count ghost item
-        if (stack.isEmpty()) {
-            filters.set(slot, new NBTTagCompound());
-        } else {
-            ItemStack ghost = stack.copy();
-            ghost.setCount(1);
-            NBTTagCompound slotNBT = new NBTTagCompound();
-            ghost.writeToNBT(slotNBT);
-            filters.set(slot, slotNBT);
-        }
-
-        cellNBT.setTag(NBT_KEY_FILTERS, filters);
-
-        // Update cache
-        loadCacheFromNBT();
-    }
-
-    public boolean isInFilter(@Nonnull ItemStackKey key) {
-        return cachedFilterKeys.contains(key);
-    }
-
-    public boolean isInFilter(@Nonnull ItemStack stack) {
-        return isInFilter(ItemStackKey.of(stack));
+        super.setStackInSlot(slot, stack);
     }
 
     @Override
@@ -137,22 +102,17 @@ public class CreativeCellFilterHandler implements IItemHandlerModifiable {
 
     @Override
     public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
+        // Reject storage cells - they shouldn't be used as filters
+        // Use CellViewHelper.isCell() for the most generic check possible
+        if (!stack.isEmpty() && CellViewHelper.isCell(stack)) return false;
+
         return true;
     }
 
     /**
-     * Get the count of non-empty filter slots.
+     * Check if an item stack is in the filter.
      */
-    public int getFilterCount() {
-        return cachedFilterKeys.size();
-    }
-
-    /**
-     * Clear all filter slots.
-     */
-    public void clearAll() {
-        NBTTagCompound cellNBT = Platform.openNbtData(cellStack);
-        cellNBT.setTag(NBT_KEY_FILTERS, new NBTTagList());
-        loadCacheFromNBT();
+    public boolean isInFilter(@Nonnull ItemStack stack) {
+        return isStackInFilter(stack);
     }
 }

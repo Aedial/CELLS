@@ -1,0 +1,7 @@
+{
+    "parent": "item/generated",
+    "textures": {
+        "layer0": "cells:items/recovery_container/ball",
+        "layer1": "cells:items/recovery_container/ball_overlay"
+    }
+}

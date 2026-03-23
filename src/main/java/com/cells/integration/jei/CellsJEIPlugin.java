@@ -63,6 +63,26 @@ public class CellsJEIPlugin implements IModPlugin {
     }
 
     /**
+     * Get the raw ingredient under the mouse cursor from JEI overlays.
+     * Returns the ingredient as-is (could be ItemStack, FluidStack, GasStack, etc.)
+     *
+     * @return The ingredient under the cursor, or null if none found
+     */
+    @Nullable
+    public static Object getIngredientUnderMouse() {
+        if (jeiRuntime == null) return null;
+
+        // Check ingredient list first
+        IIngredientListOverlay ingredientList = jeiRuntime.getIngredientListOverlay();
+        Object ingredient = ingredientList.getIngredientUnderMouse();
+        if (ingredient != null) return ingredient;
+
+        // Check bookmarks
+        IBookmarkOverlay bookmarks = jeiRuntime.getBookmarkOverlay();
+        return bookmarks.getIngredientUnderMouse();
+    }
+
+    /**
      * Get the ItemStack ingredient under the mouse cursor from JEI overlays.
      *
      * @return The ItemStack under the cursor, or EMPTY if none found

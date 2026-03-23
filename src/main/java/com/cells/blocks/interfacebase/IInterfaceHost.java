@@ -34,14 +34,28 @@ public interface IInterfaceHost {
     boolean isExport();
 
     /**
+     * @return direction string for GUI titles and lang keys ("import" or "export").
+     */
+    default String getDirectionString() {
+        return isExport() ? "export" : "import";
+    }
+
+    /**
+     * @return the title key for the main GUI.
+     */
+    default String getGuiTitleLangKey() {
+        return String.format("cells.%s_interface.%s.title", this.getDirectionString(), this.getTypeName());
+    }
+
+    /**
      * @return the GUI ID of the main interface GUI, used by sub-GUIs to navigate back.
      */
     int getMainGuiId();
 
     /**
-     * @return the lang key for the main GUI title, used by sub-GUIs for the back button tooltip.
+     * @return the type name for any type-specific display (e.g. "Item", "Fluid", "Gas"), used in sub-GUIs and tooltips.
      */
-    String getGuiTitleLangKey();
+    String getTypeName();
 
     /**
      * @return the position of this host in the world.

@@ -9,11 +9,7 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
 
-import com.cells.items.ItemCompressionTierCard;
-import com.cells.items.ItemDecompressionTierCard;
-import com.cells.items.ItemEqualDistributionCard;
-import com.cells.items.ItemOreDictCard;
-import com.cells.items.ItemOverflowCard;
+import com.cells.ItemRegistry;
 
 
 /**
@@ -42,7 +38,7 @@ public final class CellUpgradeHelper {
             ItemStack stack = upgrades.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            if (stack.getItem() instanceof ItemOverflowCard) return true;
+            if (stack.getItem() == ItemRegistry.OVERFLOW_CARD) return true;
         }
 
         return false;
@@ -65,8 +61,8 @@ public final class CellUpgradeHelper {
             ItemStack stack = upgrades.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            if (stack.getItem() instanceof ItemEqualDistributionCard) {
-                return ItemEqualDistributionCard.getTierValue(stack);
+            if (stack.getItem() == ItemRegistry.EQUAL_DISTRIBUTION_CARD) {
+                return ItemRegistry.EQUAL_DISTRIBUTION_CARD.getTierValue(stack);
             }
         }
 
@@ -89,8 +85,8 @@ public final class CellUpgradeHelper {
             ItemStack stack = upgrades.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            if (stack.getItem() instanceof ItemCompressionTierCard) {
-                return ItemCompressionTierCard.getTierValue(stack);
+            if (stack.getItem() == ItemRegistry.COMPRESSION_TIER_CARD) {
+                return ItemRegistry.COMPRESSION_TIER_CARD.getTierValue(stack);
             }
         }
 
@@ -113,8 +109,8 @@ public final class CellUpgradeHelper {
             ItemStack stack = upgrades.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            if (stack.getItem() instanceof ItemDecompressionTierCard) {
-                return ItemDecompressionTierCard.getTierValue(stack);
+            if (stack.getItem() == ItemRegistry.DECOMPRESSION_TIER_CARD) {
+                return ItemRegistry.DECOMPRESSION_TIER_CARD.getTierValue(stack);
             }
         }
 
@@ -148,7 +144,7 @@ public final class CellUpgradeHelper {
             ItemStack stack = upgrades.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            if (stack.getItem() instanceof ItemOreDictCard) return true;
+            if (stack.getItem() == ItemRegistry.OREDICT_CARD) return true;
         }
 
         return false;
@@ -173,12 +169,12 @@ public final class CellUpgradeHelper {
             ItemStack stack = upgrades.getStackInSlot(i);
             if (stack.isEmpty()) continue;
 
-            if (stack.getItem() instanceof ItemOverflowCard) {
+            if (stack.getItem() == ItemRegistry.OVERFLOW_CARD) {
                 tooltip.add("§c" + I18n.format("tooltip.cells.upgrade.overflow_active"));
             }
 
-            if (stack.getItem() instanceof ItemEqualDistributionCard) {
-                int limit = ItemEqualDistributionCard.getTierValue(stack);
+            if (stack.getItem() == ItemRegistry.EQUAL_DISTRIBUTION_CARD) {
+                int limit = ItemRegistry.EQUAL_DISTRIBUTION_CARD.getTierValue(stack);
 
                 if (limit == Integer.MAX_VALUE) {
                     tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active.infinite"));
@@ -187,17 +183,17 @@ public final class CellUpgradeHelper {
                 }
             }
 
-            if (stack.getItem() instanceof ItemCompressionTierCard) {
-                int tiers = ItemCompressionTierCard.getTierValue(stack);
+            if (stack.getItem() == ItemRegistry.COMPRESSION_TIER_CARD) {
+                int tiers = ItemRegistry.COMPRESSION_TIER_CARD.getTierValue(stack);
                 tooltip.add("§a" + I18n.format("tooltip.cells.upgrade.compression_tier_active", tiers));
             }
 
-            if (stack.getItem() instanceof ItemDecompressionTierCard) {
-                int tiers = ItemDecompressionTierCard.getTierValue(stack);
+            if (stack.getItem() == ItemRegistry.DECOMPRESSION_TIER_CARD) {
+                int tiers = ItemRegistry.DECOMPRESSION_TIER_CARD.getTierValue(stack);
                 tooltip.add("§e" + I18n.format("tooltip.cells.upgrade.decompression_tier_active", tiers));
             }
 
-            if (stack.getItem() instanceof ItemOreDictCard) {
+            if (stack.getItem() == ItemRegistry.OREDICT_CARD) {
                 tooltip.add("§d" + I18n.format("tooltip.cells.upgrade.oredict_active"));
             }
         }

@@ -6,15 +6,68 @@ tooltip.cells.card.compatible=Compatible with: %s
 tooltip.cells.type.compact=ME Compacting Cell
 tooltip.cells.type.hyperdensity=Hyper-Density ME Storage Cell
 tooltip.cells.type.hyperdensity_compact=Hyper-Density ME Compacting Cell
-tooltip.cells.type.import_interface=Import Interface
+tooltip.cells.type.import_interface=Import Interface (all types)
 tooltip.cells.nbt_size=NBT Size: %s
 tooltip.cells.nbt_size.warning=§c⚠ NBT size exceeds safe limit! This may cause lag or crashes. Move some NBT-heavy content to another chunk and network to avoid corruption.§r
 tooltip.cells.previous_page=Previous page
 tooltip.cells.next_page=Next page
 tooltip.cells.jei_view_contents=§7Press [§b%s§7] to view contents§r
+tooltip.cells.amount=%d/%d %s
+
+# Resource types and units (used in %s placeholders throughout)
+cells.type.item=Item
+cells.type.fluid=Fluid
+cells.type.gas=Gas
+cells.type.essentia=Essentia
+cells.type.unknown=???
+
+cells.unit.item=items
+cells.unit.fluid=mB
+cells.unit.gas=mB gas
+cells.unit.essentia=essentia
+cells.unit.unknown=units
+
+cells.unit_name.item=item
+cells.unit_name.fluid=fluid
+cells.unit_name.gas=gas
+cells.unit_name.essentia=essentia
+cells.unit_name.unknown=unit
+
+cells.unit_names.item=items
+cells.unit_names.fluid=fluids
+cells.unit_names.gas=gases
+cells.unit_names.essentia=essentia
+cells.unit_names.unknown=units
+
+# GUI titles and labels
+cells.max_slot_size.title=Max Slot Size
+cells.slot_size=Slot Size: §b%d§r %s
+cells.max_slot_size.tooltip=Maximum %s to keep in the slots.
+cells.polling_rate.title=Polling Rate
+cells.polling_rate.adaptive=Polling Rate: Adaptive
+cells.clear_filters=Clear Filters
+
+# Polling rate - direction-specific
+tooltip.cells.polling_rate.import=Fixed interval for importing (0 = adaptive, nonzero = ticks)
+tooltip.cells.polling_rate.export=Interval for exporting (0 = adaptive, nonzero = ticks)
+cells.polling_rate.custom.import=Polling Rate: §rimport every §b%s§r
+cells.polling_rate.custom.export=Polling Rate: §rexport every §b%s§r
+
+# Clear filters - direction-specific (different behavior)
+tooltip.cells.clear_filters.import=Clear all filter slots. Filters with content will be skipped.
+tooltip.cells.clear_filters.export=Clear all filters and send stored content back to the network.
+tooltip.cells.clear_filters.all=Clear all filter slots
 
 # Messages
 message.cells.disassemble_fail_content=Cannot disassemble cell with content! Empty the cell first.
+message.cells.memory_card.filters_saved=Settings and filters saved to memory card.
+message.cells.filter_duplicate=This filter already exists in another slot.
+message.cells.not_valid_content=This item does not contain a valid %s.
+message.cells.filters_not_added=%d filter(s) could not be added (no empty slots):\n- %s
+message.cells.storage_not_empty=Cannot change filter while the storage slot is not empty.
+message.cells.no_filter_space=No free filter slots available.
+message.cells.creative_cell.not_valid_content=Not a valid %s!
+message.cells.polling_rate_delayed=§ePolling rate saved but will take effect after next grid connection.§r
 
 # Config (GUI)
 cells.config.category.general=General
@@ -25,6 +78,15 @@ cells.config.hdItemMaxTypes=HD Item Cells Max Types
 cells.config.hdFluidMaxTypes=HD Fluid Cells Max Types
 cells.config.hdItemMaxTypes.tooltip=Maximum item types for hyper-density item storage cells (1-16384). CAUTION: Setting this too high can result in NBT size issues and potential crashloops.
 cells.config.hdFluidMaxTypes.tooltip=Maximum item types for hyper-density fluid storage cells (1-16384). CAUTION: Setting this too high can result in NBT size issues and potential crashloops.
+cells.config.configurableCellItemMaxTypes=Configurable Item Cells Max Types
+cells.config.configurableCellItemMaxTypes.tooltip=Maximum types for configurable item storage cells (1-16384)
+cells.config.configurableCellFluidMaxTypes=Configurable Fluid Cells Max Types
+cells.config.configurableCellFluidMaxTypes.tooltip=Maximum types for configurable fluid storage cells (1-16384)
+cells.config.configurableCellEssentiaMaxTypes=Configurable Essentia Cells Max Types
+cells.config.configurableCellEssentiaMaxTypes.tooltip=Maximum types for configurable essentia storage cells (1-16384)
+cells.config.configurableCellGasMaxTypes=Configurable Gas Cells Max Types
+cells.config.configurableCellGasMaxTypes.tooltip=Maximum types for configurable gas storage cells (1-16384)
+
 cells.config.nbtSizeWarningThresholdKB=NBT Size Warning Threshold (KB)
 cells.config.nbtSizeWarningThresholdKB.tooltip=Warning threshold for NBT size in kilobytes (1-10000). Cells with NBT size exceeding this value will show a warning tooltip.
 cells.config.enableNbtSizeTooltip=Enable NBT Size Tooltip
@@ -38,6 +100,8 @@ cells.config.compactingIdleDrain.tooltip=Idle drain for compacting cells (passiv
 cells.config.hdIdleDrain.tooltip=Idle drain for hyper-density cells (passive AE/t consumption)
 cells.config.hdCompactingIdleDrain.tooltip=Idle drain for hyper-density compacting cells (passive AE/t consumption)
 cells.config.fluidHdIdleDrain.tooltip=Idle drain for fluid hyper-density cells (passive AE/t consumption)
+cells.config.configurableCellIdleDrain=Configurable Cells Idle drain
+cells.config.configurableCellIdleDrain.tooltip=Idle drain for configurable cells (passive AE/t consumption)
 
 cells.config.compactingCellUpgradeSlots=Compacting Cells Upgrade Slots
 cells.config.compactingCellUpgradeSlots.tooltip=Number of upgrade slots for compacting cells (1-16)
@@ -58,6 +122,8 @@ cells.config.enableCompactingCells.tooltip=Enable Compacting storage cells
 cells.config.enableHDCells.tooltip=Enable Hyper-Density Item storage cells
 cells.config.enableHDCompactingCells.tooltip=Enable Hyper-Density Compacting storage cells
 cells.config.enableFluidHDCells.tooltip=Enable Hyper-Density Fluid storage cells
+cells.config.enableConfigurableCells=Enable Configurable Cell
+cells.config.enableConfigurableCells.tooltip=Enable Configurable storage cells
 
 # Compacting Cells
 item.cells.compacting_cell.1k.name=1k ME Compacting Cell
@@ -235,58 +301,28 @@ item.cells.configurable_cell.name_configured=Configurable ME Storage Cell (%s)
 tooltip.cells.configurable_cell.no_component=No component installed! Insert a ME Storage Component to define capacity.
 tooltip.cells.configurable_cell.info=Accepts any ME Storage Component to define capacity and type. Comes with built-in Equal Distribution.
 tooltip.cells.component.configurable_compatible=§bCompatible with Configurable Cell§r
-tooltip.cells.configurable_cell.capacity_per_type.item=Per-type limit: %s items
-tooltip.cells.configurable_cell.capacity_per_type.fluid=Per-type limit: %s mB
-tooltip.cells.configurable_cell.capacity_per_type.essentia=Per-type limit: %s essentia
-tooltip.cells.configurable_cell.capacity_per_type.gas=Per-type limit: %s mB gas
+tooltip.cells.configurable_cell.capacity_per_type=Per-type limit: %s %s
 
 # Configurable Cell GUI
-gui.cells.configurable_cell.capacity_title.none=Per-type capacity:
-gui.cells.configurable_cell.capacity_title.item=Per-type capacity (items):
-gui.cells.configurable_cell.capacity_title.fluid=Per-type capacity (mB):
-gui.cells.configurable_cell.capacity_title.essentia=Per-type capacity (essentia):
-gui.cells.configurable_cell.capacity_title.gas=Per-type capacity (mB gas):
-gui.cells.configurable_cell.no_component=Unknown
-gui.cells.configurable_cell.types_title=Types:
+cells.configurable_cell.capacity_title=Per-type capacity:
+cells.configurable_cell.capacity_title.with_type=Per-type capacity (%s):
+cells.configurable_cell.no_component=Unknown
+cells.configurable_cell.types_title=Types:
 
 # Creative ME Cell
-item.cells.creative_cell.name=Creative ME Storage Cell
-tooltip.cells.creative_cell.info=Infinite item source. Exposes set items in massive quantities.
-tooltip.cells.creative_cell.exposes=Exposes %s of each item (%d items)
-tooltip.cells.creative_cell.creative_hint=Right-click to configure filters
+item.cells.creative_cell.item.name=Creative ME Storage Cell
+item.cells.creative_cell.fluid.name=Creative ME Fluid Storage Cell
+item.cells.creative_cell.gas.name=Creative ME Gas Storage Cell
+item.cells.creative_cell.essentia.name=Creative ME Essentia Storage Cell
+cells.creative_cell.item.title=Creative Cell Filters
+cells.creative_cell.fluid.title=Creative Fluid Cell Filters
+cells.creative_cell.gas.title=Creative Gas Cell Filters
+cells.creative_cell.essentia.title=Creative Essentia Cell Filters
+
+tooltip.cells.creative_cell.info=Infinite %s source. Exposes set %s in massive quantities.
+tooltip.cells.creative_cell.exposes=Exposes %s %s of each filter (%d filters)
+tooltip.cells.creative_cell.creative_hint=Shift + Right-click to configure filters
 tooltip.cells.creative_cell.survival_hint=Creative mode required to configure
-gui.cells.creative_cell.title=Creative Cell Filters
-gui.cells.creative_cell.clear=Clear Filters
-gui.cells.creative_cell.clear_tooltip=Clear all filter slots
-message.cells.creative_cell.filter_duplicate=This item is already in the filter list!
-message.cells.creative_cell.no_filter_space=No empty filter slots available!
-
-# Creative ME Fluid Cell
-item.cells.creative_fluid_cell.name=Creative ME Fluid Storage Cell
-tooltip.cells.creative_fluid_cell.info=Infinite fluid source. Exposes set fluids in massive quantities.
-tooltip.cells.creative_fluid_cell.exposes=Exposes %s mB of each fluid (%d fluids)
-tooltip.cells.creative_fluid_cell.creative_hint=Right-click to configure filters
-tooltip.cells.creative_fluid_cell.survival_hint=Creative mode required to configure
-gui.cells.creative_fluid_cell.title=Creative Fluid Cell Filters
-gui.cells.creative_fluid_cell.clear=Clear Filters
-gui.cells.creative_fluid_cell.clear_tooltip=Clear all filter slots
-message.cells.creative_fluid_cell.not_fluid_container=Not a valid fluid!
-message.cells.creative_fluid_cell.filter_duplicate=This fluid is already in the filter list!
-message.cells.creative_fluid_cell.no_filter_space=No empty filter slots available!
-
-# Configurable Cell Config
-cells.config.configurableCellIdleDrain=Configurable Cells Idle drain
-cells.config.configurableCellIdleDrain.tooltip=Idle drain for configurable cells (passive AE/t consumption)
-cells.config.enableConfigurableCells=Enable Configurable Cell
-cells.config.enableConfigurableCells.tooltip=Enable Configurable storage cells
-cells.config.configurableCellItemMaxTypes=Configurable Item Cells Max Types
-cells.config.configurableCellItemMaxTypes.tooltip=Maximum types for configurable item storage cells (1-16384)
-cells.config.configurableCellFluidMaxTypes=Configurable Fluid Cells Max Types
-cells.config.configurableCellFluidMaxTypes.tooltip=Maximum types for configurable fluid storage cells (1-16384)
-cells.config.configurableCellEssentiaMaxTypes=Configurable Essentia Cells Max Types
-cells.config.configurableCellEssentiaMaxTypes.tooltip=Maximum types for configurable essentia storage cells (1-16384)
-cells.config.configurableCellGasMaxTypes=Configurable Gas Cells Max Types
-cells.config.configurableCellGasMaxTypes.tooltip=Maximum types for configurable gas storage cells (1-16384)
 
 # Compressed Calculation Prints
 item.cells.compressed_calculation_print.compressed.name=Compressed Calculation Processor Print
@@ -322,99 +358,59 @@ item.cells.singularity_processor.calculation.name=Singularity Calculation Proces
 item.cells.singularity_processor.engineering.name=Singularity Engineering Processor
 item.cells.singularity_processor.logic.name=Singularity Logic Processor
 
-# Import Interface
+# Interface names
 tile.cells.import_interface.name=Import Interface
-item.cells.part.import_interface.name=Import Interface
-gui.cells.import_interface.title=Import Interface
-gui.cells.import_interface.max_slot_size=Max Slot Size
-gui.cells.import_interface.max_slot_size.tooltip=Maximum number of items (or mB) to keep in the slots.
-gui.cells.import_interface.max_slot_size.items.tooltip=Slot Size: §b%d§r items
-gui.cells.import_interface.max_slot_size.fluids.tooltip=Slot Size: §b%d§r mB
-gui.cells.polling_rate.title=Polling Rate
-gui.cells.import_interface.polling_rate=Polling Rate
-gui.cells.import_interface.polling_rate.tooltip=Fixed interval for importing items (0 = AE2's default, nonzero = interval in ticks)
-gui.cells.import_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
-gui.cells.import_interface.polling_rate.custom.tooltip=Polling Rate: §rimport every §b%s§r
-gui.cells.import_interface.clear_filters=Clear Filters
-gui.cells.import_interface.clear_filters.tooltip=Clear all filter slots. Filters with items/fluids will be skipped.
-tooltip.cells.import_interface.info=Import items into the ME network through filtered slots. Does not support stocking or crafting.
-message.cells.memory_card.filters_saved=Settings and filters saved to memory card.
+tile.cells.import_interface.fluid.name=Fluid Import Interface
+tile.cells.import_interface.gas.name=Gas Import Interface
+tile.cells.export_interface.name=Export Interface
+tile.cells.export_interface.fluid.name=Fluid Export Interface
+tile.cells.export_interface.gas.name=Gas Export Interface
 
-# Import Interface warnings
-message.cells.import_interface.storage_not_empty=Cannot change filter while the storage slot is not empty.
-message.cells.import_interface.filter_duplicate=This filter already exists in another slot.
-message.cells.import_interface.filters_not_added=%d filter(s) could not be added (no empty slots):\n- %s
+item.cells.part.import_interface.name=Import Interface
+item.cells.part.import_fluid_interface.name=Fluid Import Interface
+item.cells.part.import_gas_interface.name=Gas Import Interface
+item.cells.part.export_interface.name=Export Interface
+item.cells.part.export_fluid_interface.name=Fluid Export Interface
+item.cells.part.export_gas_interface.name=Gas Export Interface
+
+# Interface GUI titles (format: cells.{direction}_interface.{type}.title)
+cells.import_interface.item.title=Import Interface
+cells.import_interface.fluid.title=Fluid Import Interface
+cells.import_interface.gas.title=Gas Import Interface
+cells.export_interface.item.title=Export Interface
+cells.export_interface.fluid.title=Fluid Export Interface
+cells.export_interface.gas.title=Gas Export Interface
+
+# Info tooltips for block items
+## Item interfaces (hardcoded in BlockImportInterface/BlockExportInterface)
+tooltip.cells.import_interface.info=Import items into the ME network through filtered slots. Does not support stocking or crafting.
+tooltip.cells.export_interface.info=Export items from the ME network through filtered slots. Items can be extracted by pipes and hoppers.
+
+## Fluid/Gas/Essentia interfaces (from AbstractResourceInterfaceBlock using translationKey.info pattern)
+tooltip.cells.import_interface.fluid.info=Import fluids into the ME network through filtered slots.
+tooltip.cells.export_interface.fluid.info=Export fluids from the ME network through filtered slots. Fluids can be extracted by pipes.
+tooltip.cells.import_interface.gas.info=Import gas into the ME network.
+tooltip.cells.export_interface.gas.info=Export gas from the ME network through filtered slots. Gas can be extracted by pipes.
+tooltip.cells.import_interface.essentia.info=Import essentia into the ME network.
+tooltip.cells.export_interface.essentia.info=Export essentia from the ME network through filtered slots. Essentia can be extracted by tubes.
 
 # Configurable Cell warnings
-message.cells.configurable_cell.split_stack=Split the cell stack first, before inserting a component.
-message.cells.configurable_cell.types_min=Types limit must be at least 1.
-message.cells.configurable_cell.types_over_config=Types limit cannot exceed config maximum.
-message.cells.configurable_cell.types_below_stored=Types limit cannot be less than currently stored types.
-message.cells.configurable_cell.types_capacity_exceeded=Types limit would exceed per-type capacity for stored content.
+cells.configurable_cell.split_stack=Split the cell stack first, before inserting a component.
+cells.configurable_cell.types_min=Types limit must be at least 1.
+cells.configurable_cell.types_over_config=Types limit cannot exceed config maximum.
+cells.configurable_cell.types_below_stored=Types limit cannot be less than currently stored types.
+cells.configurable_cell.types_capacity_exceeded=Types limit would exceed per-type capacity for stored content.
 
-# Fluid Import Interface
-tile.cells.import_fluid_interface.name=Fluid Import Interface
-item.cells.part.import_fluid_interface.name=Fluid Import Interface
-gui.cells.import_fluid_interface.title=Fluid Import Interface
-tooltip.cells.import_fluid_interface.info=Import fluids into the ME network through filtered slots. Does not support stocking or crafting.
-tooltip.cells.type.import_fluid_interface=Fluid Import Interface
-tooltip.cells.fluid_import_interface.amount=%d/%d mB
-
-# Fluid Import Interface warnings
-message.cells.import_fluid_interface.filter_duplicate=This fluid filter already exists in another slot.
-message.cells.import_fluid_interface.not_fluid_container=This item does not contain a fluid.
-message.cells.import_fluid_interface.filters_not_added=%d fluid filter(s) could not be added (no empty slots):\n- %s
-
-# Import Interface no space error
-message.cells.import_interface.no_filter_space=No free filter slots available.
-
-# Export Interface
-tile.cells.export_interface.name=Export Interface
-item.cells.part.export_interface.name=Export Interface
-gui.cells.export_interface.title=Export Interface
-gui.cells.export_interface.max_slot_size=Max Slot Size
-gui.cells.export_interface.max_slot_size.tooltip=Maximum number of items to keep in the slots.
-gui.cells.export_interface.max_slot_size.items.tooltip=Slot Size: §b%d§r items
-gui.cells.export_interface.max_slot_size.fluids.tooltip=Slot Size: §b%d§r mB
-gui.cells.export_interface.polling_rate=Polling Rate
-gui.cells.export_interface.polling_rate.tooltip=Interval for exporting items (0 = AE2's default, nonzero = interval in ticks)
-gui.cells.export_interface.polling_rate.adaptive.tooltip=Polling Rate: Adaptive
-gui.cells.export_interface.polling_rate.custom.tooltip=Polling Rate: §rexport every §b%s§r
-gui.cells.export_interface.clear_filters=Clear Filters
-gui.cells.export_interface.clear_filters.tooltip=Clear all filters and send stored items/fluids back to the network.
-tooltip.cells.export_interface.info=Export items from the ME network through filtered slots. Items can be extracted by pipes and hoppers.
-tooltip.cells.type.export_interface=Export Interface
-
-# Export Interface warnings
-message.cells.export_interface.filter_duplicate=This filter already exists in another slot.
-message.cells.export_interface.filters_not_added=%d filter(s) could not be added (no empty slots):\n- %s
-
-# Fluid Export Interface
-tile.cells.export_fluid_interface.name=Fluid Export Interface
-item.cells.part.export_fluid_interface.name=Fluid Export Interface
-gui.cells.export_fluid_interface.title=Fluid Export Interface
-tooltip.cells.export_fluid_interface.info=Export fluids from the ME network through filtered slots. Fluids can be extracted by pipes.
-tooltip.cells.type.export_fluid_interface=Fluid Export Interface
-tooltip.cells.export_fluid_interface.amount=%d/%d mB
-
-# Fluid Export Interface warnings
-message.cells.export_fluid_interface.filter_duplicate=This fluid filter already exists in another slot.
-message.cells.export_fluid_interface.not_fluid_container=This item does not contain a fluid.
-message.cells.export_fluid_interface.filters_not_added=%d fluid filter(s) could not be added (no empty slots):\n- %s
-
-# Import Interface Controls Help
-gui.cells.controls.use_settings=For best performance, set the §bSlot Size§r and §bPolling Rate§r to a high enough value.
-gui.cells.controls.use_cards=The §6Overflow Voiding Card§r and §6Trash Unselected Card§r should be prefered to other solutions like Trash Cans.
-gui.cells.controls.capacity_cards=Use §6Capacity Cards§r to add more filter pages.
-gui.cells.controls.memory_card_sneak=Sneak + right-click: Save settings.
-gui.cells.controls.memory_card_filter=Sneak + §b%s§r + right-click: Save with filters.
-gui.cells.controls.disassemble=Disassembling (with a wrench) will remember settings with filters.
-gui.cells.controls.key_not_set=(unset)
-gui.cells.controls.quick_add=§b%s§r: Add hovered item to first free filter slot.
-gui.cells.controls.jei_drag=Drag from JEI to add filter.
-
-# Chat messages
-chat.cells.polling_rate_delayed=§ePolling rate saved but will take effect after next grid connection.§r
+# Interface Controls Help
+cells.controls.use_settings=For best performance, set the §bSlot Size§r and §bPolling Rate§r to a high enough value.
+cells.controls.use_cards=The §6Overflow Voiding Card§r and §6Trash Unselected Card§r should be prefered to other solutions like Trash Cans.
+cells.controls.capacity_cards=Use §6Capacity Cards§r to add more filter pages.
+cells.controls.memory_card_sneak=Sneak + right-click: Save settings.
+cells.controls.memory_card_filter=Sneak + §b%s§r + right-click: Save with filters.
+cells.controls.disassemble=Disassembling (with a wrench) will remember settings with filters.
+cells.controls.key_not_set=(unset)
+cells.controls.quick_add=§b%s§r: Add hovered item to first free filter slot.
+cells.controls.jei_drag=Drag from JEI to add filter.
 
 # Keybinds
 key.cells.category=C.E.L.L.S
@@ -426,19 +422,12 @@ jei.cells.cellview.title=Cell Contents
 jei.cells.cellview.size=Size:
 jei.cells.cellview.types=Types:
 jei.cells.cellview.per_type=per type
-jei.cells.cellview.nbt_size=NBT Size:
 jei.cells.cellview.no_data=No cell data available
 jei.cells.cellview.not_partitioned=Not Partitioned
 jei.cells.cellview.chain_pending=Awaiting First Insert
 jei.cells.cellview.compression_tiers=(%s up, %s down)
 jei.cells.cellview.tier=tier
 jei.cells.cellview.tiers=tiers
-
-# JEI Cell View - Units
-jei.cells.cellview.unit.items=items
-jei.cells.cellview.unit.fluid=mB
-jei.cells.cellview.unit.essentia=essentia
-jei.cells.cellview.unit.gas=mB gas
 
 # JEI Cell View - Item Tooltips
 jei.cells.cellview.tooltip.stored_units=Stored: %s %s
@@ -471,3 +460,12 @@ jei.cells.cellview.tooltip.oredict_enabled=Ore Dictionary: accepts equivalent it
 
 # JEI Cell View - NBT Tooltip
 jei.cells.cellview.tooltip.nbt_info=High NBT size can cause crashes or corruption.
+
+# Recovery container (fluid/gas/essentia recovery item)
+item.cells.recovery_container.name=%s Orb (%s)
+item.cells.recovery_container.name.empty=Empty Orb
+tooltip.cells.recovery_container.type=Type: %s
+tooltip.cells.recovery_container.amount=Amount: %d %s
+tooltip.cells.recovery_container.usage=Right-click on a container to transfer
+cells.recovery_container.transferred=Transferred %d %s
+cells.recovery_container.no_transfer=Target cannot accept %s

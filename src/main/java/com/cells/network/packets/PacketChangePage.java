@@ -8,8 +8,8 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.cells.blocks.interfacebase.ContainerItemInterface;
-import com.cells.blocks.interfacebase.ContainerFluidInterface;
+import com.cells.blocks.interfacebase.item.ContainerItemInterface;
+import com.cells.blocks.interfacebase.fluid.ContainerFluidInterface;
 
 
 /**

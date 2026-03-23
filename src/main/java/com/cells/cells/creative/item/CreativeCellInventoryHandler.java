@@ -14,7 +14,7 @@ import appeng.me.storage.MEInventoryHandler;
  * Wraps the CreativeCellInventory and provides the ICellInventoryHandler interface.
  * No partition filtering is needed since the inventory handles its own filter list.
  * <p>
- * Access is restricted to READ (extraction only).
+ * Access is READ_WRITE: provides infinite items for extraction, voids matching inserts.
  */
 public class CreativeCellInventoryHandler extends MEInventoryHandler<IAEItemStack>
     implements ICellInventoryHandler<IAEItemStack> {
@@ -25,8 +25,8 @@ public class CreativeCellInventoryHandler extends MEInventoryHandler<IAEItemStac
         super(inventory, inventory.getChannel());
         this.inventory = inventory;
 
-        // Creative cells are extract-only
-        this.setBaseAccess(AccessRestriction.READ);
+        // Creative cells provide infinite items and void matching inserts
+        this.setBaseAccess(AccessRestriction.READ_WRITE);
     }
 
     @Override
@@ -37,7 +37,7 @@ public class CreativeCellInventoryHandler extends MEInventoryHandler<IAEItemStac
     @Override
     public boolean isPreformatted() {
         // Creative cells are always "preformatted" since they only provide partitioned items
-        return inventory.hasPartitionedItems();
+        return inventory.hasPartitionedContent();
     }
 
     @Override

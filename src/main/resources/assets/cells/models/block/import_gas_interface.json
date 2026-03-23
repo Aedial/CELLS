@@ -1,0 +1,8 @@
+{
+    "parent": "block/cube_bottom_top",
+    "textures": {
+        "top": "cells:blocks/import_interface/gas/front",
+        "side": "cells:blocks/import_interface/gas/side",
+        "bottom": "cells:blocks/import_interface/gas/front"
+    }
+}

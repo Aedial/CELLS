@@ -13,14 +13,14 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import appeng.api.util.AEPartLocation;
 
 import com.cells.Cells;
-import com.cells.gui.CellsGuiHandler;
+import com.cells.gui.GuiIdUtils;
 
 
 /**
  * Packet to request opening a GUI at a specific position.
  * <p>
  * For parts, the GUI ID should be pre-encoded with side information using
- * {@link CellsGuiHandler#encodePartGuiId(int, AEPartLocation)}.
+ * {@link GuiIdUtils#encodePartGuiId(int, AEPartLocation)}.
  */
 public class PacketOpenGui implements IMessage {
 
@@ -53,7 +53,7 @@ public class PacketOpenGui implements IMessage {
         this.z = pos.getZ();
 
         if (partSide != null) {
-            this.guiId = CellsGuiHandler.encodePartGuiId(baseGuiId, partSide);
+            this.guiId = GuiIdUtils.encodePartGuiId(baseGuiId, partSide);
         } else {
             this.guiId = baseGuiId;
         }

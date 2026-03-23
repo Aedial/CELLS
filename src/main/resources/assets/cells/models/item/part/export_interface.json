@@ -1,8 +1,8 @@
 {
     "textures": {
-        "sides": "cells:parts/export_interface_sides",
-        "back": "cells:parts/export_interface_back",
-        "front": "cells:blocks/export_interface"
+        "sides": "cells:parts/export_interface/item/sides",
+        "back": "cells:parts/export_interface/item/back",
+        "front": "cells:blocks/export_interface/item/front"
     },
     "elements": [
         {

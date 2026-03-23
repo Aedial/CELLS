@@ -32,7 +32,6 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.api.util.DimensionalCoord;
-import appeng.fluids.util.IAEFluidTank;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.MachineSource;
 import appeng.tile.grid.AENetworkInvTile;
@@ -40,8 +39,8 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
-import com.cells.blocks.interfacebase.FluidInterfaceLogic;
-import com.cells.blocks.interfacebase.IFluidInterfaceHost;
+import com.cells.blocks.interfacebase.item.FluidInterfaceLogic;
+import com.cells.blocks.interfacebase.fluid.IFluidInterfaceHost;
 import com.cells.gui.CellsGuiHandler;
 
 
@@ -113,11 +112,6 @@ public class TileFluidExportInterface extends AENetworkInvTile implements IGridT
     }
 
     // ============================== IFluidInterfaceHost delegation ==============================
-
-    @Override
-    public IAEFluidTank getFilterInventory() {
-        return this.logic.getFilterInventory();
-    }
 
     @Override
     public AppEngInternalInventory getUpgradeInventory() {
@@ -228,8 +222,8 @@ public class TileFluidExportInterface extends AENetworkInvTile implements IGridT
     }
 
     @Override
-    public String getGuiTitleLangKey() {
-        return "gui.cells.export_fluid_interface.title";
+    public String getTypeName() {
+        return this.logic.getTypeName();
     }
 
     @Override
@@ -285,13 +279,13 @@ public class TileFluidExportInterface extends AENetworkInvTile implements IGridT
 
     @Override
     protected boolean readFromStream(final ByteBuf data) throws IOException {
-        return super.readFromStream(data) | this.logic.readTanksFromStream(data);
+        return super.readFromStream(data) | this.logic.readStorageFromStream(data);
     }
 
     @Override
     protected void writeToStream(final ByteBuf data) throws IOException {
         super.writeToStream(data);
-        this.logic.writeTanksToStream(data);
+        this.logic.writeStorageToStream(data);
     }
 
     @Nonnull
@@ -304,16 +298,6 @@ public class TileFluidExportInterface extends AENetworkInvTile implements IGridT
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
         if (inv == this.logic.getUpgradeInventory()) this.logic.onUpgradeChanged();
         this.markDirty();
-    }
-
-    @Override
-    public void onFluidInventoryChanged(IAEFluidTank inv, int slot, InvOperation operation, FluidStack added, FluidStack removed) {
-        if (inv == this.logic.getFilterInventory()) this.logic.onFluidFilterChanged(slot);
-    }
-
-    @Override
-    public void onFluidInventoryChanged(IAEFluidTank inv, int slot) {
-        if (inv == this.logic.getFilterInventory()) this.logic.onFluidFilterChanged(slot);
     }
 
     @Override

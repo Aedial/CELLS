@@ -10,6 +10,9 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import appeng.api.AEApi;
 import appeng.api.parts.IPartModels;
 
+import com.cells.integration.mekanismenergistics.GasBlockRegistry;
+import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
+
 
 /**
  * Registry for CELLS parts.
@@ -25,6 +28,11 @@ public class PartRegistry {
         // Register part models with AE2
         IPartModels partModels = AEApi.instance().registries().partModels();
         for (CellsPartType type : CellsPartType.values()) partModels.registerModels(type.getModels());
+
+        // Register gas part models if MekanismEnergistics is loaded
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            GasBlockRegistry.registerPartModels();
+        }
     }
 
     @SubscribeEvent

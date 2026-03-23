@@ -23,6 +23,8 @@ import com.cells.blocks.exportinterface.BlockExportInterface;
 import com.cells.blocks.exportinterface.TileExportInterface;
 import com.cells.blocks.fluidexportinterface.BlockFluidExportInterface;
 import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
+import com.cells.integration.mekanismenergistics.GasBlockRegistry;
+import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 
 
 public class BlockRegistry {
@@ -59,7 +61,11 @@ public class BlockRegistry {
         GameRegistry.registerTileEntity(TileExportInterface.class,
             new ResourceLocation(Tags.MODID, "export_interface"));
         GameRegistry.registerTileEntity(TileFluidExportInterface.class,
-            new ResourceLocation(Tags.MODID, "fluid_export_interface"));
+            new ResourceLocation(Tags.MODID, "export_fluid_interface"));
+        // Register gas interface blocks if MekanismEnergistics is loaded
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            GasBlockRegistry.registerBlocks(event.getRegistry());
+        }
     }
 
     @SubscribeEvent
@@ -68,6 +74,11 @@ public class BlockRegistry {
         event.getRegistry().register(createItemBlock(FLUID_IMPORT_INTERFACE));
         event.getRegistry().register(createItemBlock(EXPORT_INTERFACE));
         event.getRegistry().register(createItemBlock(FLUID_EXPORT_INTERFACE));
+
+        // Register gas interface items if MekanismEnergistics is loaded
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            GasBlockRegistry.registerItems(event.getRegistry());
+        }
     }
 
     private ItemBlock createItemBlock(Block block) {
@@ -84,6 +95,11 @@ public class BlockRegistry {
         registerBlockModel(FLUID_IMPORT_INTERFACE);
         registerBlockModel(EXPORT_INTERFACE);
         registerBlockModel(FLUID_EXPORT_INTERFACE);
+
+        // Register gas interface models if MekanismEnergistics is loaded
+        if (MekanismEnergisticsIntegration.isModLoaded()) {
+            GasBlockRegistry.registerModels();
+        }
     }
 
     @SideOnly(Side.CLIENT)

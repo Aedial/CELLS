@@ -18,6 +18,13 @@ import com.cells.cells.creative.fluid.ContainerCreativeFluidCell;
 /**
  * Packet to quick-add a fluid to the first available filter slot in a Creative Fluid Cell.
  * Sent from client when the quick-add keybind is pressed.
+ *
+ * TODO: Investigate NBT handling - reported that Quick Add doesn't preserve fluid NBT
+ * while drag-and-drop (PacketFluidSlot) does. Both serialize FluidStack via writeToNBT/
+ * loadFluidStackFromNBT which should preserve the tag field. The issue may be in:
+ * - How FluidUtil.getFluidContained() returns the fluid in getFluidUnderCursor
+ * - Comparison logic in isInFilter (FluidStackKey equality)
+ * - Something specific to certain fluid types or container items
  */
 public class PacketQuickAddCreativeFluidFilter implements IMessage {
 
@@ -56,17 +63,18 @@ public class PacketQuickAddCreativeFluidFilter implements IMessage {
                 ContainerCreativeFluidCell fluidContainer = (ContainerCreativeFluidCell) container;
 
                 if (message.fluidStack == null) {
-                    player.sendMessage(new TextComponentTranslation("message.cells.creative_fluid_cell.not_fluid_container"));
+                    player.sendMessage(new TextComponentTranslation("message.cells.not_valid_content",
+                        new TextComponentTranslation("cells.type.fluid")));
                     return;
                 }
 
-                if (!fluidContainer.addFluidFilter(message.fluidStack)) {
-                    // Check if it already exists or no space
-                    if (fluidContainer.getFilterHandler().isInFilter(message.fluidStack)) {
-                        player.sendMessage(new TextComponentTranslation("message.cells.creative_fluid_cell.filter_duplicate"));
-                    } else {
-                        player.sendMessage(new TextComponentTranslation("message.cells.creative_fluid_cell.no_filter_space"));
-                    }
+                if (fluidContainer.getFilterHandler().isInFilter(message.fluidStack)) {
+                    player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
+                    return;
+                }
+
+                if (!fluidContainer.addToFilter(message.fluidStack)) {
+                    player.sendMessage(new TextComponentTranslation("message.cells.no_filter_space"));
                 }
             });
 

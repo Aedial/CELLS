@@ -288,8 +288,7 @@ public class CellViewRecipe implements IRecipeWrapper {
      * Extract compression chain items from a compacting cell.
      */
     private List<ItemStack> extractCompressionChain(CompactingCellInventory compacting) {
-        List<ItemStack> chain = new ArrayList<>();
-        chain.addAll(compacting.getAllHigherTierItems());
+        List<ItemStack> chain = new ArrayList<>(compacting.getAllHigherTierItems());
         ItemStack main = compacting.getPartitionedItem();
         if (!main.isEmpty()) chain.add(main);
         chain.addAll(compacting.getAllLowerTierItems());
@@ -301,8 +300,7 @@ public class CellViewRecipe implements IRecipeWrapper {
      * Extract compression chain items from a HD compacting cell.
      */
     private List<ItemStack> extractHDCompressionChain(HyperDensityCompactingCellInventory hdCompacting) {
-        List<ItemStack> chain = new ArrayList<>();
-        chain.addAll(hdCompacting.getAllHigherTierItems());
+        List<ItemStack> chain = new ArrayList<>(hdCompacting.getAllHigherTierItems());
         ItemStack main = hdCompacting.getPartitionedItem();
         if (!main.isEmpty()) chain.add(main);
         chain.addAll(hdCompacting.getAllLowerTierItems());

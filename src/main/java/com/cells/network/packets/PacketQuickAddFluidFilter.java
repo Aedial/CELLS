@@ -14,11 +14,11 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.fluids.util.AEFluidStack;
-import appeng.fluids.util.IAEFluidTank;
 
-import com.cells.blocks.interfacebase.ContainerFluidInterface;
-import com.cells.blocks.interfacebase.FluidInterfaceLogic;
-import com.cells.blocks.interfacebase.IFluidInterfaceHost;
+import com.cells.util.FluidStackKey;
+import com.cells.blocks.interfacebase.item.FluidInterfaceLogic;
+import com.cells.blocks.interfacebase.fluid.ContainerFluidInterface;
+import com.cells.blocks.interfacebase.fluid.IFluidInterfaceHost;
 
 
 /**
@@ -61,34 +61,37 @@ public class PacketQuickAddFluidFilter implements IMessage {
 
                 ContainerFluidInterface fluidContainer = (ContainerFluidInterface) container;
                 IFluidInterfaceHost host = fluidContainer.getHost();
-                IAEFluidTank filterInventory = host.getFilterInventory();
 
                 if (message.fluidStack == null) {
-                    player.sendMessage(new TextComponentTranslation("message.cells.import_fluid_interface.not_fluid_container"));
+                    player.sendMessage(new TextComponentTranslation("message.cells.not_valid_content",
+                        new TextComponentTranslation("cells.type.fluid")));
                     return;
                 }
 
                 IAEFluidStack toAdd = AEFluidStack.fromFluidStack(message.fluidStack);
-                if (toAdd == null) {
-                    player.sendMessage(new TextComponentTranslation("message.cells.import_fluid_interface.not_fluid_container"));
-                    return;
-                }
 
                 // Only check slots within effective capacity (based on installed capacity upgrades)
                 int effectiveSlots = host.getTotalPages() * FluidInterfaceLogic.SLOTS_PER_PAGE;
 
                 // Check if this fluid filter already exists
+                FluidStackKey toAddKey = FluidStackKey.of(toAdd.getFluidStack());
+                if (toAddKey == null) {
+                    player.sendMessage(new TextComponentTranslation("message.cells.not_valid_content",
+                            new TextComponentTranslation("cells.type.fluid")));
+                    return;
+                }
+
                 for (int i = 0; i < effectiveSlots; i++) {
-                    IAEFluidStack existing = filterInventory.getFluidInSlot(i);
-                    if (existing != null && existing.getFluid() == toAdd.getFluid()) {
-                        player.sendMessage(new TextComponentTranslation("message.cells.import_fluid_interface.filter_duplicate"));
+                    IAEFluidStack existing = host.getFilterFluid(i);
+                    if (existing != null && toAddKey.matches(existing.getFluidStack())) {
+                        player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
                         return;
                     }
                 }
 
                 // Find first empty filter slot whose tank is also empty
                 for (int i = 0; i < effectiveSlots; i++) {
-                    IAEFluidStack existingFilter = filterInventory.getFluidInSlot(i);
+                    IAEFluidStack existingFilter = host.getFilterFluid(i);
                     boolean tankEmpty = host.isTankEmpty(i);
 
                     // Slot is available if both filter and tank are empty
@@ -100,7 +103,7 @@ public class PacketQuickAddFluidFilter implements IMessage {
                 }
 
                 // No space available
-                player.sendMessage(new TextComponentTranslation("message.cells.import_interface.no_filter_space"));
+                player.sendMessage(new TextComponentTranslation("message.cells.no_filter_space"));
             });
 
             return null;
