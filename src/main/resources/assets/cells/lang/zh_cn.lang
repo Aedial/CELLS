@@ -6,15 +6,68 @@ tooltip.cells.card.compatible=兼容：%s
 tooltip.cells.type.compact=ME压缩元件
 tooltip.cells.type.hyperdensity=超高密度ME存储元件
 tooltip.cells.type.hyperdensity_compact=超高密度ME压缩元件
-tooltip.cells.type.import_interface=输入接口
+tooltip.cells.type.import_interface=输入接口（所有类型）
 tooltip.cells.nbt_size=NBT大小：%s
 tooltip.cells.nbt_size.warning=§c⚠ NBT大小超出安全上限！可能会导致卡顿或崩溃。将一些NBT过大的物品转移至其他区块和网络中，以避免崩溃。§r
 tooltip.cells.previous_page=上一页
 tooltip.cells.next_page=下一页
 tooltip.cells.jei_view_contents=§7按[§b%s§7]查看内容§r
+tooltip.cells.amount=%d/%d %s
+
+# Resource types and units (used in %s placeholders throughout)
+cells.type.item=物品
+cells.type.fluid=流体
+cells.type.gas=气体
+cells.type.essentia=源质
+cells.type.unknown=???
+
+cells.unit.item=物品
+cells.unit.fluid=mB
+cells.unit.gas=mB 气体
+cells.unit.essentia=源质
+cells.unit.unknown=单位
+
+cells.unit_name.item=物品
+cells.unit_name.fluid=流体
+cells.unit_name.gas=气体
+cells.unit_name.essentia=源质
+cells.unit_name.unknown=单位
+
+cells.unit_names.item=物品
+cells.unit_names.fluid=流体
+cells.unit_names.gas=气体
+cells.unit_names.essentia=源质
+cells.unit_names.unknown=单位
+
+# GUI titles and labels
+cells.max_slot_size.title=最大槽位容量
+cells.slot_size=槽位容量：§b%d§r %s
+cells.max_slot_size.tooltip=槽位中容纳的最大%s数量。
+cells.polling_rate.title=轮询率
+cells.polling_rate.adaptive=轮询率：自适应
+cells.clear_filters=清空过滤项
+
+# Polling rate - direction-specific
+tooltip.cells.polling_rate.import=输入的固定间隔（0 = 自适应，设置为非零值时以刻为单位）
+tooltip.cells.polling_rate.export=输出的固定间隔（0 = 自适应，设置为非零值时以刻为单位）
+cells.polling_rate.custom.import=轮询率：§r每§b%s§r输入一次
+cells.polling_rate.custom.export=轮询率：§r每§b%s§r输出一次
+
+# Clear filters - direction-specific (different behavior)
+tooltip.cells.clear_filters.import=清除所有过滤槽位。将跳过存有内容的过滤槽位。
+tooltip.cells.clear_filters.export=清除所有过滤项，并将存储的内容发送回网络。
+tooltip.cells.clear_filters.all=清除所有过滤槽位
 
 # Messages
 message.cells.disassemble_fail_content=无法拆解存有内容的元件！请先清空元件。
+message.cells.memory_card.filters_saved=已将设置与过滤项保存至内存卡。
+message.cells.filter_duplicate=其他槽位中已存在该过滤项。
+message.cells.not_valid_content=该物品不包含有效的%s。
+message.cells.filters_not_added=有%d个过滤项无法被添加（无可用槽位）：\n- %s
+message.cells.storage_not_empty=无法在存储槽位非空时更改过滤项。
+message.cells.no_filter_space=无可用的空闲过滤槽位。
+message.cells.creative_cell.not_valid_content=不是有效的%s！
+message.cells.polling_rate_delayed=§e轮询率已保存，会在下次AE2网络连接时生效。§r
 
 # Config (GUI)
 cells.config.category.general=通用
@@ -25,6 +78,15 @@ cells.config.hdItemMaxTypes=超高密度物品元件最大类型数
 cells.config.hdFluidMaxTypes=超高密度流体元件最大类型数
 cells.config.hdItemMaxTypes.tooltip=超高密度物品存储元件能容纳的最大物品类型数量（1-16384）。注意：设置过高可能导致NBT数据过大致使崩溃。
 cells.config.hdFluidMaxTypes.tooltip=超高密度流体存储元件能容纳的最大流体类型数量（1-16384）。注意：设置过高可能导致NBT数据过大致使崩溃。
+cells.config.configurableCellItemMaxTypes=可配置物品元件最大类型数
+cells.config.configurableCellItemMaxTypes.tooltip=可配置物品元件能容纳的最大类型数量（1-16384）
+cells.config.configurableCellFluidMaxTypes=可配置流体元件最大类型数
+cells.config.configurableCellFluidMaxTypes.tooltip=可配置流体元件能容纳的最大类型数量（1-16384）
+cells.config.configurableCellEssentiaMaxTypes=可配置源质元件最大类型数
+cells.config.configurableCellEssentiaMaxTypes.tooltip=可配置源质元件能容纳的最大类型数量（1-16384）
+cells.config.configurableCellGasMaxTypes=可配置气体元件最大类型数
+cells.config.configurableCellGasMaxTypes.tooltip=可配置气体元件能容纳的最大类型数量（1-16384）
+
 cells.config.nbtSizeWarningThresholdKB=NBT大小警告阈值（KB）
 cells.config.nbtSizeWarningThresholdKB.tooltip=NBT大小的警告阈值，以KB为单位（1-10000）。NBT大小超出该阈值时，元件的提示框中会显示警告信息。
 cells.config.enableNbtSizeTooltip=启用NBT大小提示框
@@ -38,6 +100,8 @@ cells.config.compactingIdleDrain.tooltip=压缩元件的待机能耗（被动AE/
 cells.config.hdIdleDrain.tooltip=超高密度元件的待机能耗（被动AE/t消耗）
 cells.config.hdCompactingIdleDrain.tooltip=超高密度压缩元件的待机能耗（被动AE/t消耗）
 cells.config.fluidHdIdleDrain.tooltip=超高密度流体元件的待机能耗（被动AE/t消耗）
+cells.config.configurableCellIdleDrain=可配置元件的待机能耗
+cells.config.configurableCellIdleDrain.tooltip=可配置元件的待机能耗（被动AE/t消耗）
 
 cells.config.compactingCellUpgradeSlots=压缩元件升级槽位
 cells.config.compactingCellUpgradeSlots.tooltip=压缩元件的升级槽位数量（1-16）
@@ -58,6 +122,8 @@ cells.config.enableCompactingCells.tooltip=启用压缩存储元件
 cells.config.enableHDCells.tooltip=启用超高密度物品存储元件
 cells.config.enableHDCompactingCells.tooltip=启用超高密度压缩存储元件
 cells.config.enableFluidHDCells.tooltip=启用超高密度流体存储元件
+cells.config.enableConfigurableCells=启用可配置元件
+cells.config.enableConfigurableCells.tooltip=启用可配置存储元件
 
 # Compacting Cells
 item.cells.compacting_cell.1k.name=1k-ME压缩元件
@@ -235,58 +301,28 @@ item.cells.configurable_cell.name_configured=可配置ME存储元件（%s）
 tooltip.cells.configurable_cell.no_component=未安装组件！放入ME存储组件来定义容量。
 tooltip.cells.configurable_cell.info=可接受任意ME存储组件以定义容量和类型。自带内置的均分功能。
 tooltip.cells.component.configurable_compatible=§b兼容可配置元件§r
-tooltip.cells.configurable_cell.capacity_per_type.item=每种类型上限：%s物品
-tooltip.cells.configurable_cell.capacity_per_type.fluid=每种类型上限：%s mB
-tooltip.cells.configurable_cell.capacity_per_type.essentia=每种类型上限：%s源质
-tooltip.cells.configurable_cell.capacity_per_type.gas=每种类型上限：%s mB气体
+tooltip.cells.configurable_cell.capacity_per_type=每种类型上限：%s %s
 
 # Configurable Cell GUI
 gui.cells.configurable_cell.capacity_title.none=每种类型容量：
-gui.cells.configurable_cell.capacity_title.item=每种类型容量（物品）：
-gui.cells.configurable_cell.capacity_title.fluid=每种类型容量（mB）：
-gui.cells.configurable_cell.capacity_title.essentia=每种类型容量（源质）：
-gui.cells.configurable_cell.capacity_title.gas=每种类型容量（mB气体）：
+cells.configurable_cell.capacity_title.with_type=每种类型容量（%s）：
 gui.cells.configurable_cell.no_component=未知
 gui.cells.configurable_cell.types_title=类型：
 
 # Creative ME Cell
-item.cells.creative_cell.name=创造ME存储元件
-tooltip.cells.creative_cell.info=无限物品来源。提供海量的设定物品。
-tooltip.cells.creative_cell.exposes=提供每种物品各%s个（共%d种物品）
-tooltip.cells.creative_cell.creative_hint=右击以配置过滤项
+item.cells.creative_cell.item.name=创造ME存储元件
+item.cells.creative_cell.fluid.name=创造ME流体存储元件
+item.cells.creative_cell.gas.name=创造ME气体存储元件
+item.cells.creative_cell.essentia.name=创造ME源质存储元件
+cells.creative_cell.item.title=创造元件过滤项
+cells.creative_cell.fluid.title=创造流体元件过滤项
+cells.creative_cell.gas.title=创造气体元件过滤项
+cells.creative_cell.essentia.title=创造源质元件过滤项
+
+tooltip.cells.creative_cell.info=无限%s来源。提供海量的设定%s。
+tooltip.cells.creative_cell.exposes=提供每种过滤项各%s %s（共%d种过滤项）
+tooltip.cells.creative_cell.creative_hint=Shift + 右键点击以配置过滤项
 tooltip.cells.creative_cell.survival_hint=需要创造模式才能配置
-gui.cells.creative_cell.title=创造元件过滤项
-gui.cells.creative_cell.clear=清空过滤项
-gui.cells.creative_cell.clear_tooltip=清除所有过滤槽位
-message.cells.creative_cell.filter_duplicate=该物品已在过滤列表中！
-message.cells.creative_cell.no_filter_space=无可用的空闲过滤槽位。
-
-# Creative ME Fluid Cell
-item.cells.creative_fluid_cell.name=创造ME流体存储元件
-tooltip.cells.creative_fluid_cell.info=无限流体来源。提供海量的设定流体。
-tooltip.cells.creative_fluid_cell.exposes=提供每种流体各%s mB（共%d种流体）
-tooltip.cells.creative_fluid_cell.creative_hint=右击以配置过滤项
-tooltip.cells.creative_fluid_cell.survival_hint=需要创造模式才能配置
-gui.cells.creative_fluid_cell.title=创造流体元件过滤项
-gui.cells.creative_fluid_cell.clear=清空过滤项
-gui.cells.creative_fluid_cell.clear_tooltip=清除所有过滤槽位
-message.cells.creative_fluid_cell.not_fluid_container=非有效流体！
-message.cells.creative_fluid_cell.filter_duplicate=该流体已在过滤列表中！
-message.cells.creative_fluid_cell.no_filter_space=无可用的空闲过滤槽位。
-
-# Configurable Cell Config
-cells.config.configurableCellIdleDrain=可配置元件的待机能耗
-cells.config.configurableCellIdleDrain.tooltip=可配置元件的待机能耗（被动AE/t消耗）
-cells.config.enableConfigurableCells=启用可配置元件
-cells.config.enableConfigurableCells.tooltip=启用可配置存储元件
-cells.config.configurableCellItemMaxTypes=可配置物品元件最大类型数
-cells.config.configurableCellItemMaxTypes.tooltip=可配置物品元件能容纳的最大类型数量（1-16384）
-cells.config.configurableCellFluidMaxTypes=可配置流体元件最大类型数
-cells.config.configurableCellFluidMaxTypes.tooltip=可配置流体元件能容纳的最大类型数量（1-16384）
-cells.config.configurableCellEssentiaMaxTypes=可配置源质元件最大类型数
-cells.config.configurableCellEssentiaMaxTypes.tooltip=可配置源质元件能容纳的最大类型数量（1-16384）
-cells.config.configurableCellGasMaxTypes=可配置气体元件最大类型数
-cells.config.configurableCellGasMaxTypes.tooltip=可配置气体元件能容纳的最大类型数量（1-16384）
 
 # Compressed Calculation Prints
 item.cells.compressed_calculation_print.compressed.name=压缩运算电路板
@@ -322,99 +358,59 @@ item.cells.singularity_processor.calculation.name=奇点运算处理器
 item.cells.singularity_processor.engineering.name=奇点工程处理器
 item.cells.singularity_processor.logic.name=奇点逻辑处理器
 
-# Import Interface
+# Interface names
 tile.cells.import_interface.name=输入接口
-item.cells.part.import_interface.name=输入接口
-gui.cells.import_interface.title=输入接口
-gui.cells.import_interface.max_slot_size=槽位最大容量
-gui.cells.import_interface.max_slot_size.tooltip=槽位中容纳的最大物品（或流体）数。
-gui.cells.import_interface.max_slot_size.items.tooltip=槽位容量：§b%d§r 物品
-gui.cells.import_interface.max_slot_size.fluids.tooltip=槽位容量：§b%d§r mB
-gui.cells.import_interface.polling_rate=轮询率
-gui.cells.polling_rate.title=询率
-gui.cells.import_interface.polling_rate.tooltip=输入物品的固定时间间隔（0 = AE2的默认值，设置为非零值时以刻为单位）
-gui.cells.import_interface.polling_rate.adaptive.tooltip=轮询率：自适应
-gui.cells.import_interface.polling_rate.custom.tooltip=轮询率：§r每§b%s§r输入一次
-gui.cells.import_interface.clear_filters=清空过滤项
-gui.cells.import_interface.clear_filters.tooltip=清除所有过滤槽位。将跳过存有物品/流体的过滤槽位。
-tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络。不支持补货或合成。
-message.cells.memory_card.filters_saved=已将设置与过滤项保存至内存卡。
+tile.cells.import_interface.fluid.name=流体输入接口
+tile.cells.import_interface.gas.name=气体输入接口
+item.cells.part.export_interface.name=输出接口
+item.cells.part.export_fluid_interface.name=流体输出接口
+item.cells.part.export_gas_interface.name=气体输出接口
 
-# Import Interface warnings
-message.cells.import_interface.storage_not_empty=无法在存储槽位非空时更改过滤项。
-message.cells.import_interface.filter_duplicate=其他槽位中已存在该过滤项。
-message.cells.import_interface.filters_not_added=有%d个过滤项无法被添加（无可用槽位）：\n- %s
+item.cells.part.import_interface.name=输入接口
+item.cells.part.import_fluid_interface.name=流体输入接口
+item.cells.part.import_gas_interface.name=气体输入接口
+item.cells.part.export_interface.name=输出接口
+item.cells.part.export_fluid_interface.name=流体输出接口
+item.cells.part.export_gas_interface.name=气体输出接口
+
+# Interface GUI titles (format: cells.{direction}_interface.{type}.title)
+cells.import_interface.item.title=输入接口
+cells.import_interface.fluid.title=流体输入接口
+cells.import_interface.gas.title=气体输入接口
+cells.export_interface.item.title=输出接口
+cells.export_interface.fluid.title=流体输出接口
+cells.export_interface.gas.title=气体输出接口
+
+# Info tooltips for block items
+## Item interfaces (hardcoded in BlockImportInterface/BlockExportInterface)
+tooltip.cells.import_interface.info=通过过滤槽位将物品输入至ME网络。不支持补货或合成。
+tooltip.cells.export_interface.info=通过过滤槽位从ME网络输出物品。物品可由管道或漏斗提取。
+
+## Fluid/Gas/Essentia interfaces (from AbstractResourceInterfaceBlock using translationKey.info pattern)
+tooltip.cells.import_interface.fluid.info=通过过滤槽位将流体输入至ME网络。
+tooltip.cells.export_interface.fluid.info=通过过滤槽位从ME网络输出流体。流体可由管道提取。
+tooltip.cells.import_interface.gas.info=将气体输入至ME网络。
+tooltip.cells.export_interface.gas.info=通过过滤槽位从ME网络输出气体。气体可由管道提取。
+tooltip.cells.import_interface.essentia.info=将源质输入至ME网络。
+tooltip.cells.export_interface.essentia.info=通过过滤槽位从ME网络输出源质。源质可由管道提取。
 
 # Configurable Cell warnings
-message.cells.configurable_cell.split_stack=在插入组件前，需先拆分元件堆叠。
-message.cells.configurable_cell.types_min=类型上限最低为1。
-message.cells.configurable_cell.types_over_config=类型上限不能大于配置的最大值。
-message.cells.configurable_cell.types_below_stored=类型上限不能小于当前已存储的类型数。
-message.cells.configurable_cell.types_capacity_exceeded=类型上限将超出已存储内容的每种类型容量。
+cells.configurable_cell.split_stack=在放入组件前，需先拆分元件堆叠。
+cells.configurable_cell.types_min=类型上限最低为1。
+cells.configurable_cell.types_over_config=类型上限不能大于配置的最大值。
+cells.configurable_cell.types_below_stored=类型上限不能小于当前已存储的类型数。
+cells.configurable_cell.types_capacity_exceeded=类型上限将超出已存储内容的每种类型容量。
 
-# Fluid Import Interface
-tile.cells.import_fluid_interface.name=流体输入接口
-item.cells.part.import_fluid_interface.name=流体输入接口
-gui.cells.import_fluid_interface.title=流体输入接口
-tooltip.cells.import_fluid_interface.info=通过过滤槽位将流体输入至ME网络。不支持补货或合成。
-tooltip.cells.type.import_fluid_interface=流体输入接口
-tooltip.cells.fluid_import_interface.amount=%d/%d mB
-
-# Fluid Import Interface warnings
-message.cells.import_fluid_interface.filter_duplicate=其他槽位中已存在该流体过滤项。
-message.cells.import_fluid_interface.not_fluid_container=该物品内不含流体。
-message.cells.import_fluid_interface.filters_not_added=有%d个流体过滤项无法被添加（无可用槽位）：\n- %s
-
-# Import Interface no space error
-message.cells.import_interface.no_filter_space=无可用的空闲过滤槽位。
-
-# Export Interface
-tile.cells.export_interface.name=输出接口
-item.cells.part.export_interface.name=输出接口
-gui.cells.export_interface.title=输出接口
-gui.cells.export_interface.max_slot_size=最大槽位容量
-gui.cells.export_interface.max_slot_size.tooltip=槽位中容纳的最大物品数。
-gui.cells.export_interface.max_slot_size.items.tooltip=槽位容量：§b%d§r 物品
-gui.cells.export_interface.max_slot_size.fluids.tooltip=槽位容量：§b%d§r mB
-gui.cells.export_interface.polling_rate=轮询率
-gui.cells.export_interface.polling_rate.tooltip=输出物品的时间间隔（0 = AE2的默认值，设置为非零值时以刻为单位）
-gui.cells.export_interface.polling_rate.adaptive.tooltip=轮询率：自适应
-gui.cells.export_interface.polling_rate.custom.tooltip=轮询率：§r每§b%s§r输出一次
-gui.cells.export_interface.clear_filters=清空过滤项
-gui.cells.export_interface.clear_filters.tooltip=清除所有过滤项，并将存储的物品/流体发送回网络。
-tooltip.cells.export_interface.info=通过过滤槽位从ME网络输出物品。物品可由管道或漏斗提取。
-tooltip.cells.type.export_interface=输出接口
-
-# Export Interface warnings
-message.cells.export_interface.filter_duplicate=该其他槽位中已存在该过滤项。
-message.cells.export_interface.filters_not_added=有%d个过滤项无法被添加（无可用槽位）：\n- %s
-
-# Fluid Export Interface
-tile.cells.export_fluid_interface.name=流体输出接口
-item.cells.part.export_fluid_interface.name=流体输出接口
-gui.cells.export_fluid_interface.title=流体输出接口
-tooltip.cells.export_fluid_interface.info=通过过滤槽位从ME网络输出流体。流体可由管道提取。
-tooltip.cells.type.export_fluid_interface=流体输出接口
-tooltip.cells.export_fluid_interface.amount=%d/%d mB
-
-# Fluid Export Interface warnings
-message.cells.export_fluid_interface.filter_duplicate=其他槽位中已存在该流体过滤项。
-message.cells.export_fluid_interface.not_fluid_container=该物品内不含流体。
-message.cells.export_fluid_interface.filters_not_added=有%d个流体过滤项无法被添加（无可用槽位）：\n- %s
-
-# Import Interface Controls Help
-gui.cells.controls.use_settings=通过调高§b槽位容量§r和§b轮询率§r来获得最佳性能。
-gui.cells.controls.use_cards=§6溢出销毁卡§r和§6过滤销毁卡§r应优先于垃圾桶等其他方案使用。
-gui.cells.controls.capacity_cards=使用§6容量卡§r来增加更多过滤页。
-gui.cells.controls.memory_card_sneak=潜行 + 右键点击：保存设置。
-gui.cells.controls.memory_card_filter=潜行 + §b%s§r + 右键点击：保存设置和过滤项。
-gui.cells.controls.disassemble=（使用扳手）拆除时会保留设置与过滤项。
-gui.cells.controls.key_not_set=（未设置）
-gui.cells.controls.quick_add=§b%s§r：将悬停物品添加到首个空闲过滤槽位。
-gui.cells.controls.jei_drag=从JEI拖拽以添加到过滤项。
-
-# Chat messages
-chat.cells.polling_rate_delayed=§e轮询率已保存，会在下次连接到AE2网络时生效。§r
+# Interface Controls Help
+cells.controls.use_settings=通过调高§b槽位容量§r和§b轮询率§r来获得最佳性能。
+cells.controls.use_cards=§6溢出销毁卡§r和§6过滤销毁卡§r应优先于垃圾桶等其他方案使用。
+cells.controls.capacity_cards=使用§6容量卡§r来增加更多过滤页。
+cells.controls.memory_card_sneak=潜行 + 右键点击：保存设置。
+cells.controls.memory_card_filter=潜行 + §b%s§r + 右键点击：保存设置和过滤项。
+cells.controls.disassemble=（使用扳手）拆除时会保留设置与过滤项。
+cells.controls.key_not_set=（未设置）
+cells.controls.quick_add=§b%s§r：将悬停物品添加到首个空闲过滤槽位。
+cells.controls.jei_drag=从JEI拖拽以添加到过滤项。
 
 # Keybinds
 key.cells.category=C.E.L.L.S
@@ -426,19 +422,12 @@ jei.cells.cellview.title=元件内容
 jei.cells.cellview.size=大小：
 jei.cells.cellview.types=类型：
 jei.cells.cellview.per_type=每种类型
-jei.cells.cellview.nbt_size=NBT大小：
 jei.cells.cellview.no_data=无可用元件数据
 jei.cells.cellview.not_partitioned=未分区
 jei.cells.cellview.chain_pending=等待首次放入
 jei.cells.cellview.compression_tiers=（压缩%s级，解压%s级）
 jei.cells.cellview.tier=等级
 jei.cells.cellview.tiers=等级
-
-# JEI Cell View - Units
-jei.cells.cellview.unit.items=物品
-jei.cells.cellview.unit.fluid=mB
-jei.cells.cellview.unit.essentia=源质
-jei.cells.cellview.unit.gas=mB 气体
 
 # JEI Cell View - Item Tooltips
 jei.cells.cellview.tooltip.stored_units=已存储：%s %s
@@ -471,3 +460,12 @@ jei.cells.cellview.tooltip.oredict_enabled=矿物词典：接受等效物品
 
 # JEI Cell View - NBT Tooltip
 jei.cells.cellview.tooltip.nbt_info=NBT数据过大会致使崩溃或存档损坏。
+
+# Recovery container (fluid/gas/essentia recovery item)
+item.cells.recovery_container.name=%s 容球（%s）
+item.cells.recovery_container.name.empty=空容球
+tooltip.cells.recovery_container.type=类型：%s
+tooltip.cells.recovery_container.amount=数量：%d %s
+tooltip.cells.recovery_container.usage=右键点击容器以进行转移
+cells.recovery_container.transferred=已转移%d %s
+cells.recovery_container.no_transfer=目标无法接收%s
