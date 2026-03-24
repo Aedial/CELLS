@@ -343,12 +343,7 @@ public class CellViewRecipe implements IRecipeWrapper {
         }
 
         // Sort by count descending
-        Collections.sort(result, new Comparator<StoredStackInfo>() {
-            @Override
-            public int compare(StoredStackInfo a, StoredStackInfo b) {
-                return Long.compare(b.count, a.count);
-            }
-        });
+        result.sort((a, b) -> Long.compare(b.count, a.count));
 
         return result;
     }

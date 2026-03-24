@@ -1,74 +1,41 @@
 package com.cells.blocks.interfacebase.fluid;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-import com.cells.blocks.interfacebase.item.FluidInterfaceLogic;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.IContainerListener;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.text.TextComponentTranslation;
+
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidUtil;
+import net.minecraftforge.fluids.FluidActionResult;
+import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandlerItem;
+import net.minecraftforge.fluids.capability.IFluidTankProperties;
+import net.minecraftforge.fluids.capability.FluidTankProperties;
 
 import appeng.api.AEApi;
 import appeng.api.parts.IPart;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
-import appeng.container.AEBaseContainer;
-import appeng.container.guisync.GuiSync;
-import appeng.container.slot.SlotNormal;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketFluidSlot;
-import appeng.fluids.container.IFluidSyncContainer;
-import appeng.helpers.InventoryAction;
-import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.util.Platform;
 
 import com.cells.Cells;
+import com.cells.blocks.interfacebase.AbstractContainerInterface;
+import com.cells.network.sync.ResourceType;
 import com.cells.util.FluidStackKey;
 
 
 /**
- * Unified container for both Fluid Import Interface and Fluid Export Interface GUIs.
- * Layout: 4 rows of 9 filter slots (fluid filters, not item slots).
- * Storage is fluid-based (internal tanks), rendered as GuiFluidTankSlot.
- * Plus 4 upgrade slots on the right side.
+ * Container for Fluid Import/Export Interface GUIs.
  * <p>
- * Uses {@link IFluidInterfaceHost#isExport()} to determine behavioral differences:
- * <ul>
- *   <li>Import: filter slots locked when tank has fluid, supports fluid pouring from containers</li>
- *   <li>Export: filter slots freely settable, no fluid pouring (tanks filled from network)</li>
- * </ul>
- * <p>
- * Filter synchronization is handled directly via {@link PacketFluidSlot}.
- * <p>
- * Works with both tile entities and parts via {@link IFluidInterfaceHost}.
+ * Extends {@link AbstractContainerInterface} with fluid-specific implementations.
+ * Most logic is inherited from the abstract base class.
  */
-public class ContainerFluidInterface extends AEBaseContainer implements IFluidSyncContainer {
-
-    private final IFluidInterfaceHost host;
-    private final Map<Integer, IAEFluidStack> serverFilterCache = new HashMap<>();
-
-    @GuiSync(0)
-    public long maxSlotSize = FluidInterfaceLogic.DEFAULT_MAX_SLOT_SIZE;
-
-    @GuiSync(1)
-    public long pollingRate = 0;
-
-    @GuiSync(2)
-    public int currentPage = 0;
-
-    @GuiSync(3)
-    public int totalPages = 1;
+public class ContainerFluidInterface
+    extends AbstractContainerInterface<IAEFluidStack, FluidStackKey, IFluidInterfaceHost> {
 
     /**
      * Constructor for tile entity hosts.
@@ -85,15 +52,14 @@ public class ContainerFluidInterface extends AEBaseContainer implements IFluidSy
     }
 
     /**
-     * Common constructor that both tile and part use.
+     * Common constructor.
      */
     private ContainerFluidInterface(final InventoryPlayer ip, final IFluidInterfaceHost host, final Object anchor) {
-        super(ip, anchor instanceof TileEntity ? (TileEntity) anchor : null, anchor instanceof IPart ? (IPart) anchor : null);
-        this.host = host;
+        super(ip, host, anchor, FluidInterfaceLogic.DEFAULT_MAX_SLOT_SIZE);
 
-        // Add 4 upgrade slots at the right side of the GUI
+        // Add upgrade slots
         for (int i = 0; i < FluidInterfaceLogic.UPGRADE_SLOTS; i++) {
-            this.addSlotToContainer(new SlotUpgrade(
+            this.addSlotToContainer(new SlotUpgrade<>(
                 host.getUpgradeInventory(), i, 186, 25 + i * 18, host
             ));
         }
@@ -102,227 +68,135 @@ public class ContainerFluidInterface extends AEBaseContainer implements IFluidSy
         this.bindPlayerInventory(ip, 0, 174);
     }
 
+    // ================================= Abstract Implementations =================================
+
     @Override
-    public void detectAndSendChanges() {
-        super.detectAndSendChanges();
-
-        if (Platform.isServer()) {
-            // Sync fluid filters by comparing with cache
-            for (int i = 0; i < FluidInterfaceLogic.FILTER_SLOTS; i++) {
-                IAEFluidStack current = this.host.getFilterFluid(i);
-                IAEFluidStack cached = this.serverFilterCache.get(i);
-
-                boolean different = (current == null && cached != null) ||
-                                   (current != null && cached == null) ||
-                                   (current != null && !current.equals(cached));
-
-                if (different) {
-                    this.serverFilterCache.put(i, current == null ? null : current.copy());
-
-                    // Send diff to all listeners
-                    for (IContainerListener listener : this.listeners) {
-                        if (listener instanceof EntityPlayerMP) {
-                            NetworkHandler.instance().sendTo(
-                                new PacketFluidSlot(Collections.singletonMap(i, current)),
-                                (EntityPlayerMP) listener
-                            );
-                        }
-                    }
-                }
-            }
-        }
-
-        if (this.maxSlotSize != this.host.getMaxSlotSize()) this.maxSlotSize = this.host.getMaxSlotSize();
-        if (this.pollingRate != this.host.getPollingRate()) this.pollingRate = this.host.getPollingRate();
-        if (this.currentPage != this.host.getCurrentPage()) this.currentPage = this.host.getCurrentPage();
-        if (this.totalPages != this.host.getTotalPages()) this.totalPages = this.host.getTotalPages();
-    }
-
-    /**
-     * Sets the current page for viewing, clamped to valid range.
-     */
-    public void setCurrentPage(int page) {
-        int newPage = Math.max(0, Math.min(page, this.totalPages - 1));
-        this.currentPage = newPage;
-        this.host.setCurrentPage(newPage);
-    }
-
-    public void nextPage() {
-        if (this.currentPage < this.totalPages - 1) setCurrentPage(this.currentPage + 1);
-    }
-
-    public void prevPage() {
-        if (this.currentPage > 0) setCurrentPage(this.currentPage - 1);
+    protected ResourceType getResourceType() {
+        return ResourceType.FLUID;
     }
 
     @Override
-    public void addListener(@Nonnull IContainerListener listener) {
-        super.addListener(listener);
-
-        // Send full fluid filter inventory to new listener
-        if (Platform.isServer() && listener instanceof EntityPlayerMP) {
-            Map<Integer, IAEFluidStack> fullMap = new HashMap<>();
-            for (int i = 0; i < FluidInterfaceLogic.FILTER_SLOTS; i++) {
-                IAEFluidStack fluid = this.host.getFilterFluid(i);
-                fullMap.put(i, fluid);
-                this.serverFilterCache.put(i, fluid == null ? null : fluid.copy());
-            }
-            NetworkHandler.instance().sendTo(new PacketFluidSlot(fullMap), (EntityPlayerMP) listener);
-        }
+    protected int getUpgradeSlotCount() {
+        return FluidInterfaceLogic.UPGRADE_SLOTS;
     }
 
     @Override
-    public void receiveFluidSlots(Map<Integer, IAEFluidStack> fluids) {
-        // On client, update the host filters directly
-        if (this.host.getHostWorld() != null && this.host.getHostWorld().isRemote) {
-            for (Map.Entry<Integer, IAEFluidStack> entry : fluids.entrySet()) {
-                this.host.setFilterFluid(entry.getKey(), entry.getValue());
-            }
-            return;
-        }
-
-        // Get the player for feedback messages (first listener should be the player)
-        EntityPlayer player = null;
-        for (IContainerListener listener : this.listeners) {
-            if (listener instanceof EntityPlayer) {
-                player = (EntityPlayer) listener;
-                break;
-            }
-        }
-
-        final boolean isExport = this.host.isExport();
-
-        // On server, validate each change before applying
-        for (Map.Entry<Integer, IAEFluidStack> entry : fluids.entrySet()) {
-            int slot = entry.getKey();
-            IAEFluidStack fluid = entry.getValue();
-
-            // Validate slot index
-            if (slot < 0 || slot >= FluidInterfaceLogic.FILTER_SLOTS) continue;
-
-            // Null fluid means clearing the filter
-            if (fluid == null) {
-                // Import: only clear if tank is empty (prevent orphans)
-                if (!isExport && !this.host.isTankEmpty(slot)) {
-                    if (player != null) {
-                        player.sendMessage(new TextComponentTranslation("message.cells.storage_not_empty"));
-                    }
-                    continue;
-                }
-
-                this.host.setFilterFluid(slot, null);
-                continue;
-            }
-
-            // Import: prevent filter changes if the corresponding tank has fluid
-            if (!isExport && !this.host.isTankEmpty(slot)) {
-                if (player != null) {
-                    player.sendMessage(new TextComponentTranslation("message.cells.storage_not_empty"));
-                }
-                continue;
-            }
-
-            // Prevent duplicate fluid filters
-            FluidStackKey newKey = FluidStackKey.of(fluid.getFluidStack());
-            if (newKey == null) continue;
-
-            boolean isDuplicate = false;
-
-            for (int i = 0; i < FluidInterfaceLogic.FILTER_SLOTS; i++) {
-                if (i == slot) continue;
-
-                IAEFluidStack otherFluid = this.host.getFilterFluid(i);
-                if (otherFluid == null) continue;
-
-                FluidStackKey otherKey = FluidStackKey.of(otherFluid.getFluidStack());
-                if (otherKey != null && otherKey.equals(newKey)) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-
-            if (isDuplicate) {
-                if (player != null) {
-                    player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
-                }
-            } else {
-                this.host.setFilterFluid(slot, fluid);
-            }
-        }
+    protected int getFilterSlotCount() {
+        return FluidInterfaceLogic.FILTER_SLOTS;
     }
 
-    public IFluidInterfaceHost getHost() {
-        return this.host;
+    @Override
+    protected int getSlotsPerPage() {
+        return FluidInterfaceLogic.SLOTS_PER_PAGE;
     }
 
-    public void setMaxSlotSize(int size) {
-        this.host.setMaxSlotSize(size);
+    @Override
+    @Nullable
+    protected FluidStackKey createKey(@Nullable IAEFluidStack stack) {
+        if (stack == null) return null;
+        return FluidStackKey.of(stack.getFluidStack());
     }
 
-    public void setPollingRate(int ticks) {
-        this.host.setPollingRate(ticks);
+    @Override
+    @Nullable
+    protected IAEFluidStack getFilter(int slot) {
+        return this.host.getFilter(slot);
     }
 
-    /**
-     * Clear all filters. Import only clears where tank is empty (prevents orphans).
-     * Export clears all and returns fluids to network. Delegates to host.
-     */
-    public void clearFilters() {
-        this.host.clearFilters();
+    @Override
+    protected void setFilter(int slot, @Nullable IAEFluidStack stack) {
+        this.host.setFilter(slot, stack);
     }
+
+    @Override
+    protected boolean isStorageEmpty(int slot) {
+        return this.host.isStorageEmpty(slot);
+    }
+
+    @Override
+    protected boolean keysEqual(@Nonnull FluidStackKey a, @Nonnull FluidStackKey b) {
+        return a.equals(b);
+    }
+
+    @Override
+    @Nullable
+    protected IAEFluidStack extractFilterFromContainer(ItemStack container) {
+        FluidStack fluid = FluidUtil.getFluidContained(container);
+        if (fluid == null || fluid.amount <= 0) return null;
+        return AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class).createStack(fluid);
+    }
+
+    @Override
+    @Nonnull
+    protected IAEFluidStack createFilterStack(@Nonnull IAEFluidStack raw) {
+        // Already an AE stack, just ensure it has count 1
+        IAEFluidStack copy = raw.copy();
+        copy.setStackSize(1);
+        return copy;
+    }
+
+    @Override
+    @Nullable
+    protected IAEFluidStack copyFilter(@Nullable IAEFluidStack filter) {
+        return filter == null ? null : filter.copy();
+    }
+
+    @Override
+    protected boolean filtersEqual(@Nullable IAEFluidStack a, @Nullable IAEFluidStack b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.equals(b);
+    }
+
+    // ================================= Upgrade Slot Change Handler =================================
 
     @Override
     public void onSlotChange(final Slot s) {
         super.onSlotChange(s);
-
-        if (s instanceof SlotUpgrade) host.refreshUpgrades();
+        if (s instanceof SlotUpgrade) this.host.refreshUpgrades();
     }
 
+    // ================================= Fluid Pouring (Import Only) =================================
+
     /**
-     * Handle inventory actions from the GUI, specifically for fluid container operations.
-     * Import mode: supports EMPTY_ITEM action to pour fluid from the player's held item into a tank slot.
-     * Export mode: no fluid pouring support (tanks are filled from the network).
+     * Handle pouring fluid from held item into tank.
+     * Called by the base class doAction for EMPTY_ITEM actions on import interfaces.
      */
     @Override
-    public void doAction(EntityPlayerMP player, InventoryAction action, int slot, long id) {
-        if (action != InventoryAction.EMPTY_ITEM || this.host.isExport()) {
-            super.doAction(player, action, slot, id);
-            return;
-        }
-
+    protected boolean handleEmptyItemAction(EntityPlayerMP player, int slot) {
         // Validate tank slot index
-        if (slot < 0 || slot >= FluidInterfaceLogic.STORAGE_SLOTS) return;
+        if (slot < 0 || slot >= FluidInterfaceLogic.STORAGE_SLOTS) return false;
 
         // Get the player's held item
         final ItemStack held = player.inventory.getItemStack();
-        if (held.isEmpty()) return;
+        if (held.isEmpty()) return false;
 
         // Make a copy with count 1 to get the fluid handler
         ItemStack heldCopy = held.copy();
         heldCopy.setCount(1);
         IFluidHandlerItem fh = FluidUtil.getFluidHandler(heldCopy);
-        if (fh == null) return;
+        if (fh == null) return false;
 
         // Check if the slot has a filter set
         IAEFluidStack filterFluid = this.host.getFilterFluid(slot);
 
         // Check what fluid is in the container
         FluidStack drainable = fh.drain(Integer.MAX_VALUE, false);
-        if (drainable == null || drainable.amount <= 0) return;
+        if (drainable == null || drainable.amount <= 0) return false;
 
         // If filter is set, check if fluid matches
-        if (filterFluid != null && !filterFluid.getFluidStack().isFluidEqual(drainable)) return;
+        if (filterFluid != null && !filterFluid.getFluidStack().isFluidEqual(drainable)) return false;
 
         // Calculate how much we can insert into the tank
         int capacity = this.host.getMaxSlotSize();
         FluidStack currentTankFluid = this.host.getFluidInTank(slot);
 
         // If tank has fluid, it must match
-        if (currentTankFluid != null && !currentTankFluid.isFluidEqual(drainable)) return;
+        if (currentTankFluid != null && !currentTankFluid.isFluidEqual(drainable)) return false;
 
         int currentAmount = currentTankFluid != null ? currentTankFluid.amount : 0;
         int spaceAvailable = capacity - currentAmount;
-        if (spaceAvailable <= 0) return;
+        if (spaceAvailable <= 0) return false;
 
         // Process each item in the stack
         int heldAmount = held.getCount();
@@ -343,18 +217,19 @@ public class ContainerFluidInterface extends AEBaseContainer implements IFluidSy
             drainable = fh.drain(spaceAvailable, false);
             if (drainable == null || drainable.amount <= 0) break;
 
-            // Calculate how much we'll actually insert (minimum of drainable and space)
+            // Calculate how much we'll actually insert
             int toInsert = Math.min(drainable.amount, spaceAvailable);
 
             // Actually drain the exact amount we can insert
             FluidStack drained = fh.drain(toInsert, true);
             if (drained == null || drained.amount <= 0) break;
 
-            // Now insert into tank - this should always succeed since we checked space
-            int actuallyInserted = this.host.insertFluidIntoTank(slot, drained);
+            // Now insert into tank
+            int actuallyInserted = insertFluidIntoTank(slot, drained);
 
             if (actuallyInserted < drained.amount) {
-                Cells.LOGGER.warn("Could not insert all drained fluid into tank. Inserted: {}, Drained: {}", actuallyInserted, drained.amount);
+                Cells.LOGGER.warn("Could not insert all drained fluid. Inserted: {}, Drained: {}",
+                    actuallyInserted, drained.amount);
             }
 
             // Update the player's held item
@@ -369,107 +244,113 @@ public class ContainerFluidInterface extends AEBaseContainer implements IFluidSy
         }
 
         this.updateHeld(player);
+        return true;
     }
 
-    // TODO: add isInFilter and addToFilter to containers
+    /**
+     * Insert fluid into a tank slot.
+     */
+    private int insertFluidIntoTank(int slot, FluidStack fluid) {
+        return this.host.insertFluidIntoTank(slot, fluid);
+    }
+
+    // ================================= Fluid Extraction (Export Only) =================================
 
     /**
-     * Handle shift-click: if the clicked item is a fluid container, extract its fluid
-     * and set it as a filter in the first available slot.
-     * The actual item stays in place (return empty), only the filter is set.
-     * <p>
-     * Note: transferStackInSlot is called on SERVER side for actual execution.
-     * On client, it's just for prediction. The server handles the actual filter setting,
-     * and detectAndSendChanges syncs the result back to the client.
-     * We do NOT send a packet here because that would cause a duplicate message
-     * (server already processed the shift-click before receiving the packet).
+     * Handle filling held item from tank.
+     * Called by the base class doAction for FILL_ITEM actions on export interfaces.
      */
     @Override
-    @Nonnull
-    public ItemStack transferStackInSlot(EntityPlayer player, int slotIndex) {
-        // Only process on server side - client prediction is not needed for filter slots
-        if (player.world.isRemote) return ItemStack.EMPTY;
+    protected boolean handleFillItemAction(EntityPlayerMP player, int slot) {
+        // Validate tank slot index
+        if (slot < 0 || slot >= FluidInterfaceLogic.STORAGE_SLOTS) return false;
 
-        if (slotIndex < 0 || slotIndex >= inventorySlots.size()) return ItemStack.EMPTY;
+        // Get the player's held item
+        final ItemStack held = player.inventory.getItemStack();
+        if (held.isEmpty()) return false;
 
-        Slot slot = inventorySlots.get(slotIndex);
-        if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
+        // Check if tank has fluid
+        FluidStack tankFluid = this.host.getFluidInTank(slot);
+        if (tankFluid == null || tankFluid.amount <= 0) return false;
 
-        // Only process shift-clicks from the player inventory (not from upgrade slots)
-        // Our upgrade slots are added first, so player inventory starts after them
-        int upgradeSlotCount = FluidInterfaceLogic.UPGRADE_SLOTS;
-        if (slotIndex < upgradeSlotCount) return ItemStack.EMPTY;
+        // Process each item in the stack
+        int heldAmount = held.getCount();
+        for (int i = 0; i < heldAmount; i++) {
+            // Check if tank still has fluid
+            tankFluid = this.host.getFluidInTank(slot);
+            if (tankFluid == null || tankFluid.amount <= 0) break;
 
-        ItemStack clickedStack = slot.getStack();
-        if (clickedStack.isEmpty()) return ItemStack.EMPTY;
+            // Try to fill a single container
+            ItemStack singleContainer = held.copy();
+            singleContainer.setCount(1);
 
-        // Try to extract fluid from the item
-        FluidStack fluid = FluidUtil.getFluidContained(clickedStack);
-        if (fluid == null || fluid.amount <= 0) return ItemStack.EMPTY;
+            // Use FluidUtil to fill the container
+            FluidActionResult result = FluidUtil.tryFillContainer(
+                singleContainer,
+                new TankWrapper(slot, tankFluid),
+                Integer.MAX_VALUE,
+                player,
+                true
+            );
 
-        // Check for duplicates across all filter slots
-        FluidStackKey newKey = FluidStackKey.of(fluid);
-        if (newKey == null) return ItemStack.EMPTY;
+            if (!result.isSuccess()) break;
 
-        for (int i = 0; i < FluidInterfaceLogic.FILTER_SLOTS; i++) {
-            IAEFluidStack existingFilter = this.host.getFilterFluid(i);
-            if (existingFilter != null) {
-                FluidStackKey existingKey = FluidStackKey.of(existingFilter.getFluidStack());
-                if (existingKey != null && existingKey.equals(newKey)) {
-                    // Already in filter, show duplicate message
-                    player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
-                    return ItemStack.EMPTY;
+            // Update the player's held item
+            if (held.getCount() == 1) {
+                player.inventory.setItemStack(result.getResult());
+            } else {
+                player.inventory.getItemStack().shrink(1);
+                if (!player.inventory.addItemStackToInventory(result.getResult())) {
+                    player.dropItem(result.getResult(), false);
                 }
             }
         }
 
-        // Find the first empty filter slot
-        final boolean isExport = this.host.isExport();
-        for (int i = 0; i < FluidInterfaceLogic.FILTER_SLOTS; i++) {
-            IAEFluidStack existingFilter = this.host.getFilterFluid(i);
-            if (existingFilter != null) continue;
-
-            // Import mode: only set filter if tank is empty
-            if (!isExport && !this.host.isTankEmpty(i)) continue;
-
-            // Found an available slot, set the filter
-            // Server sets directly, detectAndSendChanges will sync to client
-            IAEFluidStack aeFluid = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class)
-                .createStack(fluid);
-            this.host.setFilterFluid(i, aeFluid);
-
-            return ItemStack.EMPTY;
-        }
-
-        // No empty slot found
-        return ItemStack.EMPTY;
+        this.updateHeld(player);
+        return true;
     }
 
     /**
-     * Custom slot for upgrades that only accepts specific upgrade cards.
+     * Wrapper for tank slot to work with FluidUtil.
      */
-    private static class SlotUpgrade extends SlotNormal {
-        private final IFluidInterfaceHost host;
+    private class TankWrapper implements IFluidHandler {
+        private final int slot;
+        private FluidStack fluid;
 
-        public SlotUpgrade(AppEngInternalInventory inv, int idx, int x, int y, IFluidInterfaceHost host) {
-            super(inv, idx, x, y);
-            this.host = host;
-            this.setIIcon(13 * 16 + 15);
+        TankWrapper(int slot, FluidStack fluid) {
+            this.slot = slot;
+            this.fluid = fluid;
         }
 
         @Override
-        public boolean isItemValid(@Nonnull ItemStack stack) {
-            return host.isValidUpgrade(stack);
+        public IFluidTankProperties[] getTankProperties() {
+            return new IFluidTankProperties[] {
+                new FluidTankProperties(fluid, host.getMaxSlotSize())
+            };
         }
 
         @Override
-        public int getSlotStackLimit() {
-            return 1;
+        public int fill(FluidStack resource, boolean doFill) {
+            // This wrapper is for draining only
+            return 0;
         }
 
+        @Nullable
         @Override
-        public hasCalculatedValidness getIsValid() {
-            return hasCalculatedValidness.Valid;
+        public FluidStack drain(FluidStack resource, boolean doDrain) {
+            if (resource == null || !resource.isFluidEqual(fluid)) return null;
+            return drain(resource.amount, doDrain);
+        }
+
+        @Nullable
+        @Override
+        public FluidStack drain(int maxDrain, boolean doDrain) {
+            FluidStack drained = host.drainFluidFromTank(slot, maxDrain, doDrain);
+            if (doDrain && drained != null) {
+                // Update our cached fluid
+                fluid = host.getFluidInTank(slot);
+            }
+            return drained;
         }
     }
 }

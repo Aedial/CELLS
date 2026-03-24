@@ -1,5 +1,9 @@
 package com.cells.gui.slots;
 
+import java.awt.Rectangle;
+import java.util.function.IntSupplier;
+
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.Minecraft;
@@ -8,6 +12,8 @@ import net.minecraft.item.ItemStack;
 
 import appeng.client.gui.widgets.GuiCustomSlot;
 import appeng.container.slot.IJEITargetSlot;
+
+import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
 
 /**
@@ -174,7 +180,6 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
      * @param ingredient The resource to add (R type, ItemStack, or other JEI type)
      * @return true if accepted, false if rejected (duplicate, wrong type, etc.)
      */
-    @SuppressWarnings("unchecked")
     public boolean acceptResource(Object ingredient) {
         if (ingredient == null) return false;
 
@@ -192,13 +197,15 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
      * Override to handle JEI ingredient types and other conversions.
      * <p>
      * Default implementation handles ItemStack extraction.
+     * <p>
+     * Public so that GUIs can check if a slot can accept an ingredient type
+     * (e.g., for unified JEI target creation).
      *
      * @param ingredient The object to convert
      * @return The resource, or null if conversion failed
      */
-    @SuppressWarnings("unchecked")
     @Nullable
-    protected R convertToResource(Object ingredient) {
+    public R convertToResource(Object ingredient) {
         // If it's already the right type, cast it
         // (subclasses should override to check instance properly)
         if (ingredient instanceof ItemStack) {
@@ -220,6 +227,41 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
         if (handler == null || resource == null) return false;
 
         return handler.isInFilter(resource);
+    }
+
+    // ==================== JEI Integration ====================
+
+    /**
+     * Create a JEI ghost ingredient target for this slot.
+     * <p>
+     * This provides a unified way to create JEI targets for drag-drop support.
+     * The GUI can call this method on each filter slot instead of manually
+     * creating targets with duplicated code.
+     *
+     * @param guiLeft The GUI's left offset (to calculate absolute position)
+     * @param guiTop The GUI's top offset (to calculate absolute position)
+     * @return A JEI Target that can accept ingredients for this slot
+     */
+    public Target<Object> createJEITarget(IntSupplier guiLeftSupplier, IntSupplier guiTopSupplier) {
+        final AbstractResourceFilterSlot<R> self = this;
+
+        return new Target<Object>() {
+            @Override
+            @Nonnull
+            public Rectangle getArea() {
+                return new Rectangle(
+                    guiLeftSupplier.getAsInt() + self.xPos(),
+                    guiTopSupplier.getAsInt() + self.yPos(),
+                    self.getWidth(),
+                    self.getHeight()
+                );
+            }
+
+            @Override
+            public void accept(@Nonnull Object ingredient) {
+                self.acceptResource(ingredient);
+            }
+        };
     }
 
     /**

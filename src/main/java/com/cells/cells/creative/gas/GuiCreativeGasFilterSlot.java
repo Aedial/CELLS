@@ -1,25 +1,25 @@
 package com.cells.cells.creative.gas;
 
-import java.util.Collections;
-
 import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
 
 import mekanism.api.gas.GasStack;
 
-import com.mekeng.github.MekEng;
 import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.data.impl.AEGasStack;
-import com.mekeng.github.network.packet.CGasSlotSync;
 
 import com.cells.gui.slots.GasFilterSlot;
+import com.cells.network.CellsNetworkHandler;
+import com.cells.network.sync.PacketResourceSlot;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * Gas filter slot for Creative Gas Cell.
  * <p>
  * Thin wrapper around {@link GasFilterSlot} that converts between GasStack and IAEGasStack.
+ * Uses unified {@link PacketResourceSlot} for server sync.
  */
 public class GuiCreativeGasFilterSlot extends GasFilterSlot {
 
@@ -37,12 +37,14 @@ public class GuiCreativeGasFilterSlot extends GasFilterSlot {
 
     @Override
     public void setResource(@Nullable IAEGasStack resource) {
-        // Convert IAEGasStack to GasStack for the tank adapter
+        // Convert IAEGasStack to GasStack for the tank adapter (client-side update)
         GasStack gasStack = resource != null ? resource.getGasStack() : null;
         this.tankAdapter.setGas(this.slot, gasStack);
 
-        // Send to server via MekEng's packet
-        MekEng.proxy.netHandler.sendToServer(new CGasSlotSync(Collections.singletonMap(this.slot, resource)));
+        // Send to server via unified PacketResourceSlot
+        CellsNetworkHandler.INSTANCE.sendToServer(
+            new PacketResourceSlot(ResourceType.GAS, this.slot, resource)
+        );
     }
 
     @Override

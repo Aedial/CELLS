@@ -12,7 +12,7 @@ import net.minecraft.util.math.BlockPos;
  * Tracks players who are performing a "save memory card with filters" action.
  * This is used to prevent the normal memory card and block handling from running
  * when we're handling a custom save-with-filters operation.
- *
+ * <p>
  * The flag is set when the client sends a PacketSaveMemoryCardWithFilters packet,
  * and cleared after the RightClickBlock event is handled on the server.
  */

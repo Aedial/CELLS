@@ -19,8 +19,6 @@ import appeng.util.Platform;
 import com.cells.Tags;
 
 
-// TODO NOW: Refactor that to be in-line with the new standard
-
 /**
  * Enum defining all CELLS part types.
  */

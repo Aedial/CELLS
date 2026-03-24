@@ -40,7 +40,7 @@ import com.cells.parts.PartImportInterface;
  * Client-side event handler for memory card interaction with Import/Export Interfaces.
  * When the player sneak+right-clicks with a memory card while holding the
  * "include filters" keybind, sends a packet to save settings WITH filters.
- *
+ * <p>
  * The corresponding server-side handler (MemoryCardServerHandler) intercepts the
  * RightClickBlock event and cancels it when our packet has been received, preventing
  * both the normal AE2 memory card save and the card clearing behavior.

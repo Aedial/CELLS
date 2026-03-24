@@ -1,30 +1,42 @@
 package com.cells.blocks.interfacebase.item;
 
-import com.cells.blocks.interfacebase.IInterfaceHost;
+import javax.annotation.Nullable;
+
 import net.minecraft.item.ItemStack;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.tile.inventory.AppEngInternalInventory;
+
+import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
+import com.cells.gui.slots.ItemStorageSlot;
+import com.cells.util.ItemStackKey;
 
 
 /**
  * Extended interface for Item Interface hosts (both import and export, both tile and part).
  * Provides access to item filter/storage/upgrade inventories and configuration.
  * <p>
- * The {@link #isExport()} method from {@link IInterfaceHost} determines whether
+ * The {@link #isExport()} method from {@link com.cells.blocks.interfacebase.IInterfaceHost} determines whether
  * this is an import or export interface, which affects filter clearing behavior
  * and available upgrades.
+ * <p>
+ * Pagination, clearing, and slot info methods are inherited from {@link IFilterableInterfaceHost}
+ * with default implementations that delegate to {@link #getInterfaceLogic()}.
  */
-public interface IItemInterfaceHost extends IInterfaceHost {
+public interface IItemInterfaceHost
+    extends IFilterableInterfaceHost<ItemStack, ItemStackKey>,
+            ItemStorageSlot.IItemStorageHost {
 
     /**
      * @return The filter inventory (ghost items, 1 stack size each)
      */
-    AppEngInternalInventory getFilterInventory();
+    IItemHandlerModifiable getFilterInventory();
 
     /**
      * @return The storage inventory (actual items)
      */
-    AppEngInternalInventory getStorageInventory();
+    IItemHandlerModifiable getStorageInventory();
 
     /**
      * @return The upgrade inventory
@@ -38,11 +50,6 @@ public interface IItemInterfaceHost extends IInterfaceHost {
     boolean isItemValidForSlot(int slot, ItemStack stack);
 
     /**
-     * Refresh the filter-to-slot map after filter changes.
-     */
-    void refreshFilterMap();
-
-    /**
      * Refresh cached upgrade status after upgrade slot changes.
      */
     void refreshUpgrades();
@@ -53,39 +60,16 @@ public interface IItemInterfaceHost extends IInterfaceHost {
     boolean isValidUpgrade(ItemStack stack);
 
     /**
-     * Clear filter slots. Import only clears filters where the corresponding
-     * storage slot is empty (to prevent orphaning items). Export clears all filters.
-     */
-    void clearFilters();
-
-    // Pagination support
-
-    /**
      * @return The number of installed capacity upgrades.
      */
     int getInstalledCapacityUpgrades();
-
-    /**
-     * @return Total number of pages (1 base + 1 per capacity card).
-     */
-    int getTotalPages();
-
-    /**
-     * @return The current page index (0-based).
-     */
-    int getCurrentPage();
-
-    /**
-     * Set the current page index (0-based), clamped to valid range.
-     */
-    void setCurrentPage(int page);
 
     /**
      * @return The starting slot index for the current page.
      */
     int getCurrentPageStartSlot();
 
-    // Import-specific upgrades (return false for export interfaces)
+    // ================================= Import-specific Upgrades =================================
 
     /**
      * @return true if the overflow upgrade is installed (import only).
@@ -99,5 +83,65 @@ public interface IItemInterfaceHost extends IInterfaceHost {
      */
     default boolean hasTrashUnselectedUpgrade() {
         return false;
+    }
+
+    // ============================== IFilterableInterfaceHost Implementation ==============================
+
+    @Override
+    @Nullable
+    default ItemStack getFilter(int slot) {
+        IItemHandler filterInv = getFilterInventory();
+        if (slot < 0 || slot >= filterInv.getSlots()) return null;
+
+        ItemStack stack = filterInv.getStackInSlot(slot);
+        return stack.isEmpty() ? null : stack;
+    }
+
+    @Override
+    default void setFilter(int slot, @Nullable ItemStack stack) {
+        IItemHandlerModifiable filterInv = getFilterInventory();
+        if (slot < 0 || slot >= filterInv.getSlots()) return;
+
+        if (stack == null || stack.isEmpty()) {
+            filterInv.setStackInSlot(slot, ItemStack.EMPTY);
+        } else {
+            ItemStack ghost = stack.copy();
+            ghost.setCount(1);
+            filterInv.setStackInSlot(slot, ghost);
+        }
+    }
+
+    @Override
+    default boolean isStorageEmpty(int slot) {
+        IItemHandler storageInv = getStorageInventory();
+        if (slot < 0 || slot >= storageInv.getSlots()) return true;
+
+        return storageInv.getStackInSlot(slot).isEmpty();
+    }
+
+    // ============================== ItemStorageSlot.IItemStorageHost Implementation ==============================
+
+    @Override
+    @Nullable
+    default ItemStack getItemInStorage(int slotIndex) {
+        IItemHandler storageInv = getStorageInventory();
+        if (slotIndex < 0 || slotIndex >= storageInv.getSlots()) return null;
+
+        ItemStack stack = storageInv.getStackInSlot(slotIndex);
+        return stack.isEmpty() ? null : stack;
+    }
+
+    // ============================== IFilterableInterfaceHost Implementation (continued) ==============================
+
+    @Override
+    @Nullable
+    default ItemStackKey createKey(@Nullable ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return null;
+        return ItemStackKey.of(stack);
+    }
+
+    @Override
+    default String getTypeLocalizationKey() {
+        return "cells.type.item";
     }
 }

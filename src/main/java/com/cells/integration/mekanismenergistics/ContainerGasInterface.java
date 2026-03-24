@@ -1,64 +1,37 @@
 package com.cells.integration.mekanismenergistics;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.IContainerListener;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.text.TextComponentTranslation;
 
 import appeng.api.parts.IPart;
-import appeng.container.AEBaseContainer;
-import appeng.container.guisync.GuiSync;
-import appeng.container.slot.SlotNormal;
-import appeng.helpers.InventoryAction;
-import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.util.Platform;
 
 import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.data.impl.AEGasStack;
-import mekanism.api.gas.GasStack;
 
+import mekanism.api.gas.GasStack;
+import mekanism.api.gas.IGasHandler;
+import mekanism.api.gas.IGasItem;
+import mekanism.common.capabilities.Capabilities;
+
+import com.cells.blocks.interfacebase.AbstractContainerInterface;
 import com.cells.gui.QuickAddHelper;
-import com.cells.network.CellsNetworkHandler;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * Container for Gas Import/Export Interface GUIs.
- * Handles gas filter synchronization and tank interactions.
  * <p>
- * Since AE2 doesn't natively support gas sync, we implement our own sync mechanism
- * using {@link PacketGasSlot} for client-server communication.
+ * Extends {@link AbstractContainerInterface} with gas-specific implementations.
+ * Most logic is inherited from the abstract base class.
  */
-public class ContainerGasInterface extends AEBaseContainer implements IGasSyncContainer {
-
-    private final IGasInterfaceHost host;
-    private final Map<Integer, IAEGasStack> clientFilterCache = new HashMap<>();
-    private final Map<Integer, IAEGasStack> serverFilterCache = new HashMap<>();
-
-    @GuiSync(0)
-    public long maxSlotSize = GasInterfaceLogic.DEFAULT_MAX_SLOT_SIZE;
-
-    @GuiSync(1)
-    public long pollingRate = 0;
-
-    @GuiSync(2)
-    public int currentPage = 0;
-
-    @GuiSync(3)
-    public int totalPages = 1;
+public class ContainerGasInterface
+    extends AbstractContainerInterface<IAEGasStack, GasStackKey, IGasInterfaceHost> {
 
     /**
      * Constructor for tile entity hosts.
@@ -75,15 +48,14 @@ public class ContainerGasInterface extends AEBaseContainer implements IGasSyncCo
     }
 
     /**
-     * Common constructor that both tile and part use.
+     * Common constructor.
      */
     private ContainerGasInterface(final InventoryPlayer ip, final IGasInterfaceHost host, final Object anchor) {
-        super(ip, anchor instanceof TileEntity ? (TileEntity) anchor : null, anchor instanceof IPart ? (IPart) anchor : null);
-        this.host = host;
+        super(ip, host, anchor, GasInterfaceLogic.DEFAULT_MAX_SLOT_SIZE);
 
-        // Add 4 upgrade slots at the right side of the GUI
+        // Add upgrade slots
         for (int i = 0; i < GasInterfaceLogic.UPGRADE_SLOTS; i++) {
-            this.addSlotToContainer(new SlotUpgrade(
+            this.addSlotToContainer(new SlotUpgrade<>(
                 host.getUpgradeInventory(), i, 186, 25 + i * 18, host
             ));
         }
@@ -92,327 +64,351 @@ public class ContainerGasInterface extends AEBaseContainer implements IGasSyncCo
         this.bindPlayerInventory(ip, 0, 174);
     }
 
+    // ================================= Abstract Implementations =================================
+
     @Override
-    public void detectAndSendChanges() {
-        super.detectAndSendChanges();
-
-        if (Platform.isServer()) {
-            // Sync gas filters by comparing with cache
-            for (int i = 0; i < GasInterfaceLogic.FILTER_SLOTS; i++) {
-                IAEGasStack current = this.host.getFilterGas(i);
-                IAEGasStack cached = this.serverFilterCache.get(i);
-
-                boolean different = (current == null && cached != null) ||
-                                   (current != null && cached == null) ||
-                                   (current != null && !current.equals(cached));
-
-                if (different) {
-                    this.serverFilterCache.put(i, current == null ? null : current.copy());
-
-                    // Send diff to all listeners
-                    Map<Integer, IAEGasStack> diff = Collections.singletonMap(i, current);
-                    ByteBuf buf = Unpooled.buffer();
-                    writeGasMap(buf, diff);
-                    CellsNetworkHandler.INSTANCE.sendToAll(new PacketGasSlot(buf));
-                }
-            }
-        }
-
-        // Sync GuiSync values
-        if (this.maxSlotSize != this.host.getMaxSlotSize()) {
-            this.maxSlotSize = this.host.getMaxSlotSize();
-        }
-        if (this.pollingRate != this.host.getPollingRate()) {
-            this.pollingRate = this.host.getPollingRate();
-        }
-        if (this.currentPage != this.host.getCurrentPage()) {
-            this.currentPage = this.host.getCurrentPage();
-        }
-        if (this.totalPages != this.host.getTotalPages()) {
-            this.totalPages = this.host.getTotalPages();
-        }
-    }
-
-    private void writeGasMap(ByteBuf buf, Map<Integer, IAEGasStack> map) {
-        buf.writeInt(map.size());
-        for (Map.Entry<Integer, IAEGasStack> entry : map.entrySet()) {
-            buf.writeInt(entry.getKey());
-            IAEGasStack gas = entry.getValue();
-            if (gas == null) {
-                buf.writeBoolean(false);
-            } else {
-                buf.writeBoolean(true);
-                try {
-                    gas.writeToPacket(buf);
-                } catch (IOException e) {
-                    // Should not happen for ByteBuf
-                }
-            }
-        }
-    }
-
-    /**
-     * Sets the current page for viewing, clamped to valid range.
-     */
-    public void setCurrentPage(int page) {
-        int newPage = Math.max(0, Math.min(page, this.totalPages - 1));
-        this.currentPage = newPage;
-        this.host.setCurrentPage(newPage);
-    }
-
-    public void nextPage() {
-        if (this.currentPage < this.totalPages - 1) setCurrentPage(this.currentPage + 1);
-    }
-
-    public void prevPage() {
-        if (this.currentPage > 0) setCurrentPage(this.currentPage - 1);
+    protected ResourceType getResourceType() {
+        return ResourceType.GAS;
     }
 
     @Override
-    public void addListener(@Nonnull IContainerListener listener) {
-        super.addListener(listener);
-
-        // Send full gas filter inventory to new listener
-        if (Platform.isServer()) {
-            Map<Integer, IAEGasStack> fullMap = new HashMap<>();
-            for (int i = 0; i < GasInterfaceLogic.FILTER_SLOTS; i++) {
-                IAEGasStack gas = this.host.getFilterGas(i);
-                fullMap.put(i, gas);
-                this.serverFilterCache.put(i, gas == null ? null : gas.copy());
-            }
-
-            ByteBuf buf = Unpooled.buffer();
-            writeGasMap(buf, fullMap);
-            CellsNetworkHandler.INSTANCE.sendToAll(new PacketGasSlot(buf));
-        }
+    protected int getUpgradeSlotCount() {
+        return GasInterfaceLogic.UPGRADE_SLOTS;
     }
 
-    /**
-     * Receive gas slot updates from server (on client) or from client (on server).
-     */
     @Override
-    public void receiveGasSlots(Map<Integer, IAEGasStack> gases) {
-        // On client, just update the display cache
-        if (this.host.getHostWorld() != null && this.host.getHostWorld().isRemote) {
-            this.clientFilterCache.putAll(gases);
-            return;
-        }
-
-        // Get the player for feedback messages (first listener should be the player)
-        EntityPlayer player = null;
-        for (IContainerListener listener : this.listeners) {
-            if (listener instanceof EntityPlayer) {
-                player = (EntityPlayer) listener;
-                break;
-            }
-        }
-
-        final boolean isExport = this.host.isExport();
-
-        // On server, validate each change before applying
-        for (Map.Entry<Integer, IAEGasStack> entry : gases.entrySet()) {
-            int slot = entry.getKey();
-            IAEGasStack gas = entry.getValue();
-
-            // Validate slot index
-            if (slot < 0 || slot >= GasInterfaceLogic.FILTER_SLOTS) continue;
-
-            // Null gas means clearing the filter
-            if (gas == null) {
-                // Import: only clear if tank is empty (prevent orphans)
-                if (!isExport && !this.host.isTankEmpty(slot)) {
-                    if (player != null) {
-                        player.sendMessage(new TextComponentTranslation("cells.storage_not_empty"));
-                    }
-                    continue;
-                }
-
-                this.host.setFilterGas(slot, null);
-                continue;
-            }
-
-            // Import: prevent filter changes if the corresponding tank has fluid
-            if (!isExport && !this.host.isTankEmpty(slot)) {
-                if (player != null) {
-                    player.sendMessage(new TextComponentTranslation("cells.storage_not_empty"));
-                }
-                continue;
-            }
-
-            // Prevent duplicate gas filters
-            GasStackKey newKey = GasStackKey.of(gas.getGasStack());
-            if (newKey == null) continue;
-
-            boolean isDuplicate = false;
-
-            for (int i = 0; i < GasInterfaceLogic.FILTER_SLOTS; i++) {
-                if (i == slot) continue;
-
-                IAEGasStack otherGas = this.host.getFilterGas(i);
-                if (otherGas == null) continue;
-
-                GasStackKey otherKey = GasStackKey.of(otherGas.getGasStack());
-                if (otherKey != null && otherKey.equals(newKey)) {
-                    isDuplicate = true;
-                    break;
-                }
-            }
-
-            if (isDuplicate) {
-                if (player != null) {
-                    player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
-                }
-            } else {
-                this.host.setFilterGas(slot, gas);
-            }
-        }
+    protected int getFilterSlotCount() {
+        return GasInterfaceLogic.FILTER_SLOTS;
     }
 
-    /**
-     * Get a gas filter from the client cache (for GUI rendering).
-     */
-    public IAEGasStack getClientFilterGas(int slot) {
-        if (Platform.isServer()) return this.host.getFilterGas(slot);
-        return this.clientFilterCache.get(slot);
+    @Override
+    protected int getSlotsPerPage() {
+        return GasInterfaceLogic.SLOTS_PER_PAGE;
     }
 
-    public IGasInterfaceHost getHost() {
-        return this.host;
+    @Override
+    @Nullable
+    protected GasStackKey createKey(@Nullable IAEGasStack stack) {
+        if (stack == null) return null;
+        return GasStackKey.of(stack.getGasStack());
     }
 
-    public void setMaxSlotSize(int size) {
-        this.host.setMaxSlotSize(size);
+    @Override
+    @Nullable
+    protected IAEGasStack getFilter(int slot) {
+        return this.host.getFilter(slot);
     }
 
-    public void setPollingRate(int ticks) {
-        this.host.setPollingRate(ticks);
+    @Override
+    protected void setFilter(int slot, @Nullable IAEGasStack stack) {
+        this.host.setFilter(slot, stack);
     }
 
-    /**
-     * Clear all filters. Import only clears where tank is empty (prevents orphans).
-     * Export clears all and returns gases to network. Delegates to host.
-     */
-    public void clearFilters() {
-        this.host.clearFilters();
+    @Override
+    protected boolean isStorageEmpty(int slot) {
+        return this.host.isStorageEmpty(slot);
     }
+
+    @Override
+    protected boolean keysEqual(@Nonnull GasStackKey a, @Nonnull GasStackKey b) {
+        return a.equals(b);
+    }
+
+    @Override
+    @Nullable
+    protected IAEGasStack extractFilterFromContainer(ItemStack container) {
+        GasStack gas = QuickAddHelper.getGasFromItemStack(container);
+        if (gas == null || gas.amount <= 0) return null;
+        return AEGasStack.of(gas);
+    }
+
+    @Override
+    @Nonnull
+    protected IAEGasStack createFilterStack(@Nonnull IAEGasStack raw) {
+        // Already an AE stack, just ensure it has count 1
+        IAEGasStack copy = raw.copy();
+        copy.setStackSize(1);
+        return copy;
+    }
+
+    @Override
+    @Nullable
+    protected IAEGasStack copyFilter(@Nullable IAEGasStack filter) {
+        return filter == null ? null : filter.copy();
+    }
+
+    @Override
+    protected boolean filtersEqual(@Nullable IAEGasStack a, @Nullable IAEGasStack b) {
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        return a.equals(b);
+    }
+
+    // ================================= Upgrade Slot Change Handler =================================
 
     @Override
     public void onSlotChange(final Slot s) {
         super.onSlotChange(s);
-
-        if (s instanceof SlotUpgrade) {
-            host.refreshUpgrades();
-        }
+        if (s instanceof SlotUpgrade) this.host.refreshUpgrades();
     }
 
-    /**
-     * Handle inventory actions from the GUI.
-     * Gas interfaces don't support pouring from containers (unlike fluid interfaces)
-     * since there's no universal gas container item like fluid buckets.
-     */
-    @Override
-    public void doAction(EntityPlayerMP player, InventoryAction action, int slot, long id) {
-        // Gas interfaces don't support EMPTY_ITEM action since there's no universal
-        // gas container item.
-        super.doAction(player, action, slot, id);
-    }
+    // ================================= Gas Pouring (Import Mode) =================================
 
     /**
-     * Handle shift-click: if the clicked item is a gas container, extract its gas
-     * and set it as a filter in the first available slot.
-     * The actual item stays in place (return empty), only the filter is set.
+     * Handle pouring gas from a held item into a tank slot.
      * <p>
-     * Note: transferStackInSlot is called on SERVER side for actual execution.
-     * On client, it's just for prediction. The server handles the actual filter setting,
-     * and detectAndSendChanges syncs the result back to the client.
-     * We do NOT send a packet here because that would cause a duplicate message
-     * (server already processed the shift-click before receiving the packet).
+     * Supports IGasItem (Mekanism gas tanks) and GAS_HANDLER_CAPABILITY items.
      */
     @Override
-    @Nonnull
-    public ItemStack transferStackInSlot(EntityPlayer player, int slotIndex) {
-        // Only process on server side - client prediction is not needed for filter slots
-        if (player.world.isRemote) return ItemStack.EMPTY;
+    protected boolean handleEmptyItemAction(EntityPlayerMP player, int tankSlot) {
+        ItemStack held = player.inventory.getItemStack();
+        if (held.isEmpty()) return false;
 
-        if (slotIndex < 0 || slotIndex >= inventorySlots.size()) return ItemStack.EMPTY;
+        // Check for IGasItem (Mekanism gas tanks)
+        if (held.getItem() instanceof IGasItem) {
+            return handleIGasItemPouring(player, tankSlot, held);
+        }
 
-        Slot slot = inventorySlots.get(slotIndex);
-        if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
+        // Check for gas handler capability
+        IGasHandler handler = held.getCapability(Capabilities.GAS_HANDLER_CAPABILITY, null);
+        if (handler != null) {
+            return handleGasCapabilityPouring(player, tankSlot, held, handler);
+        }
 
-        // Only process shift-clicks from the player inventory (not from upgrade slots)
-        // Our upgrade slots are added first, so player inventory starts after them
-        int upgradeSlotCount = GasInterfaceLogic.UPGRADE_SLOTS;
-        if (slotIndex < upgradeSlotCount) return ItemStack.EMPTY;
+        return false;
+    }
 
-        ItemStack clickedStack = slot.getStack();
-        if (clickedStack.isEmpty()) return ItemStack.EMPTY;
+    /**
+     * Handle pouring from an IGasItem (Mekanism gas tank, basic tank, etc.).
+     * <p>
+     * Gas tanks are reusable - they are NOT consumed when emptied.
+     * Instead, their internal gas storage (NBT) is modified directly.
+     */
+    private boolean handleIGasItemPouring(EntityPlayerMP player, int tankSlot, ItemStack held) {
+        IGasItem gasItem = (IGasItem) held.getItem();
 
-        // Try to extract gas from the item
-        GasStack gas = QuickAddHelper.getGasFromItemStack(clickedStack);
-        if (gas == null || gas.amount <= 0) return ItemStack.EMPTY;
+        // Get gas from the held item
+        GasStack drainable = gasItem.getGas(held);
+        if (drainable == null || drainable.amount <= 0) return false;
 
-        // Check for duplicates across all filter slots
-        GasStackKey newKey = GasStackKey.of(gas);
-        if (newKey == null) return ItemStack.EMPTY;
+        // Check if the slot has a filter set
+        IAEGasStack filterGas = this.host.getFilter(tankSlot);
+        if (filterGas != null && !filterGas.getGasStack().isGasEqual(drainable)) return false;
 
-        for (int i = 0; i < GasInterfaceLogic.FILTER_SLOTS; i++) {
-            IAEGasStack existingFilter = this.host.getFilterGas(i);
-            if (existingFilter != null) {
-                GasStackKey existingKey = GasStackKey.of(existingFilter.getGasStack());
-                if (existingKey != null && existingKey.equals(newKey)) {
-                    // Already in filter, show duplicate message
-                    player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
-                    return ItemStack.EMPTY;
+        // Calculate how much we can insert into the tank
+        int capacity = this.host.getMaxSlotSize();
+        GasStack currentTankGas = this.host.getGasInTank(tankSlot);
+
+        // If tank has gas, it must match
+        if (currentTankGas != null && !currentTankGas.isGasEqual(drainable)) return false;
+
+        int currentAmount = currentTankGas != null ? currentTankGas.amount : 0;
+        int spaceAvailable = capacity - currentAmount;
+        if (spaceAvailable <= 0) return false;
+
+        // Calculate how much we can actually transfer
+        int toTransfer = Math.min(drainable.amount, spaceAvailable);
+
+        // Actually remove gas from the held item (modifies the item's NBT directly)
+        GasStack removed = gasItem.removeGas(held, toTransfer);
+        if (removed == null || removed.amount <= 0) return false;
+
+        // Insert into tank
+        GasStack newGas;
+        if (currentTankGas == null) {
+            newGas = new GasStack(removed.getGas(), removed.amount);
+        } else {
+            newGas = currentTankGas.copy();
+            newGas.amount += removed.amount;
+        }
+        this.host.setGasInTank(tankSlot, newGas);
+
+        // Sync the held item change to the client
+        this.updateHeld(player);
+        this.detectAndSendChanges();
+        return true;
+    }
+
+    /**
+     * Handle pouring from a gas handler capability item.
+     * <p>
+     * This handles generic gas containers that use the capability system.
+     */
+    private boolean handleGasCapabilityPouring(EntityPlayerMP player, int tankSlot, ItemStack held, IGasHandler handler) {
+        // Query what gas the handler can provide
+        GasStack drainable = handler.drawGas(null, Integer.MAX_VALUE, false);
+        if (drainable == null || drainable.amount <= 0) return false;
+
+        // Check if the slot has a filter set
+        IAEGasStack filterGas = this.host.getFilter(tankSlot);
+        if (filterGas != null && !filterGas.getGasStack().isGasEqual(drainable)) return false;
+
+        // Calculate how much we can insert into the tank
+        int capacity = this.host.getMaxSlotSize();
+        GasStack currentTankGas = this.host.getGasInTank(tankSlot);
+
+        // If tank has gas, it must match
+        if (currentTankGas != null && !currentTankGas.isGasEqual(drainable)) return false;
+
+        int currentAmount = currentTankGas != null ? currentTankGas.amount : 0;
+        int spaceAvailable = capacity - currentAmount;
+        if (spaceAvailable <= 0) return false;
+
+        // Calculate how much we can actually transfer
+        int toTransfer = Math.min(drainable.amount, spaceAvailable);
+
+        // Actually draw gas from the handler
+        GasStack drawn = handler.drawGas(null, toTransfer, true);
+        if (drawn == null || drawn.amount <= 0) return false;
+
+        // Insert into tank
+        GasStack newGas;
+        if (currentTankGas == null) {
+            newGas = new GasStack(drawn.getGas(), drawn.amount);
+        } else {
+            newGas = currentTankGas.copy();
+            newGas.amount += drawn.amount;
+        }
+        this.host.setGasInTank(tankSlot, newGas);
+
+        // Sync changes
+        this.updateHeld(player);
+        this.detectAndSendChanges();
+        return true;
+    }
+
+    /**
+     * Extract gas from a container item (doesn't modify the item itself).
+     *
+     * @param container The container item
+     * @param maxAmount Maximum amount to extract
+     * @return The extracted gas, or null if extraction failed
+     */
+    @Nullable
+    private GasStack extractGasFromContainer(ItemStack container, int maxAmount) {
+        GasStack contained = QuickAddHelper.getGasFromItemStack(container);
+        if (contained == null) return null;
+
+        return new GasStack(contained.getGas(), Math.min(contained.amount, maxAmount));
+    }
+
+    // ================================= Gas Extraction (Export Only) =================================
+
+    /**
+     * Handle filling held item from tank.
+     * Called by the base class doAction for FILL_ITEM actions on export interfaces.
+     */
+    @Override
+    protected boolean handleFillItemAction(EntityPlayerMP player, int tankSlot) {
+        // Check if tank has gas
+        GasStack tankGas = this.host.getGasInTank(tankSlot);
+        if (tankGas == null || tankGas.amount <= 0) return false;
+
+        // Get the player's held item
+        final ItemStack held = player.inventory.getItemStack();
+        if (held.isEmpty()) return false;
+
+        // Process each item in the stack
+        int heldAmount = held.getCount();
+        for (int i = 0; i < heldAmount; i++) {
+            // Check if tank still has gas
+            tankGas = this.host.getGasInTank(tankSlot);
+            if (tankGas == null || tankGas.amount <= 0) break;
+
+            // Try to fill a single container
+            ItemStack singleContainer = held.copy();
+            singleContainer.setCount(1);
+
+            // Fill the container using Mekanism's gas filling
+            ItemStack filledContainer = fillContainerWithGas(singleContainer, tankSlot);
+            if (filledContainer.isEmpty()) break;
+
+            // Update the player's held item
+            if (held.getCount() == 1) {
+                player.inventory.setItemStack(filledContainer);
+            } else {
+                player.inventory.getItemStack().shrink(1);
+                if (!player.inventory.addItemStackToInventory(filledContainer)) {
+                    player.dropItem(filledContainer, false);
                 }
             }
         }
 
-        // Find the first empty filter slot
-        final boolean isExport = this.host.isExport();
-        for (int i = 0; i < GasInterfaceLogic.FILTER_SLOTS; i++) {
-            IAEGasStack existingFilter = this.host.getFilterGas(i);
-            if (existingFilter != null) continue;
-
-            // Import mode: only set filter if tank is empty
-            if (!isExport && !this.host.isTankEmpty(i)) continue;
-
-            // Found an available slot, set the filter
-            // Server sets directly, detectAndSendChanges will sync to client
-            IAEGasStack aeGas = AEGasStack.of(gas);
-            this.host.setFilterGas(i, aeGas);
-
-            return ItemStack.EMPTY;
-        }
-
-        // No empty slot found
-        return ItemStack.EMPTY;
+        this.detectAndSendChanges();
+        return true;
     }
 
     /**
-     * Custom slot for upgrades that only accepts specific upgrade cards.
+     * Fill a gas container from a tank slot.
+     *
+     * @param container The empty/partial container
+     * @param tankSlot The tank slot to drain from
+     * @return The filled container, or EMPTY if filling failed
      */
-    private static class SlotUpgrade extends SlotNormal {
-        private final IGasInterfaceHost host;
+    @Nonnull
+    private ItemStack fillContainerWithGas(ItemStack container, int tankSlot) {
+        GasStack tankGas = this.host.getGasInTank(tankSlot);
+        if (tankGas == null || tankGas.amount <= 0) return ItemStack.EMPTY;
 
-        public SlotUpgrade(AppEngInternalInventory inv, int idx, int x, int y, IGasInterfaceHost host) {
-            super(inv, idx, x, y);
-            this.host = host;
-            this.setIIcon(13 * 16 + 15);
+        // Try IGasItem interface first
+        if (container.getItem() instanceof IGasItem) {
+            IGasItem gasItem = (IGasItem) container.getItem();
+
+            // Check if gas can be received (must be same type or empty)
+            GasStack existing = gasItem.getGas(container);
+            if (existing != null && existing.amount > 0 && !existing.isGasEqual(tankGas)) {
+                return ItemStack.EMPTY;
+            }
+
+            // Calculate how much we can fill
+            int capacity = gasItem.getMaxGas(container);
+            int currentAmount = existing != null ? existing.amount : 0;
+            int space = capacity - currentAmount;
+            if (space <= 0) return ItemStack.EMPTY;
+
+            int toFill = Math.min(space, tankGas.amount);
+
+            // Drain from tank and fill container
+            GasStack drained = this.host.drainGasFromTank(tankSlot, toFill, true);
+            if (drained == null || drained.amount <= 0) return ItemStack.EMPTY;
+
+            ItemStack result = container.copy();
+            gasItem.setGas(result, new GasStack(drained.getGas(), currentAmount + drained.amount));
+            return result;
         }
 
-        @Override
-        public boolean isItemValid(@Nonnull ItemStack stack) {
-            return host.isValidUpgrade(stack);
+        // Try GAS_HANDLER_CAPABILITY
+        IGasHandler handler = container.getCapability(Capabilities.GAS_HANDLER_CAPABILITY, null);
+        if (handler != null) {
+            // Simulate to check how much can be received
+            int canReceive = handler.receiveGas(null, tankGas, false);
+            if (canReceive <= 0) return ItemStack.EMPTY;
+
+            int toFill = Math.min(canReceive, tankGas.amount);
+
+            // Drain from tank
+            GasStack drained = this.host.drainGasFromTank(tankSlot, toFill, true);
+            if (drained == null || drained.amount <= 0) return ItemStack.EMPTY;
+
+            // Fill into container
+            ItemStack result = container.copy();
+            IGasHandler resultHandler = result.getCapability(Capabilities.GAS_HANDLER_CAPABILITY, null);
+            if (resultHandler != null) {
+                resultHandler.receiveGas(null, drained, true);
+            }
+            return result;
         }
 
-        @Override
-        public int getSlotStackLimit() {
-            return 1;
-        }
+        return ItemStack.EMPTY;
+    }
 
-        @Override
-        public hasCalculatedValidness getIsValid() {
-            return hasCalculatedValidness.Valid;
-        }
+    // ================================= Gas-specific Methods =================================
+
+    /**
+     * Get a gas filter from the client cache (for GUI rendering).
+     * This maintains backward compatibility with GuiGasFilterSlot.
+     */
+    public IAEGasStack getClientFilterGas(int slot) {
+        return getClientFilter(slot);
     }
 }

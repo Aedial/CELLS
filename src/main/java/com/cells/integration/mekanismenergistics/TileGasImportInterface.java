@@ -17,12 +17,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.items.IItemHandler;
 
-import mekanism.api.gas.GasStack;
-import mekanism.api.gas.IGasHandler;
-import mekanism.common.capabilities.Capabilities;
-
-import com.mekeng.github.common.me.data.IAEGasStack;
-
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.events.MENetworkChannelsChanged;
@@ -41,6 +35,13 @@ import appeng.tile.grid.AENetworkInvTile;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
+
+import com.mekeng.github.common.me.data.IAEGasStack;
+
+import mekanism.api.gas.GasStack;
+import mekanism.common.capabilities.Capabilities;
+
+import com.cells.blocks.interfacebase.IInterfaceLogic;
 
 
 /**
@@ -133,8 +134,9 @@ public class TileGasImportInterface extends AENetworkInvTile implements IGridTic
     }
 
     @Override
-    public void clearFilters() {
-        this.logic.clearFilters();
+    @Nonnull
+    public IInterfaceLogic getInterfaceLogic() {
+        return this.logic;
     }
 
     @Override
@@ -157,6 +159,11 @@ public class TileGasImportInterface extends AENetworkInvTile implements IGridTic
     @Override
     public GasStack getGasInTank(int slot) {
         return this.logic.getGasInTank(slot);
+    }
+
+    @Override
+    public void setGasInTank(int slot, @Nullable GasStack gas) {
+        this.logic.setGasInTank(slot, gas);
     }
 
     @Override
@@ -221,6 +228,23 @@ public class TileGasImportInterface extends AENetworkInvTile implements IGridTic
     @Override
     public int insertGasIntoTank(int slot, GasStack gas) {
         return this.logic.insertGasIntoTank(slot, gas);
+    }
+
+    // ============================== IFilterableInterfaceHost delegation ==============================
+
+    @Override
+    public boolean isInFilter(@Nonnull GasStackKey key) {
+        return this.logic.isInFilter(key);
+    }
+
+    @Override
+    public int findSlotByKey(@Nonnull GasStackKey key) {
+        return this.logic.findSlotByKey(key);
+    }
+
+    @Override
+    public int addToFirstAvailableSlot(@Nonnull IAEGasStack stack) {
+        return this.logic.addToFirstAvailableSlotAE(stack);
     }
 
     // ============================== IInterfaceHost ==============================

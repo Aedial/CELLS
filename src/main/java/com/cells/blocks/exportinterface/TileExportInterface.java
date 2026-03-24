@@ -17,6 +17,7 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
@@ -37,9 +38,11 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
+import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.interfacebase.item.IItemInterfaceHost;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.util.ItemStackKey;
 
 
 /**
@@ -55,6 +58,11 @@ public class TileExportInterface extends AENetworkInvTile implements IGridTickab
 
     private final ItemInterfaceLogic logic;
     private final IActionSource actionSource;
+
+    // Dummy inventory for AENetworkInvTile contract.
+    // Storage is managed by the logic and serialized via writeToStream/readFromStream and logic.writeToNBT.
+    // Using a 0-slot dummy prevents AEBaseInvTile from double-managing storage with an incompatible format.
+    private final AppEngInternalInventory dummyInventory = new AppEngInternalInventory(this, 0, 0);
 
     public TileExportInterface() {
         this.getProxy().setFlags(GridFlags.REQUIRE_CHANNEL);
@@ -109,12 +117,12 @@ public class TileExportInterface extends AENetworkInvTile implements IGridTickab
     // ============================== IItemInterfaceHost delegation ==============================
 
     @Override
-    public AppEngInternalInventory getFilterInventory() {
+    public IItemHandlerModifiable getFilterInventory() {
         return this.logic.getFilterInventory();
     }
 
     @Override
-    public AppEngInternalInventory getStorageInventory() {
+    public IItemHandlerModifiable getStorageInventory() {
         return this.logic.getStorageInventory();
     }
 
@@ -144,8 +152,9 @@ public class TileExportInterface extends AENetworkInvTile implements IGridTickab
     }
 
     @Override
-    public void clearFilters() {
-        this.logic.clearFilters();
+    @Nonnull
+    public IInterfaceLogic getInterfaceLogic() {
+        return this.logic;
     }
 
     @Override
@@ -197,6 +206,23 @@ public class TileExportInterface extends AENetworkInvTile implements IGridTickab
         return this.logic.getCurrentPageStartSlot();
     }
 
+    // ============================== IFilterableInterfaceHost delegation ==============================
+
+    @Override
+    public boolean isInFilter(@Nonnull ItemStackKey key) {
+        return this.logic.isInFilter(key);
+    }
+
+    @Override
+    public int findSlotByKey(@Nonnull ItemStackKey key) {
+        return this.logic.findSlotByKey(key);
+    }
+
+    @Override
+    public int addToFirstAvailableSlot(@Nonnull ItemStack stack) {
+        return this.logic.addToFirstAvailableSlot(stack);
+    }
+
     // ============================== IInterfaceHost ==============================
 
     @Override
@@ -226,7 +252,7 @@ public class TileExportInterface extends AENetworkInvTile implements IGridTickab
     @Nonnull
     public NBTTagCompound writeToNBT(final NBTTagCompound data) {
         super.writeToNBT(data);
-        this.logic.writeToNBT(data, true);
+        this.logic.writeToNBT(data);
         return data;
     }
 
@@ -262,18 +288,20 @@ public class TileExportInterface extends AENetworkInvTile implements IGridTickab
 
     @Override
     protected boolean readFromStream(final ByteBuf data) throws IOException {
-        return super.readFromStream(data);
+        return super.readFromStream(data) | this.logic.readStorageFromStream(data);
     }
 
     @Override
     protected void writeToStream(final ByteBuf data) throws IOException {
         super.writeToStream(data);
+        this.logic.writeStorageToStream(data);
     }
 
     @Nonnull
     @Override
     public IItemHandler getInternalInventory() {
-        return this.logic.getStorageInventory();
+        // Return dummy inventory - storage is managed by the logic, not AEBaseInvTile
+        return this.dummyInventory;
     }
 
     @Override

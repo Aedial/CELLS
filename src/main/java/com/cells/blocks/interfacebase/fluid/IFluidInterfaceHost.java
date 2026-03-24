@@ -1,6 +1,7 @@
 package com.cells.blocks.interfacebase.fluid;
 
-import com.cells.blocks.interfacebase.IInterfaceHost;
+import javax.annotation.Nullable;
+
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
@@ -9,26 +10,30 @@ import net.minecraftforge.fluids.FluidStack;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.tile.inventory.AppEngInternalInventory;
 
+import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
+import com.cells.gui.slots.FluidTankSlot;
+import com.cells.util.FluidStackKey;
+
 
 /**
  * Extended interface for Fluid Interface hosts (both import and export, both tile and part).
  * Provides access to fluid filter/tank/upgrade inventories and configuration.
  * <p>
- * The {@link #isExport()} method from {@link IInterfaceHost} determines whether
+ * The {@link #isExport()} method from {@link com.cells.blocks.interfacebase.IInterfaceHost} determines whether
  * this is an import or export interface, which affects filter clearing behavior
  * and available upgrades.
+ * <p>
+ * Pagination, clearing, and slot info methods are inherited from {@link IFilterableInterfaceHost}
+ * with default implementations that delegate to {@link #getInterfaceLogic()}.
  */
-public interface IFluidInterfaceHost extends IInterfaceHost {
+public interface IFluidInterfaceHost
+    extends IFilterableInterfaceHost<IAEFluidStack, FluidStackKey>,
+            FluidTankSlot.IFluidTankHost {
 
     /**
      * @return The upgrade inventory
      */
     AppEngInternalInventory getUpgradeInventory();
-
-    /**
-     * Refresh the filter-to-slot map after filter changes.
-     */
-    void refreshFilterMap();
 
     /**
      * Refresh cached upgrade status after upgrade slot changes.
@@ -41,17 +46,11 @@ public interface IFluidInterfaceHost extends IInterfaceHost {
     boolean isValidUpgrade(ItemStack stack);
 
     /**
-     * Clear filter slots. Import only clears filters where the corresponding
-     * tank is empty (to prevent orphaning fluids). Export clears all filters.
-     */
-    void clearFilters();
-
-    /**
      * @return The world this host is in.
      */
     World getHostWorld();
 
-    // Fluid tank access
+    // ================================= Fluid Tank Access =================================
 
     /**
      * Check if a specific tank slot is empty.
@@ -73,34 +72,17 @@ public interface IFluidInterfaceHost extends IInterfaceHost {
      */
     FluidStack getFluidInTank(int slot);
 
-    // Pagination support
-
     /**
      * @return Number of capacity upgrades currently installed.
      */
     int getInstalledCapacityUpgrades();
 
     /**
-     * @return Total number of pages (1 base + 1 per capacity card).
-     */
-    int getTotalPages();
-
-    /**
-     * @return Current page index (0-based).
-     */
-    int getCurrentPage();
-
-    /**
-     * Set the current page index, clamped to valid range.
-     */
-    void setCurrentPage(int page);
-
-    /**
      * @return The starting slot index for the current page.
      */
     int getCurrentPageStartSlot();
 
-    // Import-specific upgrades (return false for export interfaces)
+    // ================================= Import-specific Upgrades =================================
 
     /**
      * @return true if the overflow upgrade is installed (import only).
@@ -116,7 +98,7 @@ public interface IFluidInterfaceHost extends IInterfaceHost {
         return false;
     }
 
-    // Direction-specific tank operations (called by handlers internally)
+    // ================================= Direction-specific Operations =================================
 
     /**
      * Insert fluid into a tank slot (import interfaces only).
@@ -140,4 +122,35 @@ public interface IFluidInterfaceHost extends IInterfaceHost {
     default FluidStack drainFluidFromTank(int slot, int maxDrain, boolean doDrain) {
         throw new UnsupportedOperationException("drainFluidFromTank is only supported on export interfaces");
     }
+
+    // ============================== IFilterableInterfaceHost Implementation ==============================
+
+    @Override
+    @Nullable
+    default IAEFluidStack getFilter(int slot) {
+        return getFilterFluid(slot);
+    }
+
+    @Override
+    default void setFilter(int slot, @Nullable IAEFluidStack stack) {
+        setFilterFluid(slot, stack);
+    }
+
+    @Override
+    default boolean isStorageEmpty(int slot) {
+        return isTankEmpty(slot);
+    }
+
+    @Override
+    @Nullable
+    default FluidStackKey createKey(@Nullable IAEFluidStack stack) {
+        if (stack == null) return null;
+        return FluidStackKey.of(stack.getFluidStack());
+    }
+
+    @Override
+    default String getTypeLocalizationKey() {
+        return "cells.type.fluid";
+    }
 }
+

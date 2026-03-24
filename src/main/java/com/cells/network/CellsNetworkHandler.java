@@ -1,25 +1,16 @@
 package com.cells.network;
 
 import com.cells.Tags;
-import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
-import com.cells.integration.mekanismenergistics.PacketGasSlot;
-import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.network.packets.PacketChangePage;
 import com.cells.network.packets.PacketClearFilters;
 import com.cells.network.packets.PacketOpenGui;
-import com.cells.network.packets.PacketQuickAddCreativeEssentiaFilter;
-import com.cells.network.packets.PacketQuickAddCreativeFluidFilter;
-import com.cells.network.packets.PacketQuickAddCreativeGasFilter;
-import com.cells.network.packets.PacketQuickAddCreativeItemFilter;
-import com.cells.network.packets.PacketQuickAddFluidFilter;
-import com.cells.network.packets.PacketQuickAddItemFilter;
 import com.cells.network.packets.PacketSaveMemoryCardWithFilters;
 import com.cells.network.packets.PacketSetConfigurableCellCapacity;
 import com.cells.network.packets.PacketSetConfigurableCellMaxTypes;
-import com.cells.network.packets.PacketSetCreativeEssentiaFilter;
 import com.cells.network.packets.PacketSetMaxSlotSize;
 import com.cells.network.packets.PacketSetPollingRate;
-import com.cells.network.packets.PacketSyncCreativeEssentiaFilter;
+import com.cells.network.sync.PacketQuickAddFilter;
+import com.cells.network.sync.PacketResourceSlot;
 
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
@@ -28,6 +19,9 @@ import net.minecraftforge.fml.relauncher.Side;
 
 /**
  * Network handler for CELLS mod packets.
+ * <p>
+ * Uses unified PacketResourceSlot for all resource type sync (item, fluid, gas, essentia).
+ * Uses unified PacketQuickAddFilter for all quick-add operations.
  */
 public class CellsNetworkHandler {
 
@@ -41,45 +35,15 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketSetPollingRate.Handler.class, PacketSetPollingRate.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetConfigurableCellCapacity.Handler.class, PacketSetConfigurableCellCapacity.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetConfigurableCellMaxTypes.Handler.class, PacketSetConfigurableCellMaxTypes.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketQuickAddItemFilter.Handler.class, PacketQuickAddItemFilter.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketQuickAddFluidFilter.Handler.class, PacketQuickAddFluidFilter.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSaveMemoryCardWithFilters.Handler.class, PacketSaveMemoryCardWithFilters.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketClearFilters.Handler.class, PacketClearFilters.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketChangePage.Handler.class, PacketChangePage.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketQuickAddCreativeItemFilter.Handler.class, PacketQuickAddCreativeItemFilter.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketQuickAddCreativeFluidFilter.Handler.class, PacketQuickAddCreativeFluidFilter.class, packetId++, Side.SERVER);
 
-        // Register gas-related packets if MekanismEnergistics is loaded
-        if (MekanismEnergisticsIntegration.isModLoaded()) registerGasPackets();
+        // Unified resource slot packet (bidirectional: handles filter sync for ALL resource types)
+        INSTANCE.registerMessage(PacketResourceSlot.ServerHandler.class, PacketResourceSlot.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketResourceSlot.ClientHandler.class, PacketResourceSlot.class, packetId++, Side.CLIENT);
 
-        // Register essentia-related packets if ThaumicEnergistics is loaded
-        if (ThaumicEnergisticsIntegration.isModLoaded()) registerEssentiaPackets();
-    }
-
-    /**
-     * Register gas interface packets.
-     * Called only when MekanismEnergistics is loaded.
-     */
-    private static void registerGasPackets() {
-        // PacketGasSlot is bidirectional: client sends filter updates, server sends sync
-        INSTANCE.registerMessage(PacketGasSlot.ServerHandler.class, PacketGasSlot.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketGasSlot.ClientHandler.class, PacketGasSlot.class, packetId++, Side.CLIENT);
-
-        // Creative gas cell quick-add
-        INSTANCE.registerMessage(PacketQuickAddCreativeGasFilter.Handler.class,
-            PacketQuickAddCreativeGasFilter.class, packetId++, Side.SERVER);
-    }
-
-    /**
-     * Register essentia-related packets.
-     * Called only when ThaumicEnergistics is loaded.
-     */
-    private static void registerEssentiaPackets() {
-        INSTANCE.registerMessage(PacketQuickAddCreativeEssentiaFilter.Handler.class,
-            PacketQuickAddCreativeEssentiaFilter.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketSetCreativeEssentiaFilter.Handler.class,
-            PacketSetCreativeEssentiaFilter.class, packetId++, Side.SERVER);
-        INSTANCE.registerMessage(PacketSyncCreativeEssentiaFilter.Handler.class,
-            PacketSyncCreativeEssentiaFilter.class, packetId++, Side.CLIENT);
+        // Unified quick-add packet (handles quick-add for ALL resource types)
+        INSTANCE.registerMessage(PacketQuickAddFilter.Handler.class, PacketQuickAddFilter.class, packetId++, Side.SERVER);
     }
 }

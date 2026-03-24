@@ -1,36 +1,33 @@
 package com.cells.integration.mekanismenergistics;
 
-import java.awt.Rectangle;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.annotation.Nonnull;
-
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 
 import appeng.api.parts.IPart;
 import appeng.client.gui.widgets.GuiCustomSlot;
 
-import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.data.impl.AEGasStack;
 
 import mekanism.api.gas.GasStack;
 
-import mezz.jei.api.gui.IGhostIngredientHandler.Target;
-
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceGui;
 import com.cells.gui.QuickAddHelper;
+import com.cells.gui.slots.GasFilterSlot;
+import com.cells.gui.slots.GasTankSlot;
 import com.cells.network.CellsNetworkHandler;
+import com.cells.network.sync.PacketQuickAddFilter;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * GUI for both Gas Import Interface and Gas Export Interface.
- * Extends the abstract base to provide gas-specific slot creation and JEI handling.
+ * <p>
+ * Uses unified slot classes from com.cells.gui.slots:
+ * - {@link GasFilterSlot} for filter configuration
+ * - {@link GasTankSlot} for tank status display
+ * <p>
+ * JEI integration is handled automatically by the base class.
  */
 public class GuiGasInterface extends AbstractResourceInterfaceGui<IGasInterfaceHost, ContainerGasInterface> {
 
@@ -95,132 +92,34 @@ public class GuiGasInterface extends AbstractResourceInterfaceGui<IGasInterfaceH
     }
 
     @Override
-    protected void createResourceSlots() {
-        // Add gas filter slots (4 rows x 9 cols)
-        for (int row = 0; row < 4; row++) {
-            for (int col = 0; col < 9; col++) {
-                int displaySlot = row * 9 + col;
-                if (displaySlot >= SLOTS_PER_PAGE) break;
-
-                int xPos = 8 + col * 18;
-                int filterY = 25 + row * 36;
-
-                GuiGasFilterSlot filterSlot = new GuiGasFilterSlot(
-                    this.container, displaySlot, xPos, filterY,
-                    () -> this.container.currentPage * SLOTS_PER_PAGE
-                );
-                this.guiSlots.add(filterSlot);
-            }
-        }
-
-        // Add gas tank status slots below each filter
-        for (int row = 0; row < 4; row++) {
-            for (int col = 0; col < 9; col++) {
-                int displayTank = row * 9 + col;
-                if (displayTank >= SLOTS_PER_PAGE) break;
-
-                int xPos = 8 + col * 18;
-                int yPos = 25 + row * 36 + 18; // 18px below filter slot
-
-                GuiGasTankSlot tankSlot = new GuiGasTankSlot(
-                    this.host, displayTank, displayTank, xPos, yPos,
-                    () -> this.container.currentPage * SLOTS_PER_PAGE,
-                    () -> this.container.maxSlotSize
-                );
-                tankSlot.setFontRenderer(this.fontRenderer);
-                this.guiSlots.add(tankSlot);
-            }
-        }
+    protected GuiCustomSlot createFilterSlotForIndex(int displaySlot, int x, int y) {
+        return new GasFilterSlot(
+            this.container::getClientFilterGas, displaySlot, x, y,
+            () -> this.container.currentPage * SLOTS_PER_PAGE
+        );
     }
 
     @Override
-    protected List<Target<?>> createJEITargets(Object ingredient) {
-        GasStack gasStack = null;
-
-        // Handle direct GasStack
-        if (ingredient instanceof GasStack) gasStack = (GasStack) ingredient;
-
-        // Handle IAEGasStack from MekanismEnergistics
-        else if (ingredient instanceof IAEGasStack) {
-            gasStack = ((IAEGasStack) ingredient).getGasStack();
-        }
-        // Handle ItemStack containing gas (gas tanks, canisters, etc.)
-        else if (ingredient instanceof ItemStack) {
-            gasStack = QuickAddHelper.getGasFromItemStack((ItemStack) ingredient);
-        }
-
-        if (gasStack == null) return new ArrayList<>();
-
-        List<Target<?>> targets = new ArrayList<>();
-
-        for (GuiCustomSlot slot : this.guiSlots) {
-            if (!(slot instanceof GuiGasFilterSlot)) continue;
-
-            final GuiGasFilterSlot filterSlot = (GuiGasFilterSlot) slot;
-
-            Target<Object> target = new Target<Object>() {
-                @Override
-                @Nonnull
-                public Rectangle getArea() {
-                    return new Rectangle(getGuiLeft() + filterSlot.xPos(), getGuiTop() + filterSlot.yPos(), 16, 16);
-                }
-
-                @Override
-                public void accept(@Nonnull Object ingredient) {
-                    // Re-extract gas from the accepted ingredient
-                    GasStack gas = null;
-                    if (ingredient instanceof GasStack) {
-                        gas = (GasStack) ingredient;
-                    } else if (ingredient instanceof IAEGasStack) {
-                        gas = ((IAEGasStack) ingredient).getGasStack();
-                    } else if (ingredient instanceof ItemStack) {
-                        gas = QuickAddHelper.getGasFromItemStack((ItemStack) ingredient);
-                    }
-
-                    if (gas == null) return;
-
-                    IAEGasStack aeGas = AEGasStack.of(gas);
-                    Map<Integer, IAEGasStack> map = new HashMap<>();
-                    map.put(filterSlot.getSlot(), aeGas);
-                    CellsNetworkHandler.INSTANCE.sendToServer(new PacketGasSlot(map));
-                }
-            };
-            targets.add(target);
-            mapTargetSlot.putIfAbsent(target, slot);
-        }
-
-        return targets;
+    protected GuiCustomSlot createTankSlotForIndex(int displaySlot, int x, int y) {
+        return new GasTankSlot<>(
+            this.host, displaySlot, displaySlot, x, y,
+            () -> this.container.currentPage * SLOTS_PER_PAGE,
+            () -> this.container.maxSlotSize
+        );
     }
 
     @Override
     protected boolean handleQuickAdd(Slot hoveredSlot) {
         GasStack gas = QuickAddHelper.getGasUnderCursor(hoveredSlot);
 
-        if (gas == null) {
-            QuickAddHelper.sendNoValidError("gas");
-            return false;
+        if (gas != null) {
+            CellsNetworkHandler.INSTANCE.sendToServer(
+                new PacketQuickAddFilter(ResourceType.GAS, AEGasStack.of(gas))
+            );
+            return true;
         }
 
-        // Send the gas to the first available slot
-        IAEGasStack aeGas = AEGasStack.of(gas);
-        Map<Integer, IAEGasStack> map = new HashMap<>();
-
-        // Find first empty slot on current page
-        for (GuiCustomSlot slot : this.guiSlots) {
-            if (!(slot instanceof GuiGasFilterSlot)) continue;
-
-            GuiGasFilterSlot filterSlot = (GuiGasFilterSlot) slot;
-            int absoluteSlot = filterSlot.getSlot();
-
-            // Check if this slot is empty via container's client cache
-            if (this.container.getClientFilterGas(absoluteSlot) == null) {
-                map.put(absoluteSlot, aeGas);
-                CellsNetworkHandler.INSTANCE.sendToServer(new PacketGasSlot(map));
-                return true;
-            }
-        }
-
-        QuickAddHelper.sendNoSpaceError();
-        return false;
+        QuickAddHelper.sendNoValidError("gas");
+        return true;
     }
 }

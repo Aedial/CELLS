@@ -10,8 +10,7 @@ import com.cells.gui.CellsGuiHandler;
 public class ItemCreativeFluidCell extends AbstractCreativeCellItem<FluidStack, CreativeFluidCellFilterHandler> {
 
     public ItemCreativeFluidCell() {
-        super("creative_fluid_cell", CellsGuiHandler.GUI_CREATIVE_FLUID_CELL, "fluid",
-            cell -> new CreativeFluidCellFilterHandler(cell));
+        super("creative_fluid_cell", CellsGuiHandler.GUI_CREATIVE_FLUID_CELL, "fluid", CreativeFluidCellFilterHandler::new);
     }
 
     @Override

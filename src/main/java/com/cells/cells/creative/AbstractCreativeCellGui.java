@@ -1,6 +1,7 @@
 package com.cells.cells.creative;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +24,7 @@ import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 import com.cells.Tags;
 import com.cells.client.KeyBindings;
 import com.cells.gui.GuiClearFiltersButton;
+import com.cells.gui.slots.AbstractResourceFilterSlot;
 
 
 /**
@@ -101,11 +103,6 @@ public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellCont
      */
     protected abstract boolean handleQuickAdd(Slot hoveredSlot);
 
-    /**
-     * Create JEI ghost targets for the given ingredient.
-     */
-    protected abstract List<Target<?>> createTargets(Object ingredient);
-
     @Override
     public void initGui() {
         super.initGui();
@@ -161,10 +158,34 @@ public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellCont
     // IJEIGhostIngredients implementation
     // =====================
 
+    /**
+     * Unified JEI ghost ingredient target creation.
+     * <p>
+     * Iterates over all filter slots and creates JEI targets for slots that can
+     * accept the given ingredient. This eliminates the need for type-specific
+     * createTargets() overrides in subclasses.
+     */
     @Override
     public List<Target<?>> getPhantomTargets(Object ingredient) {
         mapTargetSlot.clear();
-        return createTargets(ingredient);
+        List<Target<?>> targets = new ArrayList<>();
+
+        for (GuiCustomSlot slot : this.guiSlots) {
+            // Only filter slots support JEI drag-drop
+            if (!(slot instanceof AbstractResourceFilterSlot)) continue;
+
+            AbstractResourceFilterSlot<?> filterSlot = (AbstractResourceFilterSlot<?>) slot;
+
+            // Check if this slot can accept the ingredient type
+            if (filterSlot.convertToResource(ingredient) == null) continue;
+
+            // Create JEI target using the slot's unified method
+            Target<Object> target = filterSlot.createJEITarget(this::getGuiLeft, this::getGuiTop);
+            targets.add(target);
+            mapTargetSlot.putIfAbsent(target, slot);
+        }
+
+        return targets;
     }
 
     @Override

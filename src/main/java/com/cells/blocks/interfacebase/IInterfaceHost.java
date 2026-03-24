@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 import appeng.api.util.AEPartLocation;
 import appeng.util.SettingsFrom;
@@ -19,6 +20,12 @@ import appeng.util.SettingsFrom;
  * subclasses or {@link appeng.api.parts.IPart} implementations.
  */
 public interface IInterfaceHost {
+
+    /**
+     * Mark this host for a network update to sync changes to clients.
+     * Should be called whenever storage or visible state changes.
+     */
+    void markForNetworkUpdate();
 
     int getMaxSlotSize();
 
@@ -63,6 +70,12 @@ public interface IInterfaceHost {
     BlockPos getHostPos();
 
     /**
+     * @return the world this host is in, or null if not yet placed.
+     */
+    @Nullable
+    World getHostWorld();
+
+    /**
      * @return an ItemStack representing this host, for display in the back button.
      */
     ItemStack getBackButtonStack();
@@ -92,4 +105,9 @@ public interface IInterfaceHost {
      * Does NOT include upgrades (those stay in the source interface).
      */
     NBTTagCompound downloadSettingsWithFilter();
+
+    /**
+     * Check if an item is a valid upgrade for this interface.
+     */
+    boolean isValidUpgrade(ItemStack stack);
 }

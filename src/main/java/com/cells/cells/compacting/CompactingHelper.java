@@ -268,21 +268,6 @@ public class CompactingHelper {
     }
 
     /**
-     * Get the compression chain for an item.
-     * Returns [higher, middle, lower] where higher/lower can be empty if not found.
-     * <p>
-     * This only looks ONE tier up and ONE tier down from the input item.
-     * The input item becomes the middle tier.
-     * 
-     * @deprecated Use {@link #getCompressionChain(ItemStack, int, int)} for dynamic tier support.
-     */
-    @Deprecated
-    @Nonnull
-    public CompressionChain getCompressionChain(@Nonnull ItemStack inputItem) {
-        return getCompressionChain(inputItem, 1, 1);
-    }
-
-    /**
      * Get the compression chain for an item with configurable tier depths.
      * <p>
      * Builds a compression chain centered on the input item, extending

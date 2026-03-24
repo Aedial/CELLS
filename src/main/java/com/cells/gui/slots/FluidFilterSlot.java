@@ -1,6 +1,5 @@
 package com.cells.gui.slots;
 
-import java.util.Collections;
 import java.util.function.IntSupplier;
 
 import javax.annotation.Nullable;
@@ -12,17 +11,18 @@ import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 
 import appeng.api.storage.data.IAEFluidStack;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketFluidSlot;
 import appeng.fluids.util.AEFluidStack;
 
 import com.cells.gui.ResourceRenderer;
+import com.cells.network.CellsNetworkHandler;
+import com.cells.network.sync.PacketResourceSlot;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * Unified fluid filter slot implementation.
  * <p>
- * Uses AE2's PacketFluidSlot for sync (works with both creative cells and interfaces).
+ * Uses unified {@link PacketResourceSlot} for sync.
  * Supports pagination via page offset supplier.
  */
 public class FluidFilterSlot extends AbstractResourceFilterSlot<IAEFluidStack> {
@@ -86,8 +86,10 @@ public class FluidFilterSlot extends AbstractResourceFilterSlot<IAEFluidStack> {
 
     @Override
     public void setResource(@Nullable IAEFluidStack resource) {
-        // Send packet to server - AE2 handles the sync
-        NetworkHandler.instance().sendToServer(new PacketFluidSlot(Collections.singletonMap(getSlot(), resource)));
+        // Send packet to server using unified resource sync
+        CellsNetworkHandler.INSTANCE.sendToServer(
+            new PacketResourceSlot(ResourceType.FLUID, getSlot(), resource)
+        );
     }
 
     @Override
@@ -109,7 +111,7 @@ public class FluidFilterSlot extends AbstractResourceFilterSlot<IAEFluidStack> {
 
     @Override
     @Nullable
-    protected IAEFluidStack convertToResource(Object ingredient) {
+    public IAEFluidStack convertToResource(Object ingredient) {
         // Direct FluidStack
         if (ingredient instanceof FluidStack) {
             return AEFluidStack.fromFluidStack((FluidStack) ingredient);

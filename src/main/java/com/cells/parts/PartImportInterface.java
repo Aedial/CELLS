@@ -1,52 +1,27 @@
 package com.cells.parts;
 
 import java.util.EnumSet;
-import java.util.List;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.items.CapabilityItemHandler;
-import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
-import appeng.api.implementations.items.IMemoryCard;
-import appeng.api.implementations.items.MemoryCardMessages;
-import appeng.api.networking.IGridNode;
-import appeng.api.networking.events.MENetworkChannelsChanged;
-import appeng.api.networking.events.MENetworkEventSubscribe;
-import appeng.api.networking.events.MENetworkPowerStatusChange;
-import appeng.api.networking.security.IActionSource;
-import appeng.api.networking.ticking.IGridTickable;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.networking.ticking.TickingRequest;
-import appeng.api.parts.IPartCollisionHelper;
-import appeng.api.parts.IPartModel;
-import appeng.api.util.AECableType;
-import appeng.api.util.AEPartLocation;
 import appeng.items.parts.PartModels;
-import appeng.me.helpers.AENetworkProxy;
-import appeng.me.helpers.MachineSource;
-import appeng.parts.PartBasicState;
 import appeng.parts.PartModel;
 import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.util.SettingsFrom;
-import appeng.util.inv.InvOperation;
 
 import com.cells.Tags;
 import com.cells.blocks.interfacebase.item.IItemInterfaceHost;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.util.ItemStackKey;
 
 
 /**
@@ -56,7 +31,8 @@ import com.cells.gui.CellsGuiHandler;
  * Business logic is delegated to {@link ItemInterfaceLogic} to avoid code
  * duplication with tile and export variants.
  */
-public class PartImportInterface extends PartBasicState implements IGridTickable, IItemInterfaceHost, ItemInterfaceLogic.Host {
+public class PartImportInterface extends AbstractInterfacePart<ItemInterfaceLogic>
+        implements IItemInterfaceHost, ItemInterfaceLogic.Host {
 
     private static final String prefix = "part/import_interface/item/";
 
@@ -71,25 +47,31 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
     @PartModels
     public static final PartModel MODELS_HAS_CHANNEL = new PartModel(MODEL_BASE, new ResourceLocation(Tags.MODID, prefix + "has_channel"));
 
-    private final ItemInterfaceLogic logic;
-    private final IActionSource actionSource;
-
     public PartImportInterface(final ItemStack is) {
         super(is);
-        this.actionSource = new MachineSource(this);
-        this.logic = new ItemInterfaceLogic(this);
+        setLogic(new ItemInterfaceLogic(this));
     }
 
-    // ============================== Host callbacks ==============================
+    // ============================== AbstractInterfacePart implementation ==============================
 
     @Override
-    public AENetworkProxy getGridProxy() {
-        return this.getProxy();
+    protected PartModel getModelOff() {
+        return MODELS_OFF;
     }
 
     @Override
-    public IActionSource getActionSource() {
-        return this.actionSource;
+    protected PartModel getModelOn() {
+        return MODELS_ON;
+    }
+
+    @Override
+    protected PartModel getModelHasChannel() {
+        return MODELS_HAS_CHANNEL;
+    }
+
+    @Override
+    protected String getMemoryCardName() {
+        return "tile.cells.import_interface";
     }
 
     @Override
@@ -98,41 +80,19 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
     }
 
     @Override
-    public void markDirtyAndSave() {
-        this.getHost().markForSave();
-    }
-
-    @Override
-    public void markForNetworkUpdate() {
-        this.getHost().markForUpdate();
-    }
-
-    @Override
-    @Nullable
-    public World getHostWorld() {
-        TileEntity te = this.getHost().getTile();
-        return te != null ? te.getWorld() : null;
-    }
-
-    @Override
-    public BlockPos getHostPos() {
-        return this.getHost().getLocation().getPos();
-    }
-
-    @Override
-    public IGridTickable getTickable() {
-        return this;
+    public int getMainGuiId() {
+        return CellsGuiHandler.GUI_PART_IMPORT_INTERFACE;
     }
 
     // ============================== IItemInterfaceHost delegation ==============================
 
     @Override
-    public AppEngInternalInventory getFilterInventory() {
+    public IItemHandlerModifiable getFilterInventory() {
         return this.logic.getFilterInventory();
     }
 
     @Override
-    public AppEngInternalInventory getStorageInventory() {
+    public IItemHandlerModifiable getStorageInventory() {
         return this.logic.getStorageInventory();
     }
 
@@ -159,11 +119,6 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
     @Override
     public boolean isValidUpgrade(ItemStack stack) {
         return this.logic.isValidUpgrade(stack);
-    }
-
-    @Override
-    public void clearFilters() {
-        this.logic.clearFilters();
     }
 
     @Override
@@ -225,223 +180,21 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
         return this.logic.hasTrashUnselectedUpgrade();
     }
 
-    // ============================== IInterfaceHost ==============================
+    // ============================== IFilterableInterfaceHost delegation ==============================
 
     @Override
-    public int getMainGuiId() {
-        return CellsGuiHandler.GUI_PART_IMPORT_INTERFACE;
-    }
-    @Override
-    public String getTypeName() {
-        return this.logic.getTypeName();
+    public boolean isInFilter(@Nonnull ItemStackKey key) {
+        return this.logic.isInFilter(key);
     }
 
     @Override
-    public AEPartLocation getPartSide() {
-        return this.getSide();
+    public int findSlotByKey(@Nonnull ItemStackKey key) {
+        return this.logic.findSlotByKey(key);
     }
 
     @Override
-    public ItemStack getBackButtonStack() {
-        return this.getItemStack();
-    }
-
-    // ============================== Part model and rendering ==============================
-
-    @Override
-    @Nonnull
-    public IPartModel getStaticModels() {
-        if (this.isActive() && this.isPowered()) {
-            return MODELS_HAS_CHANNEL;
-        } else if (this.isPowered()) {
-            return MODELS_ON;
-        } else {
-            return MODELS_OFF;
-        }
-    }
-
-    @Override
-    public void getBoxes(final IPartCollisionHelper bch) {
-        bch.addBox(2, 2, 14, 14, 14, 16);
-        bch.addBox(5, 5, 12, 11, 11, 14);
-    }
-
-    @Override
-    public float getCableConnectionLength(AECableType cable) {
-        return 4;
-    }
-
-    // ============================== Network events ==============================
-
-    @Override
-    @MENetworkEventSubscribe
-    public void chanRender(final MENetworkChannelsChanged c) {
-        this.getHost().markForUpdate();
-        this.logic.wakeUpIfAdaptive();
-    }
-
-    @Override
-    @MENetworkEventSubscribe
-    public void powerRender(final MENetworkPowerStatusChange c) {
-        this.getHost().markForUpdate();
-        this.logic.wakeUpIfAdaptive();
-    }
-
-    @Override
-    public void gridChanged() {
-        this.logic.wakeUpIfAdaptive();
-    }
-
-    // ============================== NBT serialization ==============================
-
-    @Override
-    public void readFromNBT(final NBTTagCompound data) {
-        super.readFromNBT(data);
-        // isTile=false: reads storage from "storage" tag (parts save it explicitly)
-        this.logic.readFromNBT(data, false);
-    }
-
-    @Override
-    public void writeToNBT(final NBTTagCompound data) {
-        super.writeToNBT(data);
-        // isTile=false: writes storage to "storage" tag (parts save it explicitly)
-        this.logic.writeToNBT(data, false);
-    }
-
-    @Nonnull
-    @Override
-    public NBTTagCompound downloadSettings(SettingsFrom from) {
-        NBTTagCompound output = super.downloadSettings(from);
-        if (output == null) output = new NBTTagCompound();
-
-        NBTTagCompound logicSettings = (from == SettingsFrom.DISMANTLE_ITEM)
-            ? this.logic.downloadSettingsForDismantle()
-            : this.logic.downloadSettings();
-
-        output.merge(logicSettings);
-        return output;
-    }
-
-    @Override
-    public NBTTagCompound downloadSettingsWithFilter() {
-        return this.logic.downloadSettingsWithFilter();
-    }
-
-    /**
-     * Use the block's translation key for memory card compatibility.
-     * This allows memory cards to work between block and part versions.
-     */
-    @Override
-    public boolean useStandardMemoryCard() {
-        return false;
-    }
-
-    /**
-     * Custom memory card handling that uses the block's translation key.
-     */
-    private boolean useMemoryCard(final EntityPlayer player) {
-        final ItemStack memCardIS = player.inventory.getCurrentItem();
-        if (memCardIS.isEmpty()) return false;
-        if (!(memCardIS.getItem() instanceof IMemoryCard)) return false;
-
-        final IMemoryCard memoryCard = (IMemoryCard) memCardIS.getItem();
-        final String name = "tile.cells.import_interface";
-
-        if (player.isSneaking()) {
-            final NBTTagCompound data = this.downloadSettings(SettingsFrom.MEMORY_CARD);
-            if (data != null && !data.isEmpty()) {
-                memoryCard.setMemoryCardContents(memCardIS, name, data);
-                memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_SAVED);
-            }
-        } else {
-            final String storedName = memoryCard.getSettingsName(memCardIS);
-            final NBTTagCompound data = memoryCard.getData(memCardIS);
-            if (name.equals(storedName)) {
-                this.uploadSettings(SettingsFrom.MEMORY_CARD, data, player);
-                memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_LOADED);
-            } else {
-                memoryCard.notifyUser(player, MemoryCardMessages.INVALID_MACHINE);
-            }
-        }
-
-        return true;
-    }
-
-    @Override
-    public void uploadSettings(SettingsFrom from, NBTTagCompound compound, EntityPlayer player) {
-        super.uploadSettings(from, compound, player);
-        this.logic.uploadSettings(compound, player);
-    }
-
-    @Override
-    public void onPlacement(final EntityPlayer player, final EnumHand hand, final ItemStack held, final AEPartLocation side) {
-        super.onPlacement(player, hand, held, side);
-        if (held.hasTagCompound()) {
-            this.uploadSettings(SettingsFrom.DISMANTLE_ITEM, held.getTagCompound(), player);
-        }
-    }
-
-    // ============================== GUI handling ==============================
-
-    @Override
-    public boolean onPartActivate(final EntityPlayer p, final EnumHand hand, final Vec3d pos) {
-        // Handle memory card (right-click to load settings)
-        if (!p.isSneaking() && this.useMemoryCard(p)) return true;
-        if (p.isSneaking()) return false;
-
-        if (!p.world.isRemote) {
-            CellsGuiHandler.openPartGui(p, this.getHost().getTile(), this.getSide(), CellsGuiHandler.GUI_PART_IMPORT_INTERFACE);
-        }
-
-        return true;
-    }
-
-    @Override
-    public boolean onPartShiftActivate(final EntityPlayer p, final EnumHand hand, final Vec3d pos) {
-        return this.useMemoryCard(p);
-    }
-
-    // ============================== Drops ==============================
-
-    @Override
-    public void getDrops(final List<ItemStack> drops, final boolean wrenched) {
-        if (wrenched) {
-            // Upgrades are saved to NBT via downloadSettings(DISMANTLE_ITEM),
-            // but stored items must still drop
-            this.logic.getStorageDrops(drops);
-        } else {
-            this.logic.getDrops(drops);
-        }
-    }
-
-    public EnumSet<EnumFacing> getTargets() {
-        return EnumSet.of(this.getSide().getFacing());
-    }
-
-    public TileEntity getTileEntity() {
-        return this.getHost().getTile();
-    }
-
-    // ============================== IAEAppEngInventory ==============================
-
-    @Override
-    public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
-        this.logic.onChangeInventory(inv, slot, removed, added);
-        this.getHost().markForUpdate();
-    }
-
-    // ============================== IGridTickable ==============================
-
-    @Override
-    @Nonnull
-    public TickingRequest getTickingRequest(@Nonnull final IGridNode node) {
-        return this.logic.getTickingRequest();
-    }
-
-    @Override
-    @Nonnull
-    public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
-        return this.logic.onTick();
+    public int addToFirstAvailableSlot(@Nonnull ItemStack stack) {
+        return this.logic.addToFirstAvailableSlot(stack);
     }
 
     // ============================== Capability handling ==============================
@@ -458,5 +211,11 @@ public class PartImportInterface extends PartBasicState implements IGridTickable
             return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(this.logic.getExternalHandler());
         }
         return super.getCapability(capability);
+    }
+
+    // ============================== Utility methods ==============================
+
+    public EnumSet<EnumFacing> getTargets() {
+        return EnumSet.of(this.getSide().getFacing());
     }
 }

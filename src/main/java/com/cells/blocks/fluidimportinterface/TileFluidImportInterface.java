@@ -6,8 +6,6 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.cells.blocks.interfacebase.item.FluidInterfaceLogic;
-import com.cells.blocks.interfacebase.fluid.IFluidInterfaceHost;
 import io.netty.buffer.ByteBuf;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -41,7 +39,11 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
+import com.cells.blocks.interfacebase.IInterfaceLogic;
+import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
+import com.cells.blocks.interfacebase.fluid.IFluidInterfaceHost;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.util.FluidStackKey;
 
 
 /**
@@ -134,8 +136,9 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     }
 
     @Override
-    public void clearFilters() {
-        this.logic.clearFilters();
+    @Nonnull
+    public IInterfaceLogic getInterfaceLogic() {
+        return this.logic;
     }
 
     @Override
@@ -222,6 +225,23 @@ public class TileFluidImportInterface extends AENetworkInvTile implements IGridT
     @Override
     public int insertFluidIntoTank(int slot, FluidStack fluid) {
         return this.logic.insertFluidIntoTank(slot, fluid);
+    }
+
+    // ============================== IFilterableInterfaceHost delegation ==============================
+
+    @Override
+    public boolean isInFilter(@Nonnull FluidStackKey key) {
+        return this.logic.isInFilter(key);
+    }
+
+    @Override
+    public int findSlotByKey(@Nonnull FluidStackKey key) {
+        return this.logic.findSlotByKey(key);
+    }
+
+    @Override
+    public int addToFirstAvailableSlot(@Nonnull IAEFluidStack stack) {
+        return this.logic.addToFirstAvailableSlotAE(stack);
     }
 
     // ============================== IInterfaceHost ==============================

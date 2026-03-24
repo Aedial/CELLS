@@ -1,37 +1,30 @@
 package com.cells.cells.creative.item;
 
-import java.awt.Rectangle;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import javax.annotation.Nonnull;
+import java.util.HashMap;
+import java.util.Map;
 
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 
-import appeng.api.storage.data.IAEItemStack;
-import appeng.container.slot.IJEITargetSlot;
-import appeng.container.slot.SlotFake;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketInventoryAction;
-import appeng.helpers.InventoryAction;
-import appeng.util.item.AEItemStack;
+import appeng.client.gui.widgets.GuiCustomSlot;
 
-import mezz.jei.api.gui.IGhostIngredientHandler.Target;
-
+import com.cells.cells.creative.AbstractCreativeCellContainer;
 import com.cells.cells.creative.AbstractCreativeCellGui;
 import com.cells.gui.QuickAddHelper;
+import com.cells.gui.slots.ItemFilterSlot;
 import com.cells.network.CellsNetworkHandler;
-import com.cells.network.packets.PacketQuickAddCreativeItemFilter;
+import com.cells.network.sync.PacketQuickAddFilter;
+import com.cells.network.sync.PacketResourceSlot;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * GUI screen for the Creative ME Cell.
- * Displays a 9x7 grid of item filter slots with JEI drag-drop support.
+ * <p>
+ * Displays a 9x7 grid of item filter slots using unified {@link ItemFilterSlot}.
+ * JEI drag-drop support is handled automatically by the base class.
  */
 public class GuiCreativeCell extends AbstractCreativeCellGui<ContainerCreativeCell> {
 
@@ -45,14 +38,23 @@ public class GuiCreativeCell extends AbstractCreativeCellGui<ContainerCreativeCe
     }
 
     @Override
-    protected void createFilterSlots() {
-        // Item cell uses SlotFake added by the container, no need to add GUI slots here
+    protected GuiCustomSlot createSlotForIndex(int slotIndex, int x, int y) {
+        return new ItemFilterSlot(
+            slot -> container.getFilterHandler().getStackInSlot(slot),
+            slotIndex, x, y
+        );
     }
 
     @Override
     protected void doClearFilters() {
         container.clearAllFilters();
-        // No need to send a packet - filter handler writes directly to cell NBT
+
+        // Send empty map to clear all filters on server using unified packet
+        Map<Integer, Object> emptyMap = new HashMap<>();
+        for (int i = 0; i < AbstractCreativeCellContainer.FILTER_SLOTS; i++) {
+            emptyMap.put(i, null);
+        }
+        CellsNetworkHandler.INSTANCE.sendToServer(new PacketResourceSlot(ResourceType.ITEM, emptyMap));
     }
 
     @Override
@@ -60,67 +62,10 @@ public class GuiCreativeCell extends AbstractCreativeCellGui<ContainerCreativeCe
         ItemStack item = QuickAddHelper.getItemUnderCursor(hoveredSlot);
 
         if (!item.isEmpty()) {
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddCreativeItemFilter(item));
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFilter(ResourceType.ITEM, item));
             return true;
         }
 
         return false;
-    }
-
-    @Override
-    protected List<Target<?>> createTargets(Object ingredient) {
-        if (!(ingredient instanceof ItemStack)) return Collections.emptyList();
-
-        ItemStack itemStack = (ItemStack) ingredient;
-        if (itemStack.isEmpty()) return Collections.emptyList();
-
-        List<Target<?>> targets = new ArrayList<>();
-
-        // Add all filter slots (SlotFake) as valid targets
-        for (Slot slot : this.inventorySlots.inventorySlots) {
-            if (!(slot instanceof SlotFake)) continue;
-
-            SlotFake fakeSlot = (SlotFake) slot;
-            if (!fakeSlot.isSlotEnabled()) continue;
-
-            Target<Object> target = new Target<Object>() {
-                @Nonnull
-                @Override
-                public Rectangle getArea() {
-                    return new Rectangle(getGuiLeft() + fakeSlot.xPos, getGuiTop() + fakeSlot.yPos, 16, 16);
-                }
-
-                @Override
-                public void accept(@Nonnull Object ingredient) {
-                    if (!(ingredient instanceof ItemStack)) return;
-
-                    ItemStack stack = (ItemStack) ingredient;
-                    if (stack.isEmpty()) return;
-
-                    // Check for duplicates before adding
-                    if (container.getFilterHandler().isInFilter(stack)) {
-                        QuickAddHelper.sendDuplicateError();
-                        return;
-                    }
-
-                    try {
-                        IAEItemStack aeStack = AEItemStack.fromItemStack(stack);
-                        PacketInventoryAction packet = new PacketInventoryAction(
-                            InventoryAction.PLACE_JEI_GHOST_ITEM,
-                            fakeSlot,
-                            aeStack
-                        );
-                        NetworkHandler.instance().sendToServer(packet);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            };
-
-            targets.add(target);
-            mapTargetSlot.put(target, slot);
-        }
-
-        return targets;
     }
 }

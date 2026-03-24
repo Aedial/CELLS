@@ -1,4 +1,4 @@
-package com.cells.blocks.interfacebase.item;
+package com.cells.blocks.interfacebase.fluid;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -110,12 +110,6 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
     @Nullable
     protected FluidStackKey createKey(FluidStack resource) {
         return FluidStackKey.of(resource);
-    }
-
-    @Override
-    protected boolean resourcesMatch(FluidStack a, FluidStack b) {
-        if (a == null || b == null) return false;
-        return a.isFluidEqual(b);
     }
 
     @Override

@@ -35,7 +35,6 @@ import mezz.jei.api.gui.IDrawableStatic;
 import mezz.jei.api.gui.IGuiFluidStackGroup;
 import mezz.jei.api.gui.IGuiItemStackGroup;
 import mezz.jei.api.gui.IRecipeLayout;
-import mezz.jei.api.gui.ITooltipCallback;
 import mezz.jei.api.ingredients.IIngredients;
 import mezz.jei.api.recipe.IRecipeCategory;
 
@@ -229,25 +228,22 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
         }
 
         // Add tooltip callback for fluids
-        fluidStacks.addTooltipCallback(new ITooltipCallback<FluidStack>() {
-            @Override
-            public void onTooltip(int slotIndex, boolean input, FluidStack ingredient, List<String> tooltip) {
-                int stackIdx = startIdxFinal + slotIndex;
-                if (stackIdx >= recipeRef.getStoredStacks().size()) return;
+        fluidStacks.addTooltipCallback((slotIndex, input, ingredient, tooltip) -> {
+            int stackIdx = startIdxFinal + slotIndex;
+            if (stackIdx >= recipeRef.getStoredStacks().size()) return;
 
-                CellViewRecipe.StoredStackInfo info = recipeRef.getStoredStacks().get(stackIdx);
-                NumberFormat format = NumberFormat.getInstance();
+            CellViewRecipe.StoredStackInfo info = recipeRef.getStoredStacks().get(stackIdx);
+            NumberFormat format = NumberFormat.getInstance();
 
-                tooltip.add("");
-                tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
-                    format.format(info.count), I18n.format("cells.unit.fluid")));
+            tooltip.add("");
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
+                format.format(info.count), I18n.format("cells.unit.fluid")));
 
-                // Skip bytes as it is meaningless for creative cells
-                if (recipeRef.isCreative()) return;
+            // Skip bytes as it is meaningless for creative cells
+            if (recipeRef.isCreative()) return;
 
-                tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
-                    format.format(info.bytesUsed)));
-            }
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
+                format.format(info.bytesUsed)));
         });
     }
 
@@ -271,38 +267,35 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
         }
 
         // Add tooltip callback for items
-        itemStacks.addTooltipCallback(new ITooltipCallback<ItemStack>() {
-            @Override
-            public void onTooltip(int slotIndex, boolean input, ItemStack ingredient, List<String> tooltip) {
-                int stackIdx = startIdxFinal + slotIndex;
-                if (stackIdx >= recipeRef.getStoredStacks().size()) return;
+        itemStacks.addTooltipCallback((slotIndex, input, ingredient, tooltip) -> {
+            int stackIdx = startIdxFinal + slotIndex;
+            if (stackIdx >= recipeRef.getStoredStacks().size()) return;
 
-                CellViewRecipe.StoredStackInfo info = recipeRef.getStoredStacks().get(stackIdx);
-                NumberFormat format = NumberFormat.getInstance();
+            CellViewRecipe.StoredStackInfo info = recipeRef.getStoredStacks().get(stackIdx);
+            NumberFormat format = NumberFormat.getInstance();
 
-                tooltip.add("");
+            tooltip.add("");
 
-                // Show precise count with appropriate units
-                String unitKey = getUnitKey(recipeRef);
-                tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
-                    format.format(info.count), I18n.format(unitKey)));
+            // Show precise count with appropriate units
+            String unitKey = getUnitKey(recipeRef);
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
+                format.format(info.count), I18n.format(unitKey)));
 
-                // For compacting cells, show if this is a compressed/decompressed form
-                boolean virtualForm = false;
-                if (recipeRef.isCompacting() && recipeRef.isChainInitialized()) {
-                    ItemStack partitioned = recipeRef.getPartitionedItem();
-                    if (!partitioned.isEmpty() && !ItemStack.areItemsEqual(ingredient, partitioned)) {
-                        tooltip.add("§7" + I18n.format("jei.cells.cellview.tooltip.virtual_form") + "§r");
-                        virtualForm = true;
-                    }
+            // For compacting cells, show if this is a compressed/decompressed form
+            boolean virtualForm = false;
+            if (recipeRef.isCompacting() && recipeRef.isChainInitialized()) {
+                ItemStack partitioned = recipeRef.getPartitionedItem();
+                if (!partitioned.isEmpty() && !ItemStack.areItemsEqual(ingredient, partitioned)) {
+                    tooltip.add("§7" + I18n.format("jei.cells.cellview.tooltip.virtual_form") + "§r");
+                    virtualForm = true;
                 }
-
-                // Skip bytes as it is meaningless for creative cells
-                if (recipeRef.isCreative()) return;
-
-                tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
-                    format.format(info.bytesUsed)));
             }
+
+            // Skip bytes as it is meaningless for creative cells and virtual forms
+            if (virtualForm || recipeRef.isCreative()) return;
+
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
+                format.format(info.bytesUsed)));
         });
     }
 
@@ -330,24 +323,21 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
         }
 
         // Add tooltip callback for gas slots
-        itemStacks.addTooltipCallback(new ITooltipCallback<ItemStack>() {
-            @Override
-            public void onTooltip(int slotIndex, boolean input, ItemStack ingredient, List<String> tooltip) {
-                int stackIdx = startIdxFinal + slotIndex;
-                if (stackIdx >= recipeRef.getStoredStacks().size()) return;
+        itemStacks.addTooltipCallback((slotIndex, input, ingredient, tooltip) -> {
+            int stackIdx = startIdxFinal + slotIndex;
+            if (stackIdx >= recipeRef.getStoredStacks().size()) return;
 
-                CellViewRecipe.StoredStackInfo info = recipeRef.getStoredStacks().get(stackIdx);
-                NumberFormat format = NumberFormat.getInstance();
+            CellViewRecipe.StoredStackInfo info = recipeRef.getStoredStacks().get(stackIdx);
+            NumberFormat format = NumberFormat.getInstance();
 
-                tooltip.add("");
-                tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
-                    format.format(info.count), I18n.format("cells.unit.gas")));
+            tooltip.add("");
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.stored_units",
+                format.format(info.count), I18n.format("cells.unit.gas")));
 
-                if (!recipeRef.isCreative()) return;
+            if (!recipeRef.isCreative()) return;
 
-                tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
-                    format.format(info.bytesUsed)));
-            }
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
+                format.format(info.bytesUsed)));
         });
     }
 

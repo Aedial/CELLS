@@ -1,221 +1,71 @@
 package com.cells.blocks.interfacebase.item;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import io.netty.buffer.ByteBuf;
+
 import net.minecraft.entity.item.EntityItem;
-import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.AEApi;
-import appeng.api.config.Actionable;
-import appeng.api.config.Upgrades;
-import appeng.api.implementations.items.IUpgradeModule;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.networking.ticking.IGridTickable;
-import appeng.api.networking.ticking.TickRateModulation;
-import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.storage.IMEInventory;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.core.settings.TickRates;
-import appeng.me.GridAccessException;
-import appeng.me.helpers.AENetworkProxy;
-import appeng.tile.inventory.AppEngInternalInventory;
-import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.item.AEItemStack;
 
-import com.cells.items.ItemOverflowCard;
-import com.cells.items.ItemTrashUnselectedCard;
-import com.cells.util.InventoryMigrationHelper;
+import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.util.ItemStackKey;
-import com.cells.util.TickManagerHelper;
 
 
 /**
- * Shared logic delegate for Item Interface implementations (both import and export,
- * both tile and part). Contains all business logic that is identical across all
- * four item interface variants.
+ * Item-specific implementation of the resource interface logic.
+ * Handles item import/export interfaces for both tiles and parts.
  * <p>
- * The host provides platform-specific operations (grid proxy, marking dirty, etc.)
- * via the {@link Host} callback interface. The {@link Host#isExport()} flag
- * parameterizes import vs export behavioral differences.
+ * Extends {@link AbstractResourceInterfaceLogic} with ItemStack as the resource type,
+ * IAEItemStack as the AE2 stack type, and ItemStackKey as the key type.
  * <p>
- * Both TileImportInterface/TileExportInterface and PartImportInterface/PartExportInterface
- * instantiate an ItemInterfaceLogic in their constructor and delegate business logic to it.
+ * Provides IItemHandler wrappers for Forge capability system compatibility.
  */
-public class ItemInterfaceLogic {
-
-    // ============================== Host callback interface ==============================
+public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack, IAEItemStack, ItemStackKey> {
 
     /**
-     * Callback interface that the host (tile or part) implements to provide
-     * platform-specific operations to the logic delegate.
+     * Host interface for item interfaces.
+     * Extends the base Host interface without adding additional requirements.
      */
-    public interface Host extends IAEAppEngInventory {
-
-        /** Get the AE2 grid proxy for network access. */
-        AENetworkProxy getGridProxy();
-
-        /** Get the action source for ME network operations. */
-        IActionSource getActionSource();
-
-        /** Whether this is an export interface (true) or import interface (false). */
-        boolean isExport();
-
-        /**
-         * Mark this host as dirty and save its state.
-         * Tile: markDirty(). Part: getHost().markForSave().
-         */
-        void markDirtyAndSave();
-
-        /**
-         * Mark this host for client update.
-         * Tile: markForUpdate(). Part: getHost().markForUpdate().
-         */
-        void markForNetworkUpdate();
-
-        /** Get the world this host is in (may be null during loading). */
-        @Nullable
-        World getHostWorld();
-
-        /** Get the position of this host in the world. */
-        BlockPos getHostPos();
-
-        /** Get the IGridTickable to re-register with tick manager. */
-        IGridTickable getTickable();
+    public interface Host extends AbstractResourceInterfaceLogic.Host {
     }
 
-    public static final int SLOTS_PER_PAGE = 36;
-    public static final int MAX_CAPACITY_CARDS = 4;
-    public static final int MAX_PAGES = 1 + MAX_CAPACITY_CARDS;
-    public static final int FILTER_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
-    public static final int STORAGE_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
-    public static final int UPGRADE_SLOTS = 4;
+    /** Default max slot size for items (standard stack size). */
     public static final int DEFAULT_MAX_SLOT_SIZE = 64;
-    public static final int MIN_MAX_SLOT_SIZE = 1;
 
-    // Polling rate constants (in ticks, 20 ticks = 1 second)
-    public static final int DEFAULT_POLLING_RATE = 0; // 0 means adaptive (AE2 default)
-    public static final int TICKS_PER_SECOND = 20;
-    public static final int TICKS_PER_MINUTE = TICKS_PER_SECOND * 60;
-    public static final int TICKS_PER_HOUR = TICKS_PER_MINUTE * 60;
-    public static final int TICKS_PER_DAY = TICKS_PER_HOUR * 24;
+    /** IItemHandler wrapper for filter array access. */
+    private final IItemHandlerModifiable filterHandler;
 
-    private final Host host;
+    /** IItemHandler wrapper for storage array access. */
+    private final IItemHandlerModifiable storageHandler;
 
-    // Inventories
-    private final AppEngInternalInventory filterInventory;
-    private final AppEngInternalInventory storageInventory;
-    private final AppEngInternalInventory upgradeInventory;
-
-    // External handler exposed via capabilities
+    /** External handler exposed via capabilities. */
     private final IItemHandler externalHandler;
 
-    // Config
-    private int maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
-    private int pollingRate = DEFAULT_POLLING_RATE;
-
-    // Upgrade cache (import-only upgrades are always false for export)
-    private boolean installedOverflowUpgrade = false;
-    private boolean installedTrashUnselectedUpgrade = false;
-    private int installedCapacityUpgrades = 0;
-
-    // Current GUI page index (0-based)
-    private int currentPage = 0;
-
-    // Mapping of filter items to their corresponding storage slot index for quick lookup
-    final Map<ItemStackKey, Integer> filterToSlotMap = new HashMap<>();
-
-    // Reverse mapping: slot index -> cached ItemStackKey for the filter in that slot
-    final Map<Integer, ItemStackKey> slotToFilterMap = new HashMap<>();
-
-    // List of slot indices that have filters, in slot order
-    // This ensures external systems see slots in the correct order regardless of filter insertion order
-    private List<Integer> filterSlotList = new ArrayList<>();
-
     public ItemInterfaceLogic(Host host) {
-        this.host = host;
+        super(host, ItemStack.class);
 
-        // Create filter inventory - ghost items only (1 stack size each)
-        this.filterInventory = new AppEngInternalInventory(host, FILTER_SLOTS, 1);
+        this.maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
 
-        // Create storage inventory with filter and unlimited stack size support
-        this.storageInventory = new AppEngInternalInventory(host, STORAGE_SLOTS, DEFAULT_MAX_SLOT_SIZE) {
-            @Override
-            public int getSlotLimit(int slot) {
-                return ItemInterfaceLogic.this.maxSlotSize;
-            }
-
-            @Override
-            public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-                return ItemInterfaceLogic.this.isItemValidForSlot(slot, stack);
-            }
-
-            @Override
-            @Nonnull
-            public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
-                // Import: slotless insertion that ignores item's maxStackSize,
-                // allowing slots to hold more than 64 items of any type.
-                // The slot parameter is ignored; the correct slot is found via filterToSlotMap.
-                // Export: standard insertion behavior (external insertion is already blocked
-                // by ExportStorageHandler, so this path is only reached by internal code).
-                if (!host.isExport()) return ItemInterfaceLogic.this.slotlessInsertItem(stack, simulate);
-
-                return super.insertItem(slot, stack, simulate);
-            }
-
-            @Override
-            @Nonnull
-            public ItemStack extractItem(int slot, int amount, boolean simulate) {
-                // Export: bypass the item's maxStackSize limit (typically 64) to allow
-                // extracting up to maxSlotSize items at once. This is necessary because
-                // Forge's ItemStackHandler.extractItem() limits extraction to maxStackSize.
-                if (!host.isExport()) return super.extractItem(slot, amount, simulate);
-
-                // Custom extraction logic that respects slot limit instead of item stack limit
-                ItemStack existing = this.getStackInSlot(slot);
-                if (existing.isEmpty()) return ItemStack.EMPTY;
-
-                // Don't limit by maxStackSize - limit by slot limit and available amount
-                int toExtract = Math.min(amount, existing.getCount());
-                if (toExtract <= 0) return ItemStack.EMPTY;
-
-                if (simulate) {
-                    ItemStack result = existing.copy();
-                    result.setCount(toExtract);
-                    return result;
-                }
-
-                ItemStack result = existing.copy();
-                result.setCount(toExtract);
-                existing.shrink(toExtract);
-
-                if (existing.isEmpty()) this.setStackInSlot(slot, ItemStack.EMPTY);
-
-                this.onContentsChanged(slot);
-                return result;
-            }
-        };
-
-        // Create upgrade inventory with filtering for specific upgrade cards
-        this.upgradeInventory = new AppEngInternalInventory(host, UPGRADE_SLOTS, 1) {
-            @Override
-            public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-                return ItemInterfaceLogic.this.isValidUpgrade(stack);
-            }
-        };
+        // Create IItemHandler wrappers for the static arrays
+        this.filterHandler = new ArrayItemHandler(this.filters, true);
+        this.storageHandler = new ArrayItemHandler(this.storage, false);
 
         // Create appropriate external handler based on direction
         if (host.isExport()) {
@@ -223,31 +73,425 @@ public class ItemInterfaceLogic {
         } else {
             this.externalHandler = new FilteredStorageHandler(this);
         }
-
-        refreshUpgrades();
-        refreshFilterMap();
     }
 
+    @Override
     public String getTypeName() {
         return "item";
     }
 
     /**
+     * @return IItemHandler wrapper for filter access.
+     */
+    public IItemHandlerModifiable getFilterInventory() {
+        return this.filterHandler;
+    }
+
+    /**
+     * @return IItemHandler wrapper for storage access.
+     */
+    public IItemHandlerModifiable getStorageInventory() {
+        return this.storageHandler;
+    }
+
+    /**
+     * @return The external handler to expose via capabilities.
+     */
+    public IItemHandler getExternalHandler() {
+        return this.externalHandler;
+    }
+
+    /**
+     * @return The filter array directly. Wrapping in IItemHandler is caller's responsibility if needed.
+     */
+    public ItemStack[] getFilterArray() {
+        return this.filters;
+    }
+
+    /**
+     * @return The storage array directly. Wrapping in IItemHandler is caller's responsibility if needed.
+     */
+    public ItemStack[] getStorageArray() {
+        return this.storage;
+    }
+
+    /**
+     * Get filter at a specific slot (API compatible with EMPTY).
+     * @return The filter ItemStack, or null if slot is empty or invalid
+     */
+    @Nullable
+    public ItemStack getFilter(int slot) {
+        if (slot < 0 || slot >= FILTER_SLOTS) return null;
+        return this.filters[slot];
+    }
+
+    /**
+     * Set filter at a specific slot. Converts EMPTY to null internally.
+     */
+    public void setFilter(int slot, @Nullable ItemStack stack) {
+        if (slot < 0 || slot >= FILTER_SLOTS) return;
+        this.filters[slot] = (stack == null || stack.isEmpty()) ? null : stack;
+        onFilterChanged(slot);
+    }
+
+    /**
+     * Get storage at a specific slot.
+     * @return The stored ItemStack, or null if slot is empty or invalid
+     */
+    @Nullable
+    public ItemStack getStorage(int slot) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return null;
+        return this.storage[slot];
+    }
+
+    /**
+     * Set storage at a specific slot. Converts EMPTY to null internally.
+     */
+    public void setStorage(int slot, @Nullable ItemStack stack) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return;
+        this.storage[slot] = (stack == null || stack.isEmpty()) ? null : stack;
+    }
+
+    /**
+     * Check if a stack is in the filter.
+     * Delegates to isResourceInFilter from base class.
+     */
+    public boolean isStackInFilter(@Nullable ItemStack stack) {
+        return isResourceInFilter(stack);
+    }
+
+    /**
+     * Check if an item is valid for a specific storage slot based on the filter.
+     * Import uses filter-to-slot mapping; export checks direct filter match.
+     */
+    public boolean isItemValidForSlot(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return false;
+        if (stack == null || stack.isEmpty()) return false;
+
+        ItemStackKey filterKey = this.slotToFilterMap.get(slot);
+        if (filterKey == null) return false;
+
+        return filterKey.matches(stack);
+    }
+
+    // ============================== Abstract method implementations ==============================
+
+    @Override
+    @Nullable
+    protected ItemStackKey createKey(ItemStack resource) {
+        return ItemStackKey.of(resource);
+    }
+
+    @Override
+    protected int getAmount(ItemStack resource) {
+        return resource.getCount();
+    }
+
+    @Override
+    protected void setAmount(ItemStack resource, int amount) {
+        resource.setCount(amount);
+    }
+
+    @Override
+    protected ItemStack copyWithAmount(ItemStack resource, int amount) {
+        ItemStack copy = resource.copy();
+        copy.setCount(amount);
+        return copy;
+    }
+
+    @Override
+    protected ItemStack copy(ItemStack resource) {
+        return resource.copy();
+    }
+
+    @Override
+    protected String getLocalizedName(ItemStack resource) {
+        return resource.getDisplayName();
+    }
+
+    @Override
+    protected IAEItemStack toAEStack(ItemStack resource) {
+        return AEItemStack.fromItemStack(resource);
+    }
+
+    @Override
+    protected ItemStack fromAEStack(IAEItemStack aeStack) {
+        return aeStack.createItemStack();
+    }
+
+    @Override
+    protected long getAEStackSize(IAEItemStack aeStack) {
+        return aeStack.getStackSize();
+    }
+
+    @Override
+    protected void writeResourceToNBT(ItemStack resource, NBTTagCompound tag) {
+        resource.writeToNBT(tag);
+    }
+
+    @Override
+    @Nullable
+    protected ItemStack readResourceFromNBT(NBTTagCompound tag) {
+        ItemStack stack = new ItemStack(tag);
+        return stack.isEmpty() ? null : stack;
+    }
+
+    @Override
+    protected String getResourceName(ItemStack resource) {
+        // For items, we need to include the registry name
+        ResourceLocation registryName = resource.getItem().getRegistryName();
+        return registryName != null ? registryName.toString() : "";
+    }
+
+    @Override
+    @Nullable
+    protected ItemStack getResourceByName(String name, int amount) {
+        Item item = Item.getByNameOrId(name);
+        if (item == null) return null;
+        return new ItemStack(item, amount);
+    }
+
+    @Override
+    protected IMEInventory<IAEItemStack> getMEInventory(IStorageGrid storage) {
+        return storage.getInventory(
+            AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
+        );
+    }
+
+    @Override
+    protected ItemStack createRecoveryItem(ItemStack resource) {
+        // Items ARE items - return the resource directly as the drop
+        return resource.copy();
+    }
+
+    // ============================== Item-specific stream serialization ==============================
+
+    /**
+     * Items need NBT-aware stream serialization since they can have complex NBT data.
+     * Override to use NBT serialization instead of name-based.
+     */
+    @Override
+    public boolean readStorageFromStream(ByteBuf data) {
+        boolean changed = false;
+
+        // Clear all storage first
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            if (this.storage[i] != null) {
+                this.storage[i] = null;
+                changed = true;
+            }
+        }
+
+        int count = data.readShort();
+        for (int idx = 0; idx < count; idx++) {
+            int slot = data.readShort();
+            int nbtLen = data.readInt();
+
+            if (slot < 0 || slot >= STORAGE_SLOTS) {
+                // Skip this entry's NBT data
+                data.skipBytes(nbtLen);
+                continue;
+            }
+
+            byte[] nbtBytes = new byte[nbtLen];
+            data.readBytes(nbtBytes);
+
+            try {
+                NBTTagCompound tag = net.minecraft.nbt.CompressedStreamTools.readCompressed(
+                    new java.io.ByteArrayInputStream(nbtBytes)
+                );
+                ItemStack stack = new ItemStack(tag);
+                if (!stack.isEmpty()) {
+                    this.storage[slot] = stack;
+                    changed = true;
+                }
+            } catch (Exception e) {
+                // Log and skip corrupted data
+            }
+        }
+
+        return changed;
+    }
+
+    /**
+     * Items need NBT-aware stream serialization since they can have complex NBT data.
+     */
+    @Override
+    public void writeStorageToStream(ByteBuf data) {
+        // Count non-empty storage slots first
+        int count = 0;
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            if (this.storage[i] != null && !this.storage[i].isEmpty()) count++;
+        }
+
+        data.writeShort(count);
+
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            ItemStack stack = this.storage[i];
+            if (stack == null || stack.isEmpty()) continue;
+
+            data.writeShort(i);
+
+            try {
+                NBTTagCompound tag = stack.writeToNBT(new NBTTagCompound());
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                net.minecraft.nbt.CompressedStreamTools.writeCompressed(tag, baos);
+                byte[] nbtBytes = baos.toByteArray();
+
+                data.writeInt(nbtBytes.length);
+                data.writeBytes(nbtBytes);
+            } catch (Exception e) {
+                // Write empty on error
+                data.writeInt(0);
+            }
+        }
+    }
+
+    /**
+     * Items need NBT-aware filter stream serialization.
+     */
+    @Override
+    public boolean readFiltersFromStream(ByteBuf data) {
+        boolean changed = false;
+
+        // Clear all filters first
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            if (this.filters[i] != null) {
+                this.filters[i] = null;
+                changed = true;
+            }
+        }
+
+        int count = data.readShort();
+        for (int idx = 0; idx < count; idx++) {
+            int slot = data.readShort();
+            int nbtLen = data.readInt();
+
+            if (slot < 0 || slot >= FILTER_SLOTS) {
+                data.skipBytes(nbtLen);
+                continue;
+            }
+
+            byte[] nbtBytes = new byte[nbtLen];
+            data.readBytes(nbtBytes);
+
+            try {
+                NBTTagCompound tag = net.minecraft.nbt.CompressedStreamTools.readCompressed(
+                    new java.io.ByteArrayInputStream(nbtBytes)
+                );
+                ItemStack stack = new ItemStack(tag);
+                if (!stack.isEmpty()) {
+                    stack.setCount(1); // Filters are always count 1
+                    this.filters[slot] = stack;
+                    changed = true;
+                }
+            } catch (Exception e) {
+                // Log and skip corrupted data
+            }
+        }
+
+        this.refreshFilterMap();
+        return changed;
+    }
+
+    /**
+     * Items need NBT-aware filter stream serialization.
+     */
+    @Override
+    public void writeFiltersToStream(ByteBuf data) {
+        // Count non-empty filters first
+        int count = 0;
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            if (this.filters[i] != null) count++;
+        }
+
+        data.writeShort(count);
+
+        for (int i = 0; i < FILTER_SLOTS; i++) {
+            ItemStack filter = this.filters[i];
+            if (filter == null) continue;
+
+            data.writeShort(i);
+
+            try {
+                NBTTagCompound tag = filter.writeToNBT(new NBTTagCompound());
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                net.minecraft.nbt.CompressedStreamTools.writeCompressed(tag, baos);
+                byte[] nbtBytes = baos.toByteArray();
+
+                data.writeInt(nbtBytes.length);
+                data.writeBytes(nbtBytes);
+            } catch (Exception e) {
+                data.writeInt(0);
+            }
+        }
+    }
+
+    // ============================== Item-specific NBT format ==============================
+
+    /**
+     * Override to handle legacy NBT formats for filters (Items TAG_LIST).
+     */
+    @Override
+    protected void readFiltersFromNBT(NBTTagCompound data, String name) {
+        if (!data.hasKey(name, Constants.NBT.TAG_COMPOUND)) return;
+
+        NBTTagCompound filterData = data.getCompoundTag(name);
+
+        // Legacy TAG_LIST format (AE2 style "Items")
+        if (filterData.hasKey("Items", Constants.NBT.TAG_LIST)) {
+            NBTTagList tagList = filterData.getTagList("Items", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < tagList.tagCount(); i++) {
+                NBTTagCompound itemTag = tagList.getCompoundTagAt(i);
+                int slot = itemTag.getInteger("Slot");
+                if (slot >= 0 && slot < FILTER_SLOTS) {
+                    ItemStack stack = new ItemStack(itemTag);
+                    this.filters[slot] = stack.isEmpty() ? null : stack;
+                }
+            }
+            return;
+        }
+
+        // New format - delegate to super
+        super.readFiltersFromNBT(data, name);
+    }
+
+    /**
+     * Override to handle legacy NBT formats for storage (Items TAG_LIST).
+     * Falls back to super for new numeric key format.
+     */
+    @Override
+    protected void readStorageFromNBT(NBTTagCompound data) {
+        // Try standard key first
+        String storageKey = getStorageNBTKey();
+        if (data.hasKey(storageKey, Constants.NBT.TAG_COMPOUND)) {
+            super.readStorageFromNBT(data);
+            return;
+        }
+
+        // Legacy: Try TAG_LIST "Items" directly in data
+        if (data.hasKey("Items", Constants.NBT.TAG_LIST)) {
+            NBTTagList tagList = data.getTagList("Items", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < tagList.tagCount(); i++) {
+                NBTTagCompound itemTag = tagList.getCompoundTagAt(i);
+                int slot = itemTag.getInteger("Slot");
+                if (slot >= 0 && slot < STORAGE_SLOTS) {
+                    ItemStack stack = new ItemStack(itemTag);
+                    this.storage[slot] = stack.isEmpty() ? null : stack;
+                }
+            }
+        }
+    }
+
+    // ============================== Item-specific insertion (slotless) ==============================
+
+    /**
      * Slotless insertion logic that ignores item's maxStackSize.
-     * Finds the correct slot via {@link #filterToSlotMap} using {@link ItemStackKey},
-     * ignoring any slot parameter passed by callers. This is the insertion entry
-     * point for import interfaces.
+     * Finds the correct slot via {@link #filterToSlotMap} using {@link ItemStackKey}.
      * <p>
      * Handles overflow and trash-unselected upgrade cards:
      * - If no filter matches and trash-unselected is installed, the item is voided.
      * - If the slot is full and overflow is installed, excess items are voided.
-     *
-     * FIXME: AppEngInternalInventory is mostly bypassed here (getSlotLimit, isItemValid,
-     *        insertItem are all overridden). Consider replacing it with a plain IItemHandler
-     *        or static array, similar to FluidInterfaceLogic's fluid tank array. This would
-     *        also eliminate the need for InventoryMigrationHelper.readFromNBTWithoutShrinking
-     *        since a static array wouldn't try to resize from NBT data. Blocked by AE2's
-     *        AENetworkInvTile expecting an AppEngInternalInventory from getInternalInventory().
      */
     private ItemStack slotlessInsertItem(@Nonnull ItemStack stack, boolean simulate) {
         if (stack.isEmpty()) return ItemStack.EMPTY;
@@ -257,25 +501,25 @@ public class ItemInterfaceLogic {
         if (key == null) return stack;
 
         // No matching filter — void if trash-unselected upgrade is installed, otherwise reject
-        int targetSlot = this.filterToSlotMap.getOrDefault(key, -1);
-        if (targetSlot == -1) return this.hasTrashUnselectedUpgrade() ? ItemStack.EMPTY : stack;
+        Integer targetSlot = this.filterToSlotMap.get(key);
+        if (targetSlot == null) return this.installedTrashUnselectedUpgrade ? ItemStack.EMPTY : stack;
 
         int limit = this.maxSlotSize;
-        ItemStack existing = this.storageInventory.getStackInSlot(targetSlot);
+        ItemStack existing = this.storage[targetSlot];
 
-        if (!existing.isEmpty()) {
+        if (existing != null) {
             // Verify the existing stack matches (guards against orphaned items in the slot)
             if (!key.equals(ItemStackKey.of(existing))) return stack;
 
             // Slot is full — void excess if overflow upgrade is installed
             int space = limit - existing.getCount();
-            if (space <= 0) return this.hasOverflowUpgrade() ? ItemStack.EMPTY : stack;
+            if (space <= 0) return this.installedOverflowUpgrade ? ItemStack.EMPTY : stack;
 
             int toInsert = Math.min(stack.getCount(), space);
             if (!simulate) {
-                ItemStack newStack = existing.copy();
-                newStack.grow(toInsert);
-                this.storageInventory.setStackInSlot(targetSlot, newStack);
+                existing.grow(toInsert);
+                this.host.markDirtyAndSave();
+                this.host.markForNetworkUpdate();
             }
 
             if (toInsert >= stack.getCount()) return ItemStack.EMPTY;
@@ -283,13 +527,15 @@ public class ItemInterfaceLogic {
             ItemStack remainder = stack.copy();
             remainder.shrink(toInsert);
             // Void any remainder if overflow upgrade is installed
-            return this.hasOverflowUpgrade() ? ItemStack.EMPTY : remainder;
+            return this.installedOverflowUpgrade ? ItemStack.EMPTY : remainder;
         } else {
             int toInsert = Math.min(stack.getCount(), limit);
             if (!simulate) {
                 ItemStack newStack = stack.copy();
                 newStack.setCount(toInsert);
-                this.storageInventory.setStackInSlot(targetSlot, newStack);
+                this.storage[targetSlot] = newStack;
+                this.host.markDirtyAndSave();
+                this.host.markForNetworkUpdate();
             }
 
             if (toInsert >= stack.getCount()) return ItemStack.EMPTY;
@@ -297,851 +543,77 @@ public class ItemInterfaceLogic {
             ItemStack remainder = stack.copy();
             remainder.shrink(toInsert);
             // Void any remainder if overflow upgrade is installed
-            return this.hasOverflowUpgrade() ? ItemStack.EMPTY : remainder;
+            return this.installedOverflowUpgrade ? ItemStack.EMPTY : remainder;
         }
     }
 
-
-    public AppEngInternalInventory getFilterInventory() {
-        return this.filterInventory;
-    }
-
-    public AppEngInternalInventory getStorageInventory() {
-        return this.storageInventory;
-    }
-
-    public AppEngInternalInventory getUpgradeInventory() {
-        return this.upgradeInventory;
-    }
+    // ============================== Item-specific NBT (legacy migration) ==============================
 
     /**
-     * @return The external handler to expose via capabilities (filtered for import, extraction-only for export).
-     */
-    public IItemHandler getExternalHandler() {
-        return this.externalHandler;
-    }
-
-    public int getMaxSlotSize() {
-        return this.maxSlotSize;
-    }
-
-    /**
-     * Set the maximum number of items per slot.
-     * For export interfaces, returns overflow items if the slot size was reduced.
-     */
-    public void setMaxSlotSize(int size) {
-        int oldSize = this.maxSlotSize;
-        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, size);
-
-        // Update slot limits in the underlying inventory
-        for (int i = 0; i < this.storageInventory.getSlots(); i++) {
-            this.storageInventory.setMaxStackSize(i, this.maxSlotSize);
-        }
-
-        this.host.markDirtyAndSave();
-
-        if (this.host.isExport()) {
-            // If slot size was reduced, return overflow items to the network
-            if (oldSize > this.maxSlotSize) returnOverflowToNetwork();
-
-            // Slots may now have room for more items after increasing the limit
-            if (oldSize < this.maxSlotSize) this.wakeUpIfAdaptive();
-        }
-    }
-
-    public int getPollingRate() {
-        return this.pollingRate;
-    }
-
-    public void setPollingRate(int ticks) {
-        this.setPollingRate(ticks, null);
-    }
-
-    /**
-     * Set the polling rate with optional player notification on failure.
-     * @param ticks Polling rate in ticks (0 = adaptive)
-     * @param player Player to notify if re-registration fails, or null to skip notification
-     */
-    public void setPollingRate(int ticks, EntityPlayer player) {
-        this.pollingRate = Math.max(0, ticks);
-        this.host.markDirtyAndSave();
-
-        // Re-register with the tick manager to apply the new TickingRequest bounds.
-        // Only attempt on server side when the proxy is ready - if not ready yet
-        // (e.g., during onPlacement/uploadSettings), the tick manager will pick up
-        // the correct rate when the node is first added to the grid.
-        AENetworkProxy proxy = this.host.getGridProxy();
-        if (proxy.isReady()) {
-            // Uses TickManagerHelper to purge stale TickTrackers from AE2's internal
-            // PriorityQueue before re-registering (see TickManagerHelper for details).
-            if (!TickManagerHelper.reRegisterTickable(proxy.getNode(), this.host.getTickable())) {
-                if (player != null) {
-                    player.sendMessage(new TextComponentTranslation("message.cells.polling_rate_delayed"));
-                }
-            }
-        }
-    }
-
-    /**
-     * Format a tick count as a human-readable time string.
-     * Format: "1d 2h 3m 4s" (skipping zero parts) or "0" if zero.
-     */
-    public static String formatPollingRate(long ticks) {
-        if (ticks <= 0) return "0";
-
-        long days = ticks / TICKS_PER_DAY;
-        ticks %= TICKS_PER_DAY;
-
-        long hours = ticks / TICKS_PER_HOUR;
-        ticks %= TICKS_PER_HOUR;
-
-        long minutes = ticks / TICKS_PER_MINUTE;
-        ticks %= TICKS_PER_MINUTE;
-
-        long seconds = ticks / TICKS_PER_SECOND;
-
-        StringBuilder sb = new StringBuilder();
-        if (days > 0) sb.append(days).append("d ");
-        if (hours > 0) sb.append(hours).append("h ");
-        if (minutes > 0) sb.append(minutes).append("m ");
-        if (seconds > 0) sb.append(seconds).append("s");
-
-        return sb.toString().trim();
-    }
-
-    /**
-     * Refresh the status of installed upgrades. Should be called whenever upgrade slots change.
-     */
-    public void refreshUpgrades() {
-        if (!this.host.isExport()) {
-            this.installedOverflowUpgrade = countUpgrade(ItemOverflowCard.class) > 0;
-            this.installedTrashUnselectedUpgrade = countUpgrade(ItemTrashUnselectedCard.class) > 0;
-        }
-
-        int oldCapacityCount = this.installedCapacityUpgrades;
-        this.installedCapacityUpgrades = countCapacityUpgrades();
-
-        // Handle capacity card removal - shrink pages
-        if (this.installedCapacityUpgrades < oldCapacityCount) {
-            handleCapacityReduction(oldCapacityCount, this.installedCapacityUpgrades);
-        }
-
-        // Clamp current page to valid range
-        int maxPage = this.installedCapacityUpgrades;
-        if (this.currentPage > maxPage) this.currentPage = maxPage;
-    }
-
-    /**
-     * Count how many upgrades of a specific type are installed.
-     */
-    private int countUpgrade(Class<?> itemClass) {
-        int count = 0;
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack existing = this.upgradeInventory.getStackInSlot(i);
-            if (!existing.isEmpty() && itemClass.isInstance(existing.getItem())) count++;
-        }
-
-        return count;
-    }
-
-    public boolean hasOverflowUpgrade() {
-        return this.installedOverflowUpgrade;
-    }
-
-    public boolean hasTrashUnselectedUpgrade() {
-        return this.installedTrashUnselectedUpgrade;
-    }
-
-    /**
-     * Count the number of installed capacity upgrades.
-     */
-    public int countCapacityUpgrades() {
-        int count = 0;
-
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-            if (!(stack.getItem() instanceof IUpgradeModule)) continue;
-
-            IUpgradeModule module = (IUpgradeModule) stack.getItem();
-            if (module.getType(stack) == Upgrades.CAPACITY) count++;
-        }
-
-        return count;
-    }
-
-    /**
-     * Check if an item is a valid upgrade for this interface.
-     * Import: Accepts Overflow Card, Trash Unselected Card (max 1 each), and Capacity Card (max 4).
-     * Export: Accepts Capacity Card (max 4) only.
-     */
-    public boolean isValidUpgrade(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-
-        // Import-only upgrades
-        if (!this.host.isExport()) {
-            if (stack.getItem() instanceof ItemOverflowCard) {
-                return countUpgrade(ItemOverflowCard.class) < 1;
-            }
-            if (stack.getItem() instanceof ItemTrashUnselectedCard) {
-                return countUpgrade(ItemTrashUnselectedCard.class) < 1;
-            }
-        }
-
-        // Capacity card (both import and export) - limited by the number of upgrade slots
-        if (stack.getItem() instanceof IUpgradeModule) {
-            IUpgradeModule module = (IUpgradeModule) stack.getItem();
-            if (module.getType(stack) == Upgrades.CAPACITY) return true;
-        }
-
-        return false;
-    }
-
-    public int getInstalledCapacityUpgrades() {
-        return this.installedCapacityUpgrades;
-    }
-
-    public int getTotalPages() {
-        return 1 + this.installedCapacityUpgrades;
-    }
-
-    public int getCurrentPage() {
-        return this.currentPage;
-    }
-
-    public void setCurrentPage(int page) {
-        this.currentPage = Math.max(0, Math.min(page, this.installedCapacityUpgrades));
-    }
-
-    public int getCurrentPageStartSlot() {
-        return this.currentPage * SLOTS_PER_PAGE;
-    }
-
-    /**
-     * Handle capacity reduction by clearing filters and returning/dropping items from removed pages.
-     */
-    private void handleCapacityReduction(int oldCount, int newCount) {
-        int newTotalSlots = (1 + newCount) * SLOTS_PER_PAGE;
-        int oldTotalSlots = (1 + oldCount) * SLOTS_PER_PAGE;
-
-        // Process slots that are being removed (from newTotalSlots to oldTotalSlots-1)
-        for (int slot = newTotalSlots; slot < oldTotalSlots && slot < this.storageInventory.getSlots(); slot++) {
-            // Clear the filter
-            if (slot < this.filterInventory.getSlots()) {
-                this.filterInventory.setStackInSlot(slot, ItemStack.EMPTY);
-            }
-
-            // Return items to network or drop on floor
-            returnSlotToNetwork(slot, true);
-        }
-
-        this.refreshFilterMap();
-    }
-
-    /**
-     * Refresh the filter to slot mapping. Should be called whenever filter slots change.
-     */
-    public void refreshFilterMap() {
-        this.filterToSlotMap.clear();
-        this.slotToFilterMap.clear();
-
-        final int filterSlots = this.filterInventory.getSlots();
-        final int storageSlots = this.storageInventory.getSlots();
-        final int maxSlots = Math.min(filterSlots, storageSlots);
-
-        // Build list of valid (internal) slot indices for quick access
-        // (because AE2 expects slots matching)
-        List<Integer> validSlots = new ArrayList<>();
-
-        for (int i = 0; i < maxSlots; i++) {
-            ItemStack filterStack = this.filterInventory.getStackInSlot(i);
-            if (!filterStack.isEmpty()) {
-                ItemStackKey key = ItemStackKey.of(filterStack);
-                this.filterToSlotMap.put(key, i);
-                this.slotToFilterMap.put(i, key);
-                validSlots.add(i);
-            }
-        }
-
-        this.filterSlotList = validSlots;
-    }
-
-    /**
-     * Check if an item is valid for a specific storage slot based on the filter.
-     * Import: uses filter-to-slot map (an item maps to exactly one slot).
-     * Export: checks if the item directly matches the filter in that slot.
-     */
-    public boolean isItemValidForSlot(int slot, ItemStack stack) {
-        if (slot < 0 || slot >= this.storageInventory.getSlots()) return false;
-
-        if (this.host.isExport()) {
-            ItemStackKey filterKey = this.slotToFilterMap.get(slot);
-            return filterKey != null && filterKey.matches(stack);
-        } else {
-            ItemStackKey key = ItemStackKey.of(stack);
-            if (key == null) return false;
-
-            int filterSlot = this.filterToSlotMap.getOrDefault(key, -1);
-            return filterSlot == slot;
-        }
-    }
-
-    /**
-     * Clear filter slots. Import only clears filters where the corresponding
-     * storage slot is empty (to prevent orphaning items). Export clears all filters.
-     */
-    public void clearFilters() {
-        if (this.host.isExport()) {
-            for (int i = 0; i < FILTER_SLOTS; i++) {
-                this.filterInventory.setStackInSlot(i, ItemStack.EMPTY);
-            }
-        } else {
-            for (int i = 0; i < FILTER_SLOTS; i++) {
-                // Only clear filter if the corresponding storage slot is empty
-                if (i >= STORAGE_SLOTS || this.storageInventory.getStackInSlot(i).isEmpty()) {
-                    this.filterInventory.setStackInSlot(i, ItemStack.EMPTY);
-                }
-            }
-        }
-
-        this.refreshFilterMap();
-        this.host.markDirtyAndSave();
-    }
-
-    /**
-     * Find the first empty filter slot.
-     * @return The slot index, or -1 if no empty slots are available
-     */
-    public int findEmptyFilterSlot() {
-        for (int i = 0; i < this.filterInventory.getSlots(); i++) {
-            if (this.filterInventory.getStackInSlot(i).isEmpty()) return i;
-        }
-
-        return -1;
-    }
-
-    /**
-     * Read logic state from NBT. Call from host's readFromNBT.
-     * @param isTile true if called from a tile entity (uses "inv" tag for storage via parent), false for parts
+     * Read logic state from NBT with legacy key migration for tiles/parts.
+     * Tiles used "inv" for storage, parts used "storage".
+     * 
+     * @param data The NBT data
+     * @param isTile true if called from a tile entity, false for parts
      */
     public void readFromNBT(NBTTagCompound data, boolean isTile) {
-        // FIXME: Should disappear with the inventory refactor
-        InventoryMigrationHelper.readFromNBTWithoutShrinking(this.filterInventory, data, "filter");
-
-        // Parts store storage explicitly; tiles use getInternalInventory() via parent
-        if (!isTile) {
-            InventoryMigrationHelper.readFromNBTWithoutShrinking(this.storageInventory, data, "storage");
+        // Try legacy storage key BEFORE calling super which reads new key
+        String legacyStorageKey = isTile ? "inv" : "storage";
+        if (data.hasKey(legacyStorageKey, Constants.NBT.TAG_COMPOUND)) {
+            readLegacyStorage(data.getCompoundTag(legacyStorageKey));
         }
 
-        this.upgradeInventory.readFromNBT(data, "upgrades");
-        this.maxSlotSize = data.getInteger("maxSlotSize");
-        this.pollingRate = data.getInteger("pollingRate");
-
-        if (this.maxSlotSize < MIN_MAX_SLOT_SIZE) this.maxSlotSize = MIN_MAX_SLOT_SIZE;
-        if (this.pollingRate < 0) this.pollingRate = DEFAULT_POLLING_RATE;
-
-        // Update slot limits in the underlying inventory to match maxSlotSize
-        for (int i = 0; i < this.storageInventory.getSlots(); i++) {
-            this.storageInventory.setMaxStackSize(i, this.maxSlotSize);
+        // Try legacy filter key "filter"
+        if (data.hasKey("filter", Constants.NBT.TAG_COMPOUND)) {
+            readFiltersFromNBT(data, "filter");
         }
 
-        // Rebuild caches after loading inventories
-        this.refreshFilterMap();
-        this.refreshUpgrades();
+        // Delegate to super for standard format (reads new keys, upgrades, etc.)
+        super.readFromNBT(data);
     }
 
     /**
-     * Write logic state to NBT. Call from host's writeToNBT.
-     * @param isTile true if called from a tile entity (storage saved via parent), false for parts
+     * Read legacy storage format (supports Items TAG_LIST, numeric map, and AE2 "itemX" formats).
      */
-    public void writeToNBT(NBTTagCompound data, boolean isTile) {
-        this.filterInventory.writeToNBT(data, "filter");
-
-        // Parts store storage explicitly; tiles use getInternalInventory() via parent
-        if (!isTile) this.storageInventory.writeToNBT(data, "storage");
-
-        this.upgradeInventory.writeToNBT(data, "upgrades");
-        data.setInteger("maxSlotSize", this.maxSlotSize);
-        data.setInteger("pollingRate", this.pollingRate);
-    }
-
-    /**
-     * Download settings to NBT for memory cards and dismantling.
-     */
-    public NBTTagCompound downloadSettings() {
-        NBTTagCompound output = new NBTTagCompound();
-
-        output.setInteger("maxSlotSize", this.maxSlotSize);
-        output.setInteger("pollingRate", this.pollingRate);
-
-        return output;
-    }
-
-    /**
-     * Download settings with filters for memory card + keybind.
-     * Does NOT save upgrades to avoid duplication (upgrades stay in the interface).
-     */
-    public NBTTagCompound downloadSettingsWithFilter() {
-        NBTTagCompound output = downloadSettings();
-        this.filterInventory.writeToNBT(output, "filter");
-
-        return output;
-    }
-
-    /**
-     * Download settings with filters AND upgrades for disassembly.
-     * Upgrades are saved because the interface is being broken and dropped as an item.
-     */
-    public NBTTagCompound downloadSettingsForDismantle() {
-        NBTTagCompound output = downloadSettingsWithFilter();
-        this.upgradeInventory.writeToNBT(output, "upgrades");
-
-        return output;
-    }
-
-    /**
-     * Upload settings from NBT (memory card or dismantle).
-     * Upgrades are restored BEFORE filters to ensure capacity cards are in place,
-     * enabling extra filter pages before filter restoration.
-     */
-    public void uploadSettings(NBTTagCompound compound, EntityPlayer player) {
-        if (compound == null) return;
-
-        if (compound.hasKey("maxSlotSize")) {
-            this.setMaxSlotSize(compound.getInteger("maxSlotSize"));
-        }
-        if (compound.hasKey("pollingRate")) {
-            this.setPollingRate(compound.getInteger("pollingRate"), player);
-        }
-
-        // Merge upgrades FIRST (capacity cards enable extra pages for filters)
-        if (compound.hasKey("upgrades")) {
-            mergeUpgradesFromNBT(compound, "upgrades");
-        }
-
-        // Merge filter inventory from memory card instead of replacing
-        if (compound.hasKey("filter")) {
-            mergeFiltersFromNBT(compound, "filter", player);
-        }
-    }
-
-    /**
-     * Merge upgrades from NBT into the current upgrade inventory.
-     * Only adds upgrades to empty slots to avoid duplication.
-     */
-    private void mergeUpgradesFromNBT(NBTTagCompound data, String name) {
-        if (!data.hasKey(name)) return;
-
-        AppEngInternalInventory sourceUpgrades = new AppEngInternalInventory(null, UPGRADE_SLOTS, 1);
-        sourceUpgrades.readFromNBT(data, name);
-
-        for (int i = 0; i < sourceUpgrades.getSlots(); i++) {
-            ItemStack sourceUpgrade = sourceUpgrades.getStackInSlot(i);
-            if (sourceUpgrade.isEmpty()) continue;
-
-            // Find an empty slot for this upgrade
-            int targetSlot = -1;
-            for (int j = 0; j < this.upgradeInventory.getSlots(); j++) {
-                if (this.upgradeInventory.getStackInSlot(j).isEmpty()) {
-                    targetSlot = j;
-                    break;
+    private void readLegacyStorage(NBTTagCompound storageMap) {
+        // TAG_LIST format (AppEngInternalInventory style)
+        if (storageMap.hasKey("Items", Constants.NBT.TAG_LIST)) {
+            NBTTagList tagList = storageMap.getTagList("Items", Constants.NBT.TAG_COMPOUND);
+            for (int i = 0; i < tagList.tagCount(); i++) {
+                NBTTagCompound itemTag = tagList.getCompoundTagAt(i);
+                int slot = itemTag.getInteger("Slot");
+                if (slot >= 0 && slot < STORAGE_SLOTS) {
+                    ItemStack stack = new ItemStack(itemTag);
+                    this.storage[slot] = stack.isEmpty() ? null : stack;
                 }
             }
-
-            if (targetSlot >= 0) {
-                this.upgradeInventory.setStackInSlot(targetSlot, sourceUpgrade.copy());
-            }
-            // If no empty slots, silently skip (upgrades are full)
+            return;
         }
 
-        this.refreshUpgrades();
-    }
+        // Map format - try both numeric keys ("0", "1") and AE2 format ("item0", "item1")
+        for (String slotKey : storageMap.getKeySet()) {
+            int slot = -1;
 
-    /**
-     * Merge filters from NBT into the current filter inventory.
-     * Only adds filters to empty slots; skips filters that already exist.
-     * Reports to the player which filters couldn't be added if slots were full.
-     */
-    private void mergeFiltersFromNBT(NBTTagCompound data, String name, @Nullable EntityPlayer player) {
-        if (!data.hasKey(name)) return;
-
-        // Create a temporary inventory to load the source filters
-        AppEngInternalInventory sourceFilters = new AppEngInternalInventory(null, FILTER_SLOTS, 1);
-        sourceFilters.readFromNBT(data, name);
-
-        List<ItemStack> skippedFilters = new ArrayList<>();
-
-        for (int i = 0; i < sourceFilters.getSlots(); i++) {
-            ItemStack sourceFilter = sourceFilters.getStackInSlot(i);
-            if (sourceFilter.isEmpty()) continue;
-
-            ItemStackKey sourceKey = ItemStackKey.of(sourceFilter);
-            if (sourceKey == null) continue;
-
-            // Skip if this filter already exists in the target
-            if (this.filterToSlotMap.containsKey(sourceKey)) continue;
-
-            // Find an empty slot to add this filter
-            int targetSlot = findEmptyFilterSlot();
-            if (targetSlot < 0) {
-                // No empty slots - track this filter as skipped
-                skippedFilters.add(sourceFilter.copy());
-                continue;
-            }
-
-            // Add the filter to the empty slot
-            this.filterInventory.setStackInSlot(targetSlot, sourceFilter.copy());
-            this.filterToSlotMap.put(sourceKey, targetSlot);
-        }
-
-        this.refreshFilterMap();
-
-        // Notify the player about skipped filters
-        if (player != null && !skippedFilters.isEmpty()) {
-            String filters = skippedFilters.stream()
-                .map(ItemStack::getDisplayName)
-                .reduce((a, b) -> a + "\n- " + b)
-                .orElse("");
-            player.sendMessage(new TextComponentTranslation("message.cells.filters_not_added", skippedFilters.size(), filters));
-        }
-    }
-
-    /**
-     * Handle inventory changes. Call from host's onChangeInventory.
-     */
-    public void onChangeInventory(IItemHandler inv, int slot, ItemStack removed, ItemStack added) {
-        if (inv == this.filterInventory) {
-            this.refreshFilterMap();
-
-            if (this.host.isExport()) {
-                // Export: if filter was removed or changed, return orphaned items in that slot to network
-                if (!removed.isEmpty()) returnSlotToNetwork(slot, false);
-            }
-
-            this.wakeUpIfAdaptive();
-        } else if (inv == this.upgradeInventory) {
-            this.refreshUpgrades();
-        } else if (inv == this.storageInventory) {
-            // TODO: may be pretty bad for performance if we have a lot of item changes
-            ItemStack is = this.host.isExport() ? removed : added;
-            if (!is.isEmpty()) this.wakeUpIfAdaptive();
-        }
-
-        this.host.markDirtyAndSave();
-    }
-
-    // ============================== Tick handling ==============================
-
-    /**
-     * Create a TickingRequest based on current configuration.
-     */
-    public TickingRequest getTickingRequest() {
-        if (this.pollingRate > 0) {
-            return new TickingRequest(
-                this.pollingRate,
-                this.pollingRate,
-                false, // Never start sleeping with fixed polling
-                true
-            );
-        }
-
-        return new TickingRequest(
-            TickRates.Interface.getMin(),
-            TickRates.Interface.getMax(),
-            !hasWorkToDo(),
-            true
-        );
-    }
-
-    /**
-     * Handle a tick. Returns the appropriate rate modulation.
-     */
-    public TickRateModulation onTick() {
-        if (!this.host.getGridProxy().isActive()) return TickRateModulation.SLEEP;
-
-        boolean didWork = this.host.isExport() ? exportItems() : importItems();
-
-        // If using fixed polling rate, always use SAME to maintain interval
-        if (this.pollingRate > 0) return TickRateModulation.SAME;
-        // If using adaptive polling, try to get work done faster
-        if (didWork) return TickRateModulation.FASTER;
-
-        return hasWorkToDo() ? TickRateModulation.SLOWER : TickRateModulation.SLEEP;
-    }
-
-    /**
-     * Check if there's work to do based on direction.
-     * Import: any filtered slot has items to push.
-     * Export: any filtered slot needs items from the network.
-     */
-    public boolean hasWorkToDo() {
-        if (this.host.isExport()) {
-            // Check if any configured slot needs items from the network
-            for (int i : this.filterSlotList) {
-                ItemStack current = this.storageInventory.getStackInSlot(i);
-                if (current.isEmpty() || current.getCount() < this.maxSlotSize) return true;
-            }
-        } else {
-            // Check if any filtered slot has items to import
-            // TODO: could probably optimize that by adding a dirty flag
-            for (int i : this.filterToSlotMap.values()) {
-                if (!this.storageInventory.getStackInSlot(i).isEmpty()) return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Wake up the tick manager if using adaptive polling (rate=0).
-     * Called when network state changes to ensure the device starts ticking.
-     */
-    public void wakeUpIfAdaptive() {
-        if (this.pollingRate > 0) return;
-
-        try {
-            this.host.getGridProxy().getTick().alertDevice(this.host.getGridProxy().getNode());
-        } catch (GridAccessException e) {
-            // Not connected to grid
-        }
-    }
-
-    /**
-     * Import items from storage slots into the ME network.
-     * @return true if any items were imported
-     */
-    private boolean importItems() {
-        boolean didWork = false;
-
-        try {
-            IStorageGrid storage = this.host.getGridProxy().getStorage();
-            IMEInventory<IAEItemStack> itemStorage = storage.getInventory(
-                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
-            );
-
-            for (int i : this.filterToSlotMap.values()) {
-                ItemStack stack = this.storageInventory.getStackInSlot(i);
-                if (stack.isEmpty()) continue;
-
-                IAEItemStack aeStack = AEItemStack.fromItemStack(stack);
-                if (aeStack == null) continue;
-
-                // Try to insert into network
-                IAEItemStack remaining = itemStorage.injectItems(aeStack, Actionable.MODULATE, this.host.getActionSource());
-                if (remaining == null) {
-                    // All items inserted
-                    this.storageInventory.setStackInSlot(i, ItemStack.EMPTY);
-                    didWork = true;
-                } else if (remaining.getStackSize() < stack.getCount()) {
-                    // Some items inserted
-                    ItemStack newStack = stack.copy();
-                    newStack.setCount((int) remaining.getStackSize());
-                    this.storageInventory.setStackInSlot(i, newStack);
-                    didWork = true;
-                }
-                // else: nothing inserted, network full
-            }
-        } catch (GridAccessException e) {
-            // Not connected to grid
-        }
-
-        return didWork;
-    }
-
-    /**
-     * Export items from the ME network into storage slots.
-     * First returns any orphaned or overflow items to the network,
-     * then requests items from the network for slots that need them.
-     * @return true if any items were exported
-     */
-    private boolean exportItems() {
-        boolean didWork = false;
-
-        try {
-            IStorageGrid storage = this.host.getGridProxy().getStorage();
-            IMEInventory<IAEItemStack> itemStorage = storage.getInventory(
-                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
-            );
-
-            // First, return any orphaned or overflow items to the network
-            returnOrphanedItemsToNetwork();
-            returnOverflowToNetwork();
-
-            for (int i : this.filterSlotList) {
-                ItemStack filterStack = this.filterInventory.getStackInSlot(i);
-                if (filterStack.isEmpty()) continue;
-
-                ItemStack current = this.storageInventory.getStackInSlot(i);
-
-                // Skip slots where current items don't match filter (orphaned items)
-                if (!current.isEmpty()) {
-                    ItemStackKey filterKey = this.slotToFilterMap.get(i);
-                    if (filterKey == null || !filterKey.matches(current)) continue;
-                }
-
-                int currentCount = current.isEmpty() ? 0 : current.getCount();
-                int space = this.maxSlotSize - currentCount;
-                if (space <= 0) continue;
-
-                // Request items from network
-                IAEItemStack request = AEItemStack.fromItemStack(filterStack);
-                if (request == null) continue;
-
-                request.setStackSize(space);
-
-                // Try to extract from network
-                IAEItemStack extracted = itemStorage.extractItems(request, Actionable.MODULATE, this.host.getActionSource());
-                if (extracted == null || extracted.getStackSize() <= 0) continue;
-
-                // Add to storage slot
-                if (current.isEmpty()) {
-                    ItemStack newStack = extracted.createItemStack();
-                    this.storageInventory.setStackInSlot(i, newStack);
+            // Try numeric key first (our new format)
+            try {
+                slot = Integer.parseInt(slotKey);
+            } catch (NumberFormatException e) {
+                // Try AE2's "itemX" format
+                if (slotKey.startsWith("item")) {
+                    try {
+                        slot = Integer.parseInt(slotKey.substring(4));
+                    } catch (NumberFormatException e2) {
+                        continue;
+                    }
                 } else {
-                    current.grow((int) extracted.getStackSize());
-                    this.storageInventory.setStackInSlot(i, current);
+                    continue;
                 }
-
-                didWork = true;
             }
-        } catch (GridAccessException e) {
-            // Not connected to grid
-        }
 
-        return didWork;
-    }
-
-    /**
-     * Try to insert items into the ME network.
-     * @return Items that couldn't be inserted (empty if all inserted)
-     */
-    public ItemStack insertItemsIntoNetwork(ItemStack stack) {
-        if (stack.isEmpty()) return ItemStack.EMPTY;
-
-        try {
-            IStorageGrid storage = this.host.getGridProxy().getStorage();
-            IMEInventory<IAEItemStack> itemStorage = storage.getInventory(
-                AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class)
-            );
-
-            IAEItemStack toInsert = AEItemStack.fromItemStack(stack);
-            if (toInsert == null) return stack;
-
-            IAEItemStack notInserted = itemStorage.injectItems(toInsert, Actionable.MODULATE, this.host.getActionSource());
-            if (notInserted == null || notInserted.getStackSize() == 0) return ItemStack.EMPTY;
-
-            return notInserted.createItemStack();
-        } catch (GridAccessException e) {
-            return stack;
-        }
-    }
-
-    /**
-     * Return all items in a specific storage slot back to the ME network.
-     * Items that cannot be returned are dropped on the ground if force is true.
-     */
-    public void returnSlotToNetwork(int slot, boolean force) {
-        if (slot < 0 || slot >= this.storageInventory.getSlots()) return;
-
-        ItemStack stack = this.storageInventory.getStackInSlot(slot);
-        if (stack.isEmpty()) return;
-
-        ItemStack remaining = insertItemsIntoNetwork(stack);
-
-        // Drop remaining items on the ground if force is true
-        if (force && !remaining.isEmpty()) {
-            dropItemsOnGround(remaining);
-            remaining = ItemStack.EMPTY;
-        }
-
-        this.storageInventory.setStackInSlot(slot, remaining);
-        this.host.markDirtyAndSave();
-    }
-
-    /**
-     * Return overflow items (items exceeding maxSlotSize) back to the ME network.
-     */
-    private void returnOverflowToNetwork() {
-        for (int i = 0; i < this.storageInventory.getSlots(); i++) {
-            ItemStack stack = this.storageInventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-
-            int overflow = stack.getCount() - this.maxSlotSize;
-            if (overflow <= 0) continue;
-
-            ItemStack overflowStack = stack.copy();
-            overflowStack.setCount(overflow);
-
-            ItemStack remaining = insertItemsIntoNetwork(overflowStack);
-
-            // Reduce the stack in the slot
-            stack.shrink(overflow - remaining.getCount());
-            this.storageInventory.setStackInSlot(i, stack);
-        }
-
-        this.host.markDirtyAndSave();
-    }
-
-    /**
-     * Return all orphaned items (items that don't match their filter) to the ME network.
-     */
-    public void returnOrphanedItemsToNetwork() {
-        for (int i = 0; i < this.storageInventory.getSlots(); i++) {
-            ItemStack storage = this.storageInventory.getStackInSlot(i);
-            if (storage.isEmpty()) continue;
-
-            // If no filter or items don't match filter, return them to network
-            ItemStackKey filterKey = this.slotToFilterMap.get(i);
-            boolean isOrphaned = filterKey == null || !filterKey.matches(storage);
-
-            if (isOrphaned) returnSlotToNetwork(i, false);
-        }
-    }
-
-    /**
-     * Drop items on the ground at the host's position.
-     */
-    private void dropItemsOnGround(ItemStack stack) {
-        if (stack.isEmpty()) return;
-
-        World world = this.host.getHostWorld();
-        BlockPos pos = this.host.getHostPos();
-        if (world == null || pos == null) return;
-
-        EntityItem entity = new EntityItem(
-            world,
-            pos.getX() + 0.5,
-            pos.getY() + 0.5,
-            pos.getZ() + 0.5,
-            stack
-        );
-        world.spawnEntity(entity);
-    }
-
-    /**
-     * Collect stored items that should be dropped (not upgrades).
-     * Used during wrench dismantling where upgrades are saved to NBT.
-     */
-    public void getStorageDrops(List<ItemStack> drops) {
-        for (int i = 0; i < this.storageInventory.getSlots(); i++) {
-            ItemStack stack = this.storageInventory.getStackInSlot(i);
-            if (!stack.isEmpty()) drops.add(stack);
-        }
-    }
-
-    /**
-     * Collect all items that should be dropped when this interface is broken normally.
-     * This method is NOT called during wrench dismantling (tiles use disableDrops(),
-     * parts check the wrenched flag) - in that case, upgrades are saved to NBT instead.
-     */
-    public void getDrops(List<ItemStack> drops) {
-        // Drop stored items
-        getStorageDrops(drops);
-
-        // Drop upgrades (only during normal breaking - wrench path saves them to NBT)
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
-            if (!stack.isEmpty()) drops.add(stack);
+            if (slot >= 0 && slot < STORAGE_SLOTS) {
+                ItemStack stack = new ItemStack(storageMap.getCompoundTag(slotKey));
+                this.storage[slot] = stack.isEmpty() ? null : stack;
+            }
         }
     }
 
@@ -1157,11 +629,6 @@ public class ItemInterfaceLogic {
      * instead of IItemHandler.getSlotLimit(). The dummy slot ensures hoppers see the
      * inventory as "not full" and attempt insertion, which our slotless logic handles.
      */
-    // FIXME: inventory could be unified with FluidInterfaceLogic's filtered handler if not for
-    //        AppEngInternalInventory. Item interfaces use AppEngInternalInventory (required by
-    //        AENetworkInvTile.getInternalInventory()), while fluid interfaces use a plain
-    //        AEFluidTank array. Unifying would require either moving both to a common
-    //        IItemHandler abstraction, or using the static inventory approach from the L216 FIXME.
     private static class FilteredStorageHandler implements IItemHandler {
         private final ItemInterfaceLogic logic;
 
@@ -1186,7 +653,8 @@ public class ItemInterfaceLogic {
             if (filterIndex >= logic.filterSlotList.size()) return ItemStack.EMPTY;
 
             int storageSlot = logic.filterSlotList.get(filterIndex);
-            return logic.storageInventory.getStackInSlot(storageSlot);
+            ItemStack stack = logic.storage[storageSlot];
+            return stack != null ? stack : ItemStack.EMPTY;
         }
 
         @Nonnull
@@ -1194,8 +662,7 @@ public class ItemInterfaceLogic {
         public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
             if (stack.isEmpty()) return ItemStack.EMPTY;
 
-            // Delegate to the logic's slotless insertion, which handles filter matching,
-            // overflow/trash-unselected upgrades, and maxStackSize bypass
+            // Delegate to the logic's slotless insertion
             return logic.slotlessInsertItem(stack, simulate);
         }
 
@@ -1243,7 +710,8 @@ public class ItemInterfaceLogic {
             if (slot < 0 || slot >= logic.filterSlotList.size()) return ItemStack.EMPTY;
 
             int storageSlot = logic.filterSlotList.get(slot);
-            return logic.storageInventory.getStackInSlot(storageSlot);
+            ItemStack stack = logic.storage[storageSlot];
+            return stack != null ? stack : ItemStack.EMPTY;
         }
 
         @Nonnull
@@ -1259,7 +727,21 @@ public class ItemInterfaceLogic {
             if (slot < 0 || slot >= logic.filterSlotList.size()) return ItemStack.EMPTY;
 
             int storageSlot = logic.filterSlotList.get(slot);
-            return logic.storageInventory.extractItem(storageSlot, amount, simulate);
+            ItemStack stack = logic.storage[storageSlot];
+            if (stack == null) return ItemStack.EMPTY;
+
+            int toExtract = Math.min(amount, stack.getCount());
+            ItemStack result = stack.copy();
+            result.setCount(toExtract);
+
+            if (!simulate) {
+                stack.shrink(toExtract);
+                if (stack.getCount() <= 0) logic.storage[storageSlot] = null;
+                logic.host.markDirtyAndSave();
+                logic.host.markForNetworkUpdate();
+            }
+
+            return result;
         }
 
         @Override
@@ -1271,6 +753,86 @@ public class ItemInterfaceLogic {
         public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
             // External insertion not allowed
             return false;
+        }
+    }
+
+    /**
+     * Simple IItemHandlerModifiable wrapper around a static ItemStack[] array.
+     * Used to expose the filter and storage arrays as IItemHandler for GUI slots.
+     * Converts null entries to ItemStack.EMPTY for IItemHandler API compatibility.
+     */
+    private class ArrayItemHandler implements IItemHandlerModifiable {
+        private final ItemStack[] array;
+        private final boolean isGhostSlot;
+
+        /**
+         * @param array The underlying ItemStack array (may contain null entries)
+         * @param isGhostSlot If true, stacks are always copied and set to count 1 (filter behavior)
+         */
+        public ArrayItemHandler(ItemStack[] array, boolean isGhostSlot) {
+            this.array = array;
+            this.isGhostSlot = isGhostSlot;
+        }
+
+        @Override
+        public int getSlots() {
+            return array.length;
+        }
+
+        @Nonnull
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            if (slot < 0 || slot >= array.length) return ItemStack.EMPTY;
+            ItemStack stack = array[slot];
+            return stack != null ? stack : ItemStack.EMPTY;
+        }
+
+        @Override
+        public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+            if (slot < 0 || slot >= array.length) return;
+
+            // Convert EMPTY to null for consistency with fluid/gas pattern
+            if (stack.isEmpty()) {
+                array[slot] = null;
+
+                if (isGhostSlot) onFilterChanged(slot);
+                return;
+            }
+
+            if (isGhostSlot) {
+                // Ghost slots store only a single item as a filter template
+                ItemStack ghost = stack.copy();
+                ghost.setCount(1);
+                array[slot] = ghost;
+                onFilterChanged(slot);
+            } else {
+                array[slot] = stack;
+            }
+        }
+
+        @Nonnull
+        @Override
+        public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
+            // Direct insertion via IItemHandler is not supported - use setStackInSlot for ghost slots
+            // or the logic's slotless insertion for storage
+            return stack;
+        }
+
+        @Nonnull
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            // Direct extraction via IItemHandler is not supported
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return isGhostSlot ? 1 : maxSlotSize;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
+            return true;
         }
     }
 }

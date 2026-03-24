@@ -3,6 +3,7 @@ package com.cells.integration.mekanismenergistics;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
@@ -71,6 +72,20 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         return getResourceInSlot(slot);
     }
 
+    /**
+     * Set the gas in a specific tank slot.
+     * Used by GUI gas pouring in import mode.
+     *
+     * @param slot The tank slot index
+     * @param gas The gas to set, or null to clear
+     */
+    public void setGasInTank(int slot, @Nullable GasStack gas) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return;
+
+        setResourceInSlot(slot, gas);
+        this.host.markDirtyAndSave();
+    }
+
     @Nullable
     public IAEGasStack getFilterGas(int slot) {
         return getFilterResource(slot);
@@ -103,12 +118,6 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
     @Nullable
     protected GasStackKey createKey(GasStack resource) {
         return GasStackKey.of(resource);
-    }
-
-    @Override
-    protected boolean resourcesMatch(GasStack a, GasStack b) {
-        if (a == null || b == null) return false;
-        return a.getGas() == b.getGas();
     }
 
     @Override
@@ -308,6 +317,7 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         }
 
         @Override
+        @Nonnull
         public GasTankInfo[] getTankInfo() {
             List<GasTankInfo> infos = new ArrayList<>();
 
@@ -380,6 +390,7 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         }
 
         @Override
+        @Nonnull
         public GasTankInfo[] getTankInfo() {
             List<GasTankInfo> infos = new ArrayList<>();
 

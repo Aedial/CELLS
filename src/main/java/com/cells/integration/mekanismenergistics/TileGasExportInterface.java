@@ -39,8 +39,9 @@ import appeng.util.inv.InvOperation;
 import com.mekeng.github.common.me.data.IAEGasStack;
 
 import mekanism.api.gas.GasStack;
-import mekanism.api.gas.IGasHandler;
 import mekanism.common.capabilities.Capabilities;
+
+import com.cells.blocks.interfacebase.IInterfaceLogic;
 
 
 /**
@@ -133,8 +134,9 @@ public class TileGasExportInterface extends AENetworkInvTile implements IGridTic
     }
 
     @Override
-    public void clearFilters() {
-        this.logic.clearFilters();
+    @Nonnull
+    public IInterfaceLogic getInterfaceLogic() {
+        return this.logic;
     }
 
     @Override
@@ -157,6 +159,17 @@ public class TileGasExportInterface extends AENetworkInvTile implements IGridTic
     @Override
     public GasStack getGasInTank(int slot) {
         return this.logic.getGasInTank(slot);
+    }
+
+    @Override
+    public void setGasInTank(int slot, @Nullable GasStack gas) {
+        this.logic.setGasInTank(slot, gas);
+    }
+
+    @Override
+    @Nullable
+    public GasStack drainGasFromTank(int slot, int maxDrain, boolean doDrain) {
+        return this.logic.drainGasFromTank(slot, maxDrain, doDrain);
     }
 
     @Override
@@ -224,6 +237,23 @@ public class TileGasExportInterface extends AENetworkInvTile implements IGridTic
     public int insertGasIntoTank(int slot, GasStack gas) {
         // Export interfaces don't allow external insertion
         return 0;
+    }
+
+    // ============================== IFilterableInterfaceHost delegation ==============================
+
+    @Override
+    public boolean isInFilter(@Nonnull GasStackKey key) {
+        return this.logic.isInFilter(key);
+    }
+
+    @Override
+    public int findSlotByKey(@Nonnull GasStackKey key) {
+        return this.logic.findSlotByKey(key);
+    }
+
+    @Override
+    public int addToFirstAvailableSlot(@Nonnull IAEGasStack stack) {
+        return this.logic.addToFirstAvailableSlotAE(stack);
     }
 
     // ============================== IInterfaceHost ==============================

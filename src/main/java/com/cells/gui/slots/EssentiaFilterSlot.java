@@ -8,15 +8,14 @@ import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import appeng.container.slot.IJEITargetSlot;
-
 import thaumcraft.api.aspects.Aspect;
 import thaumicenergistics.api.EssentiaStack;
 
 import com.cells.gui.QuickAddHelper;
 import com.cells.gui.ResourceRenderer;
 import com.cells.network.CellsNetworkHandler;
-import com.cells.network.packets.PacketSetCreativeEssentiaFilter;
+import com.cells.network.sync.PacketResourceSlot;
+import com.cells.network.sync.ResourceType;
 
 
 /**
@@ -26,7 +25,7 @@ import com.cells.network.packets.PacketSetCreativeEssentiaFilter;
  */
 @SideOnly(Side.CLIENT)
 @Optional.Interface(iface = "appeng.container.slot.IJEITargetSlot", modid = "thaumicenergistics")
-public class EssentiaFilterSlot extends AbstractResourceFilterSlot<EssentiaStack> implements IJEITargetSlot {
+public class EssentiaFilterSlot extends AbstractResourceFilterSlot<EssentiaStack> {
 
     /**
      * Provider interface for getting/setting essentia in a slot.
@@ -68,9 +67,9 @@ public class EssentiaFilterSlot extends AbstractResourceFilterSlot<EssentiaStack
         // Provider handles the local state update
         this.provider.setEssentia(this.slot, resource);
 
-        // Send packet to server to sync the change (for both setting and clearing)
+        // Send packet to server using unified resource sync
         CellsNetworkHandler.INSTANCE.sendToServer(
-            new PacketSetCreativeEssentiaFilter(this.slot, resource));
+            new PacketResourceSlot(ResourceType.ESSENTIA, this.slot, resource));
     }
 
     @Override
@@ -93,7 +92,7 @@ public class EssentiaFilterSlot extends AbstractResourceFilterSlot<EssentiaStack
 
     @Override
     @Nullable
-    protected EssentiaStack convertToResource(Object ingredient) {
+    public EssentiaStack convertToResource(Object ingredient) {
         // Direct EssentiaStack
         if (ingredient instanceof EssentiaStack) return (EssentiaStack) ingredient;
 

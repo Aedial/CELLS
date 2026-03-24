@@ -1,6 +1,5 @@
 package com.cells.gui.slots;
 
-import java.util.Collections;
 import java.util.function.IntSupplier;
 
 import javax.annotation.Nullable;
@@ -8,8 +7,6 @@ import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Optional;
-
-import appeng.container.slot.IJEITargetSlot;
 
 import mekanism.api.gas.GasStack;
 
@@ -19,17 +16,18 @@ import com.mekeng.github.common.me.data.impl.AEGasStack;
 import com.cells.gui.QuickAddHelper;
 import com.cells.gui.ResourceRenderer;
 import com.cells.network.CellsNetworkHandler;
-import com.cells.integration.mekanismenergistics.PacketGasSlot;
+import com.cells.network.sync.PacketResourceSlot;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * Unified gas filter slot implementation.
  * <p>
- * Uses PacketGasSlot for sync.
+ * Uses unified {@link PacketResourceSlot} for sync.
  * Supports pagination via page offset supplier.
  */
 @Optional.Interface(iface = "appeng.container.slot.IJEITargetSlot", modid = "mekeng")
-public class GasFilterSlot extends AbstractResourceFilterSlot<IAEGasStack> implements IJEITargetSlot {
+public class GasFilterSlot extends AbstractResourceFilterSlot<IAEGasStack> {
 
     /**
      * Provider interface for getting gas in a slot.
@@ -83,8 +81,10 @@ public class GasFilterSlot extends AbstractResourceFilterSlot<IAEGasStack> imple
 
     @Override
     public void setResource(@Nullable IAEGasStack resource) {
-        // Send packet to server
-        CellsNetworkHandler.INSTANCE.sendToServer(new PacketGasSlot(Collections.singletonMap(getSlot(), resource)));
+        // Send packet to server using unified resource sync
+        CellsNetworkHandler.INSTANCE.sendToServer(
+            new PacketResourceSlot(ResourceType.GAS, getSlot(), resource)
+        );
     }
 
     @Override
@@ -115,7 +115,7 @@ public class GasFilterSlot extends AbstractResourceFilterSlot<IAEGasStack> imple
 
     @Override
     @Nullable
-    protected IAEGasStack convertToResource(Object ingredient) {
+    public IAEGasStack convertToResource(Object ingredient) {
         // Direct GasStack
         if (ingredient instanceof GasStack) {
             return AEGasStack.of((GasStack) ingredient);

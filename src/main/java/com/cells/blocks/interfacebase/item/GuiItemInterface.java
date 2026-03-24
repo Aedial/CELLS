@@ -1,43 +1,31 @@
 package com.cells.blocks.interfacebase.item;
 
-import java.awt.Rectangle;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-
-import javax.annotation.Nonnull;
-
-import com.cells.blocks.interfacebase.AbstractResourceInterfaceGui;
-import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 
 import appeng.api.parts.IPart;
-import appeng.container.slot.SlotFake;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketInventoryAction;
-import appeng.helpers.InventoryAction;
-import appeng.util.item.AEItemStack;
+import appeng.client.gui.widgets.GuiCustomSlot;
 
-import mezz.jei.api.gui.IGhostIngredientHandler.Target;
-
+import com.cells.blocks.interfacebase.AbstractResourceInterfaceGui;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.gui.QuickAddHelper;
+import com.cells.gui.slots.ItemFilterSlot;
+import com.cells.gui.slots.ItemStorageSlot;
 import com.cells.network.CellsNetworkHandler;
-import com.cells.network.packets.PacketQuickAddItemFilter;
-
-import java.io.IOException;
+import com.cells.network.sync.PacketQuickAddFilter;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * GUI for both Item Import Interface and Item Export Interface.
- * Extends the abstract base to provide item-specific slot creation and JEI handling.
  * <p>
- * Unlike fluid/gas interfaces, item interfaces use standard container slots
- * (SlotFake for filters, SlotNormal for storage), not custom GuiCustomSlot widgets.
+ * Uses unified slot classes from com.cells.gui.slots:
+ * - {@link ItemFilterSlot} for filter configuration (GuiCustomSlot)
+ * - {@link ItemStorageSlot} for storage display and interaction (GuiCustomSlot)
+ * <p>
+ * JEI integration is handled automatically by the base class.
  */
 public class GuiItemInterface extends AbstractResourceInterfaceGui<IItemInterfaceHost, ContainerItemInterface> {
 
@@ -98,47 +86,20 @@ public class GuiItemInterface extends AbstractResourceInterfaceGui<IItemInterfac
     }
 
     @Override
-    protected void createResourceSlots() {
-        // Item interfaces use standard container slots (SlotFake/SlotNormal),
-        // which are already added by the container. No custom slots needed here.
+    protected GuiCustomSlot createFilterSlotForIndex(int displaySlot, int x, int y) {
+        return new ItemFilterSlot(this.host::getFilter,
+            displaySlot, x, y,
+            () -> this.container.currentPage * SLOTS_PER_PAGE
+        );
     }
 
     @Override
-    protected List<Target<?>> createJEITargets(Object ingredient) {
-        if (!(ingredient instanceof ItemStack)) return Collections.emptyList();
-
-        List<Target<?>> targets = new ArrayList<>();
-        ItemStack itemStack = (ItemStack) ingredient;
-
-        for (Slot slot : this.inventorySlots.inventorySlots) {
-            if (!(slot instanceof ContainerItemInterface.SlotFilter)) continue;
-
-            Target<Object> target = new Target<Object>() {
-                @Override
-                @Nonnull
-                public Rectangle getArea() {
-                    return new Rectangle(getGuiLeft() + slot.xPos, getGuiTop() + slot.yPos, 16, 16);
-                }
-
-                @Override
-                public void accept(@Nonnull Object ingredient) {
-                    try {
-                        PacketInventoryAction p = new PacketInventoryAction(
-                            InventoryAction.PLACE_JEI_GHOST_ITEM,
-                            (SlotFake) slot,
-                            AEItemStack.fromItemStack(itemStack)
-                        );
-                        NetworkHandler.instance().sendToServer(p);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            };
-            targets.add(target);
-            mapTargetSlot.putIfAbsent(target, slot);
-        }
-
-        return targets;
+    protected GuiCustomSlot createTankSlotForIndex(int displaySlot, int x, int y) {
+        return new ItemStorageSlot<>(
+            this.host, displaySlot, displaySlot, x, y,
+            () -> this.container.currentPage * SLOTS_PER_PAGE,
+            () -> this.container.maxSlotSize
+        );
     }
 
     @Override
@@ -146,40 +107,10 @@ public class GuiItemInterface extends AbstractResourceInterfaceGui<IItemInterfac
         ItemStack item = QuickAddHelper.getItemUnderCursor(hoveredSlot);
 
         if (!item.isEmpty()) {
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddItemFilter(item));
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFilter(ResourceType.ITEM, item));
             return true;
         }
 
         return false;
-    }
-
-    // ============================== Custom rendering ==============================
-
-    /**
-     * Override drawSlot to render filter (fake) slots without item count.
-     * This makes them appear as "ghost" items, which is the standard UX for filters.
-     */
-    @Override
-    public void drawSlot(Slot slot) {
-        if (slot instanceof SlotFake) {
-            ItemStack stack = slot.getStack();
-            if (!stack.isEmpty()) {
-                this.zLevel = 100.0F;
-                this.itemRender.zLevel = 100.0F;
-
-                // TODO: ghost overlay?
-                RenderHelper.enableGUIStandardItemLighting();
-                GlStateManager.enableDepth();
-                this.itemRender.renderItemIntoGUI(stack, slot.xPos, slot.yPos);
-                GlStateManager.disableDepth();
-
-                this.itemRender.zLevel = 0.0F;
-                this.zLevel = 0.0F;
-            }
-
-            return;
-        }
-
-        super.drawSlot(slot);
     }
 }

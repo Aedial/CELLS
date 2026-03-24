@@ -1,5 +1,7 @@
 package com.cells.integration.mekanismenergistics;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
@@ -7,29 +9,31 @@ import mekanism.api.gas.GasStack;
 
 import appeng.tile.inventory.AppEngInternalInventory;
 
-import com.cells.blocks.interfacebase.IInterfaceHost;
 import com.mekeng.github.common.me.data.IAEGasStack;
+
+import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
+import com.cells.gui.slots.GasTankSlot;
 
 
 /**
  * Extended interface for Gas Interface hosts (both import and export, both tile and part).
  * Provides access to gas filter/tank/upgrade inventories and configuration.
  * <p>
- * The {@link #isExport()} method from {@link IInterfaceHost} determines whether
+ * The {@link #isExport()} method from {@link com.cells.blocks.interfacebase.IInterfaceHost} determines whether
  * this is an import or export interface, which affects filter clearing behavior
  * and available upgrades.
+ * <p>
+ * Pagination, clearing, and slot info methods are inherited from {@link IFilterableInterfaceHost}
+ * with default implementations that delegate to {@link #getInterfaceLogic()}.
  */
-public interface IGasInterfaceHost extends IInterfaceHost {
+public interface IGasInterfaceHost
+    extends IFilterableInterfaceHost<IAEGasStack, GasStackKey>,
+            GasTankSlot.IGasTankHost {
 
     /**
      * @return The upgrade inventory
      */
     AppEngInternalInventory getUpgradeInventory();
-
-    /**
-     * Refresh the filter-to-slot map after filter changes.
-     */
-    void refreshFilterMap();
 
     /**
      * Refresh cached upgrade status after upgrade slot changes.
@@ -42,17 +46,11 @@ public interface IGasInterfaceHost extends IInterfaceHost {
     boolean isValidUpgrade(ItemStack stack);
 
     /**
-     * Clear filter slots. Import only clears filters where the corresponding
-     * tank is empty (to prevent orphaning gases). Export clears all filters.
-     */
-    void clearFilters();
-
-    /**
      * @return The world this host is in.
      */
     World getHostWorld();
 
-    // Gas tank access
+    // ================================= Gas Tank Access =================================
 
     /**
      * Check if a specific tank slot is empty.
@@ -74,7 +72,13 @@ public interface IGasInterfaceHost extends IInterfaceHost {
      */
     GasStack getGasInTank(int slot);
 
-    // Pagination support
+    /**
+     * Set the gas in a tank slot (for import interface gas pouring).
+     *
+     * @param slot The tank slot index
+     * @param gas The gas to set, or null to clear
+     */
+    void setGasInTank(int slot, @Nullable GasStack gas);
 
     /**
      * @return Number of capacity upgrades currently installed.
@@ -82,26 +86,11 @@ public interface IGasInterfaceHost extends IInterfaceHost {
     int getInstalledCapacityUpgrades();
 
     /**
-     * @return Total number of pages (1 base + 1 per capacity card).
-     */
-    int getTotalPages();
-
-    /**
-     * @return Current page index (0-based).
-     */
-    int getCurrentPage();
-
-    /**
-     * Set the current page index, clamped to valid range.
-     */
-    void setCurrentPage(int page);
-
-    /**
      * @return The starting slot index for the current page.
      */
     int getCurrentPageStartSlot();
 
-    // Import-specific upgrades (return false for export interfaces)
+    // ================================= Import-specific Upgrades =================================
 
     /**
      * @return true if the overflow upgrade is installed (import only).
@@ -117,7 +106,7 @@ public interface IGasInterfaceHost extends IInterfaceHost {
         return false;
     }
 
-    // Direction-specific tank operations (called by handlers internally)
+    // ================================= Direction-specific Operations =================================
 
     /**
      * Insert gas into a tank slot (import interfaces only).
@@ -140,5 +129,35 @@ public interface IGasInterfaceHost extends IInterfaceHost {
      */
     default GasStack drainGasFromTank(int slot, int maxDrain, boolean doDrain) {
         throw new UnsupportedOperationException("drainGasFromTank is only supported on export interfaces");
+    }
+
+    // ============================== IFilterableInterfaceHost Implementation ==============================
+
+    @Override
+    @Nullable
+    default IAEGasStack getFilter(int slot) {
+        return getFilterGas(slot);
+    }
+
+    @Override
+    default void setFilter(int slot, @Nullable IAEGasStack stack) {
+        setFilterGas(slot, stack);
+    }
+
+    @Override
+    default boolean isStorageEmpty(int slot) {
+        return isTankEmpty(slot);
+    }
+
+    @Override
+    @Nullable
+    default GasStackKey createKey(@Nullable IAEGasStack stack) {
+        if (stack == null) return null;
+        return GasStackKey.of(stack.getGasStack());
+    }
+
+    @Override
+    default String getTypeLocalizationKey() {
+        return "cells.type.gas";
     }
 }

@@ -2,7 +2,7 @@ package com.cells.blocks.interfacebase;
 
 import java.io.IOException;
 
-import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
+import com.cells.util.PollingRateUtils;
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.gui.GuiButton;
@@ -86,7 +86,7 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
         this.fontRenderer.drawString(I18n.format("cells.polling_rate.title"), 8, 6, 0x404040);
 
         // Draw the current polling rate centered in the display area
-        String timeStr = ItemInterfaceLogic.formatPollingRate(this.currentPollingRate);
+        String timeStr = PollingRateUtils.format(this.currentPollingRate);
         int textWidth = this.fontRenderer.getStringWidth(timeStr);
         int centerX = (this.xSize - textWidth) / 2;
         this.fontRenderer.drawString(timeStr, centerX, 57, 0xFFFFFF);
@@ -122,15 +122,15 @@ public class GuiPollingRate extends AEBaseGui implements ContainerPollingRate.IP
         boolean shift = Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
         int multiplier = shift ? 10 : 1;
 
-        if (btn == this.plusSec) return ItemInterfaceLogic.TICKS_PER_SECOND * multiplier;
-        if (btn == this.plusMin) return ItemInterfaceLogic.TICKS_PER_MINUTE * multiplier;
-        if (btn == this.plusHour) return ItemInterfaceLogic.TICKS_PER_HOUR * multiplier;
-        if (btn == this.plusDay) return ItemInterfaceLogic.TICKS_PER_DAY * multiplier;
+        if (btn == this.plusSec) return PollingRateUtils.TICKS_PER_SECOND * multiplier;
+        if (btn == this.plusMin) return PollingRateUtils.TICKS_PER_MINUTE * multiplier;
+        if (btn == this.plusHour) return PollingRateUtils.TICKS_PER_HOUR * multiplier;
+        if (btn == this.plusDay) return PollingRateUtils.TICKS_PER_DAY * multiplier;
 
-        if (btn == this.minusSec) return -ItemInterfaceLogic.TICKS_PER_SECOND * multiplier;
-        if (btn == this.minusMin) return -ItemInterfaceLogic.TICKS_PER_MINUTE * multiplier;
-        if (btn == this.minusHour) return -ItemInterfaceLogic.TICKS_PER_HOUR * multiplier;
-        if (btn == this.minusDay) return -ItemInterfaceLogic.TICKS_PER_DAY * multiplier;
+        if (btn == this.minusSec) return -PollingRateUtils.TICKS_PER_SECOND * multiplier;
+        if (btn == this.minusMin) return -PollingRateUtils.TICKS_PER_MINUTE * multiplier;
+        if (btn == this.minusHour) return -PollingRateUtils.TICKS_PER_HOUR * multiplier;
+        if (btn == this.minusDay) return -PollingRateUtils.TICKS_PER_DAY * multiplier;
 
         return 0;
     }

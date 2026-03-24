@@ -16,8 +16,7 @@ import com.cells.gui.CellsGuiHandler;
 public class ItemCreativeEssentiaCell extends AbstractCreativeCellItem<EssentiaStack, CreativeEssentiaCellFilterHandler> {
 
     public ItemCreativeEssentiaCell() {
-        super("creative_essentia_cell", CellsGuiHandler.GUI_CREATIVE_ESSENTIA_CELL, "essentia",
-            cell -> new CreativeEssentiaCellFilterHandler(cell));
+        super("creative_essentia_cell", CellsGuiHandler.GUI_CREATIVE_ESSENTIA_CELL, "essentia", CreativeEssentiaCellFilterHandler::new);
     }
 
     @Override

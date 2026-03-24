@@ -20,6 +20,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.Upgrades;
@@ -56,7 +57,7 @@ import com.cells.util.TickManagerHelper;
  * Subclasses must implement the type-specific operations for resource handling,
  * NBT serialization, and ME network interactions.
  */
-public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>, K> {
+public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>, K> implements IInterfaceLogic {
 
     /**
      * Callback interface that the host (tile or part) implements to provide
@@ -114,6 +115,8 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /** Filter array - stores the filter resource for each slot. */
     protected final R[] filters;
 
+    // TODO: use a separate long[] for amounts and store the resource type in a parallel map
+    //       This way, we can import/export Long instead of Integer
     /** Storage array - stores the current resource amount in each slot. */
     protected final R[] storage;
 
@@ -177,9 +180,23 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     protected abstract K createKey(R resource);
 
     /**
-     * Check if two resources match (same type, ignoring amount).
+     * Check if two keys match. Uses Object.equals which benefits from cached hashes.
+     * Override if you need different comparison semantics.
      */
-    protected abstract boolean resourcesMatch(R a, R b);
+    protected boolean keysMatch(@Nullable K a, @Nullable K b) {
+        if (a == null || b == null) return false;
+        return a.equals(b);
+    }
+
+    /**
+     * Check if two resources match (same type, ignoring amount).
+     * Default implementation uses key comparison for efficiency.
+     * Override only if you need different comparison semantics.
+     */
+    protected boolean resourcesMatch(R a, R b) {
+        if (a == null || b == null) return false;
+        return keysMatch(createKey(a), createKey(b));
+    }
 
     /**
      * Get the amount of resource in a stack.
@@ -277,6 +294,22 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         return this.storage[slot];
     }
 
+    /**
+     * Set the resource in a specific storage slot.
+     * Used for GUI-based resource pouring.
+     *
+     * @param slot The storage slot index
+     * @param resource The resource to set, or null to clear
+     */
+    public void setResourceInSlot(int slot, @Nullable R resource) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return;
+
+        this.storage[slot] = resource;
+
+        // Rebuild filter map since storage changed
+        refreshFilterMap();
+    }
+
     @Nullable
     public AE getFilterResource(int slot) {
         if (slot < 0 || slot >= FILTER_SLOTS) return null;
@@ -305,6 +338,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
         R current = this.storage[slot];
 
+        // TODO: use keys with keysMatch instead of resourcesMatch for efficiency once we have cached keys in the filter map
         // If slot has resource, it must match
         if (current != null && !resourcesMatch(current, resource)) return 0;
 
@@ -477,6 +511,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         return canReceive(resource);
     }
 
+    @Override
     public int getMaxSlotSize() {
         return this.maxSlotSize;
     }
@@ -485,6 +520,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Set the maximum tank capacity.
      * If export and reduced, returns overflow to the network.
      */
+    @Override
     public void setMaxSlotSize(int size) {
         int oldSize = this.maxSlotSize;
         this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(size, MAX_MAX_SLOT_SIZE));
@@ -497,10 +533,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         }
     }
 
+    @Override
     public int getPollingRate() {
         return this.pollingRate;
     }
 
+    @Override
     public void setPollingRate(int ticks) {
         this.setPollingRate(ticks, null);
     }
@@ -528,6 +566,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /**
      * Refresh the status of installed upgrades.
      */
+    @Override
     public void refreshUpgrades() {
         if (!this.host.isExport()) {
             this.installedOverflowUpgrade = countUpgrade(ItemOverflowCard.class) > 0;
@@ -605,24 +644,39 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         return false;
     }
 
+    @Override
     public int getInstalledCapacityUpgrades() {
         return this.installedCapacityUpgrades;
     }
 
+    @Override
     public int getTotalPages() {
         return 1 + this.installedCapacityUpgrades;
     }
 
+    @Override
     public int getCurrentPage() {
         return this.currentPage;
     }
 
+    @Override
     public void setCurrentPage(int page) {
         this.currentPage = Math.max(0, Math.min(page, this.installedCapacityUpgrades));
     }
 
+    @Override
     public int getCurrentPageStartSlot() {
         return this.currentPage * SLOTS_PER_PAGE;
+    }
+
+    @Override
+    public int getSlotsPerPage() {
+        return SLOTS_PER_PAGE;
+    }
+
+    @Override
+    public int getFilterSlots() {
+        return FILTER_SLOTS;
     }
 
     /**
@@ -668,6 +722,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /**
      * Refresh the filter to slot mapping.
      */
+    @Override
     public void refreshFilterMap() {
         this.filterToSlotMap.clear();
         this.slotToFilterMap.clear();
@@ -694,6 +749,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Import: only clears filters where the corresponding slot is empty.
      * Export: clears all filter slots.
      */
+    @Override
     public void clearFilters() {
         if (this.host.isExport()) {
             for (int i = 0; i < FILTER_SLOTS; i++) this.filters[i] = null;
@@ -735,6 +791,105 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
         Integer slot = this.filterToSlotMap.get(key);
         return slot != null ? slot : -1;
+    }
+
+    // ============================== IFilterableInterfaceHost support ==============================
+
+    /**
+     * Check if a filter with the given key exists.
+     * O(1) operation using the internal HashMap.
+     *
+     * @param key The key to check
+     * @return true if a filter exists for this key
+     */
+    public boolean isInFilter(@Nonnull K key) {
+        return this.filterToSlotMap.containsKey(key);
+    }
+
+    /**
+     * Check if a resource is in the filter.
+     * Creates a key and delegates to isInFilter(K).
+     *
+     * @param resource The resource to check
+     * @return true if a filter exists for this resource
+     */
+    public boolean isResourceInFilter(@Nullable R resource) {
+        if (resource == null) return false;
+
+        K key = createKey(resource);
+        return key != null && isInFilter(key);
+    }
+
+    /**
+     * Find the slot index for a given key.
+     *
+     * @param key The key to find
+     * @return The slot index, or -1 if not found
+     */
+    public int findSlotByKey(@Nonnull K key) {
+        Integer slot = this.filterToSlotMap.get(key);
+        return slot != null ? slot : -1;
+    }
+
+    /**
+     * Get the effective number of filter slots based on installed capacity upgrades.
+     *
+     * @return Number of effective slots (SLOTS_PER_PAGE * totalPages)
+     */
+    public int getEffectiveFilterSlots() {
+        return SLOTS_PER_PAGE * getTotalPages();
+    }
+
+    /**
+     * Check if the storage at a specific slot is empty.
+     *
+     * @param slot The slot index
+     * @return true if the storage slot is empty
+     */
+    public boolean isStorageEmpty(int slot) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return true;
+
+        R stored = this.storage[slot];
+        return stored == null || getAmount(stored) <= 0;
+    }
+
+    /**
+     * Add a resource to the first available filter slot.
+     * Respects import/export rules (import won't add to slots with non-empty storage).
+     * Does NOT check for duplicates - caller should check isInFilter first.
+     *
+     * @param resource The resource to add as a filter
+     * @return The slot index where the filter was added, or -1 if no space available
+     */
+    public int addToFirstAvailableSlot(@Nonnull R resource) {
+        final boolean isExport = this.host.isExport();
+        final int effectiveSlots = getEffectiveFilterSlots();
+
+        for (int i = 0; i < effectiveSlots; i++) {
+            if (this.filters[i] != null) continue;
+
+            // Import mode: only use slot if storage is also empty
+            if (!isExport && !isStorageEmpty(i)) continue;
+
+            // Set the filter
+            this.filters[i] = copyWithAmount(resource, 1);
+            onFilterChanged(i);
+            return i;
+        }
+
+        return -1;
+    }
+
+    /**
+     * Add an AE-wrapped resource to the first available filter slot.
+     * Convenience wrapper that converts from AE type to native type.
+     *
+     * @param aeResource The AE-wrapped resource to add as a filter
+     * @return The slot index where the filter was added, or -1 if no space available
+     */
+    public int addToFirstAvailableSlotAE(@Nonnull AE aeResource) {
+        R resource = fromAEStack(aeResource);
+        return addToFirstAvailableSlot(resource);
     }
 
     /**
@@ -1165,6 +1320,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             R stored = this.storage[slot];
             if (stored != null && getAmount(stored) > 0) {
                 R filter = this.filters[slot];
+                // TODO: use keys and keysMatch instead of resourcesMatch
                 boolean isOrphaned = filter == null || !resourcesMatch(filter, stored);
 
                 if (isOrphaned) returnSlotToNetwork(slot);
@@ -1177,7 +1333,20 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     }
 
     /**
-     * Handle upgrade inventory changes. Call from host's onChangeInventory.
+     * Handle inventory changes. Call from host's onChangeInventory.
+     * Only handles upgrade inventory changes (filter/storage use onFilterChanged).
+     *
+     * @param inv The changed inventory
+     * @param slot The changed slot
+     * @param removed The removed stack (unused but kept for signature compatibility)
+     * @param added The added stack (unused but kept for signature compatibility)
+     */
+    public void onChangeInventory(IItemHandler inv, int slot, ItemStack removed, ItemStack added) {
+        if (inv == this.upgradeInventory) onUpgradeChanged();
+    }
+
+    /**
+     * Handle upgrade inventory changes.
      */
     public void onUpgradeChanged() {
         this.refreshUpgrades();
@@ -1310,6 +1479,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 R current = this.storage[i];
 
                 // Skip slots where current resources don't match filter (orphaned)
+                // TODO: use keys and keysMatch instead of resourcesMatch
                 if (current != null && getAmount(current) > 0) {
                     if (!resourcesMatch(filter, current)) continue;
                 }
@@ -1394,6 +1564,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             R stored = this.storage[i];
             if (stored == null || getAmount(stored) <= 0) continue;
 
+            // TODO: use keys and keysMatch instead of resourcesMatch
             R filter = this.filters[i];
             if (filter != null && resourcesMatch(filter, stored)) continue;
 

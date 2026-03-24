@@ -39,9 +39,11 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
-import com.cells.blocks.interfacebase.item.FluidInterfaceLogic;
+import com.cells.blocks.interfacebase.IInterfaceLogic;
+import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
 import com.cells.blocks.interfacebase.fluid.IFluidInterfaceHost;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.util.FluidStackKey;
 
 
 /**
@@ -134,8 +136,9 @@ public class TileFluidExportInterface extends AENetworkInvTile implements IGridT
     }
 
     @Override
-    public void clearFilters() {
-        this.logic.clearFilters();
+    @Nonnull
+    public IInterfaceLogic getInterfaceLogic() {
+        return this.logic;
     }
 
     @Override
@@ -212,6 +215,23 @@ public class TileFluidExportInterface extends AENetworkInvTile implements IGridT
     @Override
     public FluidStack drainFluidFromTank(int slot, int maxDrain, boolean doDrain) {
         return this.logic.drainFluidFromTank(slot, maxDrain, doDrain);
+    }
+
+    // ============================== IFilterableInterfaceHost delegation ==============================
+
+    @Override
+    public boolean isInFilter(@Nonnull FluidStackKey key) {
+        return this.logic.isInFilter(key);
+    }
+
+    @Override
+    public int findSlotByKey(@Nonnull FluidStackKey key) {
+        return this.logic.findSlotByKey(key);
+    }
+
+    @Override
+    public int addToFirstAvailableSlot(@Nonnull IAEFluidStack stack) {
+        return this.logic.addToFirstAvailableSlotAE(stack);
     }
 
     // ============================== IInterfaceHost ==============================

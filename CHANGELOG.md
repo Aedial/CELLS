@@ -21,14 +21,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add Gas Import/Export interface.
 - Add Essentia Creative Cell.
 - Add Essentia Import/Export interface.
-- Add Recovery Container item, an item that is dropped when a non-item interface is broken/shrunk and cannot send its contents back to the network.
+- Add Recovery Orb item, an item that is dropped when a non-item interface is broken/shrunk and cannot send its contents back to the network.
 
 ### Changed
 - Make the Creative Cell accept and void content that they produce, acting as both a producer and a sink, to avoid issues with items not being able to return to the network because we extracted them from the cell but they can't be inserted back.
 - Reject Cells as valid targets for Creative Cells
 
 ### Technical
-- Unify Import/Export Interfaces even more, to allow for less tedious addition of Gas/Essentia types.
+- Unify Import/Export Interfaces (tiles and parts) even more, to allow for less tedious addition of Gas/Essentia types.
 - Unify Creative Cells for the same purpose.
 - Unify all slot behaviors (Sneak-click, left-click, right-click, quick-add, JEI add, rendering, etc.)
 

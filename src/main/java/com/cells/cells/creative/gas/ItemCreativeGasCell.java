@@ -16,8 +16,7 @@ import com.cells.gui.CellsGuiHandler;
 public class ItemCreativeGasCell extends AbstractCreativeCellItem<GasStack, CreativeGasCellFilterHandler> {
 
     public ItemCreativeGasCell() {
-        super("creative_gas_cell", CellsGuiHandler.GUI_CREATIVE_GAS_CELL, "gas",
-            cell -> new CreativeGasCellFilterHandler(cell));
+        super("creative_gas_cell", CellsGuiHandler.GUI_CREATIVE_GAS_CELL, "gas", CreativeGasCellFilterHandler::new);
     }
 
     @Override

@@ -1,30 +1,27 @@
 package com.cells.cells.creative.essentia;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.Slot;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 
 import thaumicenergistics.api.EssentiaStack;
 
-import com.cells.cells.creative.AbstractCreativeCellContainer;
+import com.cells.cells.creative.AbstractCreativeCellSyncContainer;
 import com.cells.gui.QuickAddHelper;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * Container for the Creative ME Essentia Cell GUI.
  * <p>
  * Provides a 9x7 grid of essentia filter slots.
- * Only accessible in creative mode.
- * <p>
- * Note: Essentia doesn't have a sync system like fluids/gases in AE2,
- * so we read directly from NBT. Changes are saved directly to the cell ItemStack.
+ * Uses unified PacketResourceSlot for sync. Only accessible in creative mode.
  */
-public class ContainerCreativeEssentiaCell extends AbstractCreativeCellContainer<CreativeEssentiaCellFilterHandler> {
+public class ContainerCreativeEssentiaCell extends AbstractCreativeCellSyncContainer<CreativeEssentiaCellFilterHandler, EssentiaStack> {
 
     public ContainerCreativeEssentiaCell(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, hand, new CreativeEssentiaCellFilterHandler(playerInv.player.getHeldItem(hand)));
@@ -38,67 +35,59 @@ public class ContainerCreativeEssentiaCell extends AbstractCreativeCellContainer
         return ItemCreativeEssentiaCell.class;
     }
 
+    // ================================= Sync Methods =================================
+
+    @Override
+    protected ResourceType getResourceType() {
+        return ResourceType.ESSENTIA;
+    }
+
+    @Override
+    @Nullable
+    protected EssentiaStack getSyncStack(int slot) {
+        return filterHandler.getEssentiaInSlot(slot);
+    }
+
+    @Override
+    protected void setSyncStack(int slot, @Nullable EssentiaStack stack) {
+        filterHandler.setEssentiaInSlot(slot, stack);
+    }
+
+    @Override
+    @Nullable
+    protected EssentiaStack copySyncStack(@Nullable EssentiaStack stack) {
+        return stack != null ? stack.copy() : null;
+    }
+
+    @Override
+    protected boolean syncStacksEqual(@Nullable EssentiaStack a, @Nullable EssentiaStack b) {
+        if (a == null) return b == null;
+        return a.equals(b);
+    }
+
+    @Override
+    protected boolean isSyncStackEmpty(@Nullable EssentiaStack stack) {
+        return stack == null;
+    }
+
+    @Override
+    protected boolean filterContains(@Nonnull EssentiaStack stack) {
+        return filterHandler.isInFilter(stack);
+    }
+
+    @Override
+    @Nullable
+    protected EssentiaStack extractResourceFromItemStack(@Nonnull ItemStack container) {
+        return QuickAddHelper.getEssentiaFromItemStack(container);
+    }
+
+    // ================================= Filter Operations =================================
+
     /**
      * Set an essentia filter at a specific slot.
      */
     public void setEssentiaFilter(int slot, EssentiaStack essentia) {
         if (slot < 0 || slot >= FILTER_SLOTS) return;
-
         filterHandler.setEssentiaInSlot(slot, essentia);
-    }
-
-    /**
-     * Add an essentia filter at the first available slot (for quick-add).
-     * Returns true if successful.
-     */
-    public boolean addToFilter(EssentiaStack essentia) {
-        return addToFilterAndGetSlot(essentia) >= 0;
-    }
-
-    /**
-     * Add an essentia filter at the first available slot (for quick-add).
-     * Returns the slot index where it was added, or -1 if no space.
-     */
-    public int addToFilterAndGetSlot(EssentiaStack essentia) {
-        if (essentia == null) return -1;
-
-        // Check if already exists
-        if (filterHandler.isInFilter(essentia)) return -1;
-
-        // Find first empty slot
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (filterHandler.getEssentiaInSlot(i) == null) {
-                filterHandler.setEssentiaInSlot(i, essentia);
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    @Override
-    public void clearAllFilters() {
-        filterHandler.clearAll();
-    }
-
-    /**
-     * Handle shift-click: extract essentia from container and add as filter.
-     * The actual item stays in place (return empty), only the filter is set.
-     */
-    @Override
-    @Nonnull
-    public ItemStack transferStackInSlot(EntityPlayer player, int slotIndex) {
-        if (slotIndex < 0 || slotIndex >= inventorySlots.size()) return ItemStack.EMPTY;
-
-        Slot slot = inventorySlots.get(slotIndex);
-        if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
-
-        // Try to extract essentia from the item using QuickAddHelper
-        ItemStack clickedStack = slot.getStack();
-        EssentiaStack essentia = QuickAddHelper.getEssentiaFromItemStack(clickedStack);
-        if (essentia != null) addToFilter(essentia);
-
-        // Return empty so the actual item stays in place
-        return ItemStack.EMPTY;
     }
 }

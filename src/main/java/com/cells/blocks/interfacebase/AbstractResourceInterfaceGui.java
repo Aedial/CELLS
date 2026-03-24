@@ -1,13 +1,16 @@
 package com.cells.blocks.interfacebase;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Nonnull;
 
-import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
+import com.cells.gui.slots.AbstractResourceFilterSlot;
+import com.cells.gui.slots.AbstractResourceTankSlot;
+import com.cells.util.PollingRateUtils;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.Slot;
@@ -15,6 +18,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 
 import appeng.client.gui.AEBaseGui;
+import appeng.client.gui.widgets.GuiCustomSlot;
 import appeng.container.AEBaseContainer;
 import appeng.container.interfaces.IJEIGhostIngredients;
 
@@ -49,7 +53,8 @@ import com.cells.network.packets.PacketOpenGui;
  * <p>
  * Subclasses only need to:
  * <ul>
- *   <li>Create their type-specific filter/tank slots in {@link #createResourceSlots()}</li>
+ *   <li>Provide filter slot factory via {@link #createFilterSlotForIndex(int, int, int)}</li>
+ *   <li>Provide tank/storage slot factory via {@link #createTankSlotForIndex(int, int, int)}</li>
  *   <li>Handle JEI ghost ingredients in {@link #createJEITargets(Object)}</li>
  *   <li>Optionally override {@link #handleQuickAdd(Slot)} for quick-add keybind</li>
  * </ul>
@@ -120,10 +125,55 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     protected abstract void prevPage();
 
     /**
-     * Create the type-specific resource slots (filter and tank/storage slots).
-     * Add them to {@code this.guiSlots} for custom slots or to {@code this.inventorySlots} for standard slots.
+     * Create a filter slot for the given display index.
+     * Override in subclasses to return the appropriate filter slot type.
+     *
+     * @param displaySlot The display slot index (0-35)
+     * @param x X position in GUI
+     * @param y Y position in GUI
+     * @return The filter slot (FluidFilterSlot, GasFilterSlot, ItemFilterSlot, etc.)
      */
-    protected abstract void createResourceSlots();
+    protected abstract GuiCustomSlot createFilterSlotForIndex(int displaySlot, int x, int y);
+
+    /**
+     * Create a tank/storage slot for the given display index.
+     * Override in subclasses to return the appropriate tank or storage slot type.
+     *
+     * @param displaySlot The display slot index (0-35)
+     * @param x X position in GUI
+     * @param y Y position in GUI
+     * @return The tank slot (FluidTankSlot, GasTankSlot, ItemStorageSlot, etc.)
+     */
+    protected abstract GuiCustomSlot createTankSlotForIndex(int displaySlot, int x, int y);
+
+    /**
+     * Create the resource slots (filter and tank/storage) using the unified grid layout.
+     * This is the sole implementation - subclasses only override the factory methods.
+     */
+    protected final void createResourceSlots() {
+        // Add filter and tank/storage slots in 4x9 grid
+        for (int row = 0; row < 4; row++) {
+            for (int col = 0; col < 9; col++) {
+                int displaySlot = row * 9 + col;
+                if (displaySlot >= SLOTS_PER_PAGE) break;
+
+                int xPos = 8 + col * 18;
+                int filterY = 25 + row * 36;
+                int tankY = filterY + 18; // 18px below filter slot
+
+                // Create filter slot
+                GuiCustomSlot filterSlot = createFilterSlotForIndex(displaySlot, xPos, filterY);
+                this.guiSlots.add(filterSlot);
+
+                // Create tank/storage slot
+                GuiCustomSlot tankSlot = createTankSlotForIndex(displaySlot, xPos, tankY);
+                if (tankSlot instanceof AbstractResourceTankSlot) {
+                    ((AbstractResourceTankSlot<?,?>) tankSlot).setFontRenderer(this.fontRenderer);
+                }
+                this.guiSlots.add(tankSlot);
+            }
+        }
+    }
 
     /**
      * Get the GUI ID for the max slot size configuration screen.
@@ -134,15 +184,6 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
      * Get the GUI ID for the polling rate configuration screen.
      */
     protected abstract int getPollingRateGuiId();
-
-    /**
-     * Create JEI ghost ingredient targets for the given ingredient.
-     * Return an empty list if the ingredient type is not supported.
-     *
-     * @param ingredient The ingredient being dragged from JEI
-     * @return List of targets that can accept this ingredient
-     */
-    protected abstract List<Target<?>> createJEITargets(Object ingredient);
 
     /**
      * Handle quick-add keybind. Override in subclasses to implement type-specific behavior.
@@ -188,7 +229,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
                 int rate = (int) this.getPollingRate();
                 String value = rate <= 0
                     ? I18n.format("cells.polling_rate.adaptive")
-                    : I18n.format("cells.polling_rate.custom." + direction, ItemInterfaceLogic.formatPollingRate(rate));
+                    : I18n.format("cells.polling_rate.custom." + direction, PollingRateUtils.format(rate));
                 return I18n.format("cells.polling_rate.title") + "\n\n"
                     + value + "\n"
                     + I18n.format("tooltip.cells.polling_rate." + direction);
@@ -293,9 +334,35 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         }
     }
 
+    /**
+     * Unified JEI ghost ingredient target creation.
+     * <p>
+     * Iterates over all filter slots and creates JEI targets for slots that can
+     * accept the given ingredient. This eliminates the need for type-specific
+     * createJEITargets() overrides in subclasses.
+     */
     @Override
     public List<Target<?>> getPhantomTargets(Object ingredient) {
-        return createJEITargets(ingredient);
+        List<Target<?>> targets = new ArrayList<>();
+
+        for (GuiCustomSlot slot : this.guiSlots) {
+            // Only filter slots support JEI drag-drop
+            if (!(slot instanceof AbstractResourceFilterSlot)) continue;
+
+            // Use raw type to avoid generic capture issues - we only need null check
+            @SuppressWarnings("rawtypes")
+            AbstractResourceFilterSlot filterSlot = (AbstractResourceFilterSlot) slot;
+
+            // Check if this slot can accept the ingredient type
+            if (filterSlot.convertToResource(ingredient) == null) continue;
+
+            // Create JEI target using the slot's unified method
+            Target<Object> target = filterSlot.createJEITarget(this::getGuiLeft, this::getGuiTop);
+            targets.add(target);
+            mapTargetSlot.putIfAbsent(target, slot);
+        }
+
+        return targets;
     }
 
     @SuppressWarnings("unchecked")

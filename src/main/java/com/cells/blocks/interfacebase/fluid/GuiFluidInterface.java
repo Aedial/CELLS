@@ -1,40 +1,33 @@
 package com.cells.blocks.interfacebase.fluid;
 
-import java.awt.Rectangle;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.annotation.Nonnull;
-
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceGui;
+import com.cells.gui.slots.FluidFilterSlot;
+import com.cells.gui.slots.FluidTankSlot;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Slot;
-import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
 
 import appeng.api.parts.IPart;
-import appeng.api.storage.data.IAEFluidStack;
 import appeng.client.gui.widgets.GuiCustomSlot;
-import appeng.core.sync.network.NetworkHandler;
-import appeng.core.sync.packets.PacketFluidSlot;
 import appeng.fluids.util.AEFluidStack;
-
-import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
 import com.cells.gui.CellsGuiHandler;
 import com.cells.gui.QuickAddHelper;
 import com.cells.network.CellsNetworkHandler;
-import com.cells.network.packets.PacketQuickAddFluidFilter;
+import com.cells.network.sync.PacketQuickAddFilter;
+import com.cells.network.sync.ResourceType;
 
 
 /**
  * GUI for both Fluid Import Interface and Fluid Export Interface.
- * Extends the abstract base to provide fluid-specific slot creation and JEI handling.
+ * <p>
+ * Uses unified slot classes from com.cells.gui.slots:
+ * - {@link FluidFilterSlot} for filter configuration
+ * - {@link FluidTankSlot} for tank status display
+ * <p>
+ * JEI integration is handled automatically by the base class.
  */
 public class GuiFluidInterface extends AbstractResourceInterfaceGui<IFluidInterfaceHost, ContainerFluidInterface> {
 
@@ -93,84 +86,20 @@ public class GuiFluidInterface extends AbstractResourceInterfaceGui<IFluidInterf
     }
 
     @Override
-    protected void createResourceSlots() {
-        // Add fluid filter slots (4 rows x 9 cols)
-        for (int row = 0; row < 4; row++) {
-            for (int col = 0; col < 9; col++) {
-                int displaySlot = row * 9 + col;
-                if (displaySlot >= SLOTS_PER_PAGE) break;
-
-                int xPos = 8 + col * 18;
-                int filterY = 25 + row * 36;
-
-                GuiFluidFilterSlot filterSlot = new GuiFluidFilterSlot(
-                    this.host, displaySlot, xPos, filterY,
-                    () -> this.container.currentPage * SLOTS_PER_PAGE
-                );
-                this.guiSlots.add(filterSlot);
-            }
-        }
-
-        // Add fluid tank status slots below each filter
-        for (int row = 0; row < 4; row++) {
-            for (int col = 0; col < 9; col++) {
-                int displayTank = row * 9 + col;
-                if (displayTank >= SLOTS_PER_PAGE) break;
-
-                int xPos = 8 + col * 18;
-                int yPos = 25 + row * 36 + 18; // 18px below filter slot
-
-                GuiFluidTankSlot tankSlot = new GuiFluidTankSlot(
-                    this.host, displayTank, displayTank, xPos, yPos,
-                    () -> this.container.currentPage * SLOTS_PER_PAGE,
-                    () -> this.container.maxSlotSize
-                );
-                tankSlot.setFontRenderer(this.fontRenderer);
-                this.guiSlots.add(tankSlot);
-            }
-        }
+    protected GuiCustomSlot createFilterSlotForIndex(int displaySlot, int x, int y) {
+        return new FluidFilterSlot(
+            this.host::getFilterFluid, displaySlot, x, y,
+            () -> this.container.currentPage * SLOTS_PER_PAGE
+        );
     }
 
     @Override
-    protected List<Target<?>> createJEITargets(Object ingredient) {
-        FluidStack fluidStack = null;
-
-        if (ingredient instanceof FluidStack) {
-            fluidStack = (FluidStack) ingredient;
-        } else if (ingredient instanceof ItemStack) {
-            fluidStack = FluidUtil.getFluidContained((ItemStack) ingredient);
-        }
-
-        if (fluidStack == null) return new ArrayList<>();
-
-        final FluidStack finalFluid = fluidStack;
-        List<Target<?>> targets = new ArrayList<>();
-
-        for (GuiCustomSlot slot : this.guiSlots) {
-            if (!(slot instanceof GuiFluidFilterSlot)) continue;
-
-            final GuiFluidFilterSlot filterSlot = (GuiFluidFilterSlot) slot;
-
-            Target<Object> target = new Target<Object>() {
-                @Override
-                @Nonnull
-                public Rectangle getArea() {
-                    return new Rectangle(getGuiLeft() + filterSlot.xPos(), getGuiTop() + filterSlot.yPos(), 16, 16);
-                }
-
-                @Override
-                public void accept(@Nonnull Object ingredient) {
-                    IAEFluidStack aeFluid = AEFluidStack.fromFluidStack(finalFluid);
-                    Map<Integer, IAEFluidStack> map = new HashMap<>();
-                    map.put(filterSlot.getSlot(), aeFluid);
-                    NetworkHandler.instance().sendToServer(new PacketFluidSlot(map));
-                }
-            };
-            targets.add(target);
-            mapTargetSlot.putIfAbsent(target, slot);
-        }
-
-        return targets;
+    protected GuiCustomSlot createTankSlotForIndex(int displaySlot, int x, int y) {
+        return new FluidTankSlot<>(
+            this.host, displaySlot, displaySlot, x, y,
+            () -> this.container.currentPage * SLOTS_PER_PAGE,
+            () -> this.container.maxSlotSize
+        );
     }
 
     @Override
@@ -178,7 +107,9 @@ public class GuiFluidInterface extends AbstractResourceInterfaceGui<IFluidInterf
         FluidStack fluid = QuickAddHelper.getFluidUnderCursor(hoveredSlot);
 
         if (fluid != null) {
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFluidFilter(fluid));
+            CellsNetworkHandler.INSTANCE.sendToServer(
+                new PacketQuickAddFilter(ResourceType.FLUID, AEFluidStack.fromFluidStack(fluid))
+            );
             return true;
         }
 
