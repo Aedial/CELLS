@@ -362,24 +362,30 @@ item.cells.singularity_processor.logic.name=奇点逻辑处理器
 tile.cells.import_interface.name=输入接口
 tile.cells.import_interface.fluid.name=流体输入接口
 tile.cells.import_interface.gas.name=气体输入接口
+tile.cells.import_interface.essentia.name=源质输入接口
 item.cells.part.export_interface.name=输出接口
 item.cells.part.export_fluid_interface.name=流体输出接口
 item.cells.part.export_gas_interface.name=气体输出接口
+tile.cells.export_interface.essentia.name=源质输出接口
 
 item.cells.part.import_interface.name=输入接口
 item.cells.part.import_fluid_interface.name=流体输入接口
 item.cells.part.import_gas_interface.name=气体输入接口
+item.cells.part.import_essentia_interface.name=源质输入接口
 item.cells.part.export_interface.name=输出接口
 item.cells.part.export_fluid_interface.name=流体输出接口
 item.cells.part.export_gas_interface.name=气体输出接口
+item.cells.part.export_essentia_interface.name=源质输出接口
 
 # Interface GUI titles (format: cells.{direction}_interface.{type}.title)
 cells.import_interface.item.title=输入接口
 cells.import_interface.fluid.title=流体输入接口
 cells.import_interface.gas.title=气体输入接口
+cells.import_interface.essentia.title=源质输入接口
 cells.export_interface.item.title=输出接口
 cells.export_interface.fluid.title=流体输出接口
 cells.export_interface.gas.title=气体输出接口
+cells.export_interface.essentia.title=源质输出接口
 
 # Info tooltips for block items
 ## Item interfaces (hardcoded in BlockImportInterface/BlockExportInterface)
@@ -393,6 +399,10 @@ tooltip.cells.import_interface.gas.info=将气体输入至ME网络。
 tooltip.cells.export_interface.gas.info=通过过滤槽位从ME网络输出气体。气体可由管道提取。
 tooltip.cells.import_interface.essentia.info=将源质输入至ME网络。
 tooltip.cells.export_interface.essentia.info=通过过滤槽位从ME网络输出源质。源质可由管道提取。
+tooltip.cells.export_interface.essentia.part.info=通过过滤槽位从ME网络输出源质。
+
+# Essentia part warning (parts cannot participate in tube network)
+tooltip.cells.essentia_part.no_tubes=§e无法与神秘时代管道/存储总线交互
 
 # Configurable Cell warnings
 cells.configurable_cell.split_stack=在放入组件前，需先拆分元件堆叠。
