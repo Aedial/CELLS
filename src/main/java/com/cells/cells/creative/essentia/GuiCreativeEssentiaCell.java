@@ -7,9 +7,12 @@ import net.minecraft.util.EnumHand;
 import appeng.client.gui.widgets.GuiCustomSlot;
 
 import thaumicenergistics.api.EssentiaStack;
+import thaumicenergistics.api.storage.IAEEssentiaStack;
+import thaumicenergistics.integration.appeng.AEEssentiaStack;
 
 import com.cells.cells.creative.AbstractCreativeCellGui;
 import com.cells.gui.QuickAddHelper;
+import com.cells.gui.slots.EssentiaFilterSlot;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.sync.PacketQuickAddFilter;
 import com.cells.network.sync.ResourceType;
@@ -34,7 +37,7 @@ public class GuiCreativeEssentiaCell extends AbstractCreativeCellGui<ContainerCr
 
     @Override
     protected GuiCustomSlot createSlotForIndex(int slotIndex, int x, int y) {
-        return new GuiCreativeEssentiaFilterSlot(this.container.getFilterHandler(), slotIndex, x, y);
+        return new EssentiaFilterSlot(container::getFilter, slotIndex, x, y);
     }
 
     @Override
@@ -51,11 +54,17 @@ public class GuiCreativeEssentiaCell extends AbstractCreativeCellGui<ContainerCr
         EssentiaStack essentia = QuickAddHelper.getEssentiaUnderCursor(hoveredSlot);
 
         if (essentia != null) {
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFilter(ResourceType.ESSENTIA, essentia));
+            IAEEssentiaStack iaeEssentia = AEEssentiaStack.fromEssentiaStack(essentia);
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFilter(ResourceType.ESSENTIA, iaeEssentia));
             return true;
         }
 
-        QuickAddHelper.sendNoValidError("essentia");
-        return false;
+        // Only show error if there was actually something under cursor that wasn't essentia
+        // If hoveredSlot is null or empty, don't show an error - user just pressed keybind over nothing
+        if (hoveredSlot != null && hoveredSlot.getHasStack()) {
+            QuickAddHelper.sendNoValidError("essentia");
+        }
+
+        return true;
     }
 }

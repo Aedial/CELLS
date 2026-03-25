@@ -11,9 +11,13 @@ import appeng.client.gui.widgets.GuiCustomSlot;
 
 import mekanism.api.gas.GasStack;
 
+import com.mekeng.github.common.me.data.IAEGasStack;
+import com.mekeng.github.common.me.data.impl.AEGasStack;
+
 import com.cells.cells.creative.AbstractCreativeCellContainer;
 import com.cells.cells.creative.AbstractCreativeCellGui;
 import com.cells.gui.QuickAddHelper;
+import com.cells.gui.slots.GasFilterSlot;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.sync.PacketQuickAddFilter;
 import com.cells.network.sync.PacketResourceSlot;
@@ -28,11 +32,8 @@ import com.cells.network.sync.ResourceType;
  */
 public class GuiCreativeGasCell extends AbstractCreativeCellGui<ContainerCreativeGasCell> {
 
-    private final CreativeGasCellTankAdapter tankAdapter;
-
     public GuiCreativeGasCell(InventoryPlayer playerInv, EnumHand hand) {
         super(new ContainerCreativeGasCell(playerInv, hand));
-        this.tankAdapter = new CreativeGasCellTankAdapter(this.container.getFilterHandler());
     }
 
     @Override
@@ -42,7 +43,7 @@ public class GuiCreativeGasCell extends AbstractCreativeCellGui<ContainerCreativ
 
     @Override
     protected GuiCustomSlot createSlotForIndex(int slotIndex, int x, int y) {
-        return new GuiCreativeGasFilterSlot(this.tankAdapter, slotIndex, x, y);
+        return new GasFilterSlot(container::getFilter, slotIndex, x, y);
     }
 
     @Override
@@ -62,11 +63,17 @@ public class GuiCreativeGasCell extends AbstractCreativeCellGui<ContainerCreativ
         GasStack gas = QuickAddHelper.getGasUnderCursor(hoveredSlot);
 
         if (gas != null) {
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFilter(ResourceType.GAS, gas));
+            IAEGasStack iaeGas = AEGasStack.of(gas);
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFilter(ResourceType.GAS, iaeGas));
             return true;
         }
 
-        QuickAddHelper.sendNoValidError("gas");
-        return false;
+        // Only show error if there was actually something under cursor that wasn't a gas
+        // If hoveredSlot is null or empty, don't show an error - user just pressed keybind over nothing
+        if (hoveredSlot != null && hoveredSlot.getHasStack()) {
+            QuickAddHelper.sendNoValidError("gas");
+        }
+
+        return true;
     }
 }

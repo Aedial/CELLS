@@ -8,6 +8,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
 
+import appeng.api.AEApi;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEItemStack;
+
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.sync.PacketResourceSlot;
 import com.cells.network.sync.ResourceType;
@@ -19,17 +23,16 @@ import com.cells.network.sync.ResourceType;
  * Uses unified {@link PacketResourceSlot} for sync.
  * Supports pagination via page offset supplier.
  * <p>
- * Unlike Fluid/Gas slots, ItemFilterSlot handles ItemStack directly
- * (no AE wrapper needed for filter display).
+ * Works with IAEItemStack for unified handling across all resource types.
  */
-public class ItemFilterSlot extends AbstractResourceFilterSlot<ItemStack> {
+public class ItemFilterSlot extends AbstractResourceFilterSlot<IAEItemStack> {
 
     /**
      * Provider interface for getting item in a slot.
      */
     @FunctionalInterface
     public interface ItemProvider {
-        @Nullable ItemStack getItem(int slot);
+        @Nullable IAEItemStack getItem(int slot);
     }
 
     private final ItemProvider provider;
@@ -58,9 +61,10 @@ public class ItemFilterSlot extends AbstractResourceFilterSlot<ItemStack> {
 
     @Override
     @Nullable
-    protected ItemStack extractResourceFromStack(ItemStack stack) {
-        // For items, the stack IS the resource
-        return stack.isEmpty() ? null : stack.copy();
+    protected IAEItemStack extractResourceFromStack(ItemStack stack) {
+        // Convert ItemStack to IAEItemStack
+        if (stack.isEmpty()) return null;
+        return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
     }
 
     @Override
@@ -71,54 +75,48 @@ public class ItemFilterSlot extends AbstractResourceFilterSlot<ItemStack> {
 
     @Override
     @Nullable
-    public ItemStack getResource() {
-        ItemStack stack = this.provider.getItem(getSlot());
-        return (stack == null || stack.isEmpty()) ? null : stack;
+    public IAEItemStack getResource() {
+        return this.provider.getItem(getSlot());
     }
 
     @Override
-    public void setResource(@Nullable ItemStack resource) {
-        // Normalize empty stacks to null
-        ItemStack toSend = (resource == null || resource.isEmpty()) ? null : resource;
-
-        // Send packet to server using unified resource sync
+    public void setResource(@Nullable IAEItemStack resource) {
         CellsNetworkHandler.INSTANCE.sendToServer(
-            new PacketResourceSlot(ResourceType.ITEM, getSlot(), toSend)
+            new PacketResourceSlot(ResourceType.ITEM, getSlot(), resource)
         );
     }
 
     @Override
-    protected void drawResourceContent(Minecraft mc, int mouseX, int mouseY, float partialTicks, ItemStack resource) {
+    protected void drawResourceContent(Minecraft mc, int mouseX, int mouseY, float partialTicks, IAEItemStack resource) {
         // Render the item as a ghost (no count)
-        // Note: Do NOT enable depth testing here - filter overlays must render flat
-        // so they don't appear above the item in cursor
+        ItemStack stack = resource.getDefinition();
         RenderHelper.enableGUIStandardItemLighting();
-
-        mc.getRenderItem().renderItemIntoGUI(resource, this.xPos(), this.yPos());
-
+        mc.getRenderItem().renderItemIntoGUI(stack, this.xPos(), this.yPos());
         RenderHelper.disableStandardItemLighting();
     }
 
     @Override
-    protected String getResourceDisplayName(ItemStack resource) {
-        return resource.getDisplayName();
+    protected String getResourceDisplayName(IAEItemStack resource) {
+        return resource.getDefinition().getDisplayName();
     }
 
     @Override
-    protected boolean resourcesEqual(@Nullable ItemStack a, @Nullable ItemStack b) {
-        if (a == null || a.isEmpty()) return b == null || b.isEmpty();
-        if (b == null || b.isEmpty()) return false;
-
-        // Compare item and metadata, ignore count
-        return ItemStack.areItemsEqual(a, b) && ItemStack.areItemStackTagsEqual(a, b);
+    protected boolean resourcesEqual(@Nullable IAEItemStack a, @Nullable IAEItemStack b) {
+        if (a == null) return b == null;
+        if (b == null) return false;
+        return a.equals(b);
     }
 
     @Override
     @Nullable
-    public ItemStack convertToResource(Object ingredient) {
+    public IAEItemStack convertToResource(Object ingredient) {
         if (ingredient instanceof ItemStack) {
             ItemStack stack = (ItemStack) ingredient;
-            return stack.isEmpty() ? null : stack.copy();
+            if (stack.isEmpty()) return null;
+            return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
+        }
+        if (ingredient instanceof IAEItemStack) {
+            return (IAEItemStack) ingredient;
         }
         return null;
     }
@@ -127,6 +125,7 @@ public class ItemFilterSlot extends AbstractResourceFilterSlot<ItemStack> {
      * Get the item ingredient for JEI integration.
      */
     public Object getIngredient() {
-        return getResource();
+        IAEItemStack resource = getResource();
+        return resource != null ? resource.getDefinition() : ItemStack.EMPTY;
     }
 }

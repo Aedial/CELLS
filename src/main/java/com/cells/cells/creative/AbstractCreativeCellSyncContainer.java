@@ -13,6 +13,7 @@ import net.minecraft.inventory.IContainerListener;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
+import net.minecraft.util.text.TextComponentTranslation;
 
 import appeng.util.Platform;
 
@@ -155,6 +156,9 @@ public abstract class AbstractCreativeCellSyncContainer<H extends AbstractCreati
     /**
      * Handle shift-click: extract resource from container and add as filter.
      * The actual item stays in place (return empty), only the filter is set.
+     * <p>
+     * Note: This runs on BOTH client and server in singleplayer, so feedback
+     * messages are only sent server-side to avoid duplicates.
      */
     @Override
     @Nonnull
@@ -166,7 +170,32 @@ public abstract class AbstractCreativeCellSyncContainer<H extends AbstractCreati
 
         ItemStack clickedStack = slot.getStack();
         S resource = extractResourceFromItemStack(clickedStack);
-        if (resource != null) quickAddToFilter(resource, null);
+
+        if (resource == null) {
+            // Invalid type - send feedback (server-side only to avoid duplicates)
+            if (Platform.isServer()) {
+                player.sendMessage(new TextComponentTranslation(
+                    "message.cells.creative_cell.not_valid_content",
+                    new TextComponentTranslation(getTypeLocalizationKey())
+                ));
+            }
+            return ItemStack.EMPTY;
+        }
+
+        // Check for duplicates before adding (server-side only to avoid duplicates)
+        if (filterContains(resource)) {
+            if (Platform.isServer()) {
+                player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
+            }
+            return ItemStack.EMPTY;
+        }
+
+        if (!quickAddToFilter(resource, player)) {
+            // No space - send feedback (server-side only to avoid duplicates)
+            if (Platform.isServer()) {
+                player.sendMessage(new TextComponentTranslation("message.cells.no_filter_space"));
+            }
+        }
 
         // Return empty so the actual item stays in place
         return ItemStack.EMPTY;
@@ -232,7 +261,23 @@ public abstract class AbstractCreativeCellSyncContainer<H extends AbstractCreati
             int slot = entry.getKey();
             if (slot < 0 || slot >= FILTER_SLOTS) continue;
 
-            setSyncStack(slot, (S) entry.getValue());
+            S newStack = (S) entry.getValue();
+
+            // Check for duplicates when adding a new filter (server-side only)
+            // Clearing a slot (null) should always be allowed
+            if (newStack != null && !isSyncStackEmpty(newStack)) {
+                // Check if this resource already exists in another slot
+                if (filterContains(newStack)) {
+                    // Send duplicate feedback to player (server-side only)
+                    if (Platform.isServer()) {
+                        EntityPlayer player = this.getInventoryPlayer().player;
+                        player.sendMessage(new TextComponentTranslation("message.cells.filter_duplicate"));
+                    }
+                    continue;
+                }
+            }
+
+            setSyncStack(slot, newStack);
         }
     }
 }

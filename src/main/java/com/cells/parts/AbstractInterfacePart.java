@@ -1,6 +1,7 @@
 package com.cells.parts;
 
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -12,6 +13,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -36,6 +38,7 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.PartBasicState;
 import appeng.parts.PartModel;
+import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
@@ -182,7 +185,7 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     // ============================== IInterfaceHost implementation ==============================
 
     @Nonnull
-    public IInterfaceLogic getInterfaceLogic() {
+    public L getInterfaceLogic() {
         return this.logic;
     }
 
@@ -194,6 +197,78 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     @Override
     public AEPartLocation getPartSide() {
         return this.getSide();
+    }
+
+    // ============================== Common delegation methods ==============================
+    // These methods are shared by all interface parts (Item, Fluid, Gas).
+    // They satisfy the interface contracts of IItemInterfaceHost, IFluidInterfaceHost, IGasInterfaceHost.
+
+    public AppEngInternalInventory getUpgradeInventory() {
+        return this.logic.getUpgradeInventory();
+    }
+
+    public void refreshFilterMap() {
+        this.logic.refreshFilterMap();
+    }
+
+    public void refreshUpgrades() {
+        this.logic.refreshUpgrades();
+    }
+
+    public boolean isValidUpgrade(ItemStack stack) {
+        return this.logic.isValidUpgrade(stack);
+    }
+
+    @Override
+    public int getMaxSlotSize() {
+        return this.logic.getMaxSlotSize();
+    }
+
+    @Override
+    public void setMaxSlotSize(int size) {
+        this.logic.setMaxSlotSize(size);
+    }
+
+    @Override
+    public int getPollingRate() {
+        return this.logic.getPollingRate();
+    }
+
+    @Override
+    public void setPollingRate(int ticks) {
+        this.logic.setPollingRate(ticks);
+    }
+
+    public void setPollingRate(int ticks, EntityPlayer player) {
+        this.logic.setPollingRate(ticks, player);
+    }
+
+    public int getInstalledCapacityUpgrades() {
+        return this.logic.getInstalledCapacityUpgrades();
+    }
+
+    public int getTotalPages() {
+        return this.logic.getTotalPages();
+    }
+
+    public int getCurrentPage() {
+        return this.logic.getCurrentPage();
+    }
+
+    public void setCurrentPage(int page) {
+        this.logic.setCurrentPage(page);
+    }
+
+    public int getCurrentPageStartSlot() {
+        return this.logic.getCurrentPageStartSlot();
+    }
+
+    public boolean hasOverflowUpgrade() {
+        return this.logic.hasOverflowUpgrade();
+    }
+
+    public boolean hasTrashUnselectedUpgrade() {
+        return this.logic.hasTrashUnselectedUpgrade();
     }
 
     @Override
@@ -414,5 +489,9 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
 
     public TileEntity getTileEntity() {
         return this.getHost().getTile();
+    }
+
+    public EnumSet<EnumFacing> getTargets() {
+        return EnumSet.of(this.getSide().getFacing());
     }
 }

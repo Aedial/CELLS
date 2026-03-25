@@ -8,6 +8,10 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 
+import appeng.api.AEApi;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEItemStack;
+
 import com.cells.cells.creative.AbstractCreativeCellSyncContainer;
 import com.cells.network.sync.ResourceType;
 
@@ -21,7 +25,7 @@ import com.cells.network.sync.ResourceType;
  * Note: Filter slots are implemented as custom GUI slots (ItemFilterSlot),
  * not container SlotFake, for consistency with other interfaces.
  */
-public class ContainerCreativeCell extends AbstractCreativeCellSyncContainer<CreativeCellFilterHandler, ItemStack> {
+public class ContainerCreativeCell extends AbstractCreativeCellSyncContainer<CreativeCellFilterHandler, IAEItemStack> {
 
     public ContainerCreativeCell(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, hand, new CreativeCellFilterHandler(playerInv.player.getHeldItem(hand)));
@@ -45,43 +49,57 @@ public class ContainerCreativeCell extends AbstractCreativeCellSyncContainer<Cre
 
     @Override
     @Nullable
-    protected ItemStack getSyncStack(int slot) {
+    protected IAEItemStack getSyncStack(int slot) {
         ItemStack stack = filterHandler.getStackInSlot(slot);
-        return stack.isEmpty() ? null : stack;
+        if (stack.isEmpty()) return null;
+        return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(stack);
     }
 
     @Override
-    protected void setSyncStack(int slot, @Nullable ItemStack stack) {
-        filterHandler.setStackInSlot(slot, stack != null ? stack : ItemStack.EMPTY);
-    }
-
-    @Override
-    @Nullable
-    protected ItemStack copySyncStack(@Nullable ItemStack stack) {
-        return stack != null && !stack.isEmpty() ? stack.copy() : null;
-    }
-
-    @Override
-    protected boolean syncStacksEqual(@Nullable ItemStack a, @Nullable ItemStack b) {
-        if (a == null || a.isEmpty()) return b == null || b.isEmpty();
-        if (b == null || b.isEmpty()) return false;
-        return ItemStack.areItemsEqual(a, b) && ItemStack.areItemStackTagsEqual(a, b);
-    }
-
-    @Override
-    protected boolean isSyncStackEmpty(@Nullable ItemStack stack) {
-        return stack == null || stack.isEmpty();
-    }
-
-    @Override
-    protected boolean filterContains(@Nonnull ItemStack stack) {
-        return filterHandler.isInFilter(stack);
+    protected void setSyncStack(int slot, @Nullable IAEItemStack stack) {
+        ItemStack raw = stack != null ? stack.getDefinition() : ItemStack.EMPTY;
+        filterHandler.setStackInSlot(slot, raw);
     }
 
     @Override
     @Nullable
-    protected ItemStack extractResourceFromItemStack(@Nonnull ItemStack container) {
-        // For items, the container IS the resource
-        return container.isEmpty() ? null : container;
+    protected IAEItemStack copySyncStack(@Nullable IAEItemStack stack) {
+        return stack != null ? stack.copy() : null;
+    }
+
+    @Override
+    protected boolean syncStacksEqual(@Nullable IAEItemStack a, @Nullable IAEItemStack b) {
+        if (a == null) return b == null;
+        return a.equals(b);
+    }
+
+    @Override
+    protected boolean isSyncStackEmpty(@Nullable IAEItemStack stack) {
+        return stack == null;
+    }
+
+    @Override
+    protected boolean filterContains(@Nonnull IAEItemStack stack) {
+        ItemStack definition = stack.getDefinition();
+        return filterHandler.isInFilter(definition);
+    }
+
+    @Override
+    @Nullable
+    protected IAEItemStack extractResourceFromItemStack(@Nonnull ItemStack container) {
+        // For items, the container IS the resource - convert to IAEItemStack
+        if (container.isEmpty()) return null;
+        return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(container);
+    }
+
+    // ================================= GUI Support =================================
+
+    /**
+     * Get filter at slot as IAEItemStack for unified GUI slot rendering.
+     * This provides the same interface as item interfaces use.
+     */
+    @Nullable
+    public IAEItemStack getFilter(int slot) {
+        return getSyncStack(slot);
     }
 }

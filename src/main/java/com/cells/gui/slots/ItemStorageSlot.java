@@ -80,13 +80,8 @@ public class ItemStorageSlot<H extends ItemStorageSlot.IItemStorageHost> extends
     protected void drawResourceContent(Minecraft mc, int mouseX, int mouseY, float partialTicks, ItemStack resource) {
         if (resource.isEmpty()) return;
 
-        // Note: Do NOT enable depth testing here - storage slots must render flat
-        // so they don't appear above the item in cursor (which is drawn first by super.drawScreen)
         RenderHelper.enableGUIStandardItemLighting();
-
         mc.getRenderItem().renderItemAndEffectIntoGUI(resource, this.xPos(), this.yPos());
-        // Quantity is rendered by base class via ResourceRenderer
-
         RenderHelper.disableStandardItemLighting();
     }
 

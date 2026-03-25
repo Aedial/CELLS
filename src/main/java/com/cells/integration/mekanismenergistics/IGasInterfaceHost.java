@@ -2,73 +2,28 @@ package com.cells.integration.mekanismenergistics;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.world.World;
-
 import mekanism.api.gas.GasStack;
-
-import appeng.tile.inventory.AppEngInternalInventory;
 
 import com.mekeng.github.common.me.data.IAEGasStack;
 
-import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
+import com.cells.blocks.interfacebase.IResourceInterfaceHost;
 import com.cells.gui.slots.GasTankSlot;
 
 
 /**
  * Extended interface for Gas Interface hosts (both import and export, both tile and part).
- * Provides access to gas filter/tank/upgrade inventories and configuration.
+ * Provides access to gas filter/tank operations.
  * <p>
- * The {@link #isExport()} method from {@link com.cells.blocks.interfacebase.IInterfaceHost} determines whether
- * this is an import or export interface, which affects filter clearing behavior
- * and available upgrades.
- * <p>
- * Pagination, clearing, and slot info methods are inherited from {@link IFilterableInterfaceHost}
- * with default implementations that delegate to {@link #getInterfaceLogic()}.
+ * Filter and storage methods are inherited from {@link IResourceInterfaceHost}
+ * which provides default implementations delegating to the typed logic.
  */
 public interface IGasInterfaceHost
-    extends IFilterableInterfaceHost<IAEGasStack, GasStackKey>,
+    extends IResourceInterfaceHost<IAEGasStack, GasStackKey>,
             GasTankSlot.IGasTankHost {
 
     /**
-     * @return The upgrade inventory
-     */
-    AppEngInternalInventory getUpgradeInventory();
-
-    /**
-     * Refresh cached upgrade status after upgrade slot changes.
-     */
-    void refreshUpgrades();
-
-    /**
-     * Check if an item is a valid upgrade for this interface.
-     */
-    boolean isValidUpgrade(ItemStack stack);
-
-    /**
-     * @return The world this host is in.
-     */
-    World getHostWorld();
-
-    // ================================= Gas Tank Access =================================
-
-    /**
-     * Check if a specific tank slot is empty.
-     */
-    boolean isTankEmpty(int slot);
-
-    /**
-     * Get the filter gas for a specific slot.
-     */
-    IAEGasStack getFilterGas(int slot);
-
-    /**
-     * Set the filter gas for a specific slot.
-     */
-    void setFilterGas(int slot, IAEGasStack gas);
-
-    /**
      * Get the gas currently in a tank slot.
+     * Required by {@link GasTankSlot.IGasTankHost} for GUI rendering.
      */
     GasStack getGasInTank(int slot);
 
@@ -79,34 +34,6 @@ public interface IGasInterfaceHost
      * @param gas The gas to set, or null to clear
      */
     void setGasInTank(int slot, @Nullable GasStack gas);
-
-    /**
-     * @return Number of capacity upgrades currently installed.
-     */
-    int getInstalledCapacityUpgrades();
-
-    /**
-     * @return The starting slot index for the current page.
-     */
-    int getCurrentPageStartSlot();
-
-    // ================================= Import-specific Upgrades =================================
-
-    /**
-     * @return true if the overflow upgrade is installed (import only).
-     */
-    default boolean hasOverflowUpgrade() {
-        return false;
-    }
-
-    /**
-     * @return true if the trash unselected upgrade is installed (import only).
-     */
-    default boolean hasTrashUnselectedUpgrade() {
-        return false;
-    }
-
-    // ================================= Direction-specific Operations =================================
 
     /**
      * Insert gas into a tank slot (import interfaces only).
@@ -129,24 +56,6 @@ public interface IGasInterfaceHost
      */
     default GasStack drainGasFromTank(int slot, int maxDrain, boolean doDrain) {
         throw new UnsupportedOperationException("drainGasFromTank is only supported on export interfaces");
-    }
-
-    // ============================== IFilterableInterfaceHost Implementation ==============================
-
-    @Override
-    @Nullable
-    default IAEGasStack getFilter(int slot) {
-        return getFilterGas(slot);
-    }
-
-    @Override
-    default void setFilter(int slot, @Nullable IAEGasStack stack) {
-        setFilterGas(slot, stack);
-    }
-
-    @Override
-    default boolean isStorageEmpty(int slot) {
-        return isTankEmpty(slot);
     }
 
     @Override

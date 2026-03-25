@@ -11,6 +11,8 @@ import net.minecraftforge.fml.common.Optional;
 import thaumcraft.api.aspects.Aspect;
 
 import thaumicenergistics.api.EssentiaStack;
+import thaumicenergistics.api.storage.IAEEssentiaStack;
+import thaumicenergistics.integration.appeng.AEEssentiaStack;
 
 
 /**
@@ -24,25 +26,39 @@ public final class EssentiaSerializationHelper {
     private EssentiaSerializationHelper() {}
 
     /**
-     * Write an EssentiaStack to the buffer.
+     * Write an EssentiaStack or IAEEssentiaStack to the buffer.
+     * <p>
+     * Handles both raw EssentiaStack and IAEEssentiaStack (from interface containers).
+     * The inner EssentiaStack is extracted and serialized.
      */
     @Optional.Method(modid = "thaumicenergistics")
     public static void write(ByteBuf buf, Object stack) {
-        if (!(stack instanceof EssentiaStack)) return;
+        // Handle IAEEssentiaStack (from interfaces) - extract the inner EssentiaStack
+        EssentiaStack essentia;
+        if (stack instanceof IAEEssentiaStack) {
+            essentia = ((IAEEssentiaStack) stack).getStack();
+        } else if (stack instanceof EssentiaStack) {
+            essentia = (EssentiaStack) stack;
+        } else {
+            // Invalid type - this should never happen if callers are correct
+            throw new IllegalArgumentException("Expected EssentiaStack or IAEEssentiaStack, got: " + 
+                (stack != null ? stack.getClass().getName() : "null"));
+        }
 
-        EssentiaStack essentia = (EssentiaStack) stack;
         Aspect aspect = essentia.getAspect();
-        if (aspect == null) return;
+        if (aspect == null) {
+            throw new IllegalStateException("EssentiaStack has null aspect - this should be filtered at the packet level");
+        }
 
         String tag = aspect.getTag();
         byte[] tagBytes = tag.getBytes(StandardCharsets.UTF_8);
         buf.writeInt(tagBytes.length);
         buf.writeBytes(tagBytes);
-        buf.writeLong(essentia.getAmount());
+        buf.writeInt(essentia.getAmount());
     }
 
     /**
-     * Read an EssentiaStack from the buffer.
+     * Read an IAEEssentiaStack from the buffer.
      */
     @Nullable
     @Optional.Method(modid = "thaumicenergistics")
@@ -52,13 +68,12 @@ public final class EssentiaSerializationHelper {
         buf.readBytes(tagBytes);
         String tag = new String(tagBytes, StandardCharsets.UTF_8);
 
-        long amount = buf.readLong();
+        int amount = buf.readInt();
 
         Aspect aspect = Aspect.getAspect(tag);
         if (aspect == null) return null;
 
-        // EssentiaStack constructor takes int for amount
-        return new EssentiaStack(aspect, (int) Math.min(amount, Integer.MAX_VALUE));
+        return AEEssentiaStack.fromEssentiaStack(new EssentiaStack(aspect, amount));
     }
 
     /**

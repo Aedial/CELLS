@@ -5,14 +5,11 @@ import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
 
-import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
@@ -113,25 +110,6 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
      */
     public ItemStack[] getStorageArray() {
         return this.storage;
-    }
-
-    /**
-     * Get filter at a specific slot (API compatible with EMPTY).
-     * @return The filter ItemStack, or null if slot is empty or invalid
-     */
-    @Nullable
-    public ItemStack getFilter(int slot) {
-        if (slot < 0 || slot >= FILTER_SLOTS) return null;
-        return this.filters[slot];
-    }
-
-    /**
-     * Set filter at a specific slot. Converts EMPTY to null internally.
-     */
-    public void setFilter(int slot, @Nullable ItemStack stack) {
-        if (slot < 0 || slot >= FILTER_SLOTS) return;
-        this.filters[slot] = (stack == null || stack.isEmpty()) ? null : stack;
-        onFilterChanged(slot);
     }
 
     /**

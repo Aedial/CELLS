@@ -1,0 +1,29 @@
+{
+  "animation": {
+    "frametime": 2,
+    "interpolate": false,
+    "width": 32,
+    "height": 32,
+    "frames": [
+      15,
+      14,
+      13,
+      12,
+      11,
+      10,
+      9,
+      8,
+      7,
+      6,
+      5,
+      4,
+      3,
+      2,
+      1,
+      {
+        "index": 0,
+        "time": 4
+      }
+    ]
+  }
+}

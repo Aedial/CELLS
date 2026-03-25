@@ -3,6 +3,10 @@ package com.cells.blocks.interfacebase;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import net.minecraft.item.ItemStack;
+
+import appeng.tile.inventory.AppEngInternalInventory;
+
 
 /**
  * Generic interface for interface hosts that support filter operations with key-based lookup.
@@ -174,6 +178,57 @@ public interface IFilterableInterfaceHost<T, K> extends IInterfaceHost {
      */
     default void clearFilters() {
         getInterfaceLogic().clearFilters();
+    }
+
+    // ================================= Upgrades (delegated to logic) =================================
+
+    /**
+     * @return The upgrade inventory.
+     */
+    default AppEngInternalInventory getUpgradeInventory() {
+        return getInterfaceLogic().getUpgradeInventory();
+    }
+
+    /**
+     * Refresh cached upgrade status after upgrade slot changes.
+     */
+    default void refreshUpgrades() {
+        getInterfaceLogic().refreshUpgrades();
+    }
+
+    /**
+     * Check if an item is a valid upgrade for this interface.
+     */
+    default boolean isValidUpgrade(ItemStack stack) {
+        return getInterfaceLogic().isValidUpgrade(stack);
+    }
+
+    /**
+     * @return Number of capacity upgrades currently installed.
+     */
+    default int getInstalledCapacityUpgrades() {
+        return getInterfaceLogic().getInstalledCapacityUpgrades();
+    }
+
+    /**
+     * @return The starting slot index for the current page.
+     */
+    default int getCurrentPageStartSlot() {
+        return getInterfaceLogic().getCurrentPageStartSlot();
+    }
+
+    /**
+     * @return true if the overflow upgrade is installed (import only).
+     */
+    default boolean hasOverflowUpgrade() {
+        return getInterfaceLogic().hasOverflowUpgrade();
+    }
+
+    /**
+     * @return true if the trash unselected upgrade is installed (import only).
+     */
+    default boolean hasTrashUnselectedUpgrade() {
+        return getInterfaceLogic().hasTrashUnselectedUpgrade();
     }
 
     // ================================= Localization =================================

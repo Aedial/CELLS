@@ -86,13 +86,14 @@ public class ContainerCreativeGasCell extends AbstractCreativeCellSyncContainer<
         return gas != null ? AEGasStack.of(gas) : null;
     }
 
-    // ================================= Filter Operations =================================
+    // ================================= GUI Support =================================
 
     /**
-     * Set a gas filter at a specific slot (called from GUI/packet).
+     * Get filter at slot as IAEGasStack for unified GUI slot rendering.
+     * This provides the same interface as gas interfaces use.
      */
-    public void setGasFilter(int slot, GasStack gas) {
-        if (slot < 0 || slot >= FILTER_SLOTS) return;
-        filterHandler.setGasInSlot(slot, gas);
+    @Nullable
+    public IAEGasStack getFilter(int slot) {
+        return getSyncStack(slot);
     }
 }

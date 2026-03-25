@@ -25,6 +25,8 @@ import com.cells.blocks.fluidexportinterface.BlockFluidExportInterface;
 import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
 import com.cells.integration.mekanismenergistics.GasBlockRegistry;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
+import com.cells.integration.thaumicenergistics.EssentiaBlockRegistry;
+import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 
 
 public class BlockRegistry {
@@ -62,9 +64,15 @@ public class BlockRegistry {
             new ResourceLocation(Tags.MODID, "export_interface"));
         GameRegistry.registerTileEntity(TileFluidExportInterface.class,
             new ResourceLocation(Tags.MODID, "export_fluid_interface"));
+
         // Register gas interface blocks if MekanismEnergistics is loaded
         if (MekanismEnergisticsIntegration.isModLoaded()) {
             GasBlockRegistry.registerBlocks(event.getRegistry());
+        }
+
+        // Register essentia interface blocks if ThaumicEnergistics is loaded
+        if (ThaumicEnergisticsIntegration.isModLoaded()) {
+            EssentiaBlockRegistry.registerBlocks(event.getRegistry());
         }
     }
 
@@ -78,6 +86,11 @@ public class BlockRegistry {
         // Register gas interface items if MekanismEnergistics is loaded
         if (MekanismEnergisticsIntegration.isModLoaded()) {
             GasBlockRegistry.registerItems(event.getRegistry());
+        }
+
+        // Register essentia interface items if ThaumicEnergistics is loaded
+        if (ThaumicEnergisticsIntegration.isModLoaded()) {
+            EssentiaBlockRegistry.registerItems(event.getRegistry());
         }
     }
 
@@ -99,6 +112,11 @@ public class BlockRegistry {
         // Register gas interface models if MekanismEnergistics is loaded
         if (MekanismEnergisticsIntegration.isModLoaded()) {
             GasBlockRegistry.registerModels();
+        }
+
+        // Register essentia interface models if ThaumicEnergistics is loaded
+        if (ThaumicEnergisticsIntegration.isModLoaded()) {
+            EssentiaBlockRegistry.registerModels();
         }
     }
 

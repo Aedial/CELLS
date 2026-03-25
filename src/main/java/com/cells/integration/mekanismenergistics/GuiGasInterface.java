@@ -119,7 +119,11 @@ public class GuiGasInterface extends AbstractResourceInterfaceGui<IGasInterfaceH
             return true;
         }
 
-        QuickAddHelper.sendNoValidError("gas");
+        // Show error if there was something under cursor (slot or JEI) that wasn't a gas
+        if (QuickAddHelper.hasAnythingUnderCursor(hoveredSlot)) {
+            QuickAddHelper.sendNoValidError("gas");
+        }
+
         return true;
     }
 }

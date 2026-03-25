@@ -14,6 +14,7 @@ import appeng.fluids.util.AEFluidStack;
 import com.cells.cells.creative.AbstractCreativeCellContainer;
 import com.cells.cells.creative.AbstractCreativeCellGui;
 import com.cells.gui.QuickAddHelper;
+import com.cells.gui.slots.FluidFilterSlot;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.sync.PacketQuickAddFilter;
 import com.cells.network.sync.PacketResourceSlot;
@@ -28,11 +29,8 @@ import com.cells.network.sync.ResourceType;
  */
 public class GuiCreativeFluidCell extends AbstractCreativeCellGui<ContainerCreativeFluidCell> {
 
-    private final CreativeFluidCellTankAdapter tankAdapter;
-
     public GuiCreativeFluidCell(InventoryPlayer playerInv, EnumHand hand) {
         super(new ContainerCreativeFluidCell(playerInv, hand));
-        this.tankAdapter = new CreativeFluidCellTankAdapter(this.container.getFilterHandler());
     }
 
     @Override
@@ -42,7 +40,7 @@ public class GuiCreativeFluidCell extends AbstractCreativeCellGui<ContainerCreat
 
     @Override
     protected GuiCustomSlot createSlotForIndex(int slotIndex, int x, int y) {
-        return new GuiCreativeFluidFilterSlot(this.tankAdapter, slotIndex, x, y);
+        return new FluidFilterSlot(container::getFilter, slotIndex, x, y);
     }
 
     @Override

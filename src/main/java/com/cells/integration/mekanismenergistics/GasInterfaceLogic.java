@@ -86,15 +86,6 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         this.host.markDirtyAndSave();
     }
 
-    @Nullable
-    public IAEGasStack getFilterGas(int slot) {
-        return getFilterResource(slot);
-    }
-
-    public void setFilterGas(int slot, @Nullable IAEGasStack gas) {
-        setFilterResource(slot, gas);
-    }
-
     public int insertGasIntoTank(int slot, GasStack gas) {
         return insertIntoSlot(slot, gas);
     }
@@ -106,10 +97,6 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
 
     public int insertGasIntoNetwork(GasStack gas) {
         return insertIntoNetwork(gas);
-    }
-
-    public boolean isTankEmpty(int slot) {
-        return isSlotEmpty(slot);
     }
 
     // ============================== Abstract method implementations ==============================

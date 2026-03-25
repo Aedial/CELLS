@@ -15,7 +15,9 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fml.common.Loader;
 
 import appeng.api.storage.data.IAEFluidStack;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.fluids.util.AEFluidStack;
+import appeng.util.item.AEItemStack;
 
 
 /**
@@ -63,7 +65,7 @@ public enum ResourceType {
 
         switch (this) {
             case ITEM:
-                writeItem(buf, (ItemStack) resource);
+                writeItem(buf, (IAEItemStack) resource);
                 break;
             case FLUID:
                 writeFluid(buf, (IAEFluidStack) resource);
@@ -101,17 +103,18 @@ public enum ResourceType {
 
     // ================================= Item Serialization =================================
 
-    private static void writeItem(ByteBuf buf, ItemStack stack) {
-        if (stack.isEmpty()) {
-            buf.writeInt(-1);
-            return;
-        }
+    /**
+     * Write an IAEItemStack to the buffer.
+     * Serializes the definition ItemStack internally but the API uses IAEItemStack.
+     */
+    private static void writeItem(ByteBuf buf, IAEItemStack stack) {
+        ItemStack definition = stack.getDefinition();
 
-        buf.writeInt(Item.getIdFromItem(stack.getItem()));
-        buf.writeInt(stack.getCount());
-        buf.writeShort(stack.getMetadata());
+        buf.writeInt(Item.getIdFromItem(definition.getItem()));
+        buf.writeLong(stack.getStackSize());
+        buf.writeShort(definition.getMetadata());
 
-        NBTTagCompound nbt = stack.getTagCompound();
+        NBTTagCompound nbt = definition.getTagCompound();
         if (nbt != null) {
             buf.writeBoolean(true);
             byte[] nbtBytes = nbt.toString().getBytes(StandardCharsets.UTF_8);
@@ -122,17 +125,21 @@ public enum ResourceType {
         }
     }
 
-    private static ItemStack readItem(ByteBuf buf) {
+    /**
+     * Read an IAEItemStack from the buffer.
+     */
+    @Nullable
+    private static IAEItemStack readItem(ByteBuf buf) {
         int itemId = buf.readInt();
-        if (itemId < 0) return ItemStack.EMPTY;
+        if (itemId < 0) return null;
 
         Item item = Item.getItemById(itemId);
-        if (item == null) return ItemStack.EMPTY;
+        if (item == null) return null;
 
-        int count = buf.readInt();
+        long count = buf.readLong();
         int meta = buf.readShort();
 
-        ItemStack stack = new ItemStack(item, count, meta);
+        ItemStack definition = new ItemStack(item, 1, meta);
 
         if (buf.readBoolean()) {
             int nbtLen = buf.readInt();
@@ -141,13 +148,16 @@ public enum ResourceType {
 
             try {
                 String nbtString = new String(nbtBytes, StandardCharsets.UTF_8);
-                stack.setTagCompound(JsonToNBT.getTagFromJson(nbtString));
+                definition.setTagCompound(JsonToNBT.getTagFromJson(nbtString));
             } catch (Exception e) {
                 // Failed to parse NBT, continue without it
             }
         }
 
-        return stack;
+        IAEItemStack result = AEItemStack.fromItemStack(definition);
+        if (result != null) result.setStackSize(count);
+
+        return result;
     }
 
     // ================================= Fluid Serialization =================================

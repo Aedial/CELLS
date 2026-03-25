@@ -12,8 +12,11 @@ import com.cells.gui.slots.AbstractResourceFilterSlot;
 import com.cells.gui.slots.AbstractResourceTankSlot;
 import com.cells.util.PollingRateUtils;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.inventory.Slot;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 
@@ -199,6 +202,30 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     // ============================== Common implementation ==============================
 
     @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        super.drawScreen(mouseX, mouseY, partialTicks);
+
+        // Re-render the held item AFTER custom slots.
+        // AEBaseGui renders guiSlots after super.drawScreen (which draws the held item),
+        // so stack size text (with disableDepth) appears on top of the held item.
+        // Re-rendering the held item here ensures it appears on top.
+        ItemStack heldStack = this.mc.player.inventory.getItemStack();
+        if (!heldStack.isEmpty()) {
+            GlStateManager.pushMatrix();
+            GlStateManager.translate(0, 0, 200);
+            RenderHelper.enableGUIStandardItemLighting();
+
+            int x = mouseX - 8;
+            int y = mouseY - 8;
+            this.itemRender.renderItemAndEffectIntoGUI(heldStack, x, y);
+            this.itemRender.renderItemOverlayIntoGUI(this.fontRenderer, heldStack, x, y, null);
+
+            RenderHelper.disableStandardItemLighting();
+            GlStateManager.popMatrix();
+        }
+    }
+
+    @Override
     public void initGui() {
         super.initGui();
 
@@ -269,7 +296,27 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
     @Override
     public void drawFG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        this.fontRenderer.drawString(I18n.format(this.host.getGuiTitleLangKey()), 8, 6, 0x404040);
+        // Draw title with truncation to avoid overlapping buttons
+        // Buttons start at x=132, so title max width is 132-8 = 124 pixels
+        final int maxTitleWidth = 124;
+        String title = I18n.format(this.host.getGuiTitleLangKey());
+        int titleWidth = this.fontRenderer.getStringWidth(title);
+
+        if (titleWidth > maxTitleWidth) {
+            // Truncate title and add ellipsis
+            String ellipsis = "...";
+            int ellipsisWidth = this.fontRenderer.getStringWidth(ellipsis);
+            int availableWidth = maxTitleWidth - ellipsisWidth;
+
+            // Trim characters until it fits
+            while (titleWidth > availableWidth && title.length() > 0) {
+                title = title.substring(0, title.length() - 1);
+                titleWidth = this.fontRenderer.getStringWidth(title);
+            }
+            title = title + ellipsis;
+        }
+
+        this.fontRenderer.drawString(title, 8, 6, 0x404040);
 
         // Draw controls help widget on the left side
         ImportInterfaceControlsHelper.drawControlsHelpWidget(
@@ -357,6 +404,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             if (filterSlot.convertToResource(ingredient) == null) continue;
 
             // Create JEI target using the slot's unified method
+            @SuppressWarnings("unchecked")
             Target<Object> target = filterSlot.createJEITarget(this::getGuiLeft, this::getGuiTop);
             targets.add(target);
             mapTargetSlot.putIfAbsent(target, slot);

@@ -16,6 +16,9 @@ The mod requires AE2-UEL. It also has support for:
 - Thaumic Energistics: Configurable Cell components
 - Mekanism Energistics: Configurable Cell components
 
+### My Essentia Storage Bus is not showing the right amounts!
+The Thaumic Energistics mod is particularly buggy and the version you are using likely has no changes detection on the Bus itself. You would need to force update, but it's not something I recommend.
+
 ### Why such heavy warnings on increasing number of types?
 Because of limitations in Minecraft and AE2 :
 - Let's take the default packet size of 2MB. It's what you are fixed to unless you use a mod to increase it. An enchanted piece of armor can take 100s-1000s of bytes of NBT data, a normal drive can store 10 cells, so 2MB / 1000B / 10 cells = a measly 200 different items before you hit the limit. That's really not a lot!

@@ -74,15 +74,6 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
         return getResourceInSlot(slot);
     }
 
-    @Nullable
-    public IAEFluidStack getFilterFluid(int slot) {
-        return getFilterResource(slot);
-    }
-
-    public void setFilterFluid(int slot, @Nullable IAEFluidStack fluid) {
-        setFilterResource(slot, fluid);
-    }
-
     public int insertFluidIntoTank(int slot, FluidStack fluid) {
         return insertIntoSlot(slot, fluid);
     }
@@ -98,10 +89,6 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
 
     public int findSlotForFluid(FluidStack fluid) {
         return findSlotForResource(fluid);
-    }
-
-    public boolean isTankEmpty(int slot) {
-        return isSlotEmpty(slot);
     }
 
     // ============================== Abstract method implementations ==============================

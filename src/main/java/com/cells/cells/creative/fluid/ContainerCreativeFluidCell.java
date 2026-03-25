@@ -85,13 +85,14 @@ public class ContainerCreativeFluidCell extends AbstractCreativeCellSyncContaine
         return fluid != null ? AEFluidStack.fromFluidStack(fluid) : null;
     }
 
-    // ================================= Filter Operations =================================
+    // ================================= GUI Support =================================
 
     /**
-     * Set a fluid filter at a specific slot (called from GUI/packet).
+     * Get filter at slot as IAEFluidStack for unified GUI slot rendering.
+     * This provides the same interface as fluid interfaces use.
      */
-    public void setFluidFilter(int slot, FluidStack fluid) {
-        if (slot < 0 || slot >= FILTER_SLOTS) return;
-        filterHandler.setFluidInSlot(slot, fluid);
+    @Nullable
+    public IAEFluidStack getFilter(int slot) {
+        return getSyncStack(slot);
     }
 }

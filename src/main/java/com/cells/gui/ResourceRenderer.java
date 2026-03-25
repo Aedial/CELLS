@@ -216,6 +216,10 @@ public final class ResourceRenderer {
     /**
      * Render a stack size in the corner of a slot, using the same scaling as FluidStackSizeRenderer.
      * Works with any numeric stack size (for gas, essentia, or other resources).
+     * <p>
+     * Disables depth testing so text renders on top of slot items. GUIs that use this
+     * should re-render the held item afterward to ensure proper layering (see
+     * {@code AbstractResourceInterfaceGui.renderHeldItemOnCursor}).
      *
      * @param fontRenderer The font renderer
      * @param stackSize The stack size to render

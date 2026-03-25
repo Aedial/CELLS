@@ -8,10 +8,9 @@ import net.minecraft.entity.player.EntityPlayer ;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
-import net.minecraftforge.items.IItemHandler;
-
 import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.networking.ticking.TickRateModulation;
+import appeng.tile.inventory.AppEngInternalInventory;
 
 
 /**
@@ -114,7 +113,27 @@ public interface IInterfaceLogic {
     /**
      * Get the upgrade inventory for this interface.
      */
-    IItemHandler getUpgradeInventory();
+    AppEngInternalInventory getUpgradeInventory();
+
+    /**
+     * Check if an item is a valid upgrade for this interface.
+     */
+    boolean isValidUpgrade(ItemStack stack);
+
+    /**
+     * @return true if the overflow upgrade is installed (import only).
+     */
+    boolean hasOverflowUpgrade();
+
+    /**
+     * @return true if the trash unselected upgrade is installed (import only).
+     */
+    boolean hasTrashUnselectedUpgrade();
+
+    /**
+     * Set polling rate with player feedback.
+     */
+    void setPollingRate(int ticks, EntityPlayer player);
 
     // ================================= Wake Logic =================================
 

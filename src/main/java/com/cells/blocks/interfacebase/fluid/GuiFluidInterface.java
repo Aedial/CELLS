@@ -88,7 +88,7 @@ public class GuiFluidInterface extends AbstractResourceInterfaceGui<IFluidInterf
     @Override
     protected GuiCustomSlot createFilterSlotForIndex(int displaySlot, int x, int y) {
         return new FluidFilterSlot(
-            this.host::getFilterFluid, displaySlot, x, y,
+            this.host::getFilter, displaySlot, x, y,
             () -> this.container.currentPage * SLOTS_PER_PAGE
         );
     }
@@ -113,7 +113,11 @@ public class GuiFluidInterface extends AbstractResourceInterfaceGui<IFluidInterf
             return true;
         }
 
-        QuickAddHelper.sendNoValidError("fluid");
+        // Show error if there was something under cursor (slot or JEI) that wasn't a fluid
+        if (QuickAddHelper.hasAnythingUnderCursor(hoveredSlot)) {
+            QuickAddHelper.sendNoValidError("fluid");
+        }
+
         return true;
     }
 }

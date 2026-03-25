@@ -1,13 +1,6 @@
 package com.cells.parts;
 
-import java.util.EnumSet;
-
-import javax.annotation.Nonnull;
-
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.items.CapabilityItemHandler;
@@ -15,13 +8,11 @@ import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.items.parts.PartModels;
 import appeng.parts.PartModel;
-import appeng.tile.inventory.AppEngInternalInventory;
 
 import com.cells.Tags;
 import com.cells.blocks.interfacebase.item.IItemInterfaceHost;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
-import com.cells.util.ItemStackKey;
 
 
 /**
@@ -52,8 +43,6 @@ public class PartImportInterface extends AbstractInterfacePart<ItemInterfaceLogi
         setLogic(new ItemInterfaceLogic(this));
     }
 
-    // ============================== AbstractInterfacePart implementation ==============================
-
     @Override
     protected PartModel getModelOff() {
         return MODELS_OFF;
@@ -68,6 +57,8 @@ public class PartImportInterface extends AbstractInterfacePart<ItemInterfaceLogi
     protected PartModel getModelHasChannel() {
         return MODELS_HAS_CHANNEL;
     }
+
+    // TODO: refactor card name with tile.cells.import_interface + logic.getTypeName()
 
     @Override
     protected String getMemoryCardName() {
@@ -84,8 +75,6 @@ public class PartImportInterface extends AbstractInterfacePart<ItemInterfaceLogi
         return CellsGuiHandler.GUI_PART_IMPORT_INTERFACE;
     }
 
-    // ============================== IItemInterfaceHost delegation ==============================
-
     @Override
     public IItemHandlerModifiable getFilterInventory() {
         return this.logic.getFilterInventory();
@@ -97,107 +86,9 @@ public class PartImportInterface extends AbstractInterfacePart<ItemInterfaceLogi
     }
 
     @Override
-    public AppEngInternalInventory getUpgradeInventory() {
-        return this.logic.getUpgradeInventory();
-    }
-
-    @Override
     public boolean isItemValidForSlot(int slot, ItemStack stack) {
         return this.logic.isItemValidForSlot(slot, stack);
     }
-
-    @Override
-    public void refreshFilterMap() {
-        this.logic.refreshFilterMap();
-    }
-
-    @Override
-    public void refreshUpgrades() {
-        this.logic.refreshUpgrades();
-    }
-
-    @Override
-    public boolean isValidUpgrade(ItemStack stack) {
-        return this.logic.isValidUpgrade(stack);
-    }
-
-    @Override
-    public int getMaxSlotSize() {
-        return this.logic.getMaxSlotSize();
-    }
-
-    @Override
-    public void setMaxSlotSize(int size) {
-        this.logic.setMaxSlotSize(size);
-    }
-
-    @Override
-    public int getPollingRate() {
-        return this.logic.getPollingRate();
-    }
-
-    @Override
-    public void setPollingRate(int ticks) {
-        this.logic.setPollingRate(ticks);
-    }
-
-    public void setPollingRate(int ticks, EntityPlayer player) {
-        this.logic.setPollingRate(ticks, player);
-    }
-
-    @Override
-    public int getInstalledCapacityUpgrades() {
-        return this.logic.getInstalledCapacityUpgrades();
-    }
-
-    @Override
-    public int getTotalPages() {
-        return this.logic.getTotalPages();
-    }
-
-    @Override
-    public int getCurrentPage() {
-        return this.logic.getCurrentPage();
-    }
-
-    @Override
-    public void setCurrentPage(int page) {
-        this.logic.setCurrentPage(page);
-    }
-
-    @Override
-    public int getCurrentPageStartSlot() {
-        return this.logic.getCurrentPageStartSlot();
-    }
-
-    @Override
-    public boolean hasOverflowUpgrade() {
-        return this.logic.hasOverflowUpgrade();
-    }
-
-    @Override
-    public boolean hasTrashUnselectedUpgrade() {
-        return this.logic.hasTrashUnselectedUpgrade();
-    }
-
-    // ============================== IFilterableInterfaceHost delegation ==============================
-
-    @Override
-    public boolean isInFilter(@Nonnull ItemStackKey key) {
-        return this.logic.isInFilter(key);
-    }
-
-    @Override
-    public int findSlotByKey(@Nonnull ItemStackKey key) {
-        return this.logic.findSlotByKey(key);
-    }
-
-    @Override
-    public int addToFirstAvailableSlot(@Nonnull ItemStack stack) {
-        return this.logic.addToFirstAvailableSlot(stack);
-    }
-
-    // ============================== Capability handling ==============================
 
     @Override
     public boolean hasCapability(Capability<?> capability) {
@@ -211,11 +102,5 @@ public class PartImportInterface extends AbstractInterfacePart<ItemInterfaceLogi
             return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(this.logic.getExternalHandler());
         }
         return super.getCapability(capability);
-    }
-
-    // ============================== Utility methods ==============================
-
-    public EnumSet<EnumFacing> getTargets() {
-        return EnumSet.of(this.getSide().getFacing());
     }
 }

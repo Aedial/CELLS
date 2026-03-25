@@ -13,7 +13,10 @@ import net.minecraft.tileentity.TileEntity;
 
 import net.minecraftforge.items.IItemHandlerModifiable;
 
+import appeng.api.AEApi;
 import appeng.api.parts.IPart;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEItemStack;
 
 import com.cells.blocks.interfacebase.AbstractContainerInterface;
 import com.cells.gui.slots.PagedItemHandler;
@@ -31,7 +34,7 @@ import com.cells.util.ItemStackKey;
  * Layout: 4 rows of slots (filter above storage), 4 upgrade slots on the right.
  */
 public class ContainerItemInterface
-    extends AbstractContainerInterface<ItemStack, ItemStackKey, IItemInterfaceHost> {
+    extends AbstractContainerInterface<IAEItemStack, ItemStackKey, IItemInterfaceHost> {
 
     /** Paged handler for storage inventory (actual items). */
     private final PagedItemHandler pagedStorageHandler;
@@ -109,19 +112,19 @@ public class ContainerItemInterface
 
     @Override
     @Nullable
-    protected ItemStackKey createKey(@Nullable ItemStack stack) {
-        if (stack == null || stack.isEmpty()) return null;
-        return ItemStackKey.of(stack);
+    protected ItemStackKey createKey(@Nullable IAEItemStack stack) {
+        if (stack == null) return null;
+        return ItemStackKey.of(stack.getDefinition());
     }
 
     @Override
     @Nullable
-    protected ItemStack getFilter(int slot) {
+    protected IAEItemStack getFilter(int slot) {
         return this.host.getFilter(slot);
     }
 
     @Override
-    protected void setFilter(int slot, @Nullable ItemStack stack) {
+    protected void setFilter(int slot, @Nullable IAEItemStack stack) {
         this.host.setFilter(slot, stack);
     }
 
@@ -137,34 +140,34 @@ public class ContainerItemInterface
 
     @Override
     @Nullable
-    protected ItemStack extractFilterFromContainer(ItemStack container) {
-        // For items, the container IS the filter (return single-count copy)
+    protected IAEItemStack extractFilterFromContainer(ItemStack container) {
+        // For items, the container IS the filter (return single-count AE stack)
         if (container.isEmpty()) return null;
         ItemStack filter = container.copy();
         filter.setCount(1);
-        return filter;
+        return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(filter);
     }
 
     @Override
     @Nonnull
-    protected ItemStack createFilterStack(@Nonnull ItemStack raw) {
-        ItemStack filter = raw.copy();
-        filter.setCount(1);
+    protected IAEItemStack createFilterStack(@Nonnull IAEItemStack raw) {
+        IAEItemStack filter = raw.copy();
+        filter.setStackSize(1);
         return filter;
     }
 
     @Override
     @Nullable
-    protected ItemStack copyFilter(@Nullable ItemStack filter) {
-        if (filter == null || filter.isEmpty()) return null;
+    protected IAEItemStack copyFilter(@Nullable IAEItemStack filter) {
+        if (filter == null) return null;
         return filter.copy();
     }
 
     @Override
-    protected boolean filtersEqual(@Nullable ItemStack a, @Nullable ItemStack b) {
-        if (a == null || a.isEmpty()) return b == null || b.isEmpty();
-        if (b == null || b.isEmpty()) return false;
-        return ItemStack.areItemsEqual(a, b) && ItemStack.areItemStackTagsEqual(a, b);
+    protected boolean filtersEqual(@Nullable IAEItemStack a, @Nullable IAEItemStack b) {
+        if (a == null) return b == null;
+        if (b == null) return false;
+        return a.equals(b);
     }
 
     // ================================= Storage Slot Actions =================================

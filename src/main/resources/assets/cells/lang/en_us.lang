@@ -362,24 +362,30 @@ item.cells.singularity_processor.logic.name=Singularity Logic Processor
 tile.cells.import_interface.name=Import Interface
 tile.cells.import_interface.fluid.name=Fluid Import Interface
 tile.cells.import_interface.gas.name=Gas Import Interface
+tile.cells.import_interface.essentia.name=Essentia Import Interface
 tile.cells.export_interface.name=Export Interface
 tile.cells.export_interface.fluid.name=Fluid Export Interface
 tile.cells.export_interface.gas.name=Gas Export Interface
+tile.cells.export_interface.essentia.name=Essentia Export Interface
 
 item.cells.part.import_interface.name=Import Interface
 item.cells.part.import_fluid_interface.name=Fluid Import Interface
 item.cells.part.import_gas_interface.name=Gas Import Interface
+item.cells.part.import_essentia_interface.name=Essentia Import Interface
 item.cells.part.export_interface.name=Export Interface
 item.cells.part.export_fluid_interface.name=Fluid Export Interface
 item.cells.part.export_gas_interface.name=Gas Export Interface
+item.cells.part.export_essentia_interface.name=Essentia Export Interface
 
 # Interface GUI titles (format: cells.{direction}_interface.{type}.title)
 cells.import_interface.item.title=Import Interface
 cells.import_interface.fluid.title=Fluid Import Interface
 cells.import_interface.gas.title=Gas Import Interface
+cells.import_interface.essentia.title=Essentia Import Interface
 cells.export_interface.item.title=Export Interface
 cells.export_interface.fluid.title=Fluid Export Interface
 cells.export_interface.gas.title=Gas Export Interface
+cells.export_interface.essentia.title=Essentia Export Interface
 
 # Info tooltips for block items
 ## Item interfaces (hardcoded in BlockImportInterface/BlockExportInterface)
@@ -393,6 +399,10 @@ tooltip.cells.import_interface.gas.info=Import gas into the ME network.
 tooltip.cells.export_interface.gas.info=Export gas from the ME network through filtered slots. Gas can be extracted by pipes.
 tooltip.cells.import_interface.essentia.info=Import essentia into the ME network.
 tooltip.cells.export_interface.essentia.info=Export essentia from the ME network through filtered slots. Essentia can be extracted by tubes.
+tooltip.cells.export_interface.essentia.part.info=Export essentia from the ME network through filtered slots.
+
+# Essentia part warning (parts cannot participate in tube network)
+tooltip.cells.essentia_part.no_tubes=§eCannot interact with Thaumcraft tubes/Storage Bus
 
 # Configurable Cell warnings
 cells.configurable_cell.split_stack=Split the cell stack first, before inserting a component.

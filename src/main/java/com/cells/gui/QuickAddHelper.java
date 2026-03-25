@@ -108,6 +108,25 @@ public class QuickAddHelper {
     }
 
     /**
+     * Check if there is anything under the cursor (slot or JEI).
+     * Used to determine if quick-add should show an error for invalid content.
+     *
+     * @param hoveredSlot The currently hovered inventory slot (or null)
+     * @return true if there's something under the cursor that we should validate
+     */
+    public static boolean hasAnythingUnderCursor(@Nullable Slot hoveredSlot) {
+        // Check inventory slot first
+        if (hoveredSlot != null && hoveredSlot.getHasStack()) return true;
+
+        // Check JEI if available
+        if (Loader.isModLoaded("jei")) {
+            return com.cells.integration.jei.CellsJEIPlugin.getIngredientUnderMouse() != null;
+        }
+
+        return false;
+    }
+
+    /**
      * Send a "no space" error message to the player.
      */
     public static void sendNoSpaceError() {

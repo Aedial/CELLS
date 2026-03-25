@@ -178,7 +178,7 @@ public class ContainerFluidInterface
         if (fh == null) return false;
 
         // Check if the slot has a filter set
-        IAEFluidStack filterFluid = this.host.getFilterFluid(slot);
+        IAEFluidStack filterFluid = this.host.getFilter(slot);
 
         // Check what fluid is in the container
         FluidStack drainable = fh.drain(Integer.MAX_VALUE, false);

@@ -83,7 +83,13 @@ public class PacketQuickAddFilter implements IMessage {
                 IQuickAddFilterContainer quickAddContainer = (IQuickAddFilterContainer) container;
 
                 // Verify resource type matches
-                if (quickAddContainer.getQuickAddResourceType() != message.type) return;
+                if (quickAddContainer.getQuickAddResourceType() != message.type) {
+                    player.sendMessage(new TextComponentTranslation(
+                        "message.cells.not_valid_content",
+                        new TextComponentTranslation(quickAddContainer.getTypeLocalizationKey())
+                    ));
+                    return;
+                }
 
                 // Null/empty resource check
                 if (message.resource == null) {

@@ -31,6 +31,7 @@ import com.cells.integration.mekanismenergistics.CreativeGasCellGuiHandler;
 import com.cells.integration.mekanismenergistics.GasInterfaceGuiHandler;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.CreativeEssentiaCellGuiHandler;
+import com.cells.integration.thaumicenergistics.EssentiaInterfaceGuiHandler;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 
 
@@ -66,6 +67,10 @@ public class CellsGuiHandler implements IGuiHandler {
     private GasInterfaceGuiHandler gasGuiHandler;
     private boolean gasGuiHandlerChecked = false;
 
+    // Lazily initialized essentia GUI handler (null if ThaumicEnergistics not loaded)
+    private EssentiaInterfaceGuiHandler essentiaGuiHandler;
+    private boolean essentiaGuiHandlerChecked = false;
+
     // Lazily initialized creative cell GUI handlers for optional mods
     private CreativeGasCellGuiHandler creativeGasGuiHandler;
     private boolean creativeGasGuiHandlerChecked = false;
@@ -91,6 +96,19 @@ public class CellsGuiHandler implements IGuiHandler {
             }
         }
         return gasGuiHandler;
+    }
+
+    /**
+     * Get the essentia GUI handler, creating it if necessary and ThaumicEnergistics is loaded.
+     */
+    private EssentiaInterfaceGuiHandler getEssentiaGuiHandler() {
+        if (!essentiaGuiHandlerChecked) {
+            essentiaGuiHandlerChecked = true;
+            if (ThaumicEnergisticsIntegration.isModLoaded()) {
+                essentiaGuiHandler = new EssentiaInterfaceGuiHandler();
+            }
+        }
+        return essentiaGuiHandler;
     }
 
     /**
@@ -125,6 +143,12 @@ public class CellsGuiHandler implements IGuiHandler {
         GasInterfaceGuiHandler gasHandler = getGasGuiHandler();
         if (gasHandler != null && GasInterfaceGuiHandler.isGasInterfaceGuiId(id)) {
             return gasHandler.getServerGuiElement(id, player, world, x, y, z);
+        }
+
+        // Delegate to essentia GUI handler if this is an essentia GUI ID
+        EssentiaInterfaceGuiHandler essentiaHandler = getEssentiaGuiHandler();
+        if (essentiaHandler != null && EssentiaInterfaceGuiHandler.isEssentiaInterfaceGuiId(id)) {
+            return essentiaHandler.getServerGuiElement(id, player, world, x, y, z);
         }
 
         // Delegate to creative gas cell GUI handler
@@ -260,6 +284,12 @@ public class CellsGuiHandler implements IGuiHandler {
         GasInterfaceGuiHandler gasHandler = getGasGuiHandler();
         if (gasHandler != null && GasInterfaceGuiHandler.isGasInterfaceGuiId(id)) {
             return gasHandler.getClientGuiElement(id, player, world, x, y, z);
+        }
+
+        // Delegate to essentia GUI handler if this is an essentia GUI ID
+        EssentiaInterfaceGuiHandler essentiaHandler = getEssentiaGuiHandler();
+        if (essentiaHandler != null && EssentiaInterfaceGuiHandler.isEssentiaInterfaceGuiId(id)) {
+            return essentiaHandler.getClientGuiElement(id, player, world, x, y, z);
         }
 
         // Delegate to creative gas cell GUI handler

@@ -12,6 +12,8 @@ import appeng.api.parts.IPartModels;
 
 import com.cells.integration.mekanismenergistics.GasBlockRegistry;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
+import com.cells.integration.thaumicenergistics.EssentiaBlockRegistry;
+import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 
 
 /**
@@ -32,6 +34,11 @@ public class PartRegistry {
         // Register gas part models if MekanismEnergistics is loaded
         if (MekanismEnergisticsIntegration.isModLoaded()) {
             GasBlockRegistry.registerPartModels();
+        }
+
+        // Register essentia part models if ThaumicEnergistics is loaded
+        if (ThaumicEnergisticsIntegration.isModLoaded()) {
+            EssentiaBlockRegistry.registerPartModels();
         }
     }
 

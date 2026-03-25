@@ -8,6 +8,9 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 
+import appeng.api.AEApi;
+import appeng.api.storage.channels.IItemStorageChannel;
+import appeng.api.storage.data.IAEItemStack;
 import appeng.client.gui.widgets.GuiCustomSlot;
 
 import com.cells.cells.creative.AbstractCreativeCellContainer;
@@ -39,10 +42,7 @@ public class GuiCreativeCell extends AbstractCreativeCellGui<ContainerCreativeCe
 
     @Override
     protected GuiCustomSlot createSlotForIndex(int slotIndex, int x, int y) {
-        return new ItemFilterSlot(
-            slot -> container.getFilterHandler().getStackInSlot(slot),
-            slotIndex, x, y
-        );
+        return new ItemFilterSlot(container::getFilter, slotIndex, x, y);
     }
 
     @Override
@@ -62,7 +62,8 @@ public class GuiCreativeCell extends AbstractCreativeCellGui<ContainerCreativeCe
         ItemStack item = QuickAddHelper.getItemUnderCursor(hoveredSlot);
 
         if (!item.isEmpty()) {
-            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFilter(ResourceType.ITEM, item));
+            IAEItemStack iaeItem = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(item);
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketQuickAddFilter(ResourceType.ITEM, iaeItem));
             return true;
         }
 

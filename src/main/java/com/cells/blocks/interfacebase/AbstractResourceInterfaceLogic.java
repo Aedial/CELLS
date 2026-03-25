@@ -57,7 +57,8 @@ import com.cells.util.TickManagerHelper;
  * Subclasses must implement the type-specific operations for resource handling,
  * NBT serialization, and ME network interactions.
  */
-public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>, K> implements IInterfaceLogic {
+public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>, K>
+        implements IResourceInterfaceLogic<AE, K> {
 
     /**
      * Callback interface that the host (tile or part) implements to provide
@@ -308,10 +309,17 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
         // Rebuild filter map since storage changed
         refreshFilterMap();
+
+        // Trigger network update to sync storage to clients
+        this.host.markForNetworkUpdate();
+
+        // Wake up to process the new content (import will push to network)
+        this.wakeUpIfAdaptive();
     }
 
+    @Override
     @Nullable
-    public AE getFilterResource(int slot) {
+    public AE getFilter(int slot) {
         if (slot < 0 || slot >= FILTER_SLOTS) return null;
 
         R filter = this.filters[slot];
@@ -321,7 +329,8 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /**
      * Set the filter for a slot. Subclasses may override to add callbacks.
      */
-    public void setFilterResource(int slot, @Nullable AE aeResource) {
+    @Override
+    public void setFilter(int slot, @Nullable AE aeResource) {
         if (slot < 0 || slot >= FILTER_SLOTS) return;
 
         this.filters[slot] = aeResource != null ? copyWithAmount(fromAEStack(aeResource), 1) : null;
@@ -560,6 +569,10 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                     player.sendMessage(new TextComponentTranslation("message.cells.polling_rate_delayed"));
                 }
             }
+
+            // When switching to adaptive mode, wake up the interface immediately
+            // to prevent it from sleeping indefinitely waiting for external triggers.
+            this.wakeUpIfAdaptive();
         }
     }
 
@@ -802,6 +815,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @param key The key to check
      * @return true if a filter exists for this key
      */
+    @Override
     public boolean isInFilter(@Nonnull K key) {
         return this.filterToSlotMap.containsKey(key);
     }
@@ -826,6 +840,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @param key The key to find
      * @return The slot index, or -1 if not found
      */
+    @Override
     public int findSlotByKey(@Nonnull K key) {
         Integer slot = this.filterToSlotMap.get(key);
         return slot != null ? slot : -1;
@@ -846,6 +861,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @param slot The slot index
      * @return true if the storage slot is empty
      */
+    @Override
     public boolean isStorageEmpty(int slot) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return true;
 
@@ -887,6 +903,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @param aeResource The AE-wrapped resource to add as a filter
      * @return The slot index where the filter was added, or -1 if no space available
      */
+    @Override
     public int addToFirstAvailableSlotAE(@Nonnull AE aeResource) {
         R resource = fromAEStack(aeResource);
         return addToFirstAvailableSlot(resource);
@@ -1493,12 +1510,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 AE extracted = inventory.extractItems(request, Actionable.MODULATE, this.host.getActionSource());
                 if (extracted == null || getAEStackSize(extracted) <= 0) continue;
 
-                // Add to storage
-                int amount = (int) getAEStackSize(extracted);
+                // Add to storage (clamp to prevent overflow)
+                int amount = Math.min((int) getAEStackSize(extracted), space);
                 if (current == null) {
                     this.storage[i] = fromAEStack(extracted);
                 } else {
-                    setAmount(current, getAmount(current) + amount);
+                    setAmount(current, currentAmount + amount);
                 }
 
                 didWork = true;
