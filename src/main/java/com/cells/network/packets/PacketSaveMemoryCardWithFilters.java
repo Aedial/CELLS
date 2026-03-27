@@ -118,7 +118,7 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
                     }
                 }
 
-                if (data != null && name != null && !data.isEmpty()) {
+                if (data != null && !data.isEmpty()) {
                     memoryCard.setMemoryCardContents(heldItem, name, data);
                     player.sendMessage(new TextComponentTranslation("message.cells.memory_card.filters_saved"));
                 }

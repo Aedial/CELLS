@@ -24,6 +24,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
@@ -61,6 +62,7 @@ public class ItemRecoveryContainer extends Item {
     // NBT keys
     private static final String NBT_TYPE = "DropType";
     private static final String NBT_FLUID_NAME = "FluidName";
+    private static final String NBT_FLUID_TAG = "FluidTag";
     private static final String NBT_AMOUNT = "Amount";
     // For gas/essentia integration
     private static final String NBT_GAS_NAME = "GasName";
@@ -100,9 +102,17 @@ public class ItemRecoveryContainer extends Item {
     public static ItemStack createForFluid(@Nullable FluidStack fluid) {
         if (fluid == null || fluid.amount <= 0) return ItemStack.EMPTY;
 
-        // FIXME: Fluid's NBT doesn't seem to be saved (will be bad for potions, f.e.)
+        NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setInteger(NBT_TYPE, TYPE_FLUID);
+        nbt.setString(NBT_FLUID_NAME, fluid.getFluid().getName());
+        nbt.setInteger(NBT_AMOUNT, fluid.amount);
 
-        return create(TYPE_FLUID, NBT_FLUID_NAME, fluid.getFluid().getName(), fluid.amount);
+        // Store fluid's NBT (for potions, etc.)
+        if (fluid.tag != null) nbt.setTag(NBT_FLUID_TAG, fluid.tag.copy());
+
+        ItemStack stack = new ItemStack(ItemRegistry.RECOVERY_CONTAINER);
+        stack.setTagCompound(nbt);
+        return stack;
     }
 
     /**
@@ -137,7 +147,7 @@ public class ItemRecoveryContainer extends Item {
      * Get the type (TYPE_FLUID, TYPE_GAS, or TYPE_ESSENTIA).
      */
     public static int getType(ItemStack stack) {
-        if (stack.isEmpty() || !stack.hasTagCompound()) return TYPE_FLUID;
+        if (!stack.hasTagCompound()) return TYPE_FLUID;
 
         return stack.getTagCompound().getInteger(NBT_TYPE);
     }
@@ -159,7 +169,7 @@ public class ItemRecoveryContainer extends Item {
      * Get the stored amount.
      */
     public static int getAmount(ItemStack stack) {
-        if (stack.isEmpty() || !stack.hasTagCompound()) return 0;
+        if (!stack.hasTagCompound()) return 0;
 
         return stack.getTagCompound().getInteger(NBT_AMOUNT);
     }
@@ -168,7 +178,7 @@ public class ItemRecoveryContainer extends Item {
      * Set the stored amount. If amount <= 0, the stack should be discarded.
      */
     public static void setAmount(ItemStack stack, int amount) {
-        if (stack.isEmpty() || !stack.hasTagCompound()) return;
+        if (!stack.hasTagCompound()) return;
 
         stack.getTagCompound().setInteger(NBT_AMOUNT, amount);
     }
@@ -178,7 +188,7 @@ public class ItemRecoveryContainer extends Item {
      */
     @Nullable
     public static String getFluidName(ItemStack stack) {
-        if (stack.isEmpty() || !stack.hasTagCompound()) return null;
+        if (!stack.hasTagCompound()) return null;
         if (getType(stack) != TYPE_FLUID) return null;
 
         return stack.getTagCompound().getString(NBT_FLUID_NAME);
@@ -195,7 +205,15 @@ public class ItemRecoveryContainer extends Item {
         Fluid fluid = FluidRegistry.getFluid(fluidName);
         if (fluid == null) return null;
 
-        return new FluidStack(fluid, getAmount(stack));
+        FluidStack fluidStack = new FluidStack(fluid, getAmount(stack));
+
+        // Restore fluid's NBT (for potions, etc.)
+        NBTTagCompound itemNbt = stack.getTagCompound();
+        if (itemNbt != null && itemNbt.hasKey(NBT_FLUID_TAG, Constants.NBT.TAG_COMPOUND)) {
+            fluidStack.tag = itemNbt.getCompoundTag(NBT_FLUID_TAG).copy();
+        }
+
+        return fluidStack;
     }
 
     /**
@@ -203,7 +221,7 @@ public class ItemRecoveryContainer extends Item {
      */
     @Nullable
     public static String getGasName(ItemStack stack) {
-        if (stack.isEmpty() || !stack.hasTagCompound()) return null;
+        if (!stack.hasTagCompound()) return null;
         if (getType(stack) != TYPE_GAS) return null;
 
         return stack.getTagCompound().getString(NBT_GAS_NAME);
@@ -214,7 +232,7 @@ public class ItemRecoveryContainer extends Item {
      */
     @Nullable
     public static String getEssentiaTag(ItemStack stack) {
-        if (stack.isEmpty() || !stack.hasTagCompound()) return null;
+        if (!stack.hasTagCompound()) return null;
         if (getType(stack) != TYPE_ESSENTIA) return null;
 
         return stack.getTagCompound().getString(NBT_ESSENTIA_TAG);
@@ -383,7 +401,7 @@ public class ItemRecoveryContainer extends Item {
             TextureAtlasSprite sprite = Minecraft.getMinecraft().getTextureMapBlocks()
                 .getAtlasSprite(fluid.getStill(fluidStack).toString());
 
-            if (sprite == null || sprite.getFrameCount() == 0) return cacheColor(key, 0xFFFFFF);
+            if (sprite.getFrameCount() == 0) return cacheColor(key, 0xFFFFFF);
 
             // Sample the center pixel of the first frame
             int width = sprite.getIconWidth();
@@ -393,7 +411,7 @@ public class ItemRecoveryContainer extends Item {
 
             // getFrameTextureData returns [frame][pixel data as ARGB]
             int[][] frameData = sprite.getFrameTextureData(0);
-            if (frameData == null || frameData.length == 0 || frameData[0] == null) {
+            if (frameData.length == 0 || frameData[0] == null) {
                 return cacheColor(key, 0xFFFFFF);
             }
 
@@ -434,9 +452,7 @@ public class ItemRecoveryContainer extends Item {
 
         // On client side, always return SUCCESS to prevent the block GUI from opening.
         // The transfer (or failure message) will be handled server-side.
-        if (world.isRemote) {
-            return EnumActionResult.SUCCESS;
-        }
+        if (world.isRemote) return EnumActionResult.SUCCESS;
 
         int transferred = 0;
 

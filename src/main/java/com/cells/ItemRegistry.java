@@ -20,7 +20,6 @@ import com.cells.cells.configurable.ChannelType;
 import com.cells.cells.configurable.ComponentHelper;
 import com.cells.cells.configurable.ComponentInfo;
 import com.cells.cells.configurable.ItemConfigurableCell;
-import com.cells.cells.creative.AbstractCreativeCellItem;
 import com.cells.cells.creative.item.ItemCreativeCell;
 import com.cells.cells.creative.fluid.ItemCreativeFluidCell;
 import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingCell;
@@ -31,6 +30,7 @@ import com.cells.cells.hyperdensity.fluid.ItemFluidHyperDensityCell;
 import com.cells.cells.hyperdensity.fluid.ItemFluidHyperDensityComponent;
 import com.cells.cells.normal.compacting.ItemCompactingCell;
 import com.cells.cells.normal.compacting.ItemCompactingComponent;
+import com.cells.client.CellTextureColors;
 import com.cells.config.CellsConfig;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
@@ -270,66 +270,67 @@ public class ItemRegistry {
                 makeModelLocation(SINGULARITY_PROCESSOR, "processors", "_" + singularityTypes[i]));
         }
 
-        // Register compacting cell models for each tier (cells/compacting)
+        // Register compacting cell models (point directly to generic layered models)
         if (COMPACTING_CELL != null) {
             String[] cellTiers = ItemCompactingCell.getTierNames();
             for (int i = 0; i < cellTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(COMPACTING_CELL, i,
-                    makeModelLocation(COMPACTING_CELL, "cells/compacting", "_" + cellTiers[i]));
+                    makeLayeredModelLocation("normal", CellTextureColors.getShapeIndex(i)));
             }
 
+            // Components use layered models with tintable wave layer
             String[] componentTiers = ItemCompactingComponent.getTierNames();
             for (int i = 0; i < componentTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(COMPACTING_COMPONENT, i,
-                    makeModelLocation(COMPACTING_COMPONENT, "cells/compacting", "_" + componentTiers[i]));
+                    makeComponentLayeredModelLocation("normal", componentTiers[i]));
             }
         }
 
-        // Register hyper-density cell models for each tier (cells/hyper_density)
+        // Register hyper-density cell models (point directly to generic layered models)
         if (HYPER_DENSITY_CELL != null) {
             String[] hdCellTiers = ItemHyperDensityCell.getTierNames();
             for (int i = 0; i < hdCellTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(HYPER_DENSITY_CELL, i,
-                    makeModelLocation(HYPER_DENSITY_CELL, "cells/hyper_density", "_" + hdCellTiers[i]));
+                    makeLayeredModelLocation("hyper_density", CellTextureColors.getShapeIndex(i)));
             }
 
             String[] hdComponentTiers = ItemHyperDensityComponent.getTierNames();
             for (int i = 0; i < hdComponentTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(HYPER_DENSITY_COMPONENT, i,
-                    makeModelLocation(HYPER_DENSITY_COMPONENT, "cells/hyper_density", "_" + hdComponentTiers[i]));
+                    makeComponentLayeredModelLocation("hyper_density", hdComponentTiers[i]));
             }
         }
 
-        // Register hyper-density compacting cell models for each tier (cells/hyper_density_compacting)
+        // Register hyper-density compacting cell models (point directly to generic layered models)
         if (HYPER_DENSITY_COMPACTING_CELL != null) {
             String[] hdCompactingCellTiers = ItemHyperDensityCompactingCell.getTierNames();
             for (int i = 0; i < hdCompactingCellTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(HYPER_DENSITY_COMPACTING_CELL, i,
-                    makeModelLocation(HYPER_DENSITY_COMPACTING_CELL, "cells/hyper_density_compacting", "_" + hdCompactingCellTiers[i]));
+                    makeLayeredModelLocation("hyper_density", CellTextureColors.getShapeIndex(i)));
             }
 
             String[] hdCompactingComponentTiers = ItemHyperDensityCompactingComponent.getTierNames();
             for (int i = 0; i < hdCompactingComponentTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(HYPER_DENSITY_COMPACTING_COMPONENT, i,
-                    makeModelLocation(HYPER_DENSITY_COMPACTING_COMPONENT, "cells/hyper_density_compacting", "_" + hdCompactingComponentTiers[i]));
+                    makeComponentLayeredModelLocation("hyper_density", hdCompactingComponentTiers[i]));
             }
         }
 
         // Register configurable cell model (cells/configurable)
         if (CONFIGURABLE_CELL != null) registerConfigurableCellModels();
 
-        // Register fluid hyper-density cell models for each tier (cells/hyper_density)
+        // Register fluid hyper-density cell models (point directly to generic layered models)
         if (FLUID_HYPER_DENSITY_CELL != null) {
             String[] fluidHdCellTiers = ItemFluidHyperDensityCell.getTierNames();
             for (int i = 0; i < fluidHdCellTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(FLUID_HYPER_DENSITY_CELL, i,
-                    makeModelLocation(FLUID_HYPER_DENSITY_CELL, "cells/hyper_density_fluid", "_" + fluidHdCellTiers[i]));
+                    makeLayeredModelLocation("hyper_density", CellTextureColors.getShapeIndex(i)));
             }
 
             String[] fluidHdComponentTiers = ItemFluidHyperDensityComponent.getTierNames();
             for (int i = 0; i < fluidHdComponentTiers.length; i++) {
                 ModelLoader.setCustomModelResourceLocation(FLUID_HYPER_DENSITY_COMPONENT, i,
-                    makeModelLocation(FLUID_HYPER_DENSITY_COMPONENT, "cells/hyper_density_fluid", "_" + fluidHdComponentTiers[i]));
+                    makeComponentLayeredModelLocation("hyper_density", fluidHdComponentTiers[i]));
             }
         }
 
@@ -356,37 +357,111 @@ public class ItemRegistry {
 
     @SideOnly(Side.CLIENT)
     private static void registerConfigurableCellModels() {
-        // Register base model + all tier/channel variants so the model bakery knows about them
-        ModelResourceLocation base = makeModelLocation(CONFIGURABLE_CELL, "cells/configurable");
+        // Base model (empty cell, no component installed) uses the original configurable_cell.json
+        ModelResourceLocation base = makeModelLocation(CONFIGURABLE_CELL, "cells");
 
-        // Use dynamically registered tier names from the whitelist, separated by channel type
-        Map<ChannelType, Set<String>> tiersByChannel = ComponentHelper.getRegisteredTierNamesByChannel();
-
+        // Collect all model variants
         List<ModelResourceLocation> variants = new ArrayList<>();
         variants.add(base);
 
-        // Register each tier for each channel type with the appropriate model suffix
+        // Add all 6 shape indices for normal frame (used by known tiers: 1k-2g)
+        for (int shape = 0; shape < 6; shape++) {
+            variants.add(makeLayeredModelLocation("normal", shape));
+        }
+
+        // Register custom tier models using the old naming convention (configurable_cell_{channel}_{tier}.json)
+        // This allows pack makers to provide their own textures for custom tiers
+        Map<ChannelType, Set<String>> tiersByChannel = ComponentHelper.getRegisteredTierNamesByChannel();
         for (Map.Entry<ChannelType, Set<String>> entry : tiersByChannel.entrySet()) {
-            ChannelType channel = entry.getKey();
-            String channelSuffix = channel.getModelSuffix(); // "", "_fluid", "_essentia", "_gas"
+            String channelName = entry.getKey().name().toLowerCase();
 
             for (String tier : entry.getValue()) {
-                variants.add(makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", "_" + tier + channelSuffix));
+                // Only register custom naming for unknown tiers (known tiers use layered models)
+                if (!CellTextureColors.isKnownTier(tier)) {
+                    variants.add(makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", "_" + channelName + "_" + tier));
+                }
             }
         }
 
         // Register all variants with the model loader
         ModelLoader.registerItemVariants(CONFIGURABLE_CELL, variants.toArray(new ResourceLocation[0]));
 
+        // Log custom tiers that require external texture packs
+        logCustomTierInfo(tiersByChannel);
+
         // Provide a mesh definition that selects the correct model based on the installed component
         ModelLoader.setCustomMeshDefinition(CONFIGURABLE_CELL, stack -> {
             ComponentInfo info = ComponentHelper.getComponentInfo(ComponentHelper.getInstalledComponent(stack));
-            if (info == null) return base; // empty/default
+            if (info == null) return base; // Empty cell uses original configurable_cell.json
 
-            String suffix = "_" + info.getTierName() + info.getChannelType().getModelSuffix();
+            String tierName = info.getTierName();
+            int tierIndex = CellTextureColors.getTierIndex(tierName);
 
+            // Known tiers (0-11) use generic layered models with tinting
+            if (tierIndex >= 0) {
+                int shapeIndex = CellTextureColors.getShapeIndex(tierIndex);
+                return makeLayeredModelLocation("normal", shapeIndex);
+            }
+
+            // Custom/unknown tiers fall back to old naming convention
+            // Expected model: configurable_cell_{channel}_{tier}.json (e.g., configurable_cell_fluid_8g.json)
+            String suffix = "_" + info.getChannelType().name().toLowerCase() + "_" + tierName;
             return makeModelLocation(CONFIGURABLE_CELL, "cells/configurable", suffix);
         });
+    }
+
+    /**
+     * Log information about custom tiers that require external texture packs.
+     * This helps pack makers know exactly which files they need to provide.
+     */
+    @SideOnly(Side.CLIENT)
+    private static void logCustomTierInfo(Map<ChannelType, Set<String>> tiersByChannel) {
+        List<String> customTiers = new ArrayList<>();
+
+        for (Map.Entry<ChannelType, Set<String>> entry : tiersByChannel.entrySet()) {
+            ChannelType channel = entry.getKey();
+            String channelName = channel.name().toLowerCase();
+
+            for (String tier : entry.getValue()) {
+                if (!CellTextureColors.isKnownTier(tier)) {
+                    customTiers.add("configurable_cell_" + channelName + "_" + tier + ".png");
+                }
+            }
+        }
+
+        if (!customTiers.isEmpty()) {
+            Cells.LOGGER.info("Detected {} custom configurable cell tier(s) requiring external textures:", customTiers.size());
+            Cells.LOGGER.info("  Expected location: resources/cells/textures/items/cells/configurable/");
+            Cells.LOGGER.info("  Model format: configurable_cell_<channel>_<tier>.png (e.g., configurable_cell_fluid_8g.png)");
+            for (String info : customTiers) Cells.LOGGER.info("    - {}", info);
+        }
+    }
+
+    /**
+     * Create a ModelResourceLocation for a generic layered cell model.
+     *
+     * @param frameType "normal" or "hyper_density"
+     * @param shapeIndex Shape index (0-5)
+     * @return The model resource location
+     */
+    @SideOnly(Side.CLIENT)
+    private static ModelResourceLocation makeLayeredModelLocation(String frameType, int shapeIndex) {
+        String modelPath = "cells/cell_" + frameType + "/layered_" + shapeIndex;
+        return new ModelResourceLocation(Tags.MODID + ":" + modelPath, "inventory");
+    }
+
+    /**
+     * Create a ModelResourceLocation for a layered component model.
+     * These models use tintable wave textures (layer0=wave, layer1=frame).
+     *
+     * @param componentType "normal" or "hyper_density"
+     * @param tierName The tier suffix (e.g., "1k", "4k", etc.)
+     * @return The model resource location
+     */
+    @SideOnly(Side.CLIENT)
+    private static ModelResourceLocation makeComponentLayeredModelLocation(String componentType, String tierName) {
+        String modelPath = "cells/component_" + componentType + "/layered_" + tierName;
+        return new ModelResourceLocation(Tags.MODID + ":" + modelPath, "inventory");
     }
 
     @SideOnly(Side.CLIENT)
@@ -402,33 +477,5 @@ public class ItemRegistry {
 
     private static ModelResourceLocation makeModelLocation(Item item, String folder) {
         return makeModelLocation(item, folder, null);
-    }
-
-    @SideOnly(Side.CLIENT)
-    private static void registerModel(Item item) {
-        if (item == null) return;
-
-        String folder;
-        if (item instanceof ItemCompactingCell || item instanceof ItemCompactingComponent) {
-            folder = "cells/compacting";
-        } else if (item instanceof ItemHyperDensityCell || item instanceof ItemHyperDensityComponent) {
-            folder = "cells/hyper_density";
-        } else if (item instanceof ItemFluidHyperDensityCell || item instanceof ItemFluidHyperDensityComponent) {
-            folder = "cells/hyper_density_fluid";
-        } else if (item instanceof ItemHyperDensityCompactingCell || item instanceof ItemHyperDensityCompactingComponent) {
-            folder = "cells/hyper_density_compacting";
-        } else if (item instanceof ItemConfigurableCell) {
-            folder = "cells/configurable";
-        } else if (item instanceof AbstractCreativeCellItem) {
-            folder = "cells/creative";
-        } else if (item instanceof ItemOverflowCard || item instanceof ItemOreDictCard
-            || item instanceof ItemTrashUnselectedCard || item instanceof ItemEqualDistributionCard
-            || item instanceof ItemCompressionTierCard || item instanceof ItemDecompressionTierCard) {
-            folder = "upgrades";
-        } else {
-            folder = "processors";
-        }
-
-        ModelLoader.setCustomModelResourceLocation(item, 0, makeModelLocation(item, folder));
     }
 }

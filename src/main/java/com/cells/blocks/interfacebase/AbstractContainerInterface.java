@@ -10,16 +10,24 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IContainerListener;
+import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.world.World;
 
+import appeng.api.implementations.guiobjects.IGuiItem;
 import appeng.api.parts.IPart;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
+import appeng.container.slot.AppEngSlot;
 import appeng.container.slot.SlotNormal;
+import appeng.container.slot.SlotRestrictedInput;
 import appeng.helpers.InventoryAction;
+import appeng.items.contents.NetworkToolViewer;
+import appeng.items.tools.ToolNetworkTool;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
 
@@ -50,6 +58,10 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
     /** Server-side cache for filter sync (tracks what was sent to clients). */
     protected final Map<Integer, T> serverFilterCache = new HashMap<>();
 
+    // Network tool ("toolbox") support
+    private int toolboxSlot;
+    private NetworkToolViewer toolboxInventory;
+
     @GuiSync(0)
     public long maxSlotSize;
 
@@ -78,6 +90,90 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         );
         this.host = host;
         this.maxSlotSize = defaultMaxSlotSize;
+        this.setupToolbox(anchor);
+
+        // Add upgrade slots
+        for (int i = 0; i < AbstractResourceInterfaceLogic.UPGRADE_SLOTS; i++) {
+            this.addSlotToContainer(new SlotUpgrade<>(
+                this.host.getUpgradeInventory(), i, 186, 25 + i * 18, this.host
+            ));
+        }
+
+        // Bind player inventory
+        this.bindPlayerInventory(ip, 0, 174);
+    }
+
+    // ================================= Toolbox Support =================================
+
+    /**
+     * Set up the network tool ("toolbox") if the player has one in their inventory.
+     * Adds a 3x3 grid of upgrade slots at position (186, 156).
+     */
+    protected void setupToolbox(Object anchor) {
+        // Get world and position from the host
+        World w = this.host.getHostWorld();
+        BlockPos pos = this.host.getHostPos();
+
+        if (w == null || pos == null) return;
+
+        final IInventory pi = this.getPlayerInv();
+        for (int x = 0; x < pi.getSizeInventory(); x++) {
+            final ItemStack pii = pi.getStackInSlot(x);
+            if (!pii.isEmpty() && pii.getItem() instanceof ToolNetworkTool) {
+                this.lockPlayerInventorySlot(x);
+                this.toolboxSlot = x;
+                this.toolboxInventory = (NetworkToolViewer) ((IGuiItem) pii.getItem())
+                    .getGuiObject(pii, w, pos);
+                break;
+            }
+        }
+
+        if (this.hasToolbox()) {
+            for (int v = 0; v < 3; v++) {
+                for (int u = 0; u < 3; u++) {
+                    SlotRestrictedInput slot = new SlotRestrictedInput(
+                        SlotRestrictedInput.PlacableItemType.UPGRADES,
+                        this.toolboxInventory.getInternalInventory(),
+                        u + v * 3, 186 + u * 18, 156 + v * 18,
+                        this.getInventoryPlayer());
+                    slot.setPlayerSide();
+                    this.addSlotToContainer(slot);
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if the player has a network tool ("toolbox") in their inventory.
+     */
+    public boolean hasToolbox() {
+        return this.toolboxInventory != null;
+    }
+
+    /**
+     * Validate that the toolbox is still in the expected slot.
+     * Called from detectAndSendChanges to ensure the container remains valid.
+     */
+    protected void checkToolbox() {
+        if (!hasToolbox()) return;
+
+        final ItemStack currentItem = this.getPlayerInv().getStackInSlot(this.toolboxSlot);
+
+        if (currentItem == this.toolboxInventory.getItemStack()) return;
+
+        if (currentItem.isEmpty()) {
+            this.setValidContainer(false);
+            return;
+        }
+
+        if (ItemStack.areItemsEqual(this.toolboxInventory.getItemStack(), currentItem)) {
+            this.getPlayerInv().setInventorySlotContents(
+                this.toolboxSlot,
+                this.toolboxInventory.getItemStack()
+            );
+        } else {
+            this.setValidContainer(false);
+        }
     }
 
     // ================================= Abstract Methods =================================
@@ -86,21 +182,6 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
      * @return The resource type for network sync.
      */
     protected abstract ResourceType getResourceType();
-
-    /**
-     * @return The number of upgrade slots to add.
-     */
-    protected abstract int getUpgradeSlotCount();
-
-    /**
-     * @return The number of total filter slots (across all pages).
-     */
-    protected abstract int getFilterSlotCount();
-
-    /**
-     * @return The number of slots per page.
-     */
-    protected abstract int getSlotsPerPage();
 
     /**
      * Create a key from a stack.
@@ -202,6 +283,9 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
     public void detectAndSendChanges() {
         super.detectAndSendChanges();
 
+        // Validate toolbox is still in expected slot
+        this.checkToolbox();
+
         // Sync GuiSync values from host
         if (this.maxSlotSize != this.host.getMaxSlotSize()) this.maxSlotSize = this.host.getMaxSlotSize();
         if (this.pollingRate != this.host.getPollingRate()) this.pollingRate = this.host.getPollingRate();
@@ -211,7 +295,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         // Server-side filter sync
         if (!Platform.isServer()) return;
 
-        final int filterSlots = getFilterSlotCount();
+        final int filterSlots = AbstractResourceInterfaceLogic.FILTER_SLOTS;
         final ResourceType type = getResourceType();
 
         for (int i = 0; i < filterSlots; i++) {
@@ -241,7 +325,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         // Send full filter inventory to new listener
         if (!Platform.isServer() || !(listener instanceof EntityPlayerMP)) return;
 
-        final int filterSlots = getFilterSlotCount();
+        final int filterSlots = AbstractResourceInterfaceLogic.FILTER_SLOTS;
         final ResourceType type = getResourceType();
         Map<Integer, Object> fullMap = new HashMap<>();
 
@@ -396,7 +480,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
             T stack = entry.getValue();
 
             // Validate slot index
-            if (slot < 0 || slot >= getFilterSlotCount()) continue;
+            if (slot < 0 || slot >= AbstractResourceInterfaceLogic.FILTER_SLOTS) continue;
 
             // Null stack means clearing the filter
             if (stack == null) {
@@ -426,7 +510,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
 
             // Check against existing filters (except current slot)
             boolean isDuplicate = false;
-            for (int i = 0; i < getFilterSlotCount(); i++) {
+            for (int i = 0; i < AbstractResourceInterfaceLogic.FILTER_SLOTS; i++) {
                 if (i == slot) continue;
 
                 T other = getFilter(i);
@@ -466,14 +550,17 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
     // ================================= Shift-Click Handler =================================
 
     /**
-     * Common shift-click handler that extracts a filter from a container item
-     * and adds it to the first available slot.
+     * Common shift-click handler that handles upgrade insertion and filter extraction.
      * <p>
-     * Subclasses can override if they need custom behavior.
+     * Priority order for shift-click from player inventory:
+     * <ol>
+     *   <li>Try to insert into upgrade slots (if item is valid upgrade and space available)</li>
+     *   <li>Try to extract filter from container and add to filter slots</li>
+     * </ol>
      *
      * @param player    The player performing the action
      * @param slotIndex The clicked slot index
-     * @return ItemStack.EMPTY (we never move items, only set filters)
+     * @return ItemStack.EMPTY (we never move items out of this GUI, only set filters)
      */
     @Override
     @Nonnull
@@ -486,19 +573,51 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         Slot slot = inventorySlots.get(slotIndex);
         if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
 
-        // Only process shift-clicks from the player inventory (not from upgrade slots)
-        int upgradeSlotCount = getUpgradeSlotCount();
-        if (slotIndex < upgradeSlotCount) return ItemStack.EMPTY;
-
         ItemStack clickedStack = slot.getStack();
         if (clickedStack.isEmpty()) return ItemStack.EMPTY;
 
-        // Try to extract a filter from the container
-        T filterStack = extractFilterFromContainer(clickedStack);
-        if (filterStack == null) return ItemStack.EMPTY;
+        // Determine if this is a player-side slot (player inventory or hotbar)
+        boolean isFromPlayerInventory = (slot instanceof AppEngSlot)
+            && ((AppEngSlot) slot).isPlayerSide();
 
-        // Use the unified add-to-filter method
-        addToFilter(filterStack, player);
+        // Shift-clicking from container-side slots (upgrade slots) - move to player inventory
+        // Delegate to parent for container-to-player transfers
+        if (!isFromPlayerInventory) return super.transferStackInSlot(player, slotIndex);
+
+        // === Shift-clicking from player inventory ===
+
+        // Priority 1: Try to insert into upgrade slots if item is a valid upgrade
+        if (this.host.isValidUpgrade(clickedStack)) {
+            boolean insertedAny = false;
+
+            // Insert as many as possible into empty upgrade slots
+            // Iterate by slot type (SlotUpgrade), not by index, to avoid toolbox slots
+            for (Slot containerSlot : this.inventorySlots) {
+                if (clickedStack.isEmpty()) break;
+                if (!(containerSlot instanceof SlotUpgrade)) continue;
+                if (containerSlot.getHasStack()) continue;
+                if (!containerSlot.isItemValid(clickedStack)) continue;
+
+                // Found empty upgrade slot - insert one item
+                ItemStack toInsert = clickedStack.splitStack(1);
+                containerSlot.putStack(toInsert);
+                containerSlot.onSlotChanged();
+                insertedAny = true;
+            }
+
+            if (insertedAny) {
+                if (clickedStack.isEmpty()) slot.putStack(ItemStack.EMPTY);
+                slot.onSlotChanged();
+                this.detectAndSendChanges();
+            }
+
+            // Don't try filter extraction for upgrade items
+            return ItemStack.EMPTY;
+        }
+
+        // Priority 2: Try to extract filter from the container and add to filter slots
+        T filterStack = extractFilterFromContainer(clickedStack);
+        if (filterStack != null) addToFilter(filterStack, player);
 
         return ItemStack.EMPTY;
     }
@@ -550,7 +669,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
      */
     @Override
     public void doAction(EntityPlayerMP player, InventoryAction action, int slot, long id) {
-        int slotsPerPage = getSlotsPerPage();
+        final int slotsPerPage = AbstractResourceInterfaceLogic.SLOTS_PER_PAGE;
 
         // Check if this is a storage slot action
         if (slot >= 0 && slot < slotsPerPage) {

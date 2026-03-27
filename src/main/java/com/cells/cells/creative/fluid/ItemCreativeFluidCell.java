@@ -2,7 +2,6 @@ package com.cells.cells.creative.fluid;
 
 import net.minecraftforge.fluids.FluidStack;
 
-import com.cells.cells.creative.fluid.CreativeFluidCellFilterHandler;
 import com.cells.cells.creative.AbstractCreativeCellItem;
 import com.cells.gui.CellsGuiHandler;
 

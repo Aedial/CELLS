@@ -1,5 +1,7 @@
 package com.cells.blocks.interfacebase.item;
 
+import java.util.function.Predicate;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -9,6 +11,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.IItemHandler;
@@ -20,6 +23,8 @@ import appeng.api.storage.IMEInventory;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
+
+import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
 
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.util.ItemStackKey;
@@ -96,6 +101,14 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
      */
     public IItemHandler getExternalHandler() {
         return this.externalHandler;
+    }
+
+    /**
+     * @return The external handler as an IItemRepository for bulk slotless access.
+     *         Both ExportStorageHandler and FilteredStorageHandler implement IItemRepository.
+     */
+    public IItemRepository getItemRepository() {
+        return (IItemRepository) this.externalHandler;
     }
 
     /**
@@ -465,64 +478,19 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
     /**
      * Slotless insertion logic that ignores item's maxStackSize.
-     * Finds the correct slot via {@link #filterToSlotMap} using {@link ItemStackKey}.
+     * Delegates to the base class {@link #receiveFiltered} and converts return type.
      * <p>
-     * Handles overflow and trash-unselected upgrade cards:
-     * - If no filter matches and trash-unselected is installed, the item is voided.
-     * - If the slot is full and overflow is installed, excess items are voided.
+     * Handles overflow and trash-unselected upgrade cards via the base class.
      */
     private ItemStack slotlessInsertItem(@Nonnull ItemStack stack, boolean simulate) {
         if (stack.isEmpty()) return ItemStack.EMPTY;
 
-        // Find the correct slot from the filter map
-        ItemStackKey key = ItemStackKey.of(stack);
-        if (key == null) return stack;
+        int accepted = receiveFiltered(stack, !simulate);
+        if (accepted >= stack.getCount()) return ItemStack.EMPTY;
 
-        // No matching filter — void if trash-unselected upgrade is installed, otherwise reject
-        Integer targetSlot = this.filterToSlotMap.get(key);
-        if (targetSlot == null) return this.installedTrashUnselectedUpgrade ? ItemStack.EMPTY : stack;
-
-        int limit = this.maxSlotSize;
-        ItemStack existing = this.storage[targetSlot];
-
-        if (existing != null) {
-            // Verify the existing stack matches (guards against orphaned items in the slot)
-            if (!key.equals(ItemStackKey.of(existing))) return stack;
-
-            // Slot is full — void excess if overflow upgrade is installed
-            int space = limit - existing.getCount();
-            if (space <= 0) return this.installedOverflowUpgrade ? ItemStack.EMPTY : stack;
-
-            int toInsert = Math.min(stack.getCount(), space);
-            if (!simulate) {
-                existing.grow(toInsert);
-                this.host.markDirtyAndSave();
-                this.host.markForNetworkUpdate();
-            }
-
-            if (toInsert >= stack.getCount()) return ItemStack.EMPTY;
-
-            ItemStack remainder = stack.copy();
-            remainder.shrink(toInsert);
-            // Void any remainder if overflow upgrade is installed
-            return this.installedOverflowUpgrade ? ItemStack.EMPTY : remainder;
-        } else {
-            int toInsert = Math.min(stack.getCount(), limit);
-            if (!simulate) {
-                ItemStack newStack = stack.copy();
-                newStack.setCount(toInsert);
-                this.storage[targetSlot] = newStack;
-                this.host.markDirtyAndSave();
-                this.host.markForNetworkUpdate();
-            }
-
-            if (toInsert >= stack.getCount()) return ItemStack.EMPTY;
-
-            ItemStack remainder = stack.copy();
-            remainder.shrink(toInsert);
-            // Void any remainder if overflow upgrade is installed
-            return this.installedOverflowUpgrade ? ItemStack.EMPTY : remainder;
-        }
+        ItemStack remainder = stack.copy();
+        remainder.shrink(accepted);
+        return remainder;
     }
 
     // ============================== Item-specific NBT (legacy migration) ==============================
@@ -570,7 +538,7 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
         // Map format - try both numeric keys ("0", "1") and AE2 format ("item0", "item1")
         for (String slotKey : storageMap.getKeySet()) {
-            int slot = -1;
+            int slot;
 
             // Try numeric key first (our new format)
             try {
@@ -607,7 +575,7 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
      * instead of IItemHandler.getSlotLimit(). The dummy slot ensures hoppers see the
      * inventory as "not full" and attempt insertion, which our slotless logic handles.
      */
-    private static class FilteredStorageHandler implements IItemHandler {
+    private static class FilteredStorageHandler implements IItemHandler, IItemRepository {
         private final ItemInterfaceLogic logic;
 
         public FilteredStorageHandler(ItemInterfaceLogic logic) {
@@ -664,13 +632,48 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
             return logic.filterToSlotMap.containsKey(key);
         }
+
+        // ============================== IItemRepository (bulk slotless access) ==============================
+
+        @Nonnull
+        @Override
+        public NonNullList<ItemRecord> getAllItems() {
+            NonNullList<ItemRecord> items = NonNullList.create();
+
+            for (int filterIdx : logic.filterSlotList) {
+                ItemStack stack = logic.storage[filterIdx];
+                if (stack != null && !stack.isEmpty()) {
+                    ItemStack prototype = stack.copy();
+                    prototype.setCount(1);
+                    items.add(new ItemRecord(prototype, stack.getCount()));
+                }
+            }
+
+            return items;
+        }
+
+        @Nonnull
+        @Override
+        public ItemStack insertItem(@Nonnull ItemStack stack, boolean simulate, Predicate<ItemStack> predicate) {
+            if (stack.isEmpty()) return ItemStack.EMPTY;
+            if (predicate != null && !predicate.test(stack)) return stack;
+
+            return logic.slotlessInsertItem(stack, simulate);
+        }
+
+        @Nonnull
+        @Override
+        public ItemStack extractItem(@Nonnull ItemStack stack, int amount, boolean simulate, Predicate<ItemStack> predicate) {
+            // Import interface does not allow external extraction
+            return ItemStack.EMPTY;
+        }
     }
 
     /**
      * Wrapper handler that exposes storage slots for extraction only.
      * Does not allow external insertion (export-only interface).
      */
-    private static class ExportStorageHandler implements IItemHandler {
+    private static class ExportStorageHandler implements IItemHandler, IItemRepository {
         private final ItemInterfaceLogic logic;
 
         public ExportStorageHandler(ItemInterfaceLogic logic) {
@@ -705,21 +708,8 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
             if (slot < 0 || slot >= logic.filterSlotList.size()) return ItemStack.EMPTY;
 
             int storageSlot = logic.filterSlotList.get(slot);
-            ItemStack stack = logic.storage[storageSlot];
-            if (stack == null) return ItemStack.EMPTY;
-
-            int toExtract = Math.min(amount, stack.getCount());
-            ItemStack result = stack.copy();
-            result.setCount(toExtract);
-
-            if (!simulate) {
-                stack.shrink(toExtract);
-                if (stack.getCount() <= 0) logic.storage[storageSlot] = null;
-                logic.host.markDirtyAndSave();
-                logic.host.markForNetworkUpdate();
-            }
-
-            return result;
+            ItemStack result = logic.drainFromSlot(storageSlot, amount, !simulate);
+            return result != null ? result : ItemStack.EMPTY;
         }
 
         @Override
@@ -731,6 +721,49 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
         public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
             // External insertion not allowed
             return false;
+        }
+
+        // ============================== IItemRepository (bulk slotless access) ==============================
+
+        @Nonnull
+        @Override
+        public NonNullList<ItemRecord> getAllItems() {
+            NonNullList<ItemRecord> items = NonNullList.create();
+
+            for (int filterIdx : logic.filterSlotList) {
+                ItemStack stack = logic.storage[filterIdx];
+                if (stack != null && !stack.isEmpty()) {
+                    ItemStack prototype = stack.copy();
+                    prototype.setCount(1);
+                    items.add(new ItemRecord(prototype, stack.getCount()));
+                }
+            }
+
+            return items;
+        }
+
+        @Nonnull
+        @Override
+        public ItemStack insertItem(@Nonnull ItemStack stack, boolean simulate, Predicate<ItemStack> predicate) {
+            // Export interface does not allow external insertion
+            return stack;
+        }
+
+        @Nonnull
+        @Override
+        public ItemStack extractItem(@Nonnull ItemStack stack, int amount, boolean simulate, Predicate<ItemStack> predicate) {
+            if (stack.isEmpty() || amount <= 0) return ItemStack.EMPTY;
+            if (predicate != null && !predicate.test(stack)) return ItemStack.EMPTY;
+
+            // O(1) lookup via filter map instead of slot iteration
+            ItemStackKey key = ItemStackKey.of(stack);
+            if (key == null) return ItemStack.EMPTY;
+
+            Integer targetSlot = logic.filterToSlotMap.get(key);
+            if (targetSlot == null) return ItemStack.EMPTY;
+
+            ItemStack result = logic.drainFromSlot(targetSlot, amount, !simulate);
+            return result != null ? result : ItemStack.EMPTY;
         }
     }
 
@@ -806,11 +839,6 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
         @Override
         public int getSlotLimit(int slot) {
             return isGhostSlot ? 1 : maxSlotSize;
-        }
-
-        @Override
-        public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-            return true;
         }
     }
 }

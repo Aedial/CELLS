@@ -2,7 +2,6 @@ package com.cells.integration.jei.cellview;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -266,10 +265,6 @@ public class CellViewRecipe implements IRecipeWrapper {
                 // Calculate per-type limit for cells with equal distribution upgrade
                 // Formula: (totalBytes - eqDistLimit * bytesPerType) * unitsPerByte * multiplier / eqDistLimit
                 long displayBytes = totalBytes;
-                if (data.isHyperDensity) {
-                    // HD cells report display bytes, which is already multiplied
-                    displayBytes = totalBytes;
-                }
                 long overhead = (long) eqDistLimit * bytesPerType;
                 long availableBytes = displayBytes - overhead;
 

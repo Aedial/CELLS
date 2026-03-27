@@ -94,6 +94,6 @@ public class CreativeGasCellFilterHandler extends AbstractCreativeCellFilterHand
         if (gas == null) return false;
 
         GasStackKey key = GasStackKey.of(gas);
-        return key != null && isInFilter(key);
+        return isInFilter(key);
     }
 }

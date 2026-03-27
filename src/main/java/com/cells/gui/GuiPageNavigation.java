@@ -2,6 +2,8 @@ package com.cells.gui;
 
 import java.util.function.IntSupplier;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
@@ -67,7 +69,7 @@ public class GuiPageNavigation extends GuiButton implements ITooltip {
     }
 
     @Override
-    public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
+    public void drawButton(@Nonnull Minecraft mc, int mouseX, int mouseY, float partialTicks) {
         if (!this.visible) return;
 
         int totalPages = this.totalPagesSupplier.getAsInt();
@@ -122,7 +124,7 @@ public class GuiPageNavigation extends GuiButton implements ITooltip {
     }
 
     @Override
-    public boolean mousePressed(Minecraft mc, int mouseX, int mouseY) {
+    public boolean mousePressed(@Nonnull Minecraft mc, int mouseX, int mouseY) {
         int totalPages = this.totalPagesSupplier.getAsInt();
         if (!this.visible) return false;
 

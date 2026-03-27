@@ -1,0 +1,7 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "cells:items/cells/component_core/tint_16m",
+    "layer1": "cells:items/cells/component_hyper_density/frame_16m"
+  }
+}

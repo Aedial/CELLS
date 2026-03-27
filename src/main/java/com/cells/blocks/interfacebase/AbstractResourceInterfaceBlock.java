@@ -87,7 +87,6 @@ public abstract class AbstractResourceInterfaceBlock<T extends AEBaseTile> exten
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public boolean onActivated(final World w, final BlockPos pos, final EntityPlayer p,
                                final EnumHand hand, final @Nullable ItemStack heldItem,
                                final EnumFacing side, final float hitX, final float hitY, final float hitZ) {

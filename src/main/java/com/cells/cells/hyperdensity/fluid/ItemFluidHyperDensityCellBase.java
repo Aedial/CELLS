@@ -10,6 +10,7 @@ import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
@@ -23,7 +24,6 @@ import appeng.api.storage.data.IAEFluidStack;
 import com.cells.cells.common.AbstractTieredCellItem;
 import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
-import com.cells.integration.jei.CellsJEIPlugin;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
@@ -99,7 +99,9 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
         }
 
         // Add JEI cell view hint if JEI is loaded and cell view is enabled
-        if (CellsJEIPlugin.enableCellView) addJeiCellViewHint(tooltip);
+        if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) {
+            addJeiCellViewHint(tooltip);
+        }
 
         tooltip.add("");
         tooltip.add("§d" + I18n.format("tooltip.cells.hyper_density_fluid_cell.info"));

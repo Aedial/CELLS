@@ -1,6 +1,6 @@
 # Compacting/Extra Large Lattice Storage (C.E.L.L.S.)
 
-An AE2-UEL addon providing additional storage cells with extended capacities and special features.
+An AE2-UEL addon providing additional storage cells with extended capacities and special features. This mod is primarily intended for optimizing storage and handling large quantities of items (and other types) efficiently.
 
 ## FAQ
 ### My Compacting Cells are not refreshing in the ME Chest's GUI until I reopen it

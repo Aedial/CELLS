@@ -94,6 +94,6 @@ public class CreativeEssentiaCellFilterHandler extends AbstractCreativeCellFilte
         if (aspect == null) return false;
 
         EssentiaStackKey key = EssentiaStackKey.of(aspect);
-        return key != null && isInFilter(key);
+        return isInFilter(key);
     }
 }

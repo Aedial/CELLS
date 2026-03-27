@@ -1,6 +1,5 @@
 package com.cells.cells.configurable;
 
-import java.util.Arrays;
 import java.util.Collections;
 
 import net.minecraft.item.ItemStack;

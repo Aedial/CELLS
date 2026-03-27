@@ -17,6 +17,7 @@ import net.minecraft.util.EnumHand;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
@@ -142,6 +143,15 @@ public abstract class AbstractTieredCellItem extends Item implements ICellWorkbe
         } catch (NoClassDefFoundError e) {
             // JEI not loaded, skip hint
         }
+    }
+
+    /**
+     * Check if JEI cell view feature is enabled.
+     * Must be called only after checking Loader.isModLoaded("jei").
+     */
+    @Optional.Method(modid = "jei")
+    protected static boolean isJeiCellViewEnabled() {
+        return com.cells.integration.jei.CellsJEIPlugin.enableCellView;
     }
 
     // =====================

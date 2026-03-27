@@ -8,29 +8,46 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.5.10-beta] - 2026-03-24
-### Fixed
-- Fix Import/Export Fluid Interfaces not accepting the same fluid with different NBT (e.g. potions).
-- Fix some blocks using the wrong texture.
-- Fix inconsistencies with the Memory Card (now tested on all Full-block vs Part).
-
+## [0.5.10-beta2] - 2026-03-26
 ### Added
+- Make Adaptive Mode more efficient by only forcing the wake-up when we are sleeping (not just slower). This means a somewhat constant stream of item will not ask the network to wake up at every insertion, relying instead on AE2's adaptive rates. "Fixed Polling" is not affected by this change (as it never "sleeps").
+- Add AE2 ToolNetworkTool support for Import/Export Interfaces (Upgrade Cards holder).
+
+### Fixed
+- Fix Import Interfaces not waking up when resources are inserted in via GUI after switching to Adaptive mode.
+- Fix client-side refresh of interface slots not sending NBT (losing the NBT of potions, for example), causing the client to display incorrect information.
+- Fix Content Recovery Orb not handling fluid NBT.
+- Fix crash when JEI is not present (missing some checks).
+- Fix crash when Storage Drawers is present (double IItemRepository initialization).
+
+
+## [0.5.10-beta] - 2026-03-26
+### Added
+- Optimize the Storage Bus on Item Interface interaction (only ITEM) to be at the same performance level as a drawer wall (without the drawer wall sync overhead).
 - Add Creative Fluid Cell, the fluid counterpart of the Creative Cell, with the same behavior but for fluids.
 - Add quick-add keybind handling for the Creative Cell, like is done for Import/Export interfaces.
 - Add Gas Creative Cell.
 - Add Gas Import/Export interface.
 - Add Essentia Creative Cell.
-- Add Essentia Import/Export interface.
+- Add Essentia Import/Export interface. It can be used directly on Thaumatorium, Infusion, and probably also with Essentia hatches.
 - Add Recovery Orb item, an item that is dropped when a non-item interface is broken/shrunk and cannot send its contents back to the network.
+
+### Fixed
+- Fix Import/Export Fluid Interfaces not accepting the same fluid with different NBT (e.g. potions).
+- Fix some blocks using the wrong texture.
+- Fix inconsistencies with the Memory Card (now tested on all Full-block vs Part).
 
 ### Changed
 - Make the Creative Cell accept and void content that they produce, acting as both a producer and a sink, to avoid issues with items not being able to return to the network because we extracted them from the cell but they can't be inserted back.
-- Reject Cells as valid targets for Creative Cells
+- Reject Cells as valid targets for Creative Cells.
+- Retouch component textures to be easier to work with (more unified). The wave animation has been removed to be reworked later (was nearly imperceptible).
 
 ### Technical
 - Unify Import/Export Interfaces (tiles and parts) even more, to allow for less tedious addition of Gas/Essentia types.
 - Unify Creative Cells for the same purpose.
 - Unify all slot behaviors (Sneak-click, left-click, right-click, quick-add, JEI add, rendering, etc.)
+- Allow Item Interface to provide IItemRepository instead of only IItemHandler, for less capabilities overhead.
+- Replace backed textures (~150) by overlaid layers with tinting. Any new cell type would not add new textures, only requiring tinting support in the code. This shaves ~300kB from the (compressed) JAR.
 
 
 ## [0.5.9-rc] - 2026-03-17

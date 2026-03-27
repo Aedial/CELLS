@@ -146,7 +146,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         if (aspect == null) return false;
 
         EssentiaStackKey key = EssentiaStackKey.of(aspect);
-        return key != null && isInFilter(key);
+        return isInFilter(key);
     }
 
     /**
@@ -165,18 +165,18 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     /**
      * Get the total amount of a specific aspect in the container.
      * This is what IAspectContainer.containerContains(Aspect) should return.
+     * We ensure uniqueness of filters, so there will be at most one slot per aspect.
      */
     public int getEssentiaCount(Aspect aspect) {
         if (aspect == null) return 0;
 
-        long total = 0;
         for (EssentiaStack stored : this.storage) {
             if (stored != null && stored.getAspect() == aspect) {
-                total += stored.getAmount();
+                return stored.getAmount();
             }
         }
-        // Clamp to avoid overflow
-        return (int) Math.min(total, Integer.MAX_VALUE);
+
+        return 0;
     }
 
     /**
@@ -244,7 +244,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         if (aspect == null) return -1;
 
         EssentiaStackKey key = EssentiaStackKey.of(aspect);
-        return key != null ? findSlotByKey(key) : -1;
+        return findSlotByKey(key);
     }
 
     /**
@@ -258,9 +258,11 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     /**
      * Get the suction type (aspect) for a specific slot or null for any.
      * Returns the first filter aspect if any filters are set.
-     *
-     * FIXME: Might need to be smarter if we want to support multiple filter slots with different aspects.
-     *        Currently, tubes will only push the first aspect type they find in the filters.
+     * <p>
+     * Note: The tube network is designed to handle ONE aspect type per connection.
+     * Machines like Thaumatorium cycle through their needed aspects one at a time.
+     * For multiple aspects, use multiple import interfaces with different filters,
+     * or rely on the fact that addEssentia() accepts any filtered aspect.
      */
     @Nullable
     public Aspect getSuctionType() {
@@ -280,8 +282,11 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     /**
      * Get the first stored essentia type.
      * Used by export interfaces to report what essentia type they have available.
-     * FIXME: Might need to be a bit smarter, if we want to export multiple types at once.
-     *        In the current state, tubes will only pull the first aspect type they find in storage.
+     * <p>
+     * Note: This is a hint for the tube network. The actual extraction via takeEssentia()
+     * works for any aspect we have stored. Machines like Thaumatorium cycle through their
+     * needed aspects and request each one specifically. For direct machine access (like
+     * infusion altars), use getAspects() which returns ALL stored aspects.
      *
      * @return The first stored aspect, or null if empty
      */

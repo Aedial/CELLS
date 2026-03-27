@@ -226,10 +226,8 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
 
             EssentiaStack stack = new EssentiaStack(aspect, (int) Math.min(count, Integer.MAX_VALUE));
             IAEEssentiaStack aeStack = AEEssentiaStack.fromEssentiaStack(stack);
-            if (aeStack != null) {
-                aeStack.setStackSize(count);
-                out.add(aeStack);
-            }
+            aeStack.setStackSize(count);
+            out.add(aeStack);
         }
 
         return out;

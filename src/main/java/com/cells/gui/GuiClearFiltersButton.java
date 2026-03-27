@@ -2,6 +2,8 @@ package com.cells.gui;
 
 import java.util.function.Supplier;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
@@ -40,7 +42,7 @@ public class GuiClearFiltersButton extends GuiButton implements ITooltip {
     }
 
     @Override
-    public void drawButton(Minecraft mc, int mouseX, int mouseY, float partialTicks) {
+    public void drawButton(@Nonnull Minecraft mc, int mouseX, int mouseY, float partialTicks) {
         if (!this.visible) return;
 
         mc.getTextureManager().bindTexture(TEXTURE);

@@ -1,5 +1,6 @@
 package com.cells.blocks.interfacebase;
 
+import java.awt.Rectangle;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,9 +9,6 @@ import java.util.Map;
 
 import javax.annotation.Nonnull;
 
-import com.cells.gui.slots.AbstractResourceFilterSlot;
-import com.cells.gui.slots.AbstractResourceTankSlot;
-import com.cells.util.PollingRateUtils;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
@@ -19,6 +17,8 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+
+import net.minecraftforge.fml.common.Optional;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiCustomSlot;
@@ -33,10 +33,13 @@ import com.cells.gui.DynamicTooltipTabButton;
 import com.cells.gui.GuiClearFiltersButton;
 import com.cells.gui.GuiPageNavigation;
 import com.cells.gui.ImportInterfaceControlsHelper;
+import com.cells.gui.slots.AbstractResourceFilterSlot;
+import com.cells.gui.slots.AbstractResourceTankSlot;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketChangePage;
 import com.cells.network.packets.PacketClearFilters;
 import com.cells.network.packets.PacketOpenGui;
+import com.cells.util.PollingRateUtils;
 
 
 /**
@@ -58,20 +61,25 @@ import com.cells.network.packets.PacketOpenGui;
  * <ul>
  *   <li>Provide filter slot factory via {@link #createFilterSlotForIndex(int, int, int)}</li>
  *   <li>Provide tank/storage slot factory via {@link #createTankSlotForIndex(int, int, int)}</li>
- *   <li>Handle JEI ghost ingredients in {@link #createJEITargets(Object)}</li>
+ *   <li>Handle JEI ghost ingredients in {@link #getPhantomTargets(Object)}</li>
  *   <li>Optionally override {@link #handleQuickAdd(Slot)} for quick-add keybind</li>
  * </ul>
  *
  * @param <H> The host interface type (IFluidInterfaceHost, IGasInterfaceHost, IItemInterfaceHost)
  * @param <C> The container type
  */
+@Optional.Interface(iface = "appeng.container.interfaces.IJEIGhostIngredients", modid = "jei")
 public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C extends AEBaseContainer>
         extends AEBaseGui implements IJEIGhostIngredients {
 
     private static final ResourceLocation BACKGROUND_TEXTURE =
         new ResourceLocation(Tags.MODID, "textures/guis/import_interface.png");
 
-    protected static final int SLOTS_PER_PAGE = 36;
+    private static final ResourceLocation BACKGROUND_TEXTURE_WITH_CARDS =
+        new ResourceLocation(Tags.MODID, "textures/guis/import_interface_withcards.png");
+
+    /** Design constant - same across all resource types. */
+    protected static final int SLOTS_PER_PAGE = AbstractResourceInterfaceLogic.SLOTS_PER_PAGE;
 
     protected final C container;
     protected final H host;
@@ -309,7 +317,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             int availableWidth = maxTitleWidth - ellipsisWidth;
 
             // Trim characters until it fits
-            while (titleWidth > availableWidth && title.length() > 0) {
+            while (titleWidth > availableWidth && !title.isEmpty()) {
                 title = title.substring(0, title.length() - 1);
                 titleWidth = this.fontRenderer.getStringWidth(title);
             }
@@ -330,8 +338,22 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
     @Override
     public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        this.mc.getTextureManager().bindTexture(BACKGROUND_TEXTURE);
+        // Use texture with card slots if toolbox is present
+        boolean hasToolbox = (this.container instanceof AbstractContainerInterface)
+            && ((AbstractContainerInterface<?, ?, ?>) this.container).hasToolbox();
+        ResourceLocation texture = hasToolbox ? BACKGROUND_TEXTURE_WITH_CARDS : BACKGROUND_TEXTURE;
+
+        this.mc.getTextureManager().bindTexture(texture);
         this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, this.ySize);
+
+        // Draw toolbox extension area (x=210-246, y=149-216)
+        // The toolbox slots are at 186+3*18=240 max x, and y=156+3*18=210 max y
+        // This extends past the main xSize (210), so we need an additional draw call
+        // to render the portion from x=210 to x=246 (36 pixels wide), y=149 to y=216 (67 pixels tall)
+        if (hasToolbox) {
+            // Draw the extension from the same texture, sampling from x=210 in the texture
+            this.drawTexturedModalRect(offsetX + 210, offsetY + 149, 210, 149, 36, 67);
+        }
     }
 
     @Override
@@ -387,8 +409,11 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
      * Iterates over all filter slots and creates JEI targets for slots that can
      * accept the given ingredient. This eliminates the need for type-specific
      * createJEITargets() overrides in subclasses.
+     * <p>
+     * This method is only available when JEI is loaded.
      */
     @Override
+    @Optional.Method(modid = "jei")
     public List<Target<?>> getPhantomTargets(Object ingredient) {
         List<Target<?>> targets = new ArrayList<>();
 
@@ -415,8 +440,32 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
     @SuppressWarnings("unchecked")
     @Override
+    @Optional.Method(modid = "jei")
     public Map<Target<?>, Object> getFakeSlotTargetMap() {
         return (Map<Target<?>, Object>) (Map<?, ?>) mapTargetSlot;
+    }
+
+    /**
+     * Provide JEI exclusion areas for the toolbox extension.
+     * <p>
+     * When the toolbox is present, it extends past the main GUI area (x=210-246, y=149-216).
+     * This tells JEI to avoid drawing items in that region.
+     */
+    @Override
+    public List<Rectangle> getJEIExclusionArea() {
+        List<Rectangle> areas = new ArrayList<>(super.getJEIExclusionArea());
+
+        // Add toolbox extension area when present
+        boolean hasToolbox = (this.container instanceof AbstractContainerInterface)
+            && ((AbstractContainerInterface<?, ?, ?>) this.container).hasToolbox();
+
+        if (hasToolbox) {
+            // Toolbox extension: x=210-246 (36px width), y=149-216 (67px height)
+            // Offset by guiLeft and guiTop for screen coordinates
+            areas.add(new Rectangle(this.guiLeft + 210, this.guiTop + 149, 36, 67));
+        }
+
+        return areas;
     }
 
     @Override

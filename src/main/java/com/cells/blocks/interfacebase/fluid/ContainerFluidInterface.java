@@ -56,16 +56,6 @@ public class ContainerFluidInterface
      */
     private ContainerFluidInterface(final InventoryPlayer ip, final IFluidInterfaceHost host, final Object anchor) {
         super(ip, host, anchor, FluidInterfaceLogic.DEFAULT_MAX_SLOT_SIZE);
-
-        // Add upgrade slots
-        for (int i = 0; i < FluidInterfaceLogic.UPGRADE_SLOTS; i++) {
-            this.addSlotToContainer(new SlotUpgrade<>(
-                host.getUpgradeInventory(), i, 186, 25 + i * 18, host
-            ));
-        }
-
-        // Bind player inventory
-        this.bindPlayerInventory(ip, 0, 174);
     }
 
     // ================================= Abstract Implementations =================================
@@ -73,21 +63,6 @@ public class ContainerFluidInterface
     @Override
     protected ResourceType getResourceType() {
         return ResourceType.FLUID;
-    }
-
-    @Override
-    protected int getUpgradeSlotCount() {
-        return FluidInterfaceLogic.UPGRADE_SLOTS;
-    }
-
-    @Override
-    protected int getFilterSlotCount() {
-        return FluidInterfaceLogic.FILTER_SLOTS;
-    }
-
-    @Override
-    protected int getSlotsPerPage() {
-        return FluidInterfaceLogic.SLOTS_PER_PAGE;
     }
 
     @Override

@@ -29,7 +29,6 @@ import appeng.util.ReadableNumberConverter;
 
 import com.cells.Cells;
 import com.cells.Tags;
-import com.cells.cells.creative.AbstractCreativeCellInventory;
 import com.cells.core.CellsCreativeTab;
 
 

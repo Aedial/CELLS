@@ -15,6 +15,8 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
 
+import net.minecraftforge.fml.common.Optional;
+
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiCustomSlot;
 import appeng.container.interfaces.IJEIGhostIngredients;
@@ -40,6 +42,7 @@ import com.cells.gui.slots.AbstractResourceFilterSlot;
  *
  * @param <C> Type of the container used by this GUI
  */
+@Optional.Interface(iface = "appeng.container.interfaces.IJEIGhostIngredients", modid = "jei")
 public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellContainer<?>>
         extends AEBaseGui implements IJEIGhostIngredients {
 
@@ -164,8 +167,11 @@ public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellCont
      * Iterates over all filter slots and creates JEI targets for slots that can
      * accept the given ingredient. This eliminates the need for type-specific
      * createTargets() overrides in subclasses.
+     * <p>
+     * This method is only available when JEI is loaded.
      */
     @Override
+    @Optional.Method(modid = "jei")
     public List<Target<?>> getPhantomTargets(Object ingredient) {
         mapTargetSlot.clear();
         List<Target<?>> targets = new ArrayList<>();
@@ -189,6 +195,7 @@ public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellCont
     }
 
     @Override
+    @Optional.Method(modid = "jei")
     public Map<Target<?>, Object> getFakeSlotTargetMap() {
         return mapTargetSlot;
     }

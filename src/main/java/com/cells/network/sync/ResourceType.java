@@ -134,7 +134,6 @@ public enum ResourceType {
         if (itemId < 0) return null;
 
         Item item = Item.getItemById(itemId);
-        if (item == null) return null;
 
         long count = buf.readLong();
         int meta = buf.readShort();

@@ -8,7 +8,6 @@ import net.minecraftforge.fml.common.Optional;
 import mekanism.api.gas.GasStack;
 
 import com.cells.cells.creative.AbstractCreativeCellItem;
-import com.cells.cells.creative.gas.CreativeGasCellFilterHandler;
 import com.cells.gui.CellsGuiHandler;
 
 

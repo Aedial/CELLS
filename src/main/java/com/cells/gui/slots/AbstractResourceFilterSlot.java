@@ -10,6 +10,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 
+import net.minecraftforge.fml.common.Optional;
+
 import appeng.client.gui.widgets.GuiCustomSlot;
 import appeng.container.slot.IJEITargetSlot;
 
@@ -237,11 +239,12 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
      * This provides a unified way to create JEI targets for drag-drop support.
      * The GUI can call this method on each filter slot instead of manually
      * creating targets with duplicated code.
+     * <p>
+     * This method is only available when JEI is loaded.
      *
-     * @param guiLeft The GUI's left offset (to calculate absolute position)
-     * @param guiTop The GUI's top offset (to calculate absolute position)
      * @return A JEI Target that can accept ingredients for this slot
      */
+    @Optional.Method(modid = "jei")
     public Target<Object> createJEITarget(IntSupplier guiLeftSupplier, IntSupplier guiTopSupplier) {
         final AbstractResourceFilterSlot<R> self = this;
 

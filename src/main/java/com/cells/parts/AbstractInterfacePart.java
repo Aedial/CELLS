@@ -364,7 +364,7 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
         ItemStack stack = super.getItemStack(type);
         if (type == PartItemStack.WRENCH) {
             NBTTagCompound tag = this.downloadSettings(SettingsFrom.DISMANTLE_ITEM);
-            if (tag != null && !tag.isEmpty()) stack.setTagCompound(tag);
+            if (!tag.isEmpty()) stack.setTagCompound(tag);
         }
         return stack;
     }

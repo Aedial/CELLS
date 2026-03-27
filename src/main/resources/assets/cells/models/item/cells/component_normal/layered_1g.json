@@ -1,0 +1,7 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "cells:items/cells/component_core/tint_1g",
+    "layer1": "cells:items/cells/component_normal/frame_1g"
+  }
+}

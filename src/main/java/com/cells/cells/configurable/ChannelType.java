@@ -127,16 +127,6 @@ public enum ChannelType {
     }
 
     /**
-     * Get the model suffix used for textures/models of this channel type.
-     * Item channel has no suffix, the rest have their config name as suffix.
-     */
-    public String getModelSuffix() {
-        if (this == ITEM) return "";
-
-        return "_" + configName;
-    }
-
-    /**
      * Get the maximum types allowed for configurable cells of this channel type.
      * Each channel type has its own config value.
      *

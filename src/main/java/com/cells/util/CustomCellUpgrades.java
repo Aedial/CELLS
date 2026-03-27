@@ -97,7 +97,7 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
      */
     private int readFromNBTWithoutShrinking(NBTTagCompound data, String name) {
         NBTTagCompound invData = data.getCompoundTag(name);
-        if (invData == null || invData.isEmpty()) return 0;
+        if (invData.isEmpty()) return 0;
 
         // Read items WITHOUT calling setSize - preserve our current inventory size
         int itemsLost = 0;

@@ -1,13 +1,8 @@
 package com.cells.cells.creative.item;
 
-import java.util.Set;
-
 import net.minecraft.item.ItemStack;
 
-import appeng.core.localization.GuiText;
-
 import com.cells.cells.creative.AbstractCreativeCellItem;
-import com.cells.cells.creative.item.CreativeCellFilterHandler;
 import com.cells.gui.CellsGuiHandler;
 
 

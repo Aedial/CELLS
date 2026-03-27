@@ -130,12 +130,12 @@ public interface IInterfaceLogic {
      */
     boolean hasTrashUnselectedUpgrade();
 
+    // ================================= Wake Logic =================================
+
     /**
      * Set polling rate with player feedback.
      */
     void setPollingRate(int ticks, EntityPlayer player);
-
-    // ================================= Wake Logic =================================
 
     /**
      * Wake up the interface if it's in adaptive polling mode.

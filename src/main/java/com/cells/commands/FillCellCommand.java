@@ -233,7 +233,6 @@ public class FillCellCommand extends CommandBase {
                 new thaumicenergistics.api.EssentiaStack(aspect, (int) Math.min(count, Integer.MAX_VALUE));
         thaumicenergistics.api.storage.IAEEssentiaStack aeEssentiaStack =
                 thaumicenergistics.integration.appeng.AEEssentiaStack.fromEssentiaStack(essentiaStack);
-        if (aeEssentiaStack == null) return "Failed to create AE essentia stack for " + aspectTag;
 
         aeEssentiaStack.setStackSize(count);
         thaumicenergistics.api.storage.IAEEssentiaStack remainder =

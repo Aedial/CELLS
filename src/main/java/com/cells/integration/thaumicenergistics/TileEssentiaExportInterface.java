@@ -7,6 +7,7 @@ import net.minecraft.util.EnumFacing;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.aspects.IAspectContainer;
+import thaumcraft.api.aspects.IAspectSource;
 import thaumcraft.api.aspects.IEssentiaTransport;
 
 import thaumicenergistics.api.EssentiaStack;
@@ -21,6 +22,7 @@ import com.cells.blocks.interfacebase.AbstractInterfaceTile;
  * External machines can extract essentia from the storage.
  * <p>
  * Implements {@link IAspectContainer} for adjacent machines to detect essentia storage.
+ * Implements {@link IAspectSource} to allow infusion altars to draw essentia directly.
  * Implements {@link IEssentiaTransport} to participate in the Thaumcraft tube network.
  * <p>
  * As an <b>Export Interface</b> (SOURCE), this block:
@@ -34,7 +36,7 @@ import com.cells.blocks.interfacebase.AbstractInterfaceTile;
  * duplication with part and import variants.
  */
 public class TileEssentiaExportInterface extends AbstractInterfaceTile<EssentiaInterfaceLogic>
-        implements IEssentiaInterfaceHost, EssentiaInterfaceLogic.Host, IAspectContainer, IEssentiaTransport {
+        implements IEssentiaInterfaceHost, EssentiaInterfaceLogic.Host, IAspectSource, IEssentiaTransport {
 
     public TileEssentiaExportInterface() {
         this.initLogic(new EssentiaInterfaceLogic(this));
@@ -93,7 +95,16 @@ public class TileEssentiaExportInterface extends AbstractInterfaceTile<EssentiaI
         return this.logic.getEssentiaCount(aspect);
     }
 
-    // ============================== IAspectContainer Implementation ==============================
+    // ============================== IAspectSource / IAspectContainer Implementation ==============================
+
+    /**
+     * Not blocked - this allows infusion altars to draw essentia directly from us.
+     * When false, the infusion altar can see and consume our stored essentia.
+     */
+    @Override
+    public boolean isBlocked() {
+        return false;
+    }
 
     @Override
     public AspectList getAspects() {
@@ -204,17 +215,15 @@ public class TileEssentiaExportInterface extends AbstractInterfaceTile<EssentiaI
     }
 
     /**
-     * Return total essentia stored.
+     * Return amount of the advertised essentia type.
+     * This should match what getEssentiaType() returns.
      */
     @Override
     public int getEssentiaAmount(EnumFacing facing) {
-        AspectList aspects = this.logic.getAspects();
-        long total = 0;
-        for (Aspect aspect : aspects.getAspects()) {
-            total += aspects.getAmount(aspect);
-        }
-        // Clamp to avoid overflow
-        return (int) Math.min(total, Integer.MAX_VALUE);
+        Aspect type = this.logic.getStoredEssentiaType();
+        if (type == null) return 0;
+
+        return this.logic.getEssentiaCount(type);
     }
 
     /**

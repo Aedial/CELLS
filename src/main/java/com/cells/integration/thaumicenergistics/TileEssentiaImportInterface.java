@@ -192,17 +192,15 @@ public class TileEssentiaImportInterface extends AbstractInterfaceTile<EssentiaI
     }
 
     /**
-     * Return total essentia stored.
+     * Return amount of the advertised essentia type.
+     * This should match what getEssentiaType() returns (first filter).
      */
     @Override
     public int getEssentiaAmount(EnumFacing facing) {
-        AspectList aspects = this.logic.getAspects();
-        long total = 0;
-        for (Aspect aspect : aspects.getAspects()) {
-            total += aspects.getAmount(aspect);
-        }
-        // Clamp to avoid overflow
-        return (int) Math.min(total, Integer.MAX_VALUE);
+        Aspect type = this.logic.getSuctionType();
+        if (type == null) return 0;
+
+        return this.logic.getEssentiaCount(type);
     }
 
     /**

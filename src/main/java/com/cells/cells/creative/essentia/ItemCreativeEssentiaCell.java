@@ -8,7 +8,6 @@ import net.minecraftforge.fml.common.Optional;
 import thaumicenergistics.api.EssentiaStack;
 
 import com.cells.cells.creative.AbstractCreativeCellItem;
-import com.cells.cells.creative.essentia.CreativeEssentiaCellFilterHandler;
 import com.cells.gui.CellsGuiHandler;
 
 

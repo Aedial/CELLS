@@ -1,13 +1,12 @@
 package com.cells.parts;
 
-import java.util.EnumSet;
-
 import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
+
+import appeng.capabilities.Capabilities;
 
 import appeng.items.parts.PartModels;
 import appeng.parts.PartModel;
@@ -95,6 +94,8 @@ public class PartExportInterface extends AbstractInterfacePart<ItemInterfaceLogi
     @Override
     public boolean hasCapability(Capability<?> capability) {
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) return true;
+        if (Capabilities.ITEM_REPOSITORY_CAPABILITY != null
+                && capability == Capabilities.ITEM_REPOSITORY_CAPABILITY) return true;
         return super.hasCapability(capability);
     }
 
@@ -102,6 +103,10 @@ public class PartExportInterface extends AbstractInterfacePart<ItemInterfaceLogi
     public <T> T getCapability(Capability<T> capability) {
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
             return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(this.logic.getExternalHandler());
+        }
+        if (Capabilities.ITEM_REPOSITORY_CAPABILITY != null
+                && capability == Capabilities.ITEM_REPOSITORY_CAPABILITY) {
+            return Capabilities.ITEM_REPOSITORY_CAPABILITY.cast(this.logic.getItemRepository());
         }
         return super.getCapability(capability);
     }

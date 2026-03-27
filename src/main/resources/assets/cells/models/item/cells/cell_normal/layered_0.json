@@ -1,0 +1,10 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "cells:items/cells/frame_normal",
+    "layer1": "cells:items/cells/outer_highlights",
+    "layer2": "cells:items/cells/inner_highlights",
+    "layer3": "cells:items/cells/cell_shapes/shape_0_inner",
+    "layer4": "cells:items/cells/cell_shapes/shape_0_outer"
+  }
+}

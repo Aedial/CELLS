@@ -1,0 +1,1 @@
+See CellTextureColors.java for details on the color system.

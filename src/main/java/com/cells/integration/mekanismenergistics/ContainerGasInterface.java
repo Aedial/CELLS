@@ -52,16 +52,6 @@ public class ContainerGasInterface
      */
     private ContainerGasInterface(final InventoryPlayer ip, final IGasInterfaceHost host, final Object anchor) {
         super(ip, host, anchor, GasInterfaceLogic.DEFAULT_MAX_SLOT_SIZE);
-
-        // Add upgrade slots
-        for (int i = 0; i < GasInterfaceLogic.UPGRADE_SLOTS; i++) {
-            this.addSlotToContainer(new SlotUpgrade<>(
-                host.getUpgradeInventory(), i, 186, 25 + i * 18, host
-            ));
-        }
-
-        // Bind player inventory
-        this.bindPlayerInventory(ip, 0, 174);
     }
 
     // ================================= Abstract Implementations =================================
@@ -69,21 +59,6 @@ public class ContainerGasInterface
     @Override
     protected ResourceType getResourceType() {
         return ResourceType.GAS;
-    }
-
-    @Override
-    protected int getUpgradeSlotCount() {
-        return GasInterfaceLogic.UPGRADE_SLOTS;
-    }
-
-    @Override
-    protected int getFilterSlotCount() {
-        return GasInterfaceLogic.FILTER_SLOTS;
-    }
-
-    @Override
-    protected int getSlotsPerPage() {
-        return GasInterfaceLogic.SLOTS_PER_PAGE;
     }
 
     @Override

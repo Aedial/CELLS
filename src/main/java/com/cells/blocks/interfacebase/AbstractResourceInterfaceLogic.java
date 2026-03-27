@@ -1,7 +1,6 @@
 package com.cells.blocks.interfacebase;
 
 import java.lang.reflect.Array;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +19,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.config.Actionable;
@@ -129,6 +129,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /** Polling rate in ticks (0 = adaptive). */
     protected int pollingRate = 0;
+
+    /** Whether we are currently sleeping (not being ticked by AE2). */
+    protected boolean isSleeping = false;
 
     /** Whether overflow upgrade is installed (import only). */
     protected boolean installedOverflowUpgrade = false;
@@ -347,7 +350,8 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
         R current = this.storage[slot];
 
-        // TODO: use keys with keysMatch instead of resourcesMatch for efficiency once we have cached keys in the filter map
+        // TODO: Use keys with keysMatch instead of resourcesMatch for efficiency once we have cached keys in the filter map
+        //       We have cached filters map, but not cached storage keys yet
         // If slot has resource, it must match
         if (current != null && !resourcesMatch(current, resource)) return 0;
 
@@ -366,6 +370,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
         this.host.markDirtyAndSave();
         this.host.markForNetworkUpdate();
+        this.wakeUpIfAdaptive();
 
         return toInsert;
     }
@@ -993,7 +998,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
                 R filter = readResourceFromNBT(filterTag);
                 if (filter != null) this.filters[slot] = filter;
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException ignored) {
             }
         }
     }
@@ -1031,7 +1036,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 if (slot >= 0 && slot < STORAGE_SLOTS) {
                     this.storage[slot] = readResourceFromNBT(storageMap.getCompoundTag(key));
                 }
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException ignored) {
             }
         }
     }
@@ -1077,15 +1082,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         int count = data.readShort();
         for (int idx = 0; idx < count; idx++) {
             int slot = data.readShort();
-            int nameLen = data.readShort();
-            byte[] nameBytes = new byte[nameLen];
-            data.readBytes(nameBytes);
-            String resourceName = new String(nameBytes, StandardCharsets.UTF_8);
-            int amount = data.readInt();
+            NBTTagCompound tag = ByteBufUtils.readTag(data);
 
             if (slot < 0 || slot >= STORAGE_SLOTS) continue;
+            if (tag == null) continue;
 
-            R resource = getResourceByName(resourceName, amount);
+            R resource = readResourceFromNBT(tag);
             if (resource != null) {
                 this.storage[slot] = resource;
                 changed = true;
@@ -1113,11 +1115,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
             data.writeShort(i);
 
-            byte[] nameBytes = getResourceName(resource).getBytes(StandardCharsets.UTF_8);
-            data.writeShort(nameBytes.length);
-            data.writeBytes(nameBytes);
-
-            data.writeInt(getAmount(resource));
+            NBTTagCompound tag = new NBTTagCompound();
+            writeResourceToNBT(resource, tag);
+            ByteBufUtils.writeTag(data, tag);
         }
     }
 
@@ -1139,14 +1139,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         int count = data.readShort();
         for (int idx = 0; idx < count; idx++) {
             int slot = data.readShort();
-            int nameLen = data.readShort();
-            byte[] nameBytes = new byte[nameLen];
-            data.readBytes(nameBytes);
-            String resourceName = new String(nameBytes, StandardCharsets.UTF_8);
+            NBTTagCompound tag = ByteBufUtils.readTag(data);
 
             if (slot < 0 || slot >= FILTER_SLOTS) continue;
+            if (tag == null) continue;
 
-            R resource = getResourceByName(resourceName, 1);
+            R resource = readResourceFromNBT(tag);
             if (resource != null) {
                 this.filters[slot] = resource;
                 changed = true;
@@ -1175,9 +1173,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
             data.writeShort(i);
 
-            byte[] nameBytes = getResourceName(filter).getBytes(StandardCharsets.UTF_8);
-            data.writeShort(nameBytes.length);
-            data.writeBytes(nameBytes);
+            NBTTagCompound tag = new NBTTagCompound();
+            writeResourceToNBT(filter, tag);
+            ByteBufUtils.writeTag(data, tag);
         }
     }
 
@@ -1280,7 +1278,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 if (filterTag.isEmpty()) continue;
 
                 sourceFilters[slot] = readResourceFromNBT(filterTag);
-            } catch (NumberFormatException e) {
+            } catch (NumberFormatException ignored) {
             }
         }
 
@@ -1336,9 +1334,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             // Export: if filter changed, return orphaned resources in that slot
             R stored = this.storage[slot];
             if (stored != null && getAmount(stored) > 0) {
-                R filter = this.filters[slot];
-                // TODO: use keys and keysMatch instead of resourcesMatch
-                boolean isOrphaned = filter == null || !resourcesMatch(filter, stored);
+                // Use cached filter key from slotToFilterMap for efficiency
+                K cachedFilterKey = this.slotToFilterMap.get(slot);
+                boolean isOrphaned = cachedFilterKey == null || !keysMatch(cachedFilterKey, createKey(stored));
 
                 if (isOrphaned) returnSlotToNetwork(slot);
             }
@@ -1374,9 +1372,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /**
      * Create a TickingRequest based on current configuration.
+     * Also initializes the isSleeping state to match the request.
      */
     public TickingRequest getTickingRequest() {
         if (this.pollingRate > 0) {
+            this.isSleeping = false;
+
             return new TickingRequest(
                 this.pollingRate,
                 this.pollingRate,
@@ -1385,10 +1386,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             );
         }
 
+        this.isSleeping = !hasWorkToDo();
+
         return new TickingRequest(
             TickRates.Interface.getMin(),
             TickRates.Interface.getMax(),
-            !hasWorkToDo(),
+            this.isSleeping,
             true
         );
     }
@@ -1397,14 +1400,20 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Handle a tick. Returns the appropriate rate modulation.
      */
     public TickRateModulation onTick() {
-        if (!this.host.getGridProxy().isActive()) return TickRateModulation.SLEEP;
+        if (!this.host.getGridProxy().isActive()) {
+            this.isSleeping = true;
+            return TickRateModulation.SLEEP;
+        }
 
         boolean didWork = this.host.isExport() ? exportResources() : importResources();
 
         if (this.pollingRate > 0) return TickRateModulation.SAME;
         if (didWork) return TickRateModulation.FASTER;
 
-        return hasWorkToDo() ? TickRateModulation.SLOWER : TickRateModulation.SLEEP;
+        boolean shouldSleep = !hasWorkToDo();
+        this.isSleeping = shouldSleep;
+
+        return shouldSleep ? TickRateModulation.SLEEP : TickRateModulation.SLOWER;
     }
 
     /**
@@ -1429,13 +1438,16 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     }
 
     /**
-     * Wake up the tick manager if using adaptive polling.
+     * Wake up the tick manager if sleeping and using adaptive polling.
+     * Only calls alertDevice() when actually sleeping - tick modulation handles the rest.
      */
     public void wakeUpIfAdaptive() {
         if (this.pollingRate > 0) return;
+        if (!this.isSleeping) return;
 
         try {
             this.host.getGridProxy().getTick().alertDevice(this.host.getGridProxy().getNode());
+            this.isSleeping = false;
         } catch (GridAccessException e) {
             // Not connected to grid
         }
@@ -1495,10 +1507,11 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
                 R current = this.storage[i];
 
-                // Skip slots where current resources don't match filter (orphaned)
-                // TODO: use keys and keysMatch instead of resourcesMatch
+                // Skip slots where current resources don't match filter (still orphaned)
+                // Use cached filter key from slotToFilterMap for efficiency
                 if (current != null && getAmount(current) > 0) {
-                    if (!resourcesMatch(filter, current)) continue;
+                    K cachedFilterKey = this.slotToFilterMap.get(i);
+                    if (cachedFilterKey == null || !keysMatch(cachedFilterKey, createKey(current))) continue;
                 }
 
                 int currentAmount = (current == null) ? 0 : getAmount(current);
@@ -1581,9 +1594,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             R stored = this.storage[i];
             if (stored == null || getAmount(stored) <= 0) continue;
 
-            // TODO: use keys and keysMatch instead of resourcesMatch
-            R filter = this.filters[i];
-            if (filter != null && resourcesMatch(filter, stored)) continue;
+            // Use cached filter key from slotToFilterMap for efficiency
+            K cachedFilterKey = this.slotToFilterMap.get(i);
+            if (cachedFilterKey != null && keysMatch(cachedFilterKey, createKey(stored))) continue;
 
             // Orphaned - return to network
             returnSlotToNetwork(i);

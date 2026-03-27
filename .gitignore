@@ -2,6 +2,8 @@
 *.zip
 TODO.md
 *.patch
+.venv
+__pycache__/
 
 # Gradle
 .gradle/

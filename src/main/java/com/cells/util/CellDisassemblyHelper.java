@@ -124,13 +124,11 @@ public final class CellDisassemblyHelper {
             return false;
         }
 
-        InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
-        if (ia == null) return false;
-
         // Remove one cell from the player's hand
         removeOneFromHand(stack, player);
 
         // Return upgrades
+        InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         returnUpgrades(cellWorkbenchItem.getUpgradesInventory(stack), ia, player);
 
         // Return housing if requested

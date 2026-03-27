@@ -29,7 +29,7 @@ import com.cells.util.ItemStackKey;
  * <p>
  * Extends {@link AbstractContainerInterface} with item-specific implementations.
  * Filter slots are custom GUI slots ({@link com.cells.gui.slots.ItemFilterSlot}) with unified PacketResourceSlot sync.
- * Storage slots use {@link ItemStorageSlot} for actual item manipulation.
+ * Storage slots use {@link com.cells.gui.slots.ItemStorageSlot} for actual item manipulation.
  * <p>
  * Layout: 4 rows of slots (filter above storage), 4 upgrade slots on the right.
  */
@@ -59,24 +59,13 @@ public class ContainerItemInterface
     private ContainerItemInterface(final InventoryPlayer ip, final IItemInterfaceHost host, final Object anchor) {
         super(ip, host, anchor, ItemInterfaceLogic.DEFAULT_MAX_SLOT_SIZE);
 
-        // Create paged storage handler for GUI use
+        // Create paged storage handler for GUI use (item-specific)
         this.pagedStorageHandler = new PagedItemHandler(
             host.getStorageInventory(),
             ItemInterfaceLogic.SLOTS_PER_PAGE,
             () -> this.currentPage,
             () -> this.totalPages
         );
-
-
-        // Add upgrade slots
-        for (int i = 0; i < ItemInterfaceLogic.UPGRADE_SLOTS; i++) {
-            this.addSlotToContainer(new SlotUpgrade<>(
-                host.getUpgradeInventory(), i, 186, 25 + i * 18, host
-            ));
-        }
-
-        // Bind player inventory
-        this.bindPlayerInventory(ip, 0, 174);
     }
 
     // ================================= Accessors =================================
@@ -93,21 +82,6 @@ public class ContainerItemInterface
     @Override
     protected ResourceType getResourceType() {
         return ResourceType.ITEM;
-    }
-
-    @Override
-    protected int getUpgradeSlotCount() {
-        return ItemInterfaceLogic.UPGRADE_SLOTS;
-    }
-
-    @Override
-    protected int getFilterSlotCount() {
-        return ItemInterfaceLogic.FILTER_SLOTS;
-    }
-
-    @Override
-    protected int getSlotsPerPage() {
-        return ItemInterfaceLogic.SLOTS_PER_PAGE;
     }
 
     @Override
@@ -349,7 +323,8 @@ public class ContainerItemInterface
      * that don't support AE2-UEL's extended encoding.
      */
     @Override
-    public ItemStack slotClick(int slotId, int dragType, ClickType clickTypeIn, EntityPlayer player) {
+    @Nonnull
+    public ItemStack slotClick(int slotId, int dragType, ClickType clickTypeIn, @Nonnull EntityPlayer player) {
         ItemStack result = super.slotClick(slotId, dragType, clickTypeIn, player);
 
         if (!result.isEmpty() && result.getCount() > result.getMaxStackSize()) {
