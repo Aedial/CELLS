@@ -320,7 +320,7 @@ cells.creative_cell.gas.title=创造气体元件过滤项
 cells.creative_cell.essentia.title=创造源质元件过滤项
 
 tooltip.cells.creative_cell.info=无限%s来源。提供海量的设定%s。
-tooltip.cells.creative_cell.exposes=提供每种过滤项各%s %s（共%d种过滤项）
+tooltip.cells.creative_cell.exposes=提供每种过滤项各%s%s（共%d种过滤项）
 tooltip.cells.creative_cell.creative_hint=Shift + 右键点击以配置过滤项
 tooltip.cells.creative_cell.survival_hint=需要创造模式才能配置
 
@@ -363,9 +363,9 @@ tile.cells.import_interface.name=输入接口
 tile.cells.import_interface.fluid.name=流体输入接口
 tile.cells.import_interface.gas.name=气体输入接口
 tile.cells.import_interface.essentia.name=源质输入接口
-item.cells.part.export_interface.name=输出接口
-item.cells.part.export_fluid_interface.name=流体输出接口
-item.cells.part.export_gas_interface.name=气体输出接口
+tile.cells.export_interface.name=输出接口
+tile.cells.export_interface.fluid.name=流体输出接口
+tile.cells.export_interface.gas.name=气体输出接口
 tile.cells.export_interface.essentia.name=源质输出接口
 
 item.cells.part.import_interface.name=输入接口
