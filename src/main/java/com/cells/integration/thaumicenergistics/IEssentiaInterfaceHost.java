@@ -32,6 +32,11 @@ public interface IEssentiaInterfaceHost
      */
     EssentiaStack getEssentiaInSlot(int slot);
 
+    @Override
+    default long getEssentiaAmount(int slot) {
+        return getInterfaceLogic().getSlotAmount(slot);
+    }
+
     /**
      * Set the essentia in a storage slot (for import interface essentia pouring).
      *

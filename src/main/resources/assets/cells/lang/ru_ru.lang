@@ -1,0 +1,481 @@
+# Misc
+itemGroup.cells=C.E.L.L.S
+tooltip.cells.wip_do_not_use=§c⚠ В разработке - Не использовать! ⚠§r
+tooltip.cells.card.separator=, 
+tooltip.cells.card.compatible=Совместимо с: %s
+tooltip.cells.type.compact=Ячейка уплотнения ME
+tooltip.cells.type.hyperdensity=Гипер-плотная ячейка хранения ME
+tooltip.cells.type.hyperdensity_compact=Гипер-плотная ячейка уплотнения ME
+tooltip.cells.type.import_interface=Интерфейс импорта (все типы)
+tooltip.cells.nbt_size=Размер NBT: %s
+tooltip.cells.nbt_size.warning=§c⚠ Размер NBT превышает безопасный лимит! Это может вызвать лаги или вылеты. Переместите часть содержимого с большим NBT в другой чанк или сеть, чтобы избежать повреждений.§r
+tooltip.cells.previous_page=Предыдущая страница
+tooltip.cells.next_page=Следующая страница
+tooltip.cells.jei_view_contents=§7Нажмите [§b%s§7] для просмотра содержимого§r
+tooltip.cells.amount=%d/%d %s
+
+# Resource types and units (used in %s placeholders throughout)
+cells.type.item=Предмет
+cells.type.fluid=Жидкость
+cells.type.gas=Газ
+cells.type.essentia=Эссенция
+cells.type.unknown=???
+
+cells.unit.item=шт.
+cells.unit.fluid=mB
+cells.unit.gas=mB газа
+cells.unit.essentia=эссенции
+cells.unit.unknown=ед.
+
+cells.unit_name.item=предмет
+cells.unit_name.fluid=жидкость
+cells.unit_name.gas=газ
+cells.unit_name.essentia=эссенция
+cells.unit_name.unknown=ед.
+
+cells.unit_names.item=предметы
+cells.unit_names.fluid=жидкости
+cells.unit_names.gas=газы
+cells.unit_names.essentia=эссенции
+cells.unit_names.unknown=единицы
+
+# GUI titles and labels
+cells.max_slot_size.title=Максимальный размер слота
+cells.slot_size=Размер слота: §b%d§r %s
+cells.max_slot_size.tooltip=Максимальное количество %s для хранения в слотах.
+cells.polling_rate.title=Частота опроса
+cells.polling_rate.adaptive=Частота опроса: Адаптивная
+cells.clear_filters=Очистить фильтры
+
+# Polling rate - direction-specific
+tooltip.cells.polling_rate.import=Фиксированный интервал для импорта (0 = адаптивный, ненулевой = тики)
+tooltip.cells.polling_rate.export=Интервал для экспорта (0 = адаптивный, ненулевой = тики)
+cells.polling_rate.custom.import=Частота опроса: §rимпорт каждые §b%s§r
+cells.polling_rate.custom.export=Частота опроса: §rэкспорт каждые §b%s§r
+
+# Clear filters - direction-specific (different behavior)
+tooltip.cells.clear_filters.import=Очистить все слоты фильтров. Фильтры с содержимым будут пропущены.
+tooltip.cells.clear_filters.export=Очистить все фильтры и отправить сохраненное содержимое обратно в сеть.
+tooltip.cells.clear_filters.all=Очистить все слоты фильтров
+
+# Messages
+message.cells.disassemble_fail_content=Невозможно разобрать ячейку с содержимым! Сначала опустошите ячейку.
+message.cells.memory_card.filters_saved=Настройки и фильтры сохранены на карту памяти.
+message.cells.filter_duplicate=Этот фильтр уже существует в другом слоте.
+message.cells.not_valid_content=Этот предмет не содержит действительный %s.
+message.cells.filters_not_added=%d фильтр(ов) не может быть добавлен (нет свободных слотов):\n- %s
+message.cells.storage_not_empty=Невозможно изменить фильтр, пока слот хранения не пуст.
+message.cells.no_filter_space=Нет свободных слотов фильтров.
+message.cells.creative_cell.not_valid_content=Недействительный %s!
+message.cells.polling_rate_delayed=§eЧастота опроса сохранена, но вступит в силу после следующего подключения к сети.§r
+
+# Config (GUI)
+cells.config.category.general=Основное
+cells.config.category.idle_drain=Потребление в простое
+cells.config.category.enabled_cells=Включенные ячейки
+
+cells.config.hdItemMaxTypes=HD предметные ячейки: макс. типов
+cells.config.hdFluidMaxTypes=HD жидкостные ячейки: макс. типов
+cells.config.hdItemMaxTypes.tooltip=Максимальное количество типов предметов для гипер-плотных предметных ячеек хранения (1-16384). ВНИМАНИЕ: Слишком высокое значение может привести к проблемам с размером NBT и возможным циклическим вылетам.
+cells.config.hdFluidMaxTypes.tooltip=Максимальное количество типов предметов для гипер-плотных жидкостных ячеек хранения (1-16384). ВНИМАНИЕ: Слишком высокое значение может привести к проблемам с размером NBT и возможным циклическим вылетам.
+cells.config.configurableCellItemMaxTypes=Настраиваемые предметные ячейки: макс. типов
+cells.config.configurableCellItemMaxTypes.tooltip=Максимальное количество типов для настраиваемых предметных ячеек хранения (1-16384)
+cells.config.configurableCellFluidMaxTypes=Настраиваемые жидкостные ячейки: макс. типов
+cells.config.configurableCellFluidMaxTypes.tooltip=Максимальное количество типов для настраиваемых жидкостных ячеек хранения (1-16384)
+cells.config.configurableCellEssentiaMaxTypes=Настраиваемые ячейки эссенции: макс. типов
+cells.config.configurableCellEssentiaMaxTypes.tooltip=Максимальное количество типов для настраиваемых ячеек хранения эссенции (1-16384)
+cells.config.configurableCellGasMaxTypes=Настраиваемые газовые ячейки: макс. типов
+cells.config.configurableCellGasMaxTypes.tooltip=Максимальное количество типов для настраиваемых газовых ячеек хранения (1-16384)
+
+cells.config.nbtSizeWarningThresholdKB=Порог предупреждения о размере NBT (КБ)
+cells.config.nbtSizeWarningThresholdKB.tooltip=Порог предупреждения о размере NBT в килобайтах (1-10000). Ячейки с размером NBT, превышающим это значение, будут показывать предупреждение.
+cells.config.enableNbtSizeTooltip=Включить подсказку о размере NBT
+cells.config.enableNbtSizeTooltip.tooltip=Включить вычисление и отображение размера NBT в подсказках ячеек. Отключите для повышения производительности ячеек.
+
+cells.config.compactingIdleDrain=Потребление в простое: ячейки уплотнения
+cells.config.hdIdleDrain=Потребление в простое: HD предметные ячейки
+cells.config.hdCompactingIdleDrain=Потребление в простое: HD ячейки уплотнения
+cells.config.fluidHdIdleDrain=Потребление в простое: HD жидкостные ячейки
+cells.config.compactingIdleDrain.tooltip=Потребление в простое для ячеек уплотнения (пассивное потребление AE/t)
+cells.config.hdIdleDrain.tooltip=Потребление в простое для гипер-плотных ячеек (пассивное потребление AE/t)
+cells.config.hdCompactingIdleDrain.tooltip=Потребление в простое для гипер-плотных ячеек уплотнения (пассивное потребление AE/t)
+cells.config.fluidHdIdleDrain.tooltip=Потребление в простое для жидкостных гипер-плотных ячеек (пассивное потребление AE/t)
+cells.config.configurableCellIdleDrain=Потребление в простое: настраиваемые ячейки
+cells.config.configurableCellIdleDrain.tooltip=Потребление в простое для настраиваемых ячеек (пассивное потребление AE/t)
+
+cells.config.compactingCellUpgradeSlots=Слоты улучшений: ячейки уплотнения
+cells.config.compactingCellUpgradeSlots.tooltip=Количество слотов улучшений для ячеек уплотнения (1-16)
+cells.config.hdItemCellUpgradeSlots=Слоты улучшений: HD предметные ячейки
+cells.config.hdItemCellUpgradeSlots.tooltip=Количество слотов улучшений для гипер-плотных предметных ячеек (1-16)
+cells.config.hdCompactingCellUpgradeSlots=Слоты улучшений: HD ячейки уплотнения
+cells.config.hdCompactingCellUpgradeSlots.tooltip=Количество слотов улучшений для гипер-плотных ячеек уплотнения (1-16)
+cells.config.hdFluidCellUpgradeSlots=Слоты улучшений: HD жидкостные ячейки
+cells.config.hdFluidCellUpgradeSlots.tooltip=Количество слотов улучшений для гипер-плотных жидкостных ячеек (1-16)
+cells.config.configurableCellUpgradeSlots=Слоты улучшений: настраиваемые ячейки
+cells.config.configurableCellUpgradeSlots.tooltip=Количество слотов улучшений для настраиваемых ячеек (1-16)
+
+cells.config.enableCompactingCell=Включить ячейку уплотнения
+cells.config.enableHDCells=Включить HD ячейку
+cells.config.enableHDCompactingCells=Включить HD ячейку уплотнения
+cells.config.enableFluidHDCells=Включить HD жидкостную ячейку
+cells.config.enableCompactingCells.tooltip=Включить ячейки хранения уплотнения
+cells.config.enableHDCells.tooltip=Включить гипер-плотные предметные ячейки хранения
+cells.config.enableHDCompactingCells.tooltip=Включить гипер-плотные ячейки хранения уплотнения
+cells.config.enableFluidHDCells.tooltip=Включить гипер-плотные жидкостные ячейки хранения
+cells.config.enableConfigurableCells=Включить настраиваемую ячейку
+cells.config.enableConfigurableCells.tooltip=Включить настраиваемые ячейки хранения
+
+# Compacting Cells
+item.cells.compacting_cell.1k.name=1k ME Ячейка уплотнения
+item.cells.compacting_cell.4k.name=4k ME Ячейка уплотнения
+item.cells.compacting_cell.16k.name=16k ME Ячейка уплотнения
+item.cells.compacting_cell.64k.name=64k ME Ячейка уплотнения
+item.cells.compacting_cell.256k.name=256k ME Ячейка уплотнения
+item.cells.compacting_cell.1m.name=1M ME Ячейка уплотнения
+item.cells.compacting_cell.4m.name=4M ME Ячейка уплотнения
+item.cells.compacting_cell.16m.name=16M ME Ячейка уплотнения
+item.cells.compacting_cell.64m.name=64M ME Ячейка уплотнения
+item.cells.compacting_cell.256m.name=256M ME Ячейка уплотнения
+item.cells.compacting_cell.1g.name=1G ME Ячейка уплотнения
+item.cells.compacting_cell.2g.name=2G ME Ячейка уплотнения
+
+# Compacting Components
+item.cells.compacting_component.1k.name=1k ME Компонент уплотнения
+item.cells.compacting_component.4k.name=4k ME Компонент уплотнения
+item.cells.compacting_component.16k.name=16k ME Компонент уплотнения
+item.cells.compacting_component.64k.name=64k ME Компонент уплотнения
+item.cells.compacting_component.256k.name=256k ME Компонент уплотнения
+item.cells.compacting_component.1m.name=1M ME Компонент уплотнения
+item.cells.compacting_component.4m.name=4M ME Компонент уплотнения
+item.cells.compacting_component.16m.name=16M ME Компонент уплотнения
+item.cells.compacting_component.64m.name=64M ME Компонент уплотнения
+item.cells.compacting_component.256m.name=256M ME Компонент уплотнения
+item.cells.compacting_component.1g.name=1G ME Компонент уплотнения
+item.cells.compacting_component.2g.name=2G ME Компонент уплотнения
+
+# Overflow Card
+item.cells.overflow_card.name=Карта уничтожения избытка
+tooltip.cells.overflow_card.desc=Уничтожает лишние предметы, когда ячейка заполнена
+
+# Ore Dictionary Card
+item.cells.oredict_card.name=Карта рудного словаря
+tooltip.cells.oredict_card.desc=Позволяет вставлять эквивалентные предметы из oreDict
+
+# Trash Unselected Card
+item.cells.trash_unselected_card.name=Карта уничтожения невыбранного
+tooltip.cells.trash_unselected_card.desc=Уничтожает предметы, не соответствующие фильтру
+tooltip.cells.trash_unselected_card.warning=Предупреждение: эта карта не имеет никакой защиты! Используйте с осторожностью.
+
+# Equal Distribution Card
+item.cells.equal_distribution_card.1x.name=Карта равного распределения (1x)
+item.cells.equal_distribution_card.2x.name=Карта равного распределения (2x)
+item.cells.equal_distribution_card.4x.name=Карта равного распределения (4x)
+item.cells.equal_distribution_card.8x.name=Карта равного распределения (8x)
+item.cells.equal_distribution_card.16x.name=Карта равного распределения (16x)
+item.cells.equal_distribution_card.32x.name=Карта равного распределения (32x)
+item.cells.equal_distribution_card.63x.name=Карта равного распределения (63x)
+item.cells.equal_distribution_card.infinite.name=Карта равного распределения (неограниченная)
+tooltip.cells.equal_distribution_card.desc=Ограничивает ячейку %d типами, равномерно распределяя емкость
+tooltip.cells.equal_distribution_card.desc.infinite=Равномерно распределяет емкость между всеми типами. Используйте, если вы увеличили 'макс. типов' в конфиге.
+
+# Compression Tier Card
+item.cells.compression_tier_card.3x.name=Карта уровня сжатия (3x)
+item.cells.compression_tier_card.6x.name=Карта уровня сжатия (6x)
+item.cells.compression_tier_card.9x.name=Карта уровня сжатия (9x)
+item.cells.compression_tier_card.12x.name=Карта уровня сжатия (12x)
+item.cells.compression_tier_card.15x.name=Карта уровня сжатия (15x)
+tooltip.cells.compression_tier_card.desc=Включает до %d уровней сжатия. Переустановите ячейку после установки, чтобы применить новые уровни сжатия.
+
+# Decompression Tier Card
+item.cells.decompression_tier_card.3x.name=Карта уровня декомпрессии (3x)
+item.cells.decompression_tier_card.6x.name=Карта уровня декомпрессии (6x)
+item.cells.decompression_tier_card.9x.name=Карта уровня декомпрессии (9x)
+item.cells.decompression_tier_card.12x.name=Карта уровня декомпрессии (12x)
+item.cells.decompression_tier_card.15x.name=Карта уровня декомпрессии (15x)
+tooltip.cells.decompression_tier_card.desc=Включает до %d уровней декомпрессии. Переустановите ячейку после установки, чтобы применить новые уровни декомпрессии.
+
+# Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
+item.cells.hyper_density_cell.1k.name=1k Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.4k.name=4k Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.16k.name=16k Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.64k.name=64k Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.256k.name=256k Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.1m.name=1M Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.4m.name=4M Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.16m.name=16M Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.64m.name=64M Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.256m.name=256M Гипер-плотная ячейка хранения ME
+item.cells.hyper_density_cell.1g.name=1G Гипер-плотная ячейка хранения ME
+
+# Hyper-Density Components
+item.cells.hyper_density_component.1k.name=1k Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.4k.name=4k Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.16k.name=16k Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.64k.name=64k Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.256k.name=256k Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.1m.name=1M Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.4m.name=4M Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.16m.name=16M Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.64m.name=64M Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.256m.name=256M Гипер-плотный компонент хранения ME
+item.cells.hyper_density_component.1g.name=1G Гипер-плотный компонент хранения ME
+
+# Hyper-Density Compacting Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
+item.cells.hyper_density_compacting_cell.1k.name=1k Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.4k.name=4k Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.16k.name=16k Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.64k.name=64k Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.256k.name=256k Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.1m.name=1M Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.4m.name=4M Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.16m.name=16M Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.64m.name=64M Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.256m.name=256M Гипер-плотная ячейка уплотнения ME
+item.cells.hyper_density_compacting_cell.1g.name=1G Гипер-плотная ячейка уплотнения ME
+
+# Hyper-Density Compacting Components
+item.cells.hyper_density_compacting_component.1k.name=1k Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.4k.name=4k Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.16k.name=16k Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.64k.name=64k Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.256k.name=256k Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.1m.name=1M Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.4m.name=4M Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.16m.name=16M Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.64m.name=64M Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.256m.name=256M Гипер-плотный компонент уплотнения ME
+item.cells.hyper_density_compacting_component.1g.name=1G Гипер-плотный компонент уплотнения ME
+
+# Hyper-Density Fluid Cells (1k-1G)
+item.cells.hyper_density_fluid_cell.1k.name=1k Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.4k.name=4k Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.16k.name=16k Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.64k.name=64k Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.256k.name=256k Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.1m.name=1M Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.4m.name=4M Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.16m.name=16M Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.64m.name=64M Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.256m.name=256M Гипер-плотная жидкостная ячейка хранения ME
+item.cells.hyper_density_fluid_cell.1g.name=1G Гипер-плотная жидкостная ячейка хранения ME
+
+# Hyper-Density Fluid Components
+item.cells.hyper_density_fluid_component.1k.name=1k Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.4k.name=4k Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.16k.name=16k Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.64k.name=64k Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.256k.name=256k Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.1m.name=1M Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.4m.name=4M Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.16m.name=16M Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.64m.name=64M Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.256m.name=256M Гипер-плотный жидкостный компонент хранения ME
+item.cells.hyper_density_fluid_component.1g.name=1G Гипер-плотный жидкостный компонент хранения ME
+
+# Compacting Cell Tooltips
+tooltip.cells.compacting_cell.not_partitioned=Для использования требуется разбиение
+tooltip.cells.compacting_cell.stores_one_type=Хранит один тип предмета со сжатием
+tooltip.cells.compacting_cell.insert_to_set_compression=Вставьте разбитый предмет, чтобы установить цепочку сжатия
+tooltip.cells.compacting_cell.converts_up=Сжимается в: %s
+tooltip.cells.compacting_cell.converts_down=Декомпрессируется в: %s
+tooltip.cells.compacting_cell.no_compression=Для этого предмета нет доступного сжатия. Убедитесь, что разбитый предмет имеет действительный рецепт крафта 2x2 или 3x3 в обоих направлениях.
+tooltip.cells.compacting_cell.ioport_warning=Использование их в порту ввода-вывода может вызвать 'призрачный предмет' в сети AE2. Перезапуск сервера решает проблему.
+
+# Hyper-Density Tooltips
+tooltip.cells.hyper_density_cell.info=Гипер-плотность: ~17.2 млрд предметов на байт
+tooltip.cells.hyper_density_component.info=Гипер-плотный компонент хранения
+tooltip.cells.hyper_density_fluid_cell.info=Гипер-плотная жидкость: ~17.2 млн ведер на байт
+tooltip.cells.hyper_density_fluid_component.info=Гипер-плотный жидкостный компонент хранения
+
+# Upgrade Tooltips
+tooltip.cells.upgrade.overflow_active=Уничтожает избыток
+tooltip.cells.upgrade.equal_distribution_active=Разделено на %d типов
+tooltip.cells.upgrade.equal_distribution_active.infinite=Активно равное распределение
+tooltip.cells.upgrade.compression_tier_active=Уровни сжатия: %d
+tooltip.cells.upgrade.decompression_tier_active=Уровни декомпрессии: %d
+tooltip.cells.upgrade.oredict_active=Активно преобразование по рудному словарю
+
+# Configurable Storage Cell
+item.cells.configurable_cell.name=Настраиваемая ячейка хранения ME
+item.cells.configurable_cell.name_configured=Настраиваемая ячейка хранения ME (%s)
+tooltip.cells.configurable_cell.no_component=Компонент не установлен! Вставьте компонент хранения ME для определения емкости.
+tooltip.cells.configurable_cell.info=Принимает любой компонент хранения ME для определения емкости и типа. Имеет встроенное равное распределение.
+tooltip.cells.component.configurable_compatible=§bСовместимо с настраиваемой ячейкой§r
+tooltip.cells.configurable_cell.capacity_per_type=Лимит на тип: %s %s
+
+# Configurable Cell GUI
+cells.configurable_cell.capacity_title=Емкость на тип:
+cells.configurable_cell.capacity_title.with_type=Емкость на тип (%s):
+cells.configurable_cell.no_component=Неизвестно
+cells.configurable_cell.types_title=Типы:
+
+# Creative ME Cell
+item.cells.creative_cell.item.name=Творческая ячейка хранения ME
+item.cells.creative_cell.fluid.name=Творческая жидкостная ячейка хранения ME
+item.cells.creative_cell.gas.name=Творческая газовая ячейка хранения ME
+item.cells.creative_cell.essentia.name=Творческая ячейка хранения эссенции ME
+cells.creative_cell.item.title=Фильтры творческой ячейки
+cells.creative_cell.fluid.title=Фильтры творческой жидкостной ячейки
+cells.creative_cell.gas.title=Фильтры творческой газовой ячейки
+cells.creative_cell.essentia.title=Фильтры творческой ячейки эссенции
+
+tooltip.cells.creative_cell.info=Бесконечный источник %s. Предоставляет установленный %s в огромных количествах.
+tooltip.cells.creative_cell.exposes=Предоставляет %s %s каждого фильтра (%d фильтров)
+tooltip.cells.creative_cell.creative_hint=Shift + ПКМ для настройки фильтров
+tooltip.cells.creative_cell.survival_hint=Для настройки требуется творческий режим
+
+# Compressed Calculation Prints
+item.cells.compressed_calculation_print.compressed.name=Сжатая заготовка вычислительного процессора
+item.cells.compressed_calculation_print.double_compressed.name=Дважды сжатая заготовка вычислительного процессора
+item.cells.compressed_calculation_print.triple_compressed.name=Трижды сжатая заготовка вычислительного процессора
+item.cells.compressed_calculation_print.quadruple_compressed.name=Четырежды сжатая заготовка вычислительного процессора
+
+# Compressed Engineering Prints
+item.cells.compressed_engineering_print.compressed.name=Сжатая заготовка инженерного процессора
+item.cells.compressed_engineering_print.double_compressed.name=Дважды сжатая заготовка инженерного процессора
+item.cells.compressed_engineering_print.triple_compressed.name=Трижды сжатая заготовка инженерного процессора
+item.cells.compressed_engineering_print.quadruple_compressed.name=Четырежды сжатая заготовка инженерного процессора
+
+# Compressed Logic Prints
+item.cells.compressed_logic_print.compressed.name=Сжатая заготовка логического процессора
+item.cells.compressed_logic_print.double_compressed.name=Дважды сжатая заготовка логического процессора
+item.cells.compressed_logic_print.triple_compressed.name=Трижды сжатая заготовка логического процессора
+item.cells.compressed_logic_print.quadruple_compressed.name=Четырежды сжатая заготовка логического процессора
+
+# Compressed Silicon Prints
+item.cells.compressed_silicon_print.compressed.name=Сжатая кремниевая заготовка
+item.cells.compressed_silicon_print.double_compressed.name=Дважды сжатая кремниевая заготовка
+item.cells.compressed_silicon_print.triple_compressed.name=Трижды сжатая кремниевая заготовка
+item.cells.compressed_silicon_print.quadruple_compressed.name=Четырежды сжатая кремниевая заготовка
+
+# Overclocked Processors
+item.cells.overclocked_processor.calculation.name=Разогнанный вычислительный процессор
+item.cells.overclocked_processor.engineering.name=Разогнанный инженерный процессор
+item.cells.overclocked_processor.logic.name=Разогнанный логический процессор
+
+# Singularity Processors
+item.cells.singularity_processor.calculation.name=Сингулярный вычислительный процессор
+item.cells.singularity_processor.engineering.name=Сингулярный инженерный процессор
+item.cells.singularity_processor.logic.name=Сингулярный логический процессор
+
+# Interface names
+tile.cells.import_interface.name=Интерфейс импорта
+tile.cells.import_interface.fluid.name=Интерфейс импорта жидкостей
+tile.cells.import_interface.gas.name=Интерфейс импорта газов
+tile.cells.import_interface.essentia.name=Интерфейс импорта эссенции
+tile.cells.export_interface.name=Интерфейс экспорта
+tile.cells.export_interface.fluid.name=Интерфейс экспорта жидкостей
+tile.cells.export_interface.gas.name=Интерфейс экспорта газов
+tile.cells.export_interface.essentia.name=Интерфейс экспорта эссенции
+
+item.cells.part.import_interface.name=Интерфейс импорта
+item.cells.part.import_fluid_interface.name=Интерфейс импорта жидкостей
+item.cells.part.import_gas_interface.name=Интерфейс импорта газов
+item.cells.part.import_essentia_interface.name=Интерфейс импорта эссенции
+item.cells.part.export_interface.name=Интерфейс экспорта
+item.cells.part.export_fluid_interface.name=Интерфейс экспорта жидкостей
+item.cells.part.export_gas_interface.name=Интерфейс экспорта газов
+item.cells.part.export_essentia_interface.name=Интерфейс экспорта эссенции
+
+# Interface GUI titles (format: cells.{direction}_interface.{type}.title)
+cells.import_interface.item.title=Интерфейс импорта
+cells.import_interface.fluid.title=Интерфейс импорта жидкостей
+cells.import_interface.gas.title=Интерфейс импорта газов
+cells.import_interface.essentia.title=Интерфейс импорта эссенции
+cells.export_interface.item.title=Интерфейс экспорта
+cells.export_interface.fluid.title=Интерфейс экспорта жидкостей
+cells.export_interface.gas.title=Интерфейс экспорта газов
+cells.export_interface.essentia.title=Интерфейс экспорта эссенции
+
+# Info tooltips for block items
+## Item interfaces (hardcoded in BlockImportInterface/BlockExportInterface)
+tooltip.cells.import_interface.info=Импортирует предметы в сеть ME через фильтруемые слоты. Не поддерживает пополнение запасов или крафт.
+tooltip.cells.export_interface.info=Экспортирует предметы из сети ME через фильтруемые слоты. Предметы могут извлекаться трубами и воронками.
+
+## Fluid/Gas/Essentia interfaces (from AbstractResourceInterfaceBlock using translationKey.info pattern)
+tooltip.cells.import_interface.fluid.info=Импортирует жидкости в сеть ME через фильтруемые слоты.
+tooltip.cells.export_interface.fluid.info=Экспортирует жидкости из сети ME через фильтруемые слоты. Жидкости могут извлекаться трубами.
+tooltip.cells.import_interface.gas.info=Импортирует газы в сеть ME.
+tooltip.cells.export_interface.gas.info=Экспортирует газы из сети ME через фильтруемые слоты. Газы могут извлекаться трубами.
+tooltip.cells.import_interface.essentia.info=Импортирует эссенцию в сеть ME.
+tooltip.cells.export_interface.essentia.info=Экспортирует эссенцию из сети ME через фильтруемые слоты. Эссенция может извлекаться трубками.
+tooltip.cells.export_interface.essentia.part.info=Экспортирует эссенцию из сети ME через фильтруемые слоты.
+
+# Essentia part warning (parts cannot participate in tube network)
+tooltip.cells.essentia_part.no_tubes=§eНевозможно взаимодействовать с трубками Thaumcraft/шиной хранения
+
+# Configurable Cell warnings
+cells.configurable_cell.split_stack=Сначала разделите стек ячеек, прежде чем вставлять компонент.
+cells.configurable_cell.types_min=Лимит типов должен быть не менее 1.
+cells.configurable_cell.types_over_config=Лимит типов не может превышать максимум в конфиге.
+cells.configurable_cell.types_below_stored=Лимит типов не может быть меньше текущего количества хранимых типов.
+cells.configurable_cell.types_capacity_exceeded=Лимит типов превысит емкость на тип для сохраненного содержимого.
+
+# Interface Controls Help
+cells.controls.use_settings=Для лучшей производительности установите §bРазмер слота§r и §bЧастоту опроса§r на достаточно высокое значение.
+cells.controls.use_cards=§6Карта уничтожения избытка§r и §6Карта уничтожения невыбранного§r предпочтительнее других решений, таких как мусорные баки.
+cells.controls.capacity_cards=Используйте §6Карты емкости§r для добавления дополнительных страниц фильтров.
+cells.controls.memory_card_sneak=Крадучись + ПКМ: Сохранить настройки.
+cells.controls.memory_card_filter=Крадучись + §b%s§r + ПКМ: Сохранить с фильтрами.
+cells.controls.disassemble=Разборка (с помощью ключа) запомнит настройки вместе с фильтрами.
+cells.controls.key_not_set=(не задано)
+cells.controls.quick_add=§b%s§r: Добавить наведенный предмет в первый свободный слот фильтра.
+cells.controls.jei_drag=Перетащите из JEI, чтобы добавить фильтр.
+
+# Keybinds
+key.cells.category=C.E.L.L.S
+key.cells.memory_card_include_filters.desc=Сохранить карту памяти с фильтрами
+key.cells.quick_add_to_filter.desc=Быстрое добавление в фильтр
+
+# JEI Cell View
+jei.cells.cellview.title=Содержимое ячейки
+jei.cells.cellview.size=Размер:
+jei.cells.cellview.types=Типы:
+jei.cells.cellview.per_type=на тип
+jei.cells.cellview.no_data=Нет данных о ячейке
+jei.cells.cellview.not_partitioned=Не разбита
+jei.cells.cellview.chain_pending=Ожидание первой вставки
+jei.cells.cellview.compression_tiers=(%s вверх, %s вниз)
+jei.cells.cellview.tier=уровень
+jei.cells.cellview.tiers=уровней
+
+# JEI Cell View - Item Tooltips
+jei.cells.cellview.tooltip.stored_units=Хранится: %s %s
+jei.cells.cellview.tooltip.bytes_used=Байт: %s
+jei.cells.cellview.tooltip.virtual_form=Сжатая/декомпрессированная форма (виртуальная)
+
+# JEI Cell View - Size Row Tooltips
+jei.cells.cellview.tooltip.size_full=Размер: %s / %s байт
+jei.cells.cellview.tooltip.hd_explanation=Гипер-плотная ячейка с внутренним множителем хранения
+jei.cells.cellview.tooltip.hd_multiplier=Каждый байт хранит ~%s предметов/ведер
+
+# JEI Cell View - Types Row Tooltips
+jei.cells.cellview.tooltip.types_info=Каждый хранимый тип резервирует служебные байты
+jei.cells.cellview.tooltip.overhead_info=Байт на тип: %s
+jei.cells.cellview.tooltip.overhead_total=Общий служебный объем типов: %s байт
+jei.cells.cellview.tooltip.equal_distribution_builtin=Встроенное равное распределение (Настраиваемая ячейка)
+jei.cells.cellview.tooltip.equal_distribution_upgrade=Активно равное распределение (от карты улучшения)
+jei.cells.cellview.tooltip.equal_distribution_explain=Общая емкость делится поровну между всеми слотами типов
+jei.cells.cellview.tooltip.configurable_types=Равное распределение: емкость разделена между типами
+jei.cells.cellview.tooltip.per_type_limit=Макс. на тип: %s
+jei.cells.cellview.tooltip.max_types_limit=Макс. типов: %s
+
+# JEI Cell View - Compacting Cell Tooltips
+jei.cells.cellview.tooltip.partition_required=Ячейка требует разбиения перед использованием
+jei.cells.cellview.tooltip.chain_pending_explain=Цепочка сжатия предмета будет установлена при первой вставке
+jei.cells.cellview.tooltip.compression_explain=Предметы хранятся как единый пул, доступный в нескольких формах
+jei.cells.cellview.tooltip.tiers_up=%s высших %s (сжатых)
+jei.cells.cellview.tooltip.tiers_down=%s низших %s (декомпрессированных)
+jei.cells.cellview.tooltip.oredict_enabled=Рудный словарь: принимает эквивалентные предметы
+
+# JEI Cell View - NBT Tooltip
+jei.cells.cellview.tooltip.nbt_info=Большой размер NBT может вызвать вылеты или повреждения.
+
+# Recovery container (fluid/gas/essentia recovery item)
+item.cells.recovery_container.name=%s Сфера (%s)
+item.cells.recovery_container.name.empty=Пустая сфера
+tooltip.cells.recovery_container.type=Тип: %s
+tooltip.cells.recovery_container.amount=Количество: %d %s
+tooltip.cells.recovery_container.usage=ПКМ по контейнеру для переноса
+cells.recovery_container.transferred=Перенесено %d %s
+cells.recovery_container.no_transfer=Цель не может принять %s

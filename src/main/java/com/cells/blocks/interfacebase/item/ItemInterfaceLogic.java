@@ -1,5 +1,7 @@
 package com.cells.blocks.interfacebase.item;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.util.function.Predicate;
 
 import javax.annotation.Nonnull;
@@ -9,6 +11,7 @@ import io.netty.buffer.ByteBuf;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.NonNullList;
@@ -27,6 +30,7 @@ import appeng.util.item.AEItemStack;
 import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
 
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
+import com.cells.items.ItemRecoveryContainer;
 import com.cells.util.ItemStackKey;
 
 
@@ -60,10 +64,12 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
     /** External handler exposed via capabilities. */
     private final IItemHandler externalHandler;
 
+    public long getDefaultMaxSlotSize() {
+        return Math.min(DEFAULT_MAX_SLOT_SIZE, getMaxMaxSlotSize());
+    }
+
     public ItemInterfaceLogic(Host host) {
         super(host, ItemStack.class);
-
-        this.maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
 
         // Create IItemHandler wrappers for the static arrays
         this.filterHandler = new ArrayItemHandler(this.filters, true);
@@ -126,8 +132,22 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
     }
 
     /**
-     * Get storage at a specific slot.
-     * @return The stored ItemStack, or null if slot is empty or invalid
+     * Get the ItemStack in a specific slot with the correct amount.
+     * Uses getResourceInSlot to return a stack with the actual amount from amounts[] array.
+     *
+     * @param slot The slot index
+     * @return The stored ItemStack with correct count, or null if empty
+     */
+    @Nullable
+    public ItemStack getItemInSlot(int slot) {
+        return getResourceInSlot(slot);
+    }
+
+    /**
+     * Get storage identity at a specific slot (count=1).
+     * For the full stack with correct count, use {@link #getItemInSlot(int)} instead.
+     *
+     * @return The stored ItemStack identity, or null if slot is empty or invalid
      */
     @Nullable
     public ItemStack getStorage(int slot) {
@@ -250,9 +270,17 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
     }
 
     @Override
-    protected ItemStack createRecoveryItem(ItemStack resource) {
-        // Items ARE items - return the resource directly as the drop
-        return resource.copy();
+    protected ItemStack createRecoveryItem(ItemStack identity, long amount) {
+        // Items with small amounts can be dropped directly as ItemStack
+        // For large amounts (> max stack size), use RecoveryContainer
+        if (amount <= Integer.MAX_VALUE) {
+            ItemStack drop = identity.copy();
+            drop.setCount((int) amount);
+            return drop;
+        }
+
+        // Large amounts need RecoveryContainer to preserve full long amount
+        return ItemRecoveryContainer.createForItem(identity, amount);
     }
 
     // ============================== Item-specific stream serialization ==============================
@@ -267,8 +295,9 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
         // Clear all storage first
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null) {
+            if (this.storage[i] != null || this.amounts[i] != 0) {
                 this.storage[i] = null;
+                this.amounts[i] = 0;
                 changed = true;
             }
         }
@@ -276,6 +305,7 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
         int count = data.readShort();
         for (int idx = 0; idx < count; idx++) {
             int slot = data.readShort();
+            long amount = data.readLong();
             int nbtLen = data.readInt();
 
             if (slot < 0 || slot >= STORAGE_SLOTS) {
@@ -288,12 +318,11 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
             data.readBytes(nbtBytes);
 
             try {
-                NBTTagCompound tag = net.minecraft.nbt.CompressedStreamTools.readCompressed(
-                    new java.io.ByteArrayInputStream(nbtBytes)
-                );
+                NBTTagCompound tag = CompressedStreamTools.readCompressed(new ByteArrayInputStream(nbtBytes));
                 ItemStack stack = new ItemStack(tag);
                 if (!stack.isEmpty()) {
-                    this.storage[slot] = stack;
+                    this.storage[slot] = copyAsIdentity(stack);
+                    this.amounts[slot] = amount;
                     changed = true;
                 }
             } catch (Exception e) {
@@ -312,21 +341,23 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
         // Count non-empty storage slots first
         int count = 0;
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null && !this.storage[i].isEmpty()) count++;
+            if (this.storage[i] != null && this.amounts[i] > 0) count++;
         }
 
         data.writeShort(count);
 
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            ItemStack stack = this.storage[i];
-            if (stack == null || stack.isEmpty()) continue;
+            ItemStack identity = this.storage[i];
+            long amount = this.amounts[i];
+            if (identity == null || amount <= 0) continue;
 
             data.writeShort(i);
+            data.writeLong(amount);
 
             try {
-                NBTTagCompound tag = stack.writeToNBT(new NBTTagCompound());
-                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                net.minecraft.nbt.CompressedStreamTools.writeCompressed(tag, baos);
+                NBTTagCompound tag = identity.writeToNBT(new NBTTagCompound());
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                CompressedStreamTools.writeCompressed(tag, baos);
                 byte[] nbtBytes = baos.toByteArray();
 
                 data.writeInt(nbtBytes.length);
@@ -367,9 +398,7 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
             data.readBytes(nbtBytes);
 
             try {
-                NBTTagCompound tag = net.minecraft.nbt.CompressedStreamTools.readCompressed(
-                    new java.io.ByteArrayInputStream(nbtBytes)
-                );
+                NBTTagCompound tag = CompressedStreamTools.readCompressed(new ByteArrayInputStream(nbtBytes));
                 ItemStack stack = new ItemStack(tag);
                 if (!stack.isEmpty()) {
                     stack.setCount(1); // Filters are always count 1
@@ -406,8 +435,8 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
             try {
                 NBTTagCompound tag = filter.writeToNBT(new NBTTagCompound());
-                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-                net.minecraft.nbt.CompressedStreamTools.writeCompressed(tag, baos);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                CompressedStreamTools.writeCompressed(tag, baos);
                 byte[] nbtBytes = baos.toByteArray();
 
                 data.writeInt(nbtBytes.length);
@@ -599,8 +628,14 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
             if (filterIndex >= logic.filterSlotList.size()) return ItemStack.EMPTY;
 
             int storageSlot = logic.filterSlotList.get(filterIndex);
-            ItemStack stack = logic.storage[storageSlot];
-            return stack != null ? stack : ItemStack.EMPTY;
+            ItemStack identity = logic.storage[storageSlot];
+            if (identity == null) return ItemStack.EMPTY;
+
+            long amount = logic.amounts[storageSlot];
+            if (amount <= 0) return ItemStack.EMPTY;
+
+            // Create stack with actual amount, clamped to int for API
+            return logic.copyWithAmount(identity, (int) Math.min(amount, Integer.MAX_VALUE));
         }
 
         @Nonnull
@@ -621,7 +656,7 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
         @Override
         public int getSlotLimit(int slot) {
-            return logic.maxSlotSize;
+            return (int) Math.min(logic.getMaxSlotSize(), Integer.MAX_VALUE);
         }
 
         @Override
@@ -641,12 +676,17 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
             NonNullList<ItemRecord> items = NonNullList.create();
 
             for (int filterIdx : logic.filterSlotList) {
-                ItemStack stack = logic.storage[filterIdx];
-                if (stack != null && !stack.isEmpty()) {
-                    ItemStack prototype = stack.copy();
-                    prototype.setCount(1);
-                    items.add(new ItemRecord(prototype, stack.getCount()));
-                }
+                ItemStack identity = logic.storage[filterIdx];
+                if (identity == null) continue;
+
+                long amount = logic.amounts[filterIdx];
+                if (amount <= 0) continue;
+
+                // Prototype with count=1, actual count from amounts[]
+                ItemStack prototype = identity.copy();
+                prototype.setCount(1);
+                // Clamp to int for ItemRecord API
+                items.add(new ItemRecord(prototype, (int) Math.min(amount, Integer.MAX_VALUE)));
             }
 
             return items;
@@ -672,6 +712,9 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
     /**
      * Wrapper handler that exposes storage slots for extraction only.
      * Does not allow external insertion (export-only interface).
+     * <p>
+     * Updated for parallel amounts array: storage[] holds identity (count=1),
+     * amounts[] holds actual count as long.
      */
     private static class ExportStorageHandler implements IItemHandler, IItemRepository {
         private final ItemInterfaceLogic logic;
@@ -691,8 +734,14 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
             if (slot < 0 || slot >= logic.filterSlotList.size()) return ItemStack.EMPTY;
 
             int storageSlot = logic.filterSlotList.get(slot);
-            ItemStack stack = logic.storage[storageSlot];
-            return stack != null ? stack : ItemStack.EMPTY;
+            ItemStack identity = logic.storage[storageSlot];
+            if (identity == null) return ItemStack.EMPTY;
+
+            long amount = logic.amounts[storageSlot];
+            if (amount <= 0) return ItemStack.EMPTY;
+
+            // Create stack with actual amount, clamped to int for API
+            return logic.copyWithAmount(identity, (int) Math.min(amount, Integer.MAX_VALUE));
         }
 
         @Nonnull
@@ -714,7 +763,7 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
         @Override
         public int getSlotLimit(int slot) {
-            return logic.maxSlotSize;
+            return (int) Math.min(logic.getMaxSlotSize(), Integer.MAX_VALUE);
         }
 
         @Override
@@ -731,12 +780,17 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
             NonNullList<ItemRecord> items = NonNullList.create();
 
             for (int filterIdx : logic.filterSlotList) {
-                ItemStack stack = logic.storage[filterIdx];
-                if (stack != null && !stack.isEmpty()) {
-                    ItemStack prototype = stack.copy();
-                    prototype.setCount(1);
-                    items.add(new ItemRecord(prototype, stack.getCount()));
-                }
+                ItemStack identity = logic.storage[filterIdx];
+                if (identity == null) continue;
+
+                long amount = logic.amounts[filterIdx];
+                if (amount <= 0) continue;
+
+                // Prototype with count=1, actual count from amounts[]
+                ItemStack prototype = identity.copy();
+                prototype.setCount(1);
+                // Clamp to int for ItemRecord API
+                items.add(new ItemRecord(prototype, (int) Math.min(amount, Integer.MAX_VALUE)));
             }
 
             return items;
@@ -795,7 +849,20 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
         public ItemStack getStackInSlot(int slot) {
             if (slot < 0 || slot >= array.length) return ItemStack.EMPTY;
             ItemStack stack = array[slot];
-            return stack != null ? stack : ItemStack.EMPTY;
+            if (stack == null) return ItemStack.EMPTY;
+
+            if (isGhostSlot) {
+                // Ghost slots always return identity with count 1
+                return stack;
+            } else {
+                // Storage slots: combine identity with amount (capped at int max)
+                long amount = amounts[slot];
+                if (amount <= 0) return ItemStack.EMPTY;
+
+                ItemStack result = stack.copy();
+                result.setCount((int) Math.min(amount, Integer.MAX_VALUE));
+                return result;
+            }
         }
 
         @Override
@@ -805,6 +872,12 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
             // Convert EMPTY to null for consistency with fluid/gas pattern
             if (stack.isEmpty()) {
                 array[slot] = null;
+
+                // For storage slots, also clear the amounts array
+                if (!isGhostSlot) {
+                    amounts[slot] = 0;
+                    host.markDirtyAndSave();
+                }
 
                 if (isGhostSlot) onFilterChanged(slot);
                 return;
@@ -817,7 +890,16 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
                 array[slot] = ghost;
                 onFilterChanged(slot);
             } else {
-                array[slot] = stack;
+                // Storage slots: store identity (count=1) and amount separately
+                // Note: ItemStack.getCount() returns int, but we preserve the full value
+                // since setStackInSlot is only called from GUI which caps at int anyway.
+                // For values > int max, use adjustSlotAmount() instead.
+                ItemStack identity = stack.copy();
+                long amount = identity.getCount();
+                identity.setCount(1);
+                array[slot] = identity;
+                amounts[slot] = amount;
+                host.markDirtyAndSave();
             }
         }
 
@@ -838,7 +920,7 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
         @Override
         public int getSlotLimit(int slot) {
-            return isGhostSlot ? 1 : maxSlotSize;
+            return isGhostSlot ? 1 : (int) Math.min(getMaxSlotSize(), Integer.MAX_VALUE);
         }
     }
 }

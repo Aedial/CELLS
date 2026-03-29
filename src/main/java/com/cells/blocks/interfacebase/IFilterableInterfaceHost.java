@@ -33,6 +33,10 @@ public interface IFilterableInterfaceHost<T, K> extends IInterfaceHost {
     @Nonnull
     IInterfaceLogic getInterfaceLogic();
 
+    default long getDefaultMaxSlotSize() {
+        return getInterfaceLogic().getDefaultMaxSlotSize();
+    }
+
     // ================================= Slot Information (delegated to logic) =================================
 
     /**

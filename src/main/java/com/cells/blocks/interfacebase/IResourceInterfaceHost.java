@@ -63,4 +63,27 @@ public interface IResourceInterfaceHost<AE extends IAEStack<AE>, K>
     default int addToFirstAvailableSlot(@Nonnull AE stack) {
         return getInterfaceLogic().addToFirstAvailableSlotAE(stack);
     }
+
+    /**
+     * Get the stored amount (as long) in a specific slot.
+     * Used for accurate space calculations when amounts can exceed int max.
+     *
+     * @param slot The storage slot index
+     * @return The amount stored in the slot (0 if invalid or empty)
+     */
+    default long getStoredAmount(int slot) {
+        return getInterfaceLogic().getSlotAmount(slot);
+    }
+
+    /**
+     * Adjust the amount stored in a specific slot by a delta value.
+     * Used by GUI containers for long-safe insertion/extraction operations.
+     *
+     * @param slot  The storage slot index
+     * @param delta The amount to add (positive) or subtract (negative)
+     * @return The actual amount added/removed
+     */
+    default long adjustStoredAmount(int slot, long delta) {
+        return getInterfaceLogic().adjustSlotAmount(slot, delta);
+    }
 }

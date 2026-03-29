@@ -243,7 +243,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         return this.host;
     }
 
-    public void setMaxSlotSize(int size) {
+    public void setMaxSlotSize(long size) {
         this.host.setMaxSlotSize(size);
     }
 

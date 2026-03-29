@@ -15,6 +15,15 @@ pluginManagement {
     }
 }
 
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'commons-io', name: 'commons-io', version: '2.21.0'
+    }
+}
+
 plugins {
     // Automatic toolchain provisioning
     id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'

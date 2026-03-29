@@ -5,6 +5,7 @@ import java.util.Set;
 
 import javax.annotation.Nonnull;
 
+import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.player.EntityPlayer;
@@ -139,7 +140,7 @@ public abstract class AbstractTieredCellItem extends Item implements ICellWorkbe
         try {
             String keybind = mezz.jei.config.KeyBindings.showRecipe.getDisplayName();
             tooltip.add("");
-            tooltip.add(net.minecraft.client.resources.I18n.format("tooltip.cells.jei_view_contents", keybind));
+            tooltip.add(I18n.format("tooltip.cells.jei_view_contents", keybind));
         } catch (NoClassDefFoundError e) {
             // JEI not loaded, skip hint
         }

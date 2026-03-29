@@ -1,0 +1,37 @@
+{
+    "type": "forge:ore_shaped",
+    "conditions": [
+        {
+            "type": "forge:mod_loaded",
+            "modid": "thaumicenergistics"
+        }
+    ],
+    "pattern": [
+        "aga",
+        "bfb",
+        "aia"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        },
+        "b": {
+            "item": "appliedenergistics2:material",
+            "data": 43
+        },
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 12
+        },
+        "g": {
+            "item": "thaumcraft:jar_normal"
+        },
+        "i": {
+            "item": "thaumicenergistics:essentia_export"
+        }
+    },
+    "result": {
+        "item": "cells:export_essentia_interface"
+    }
+}

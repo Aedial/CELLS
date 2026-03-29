@@ -27,6 +27,11 @@ public interface IGasInterfaceHost
      */
     GasStack getGasInTank(int slot);
 
+    @Override
+    default long getGasAmount(int slot) {
+        return getInterfaceLogic().getSlotAmount(slot);
+    }
+
     /**
      * Set the gas in a tank slot (for import interface gas pouring).
      *

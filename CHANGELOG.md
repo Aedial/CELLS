@@ -8,6 +8,31 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.11-beta2] - 2026-03-30
+### Fixed
+- Fix Essentia Storage Bus having caching issues with our interfaces (this is a bug from Thaumic Energistics). This fix makes the Essentia Interface itself handle all the work for the Bus and force changes onto it. This will not fix *any* other block you put the Bus on, either fix the Storage Bus or do the work yourself.
+
+
+## [0.5.11-beta] - 2026-03-28
+### Fixed
+- Fix some Upgrades not showing anymore in JEI/Creative Tab.
+
+### Added
+- Increase the max slot size limit from 2.1B to 9.2 quintillion (Long.MAX_VALUE), to allow for really high throughput I/O or long waiting times.
+- Make max slot size GUI more readable.
+- Add Items to the Recovery Orb for quantities above Max Int (cannot hold more than max int in an ItemStack).
+- Add a config option to limit the max slot size that players are allowed to set, as a way to balance the potential "bottomless storage" aspect of the interfaces.
+- Add a config option for the minimum polling rate, to allow reducing the strain on servers.
+- Add recipes for Gas/Essentia Import/Export Interfaces.
+- Add Auto-pull/Auto-push cards for Import/Export Interfaces, which automatically pull/push items from/to adjacent inventories. The pull/push interval is set in the card's GUI and can be different for each card. The logic is not yet implemented and will come in a future update.
+
+
+## [0.5.10-beta3] - 2026-03-27
+### Fixed
+- Fix incorrect use of server-side I18n on several places.
+- Minor tooltip fix.
+
+
 ## [0.5.10-beta2] - 2026-03-26
 ### Added
 - Make Adaptive Mode more efficient by only forcing the wake-up when we are sleeping (not just slower). This means a somewhat constant stream of item will not ask the network to wake up at every insertion, relying instead on AE2's adaptive rates. "Fixed Polling" is not affected by this change (as it never "sleeps").

@@ -1,0 +1,19 @@
+{
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        {
+            "item": "appliedenergistics2:material",
+            "data": 28
+        },
+        {
+            "item": "minecraft:piston"
+        },
+        {
+            "item": "minecraft:clock"
+        }
+    ],
+    "result": {
+        "item": "cells:push_card",
+        "count": 1
+    }
+}

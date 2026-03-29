@@ -171,7 +171,7 @@ public class ContainerGasInterface
         if (filterGas != null && !filterGas.getGasStack().isGasEqual(drainable)) return false;
 
         // Calculate how much we can insert into the tank
-        int capacity = this.host.getMaxSlotSize();
+        int capacity = (int) Math.min(this.host.getMaxSlotSize(), Integer.MAX_VALUE);
         GasStack currentTankGas = this.host.getGasInTank(tankSlot);
 
         // If tank has gas, it must match
@@ -219,7 +219,7 @@ public class ContainerGasInterface
         if (filterGas != null && !filterGas.getGasStack().isGasEqual(drainable)) return false;
 
         // Calculate how much we can insert into the tank
-        int capacity = this.host.getMaxSlotSize();
+        int capacity = (int) Math.min(this.host.getMaxSlotSize(), Integer.MAX_VALUE);
         GasStack currentTankGas = this.host.getGasInTank(tankSlot);
 
         // If tank has gas, it must match

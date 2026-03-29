@@ -3,7 +3,6 @@ package com.cells.blocks.interfacebase.item;
 import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
-import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.api.storage.data.IAEItemStack;
@@ -43,11 +42,14 @@ public interface IItemInterfaceHost
     @Override
     @Nullable
     default ItemStack getItemInStorage(int slotIndex) {
-        IItemHandler storageInv = getStorageInventory();
-        if (slotIndex < 0 || slotIndex >= storageInv.getSlots()) return null;
+        // Delegate to the logic's getItemInSlot which uses the amounts[] array
+        return ((ItemInterfaceLogic) getInterfaceLogic()).getItemInSlot(slotIndex);
+    }
 
-        ItemStack stack = storageInv.getStackInSlot(slotIndex);
-        return stack.isEmpty() ? null : stack;
+    @Override
+    default long getItemAmount(int slotIndex) {
+        // Delegate to the logic's getSlotAmount for true long precision
+        return getInterfaceLogic().getSlotAmount(slotIndex);
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.cells.blocks.interfacebase;
 
-import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.tileentity.TileEntity;
@@ -27,21 +26,23 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     private GuiTextField textField;
 
     @GuiSync(0)
-    public long maxSlotSize = ItemInterfaceLogic.DEFAULT_MAX_SLOT_SIZE;
+    public long maxSlotSize;
 
     public ContainerMaxSlotSize(final InventoryPlayer ip, final IInterfaceHost host) {
         super(ip, host instanceof TileEntity ? (TileEntity) host : null, host instanceof IPart ? (IPart) host : null);
         this.host = host;
+        this.maxSlotSize = host.getMaxSlotSize();
     }
 
     @SideOnly(Side.CLIENT)
     public void setTextField(final GuiTextField field) {
         this.textField = field;
-        this.textField.setText(String.valueOf(this.maxSlotSize));
+        this.textField.setText(String.format("%,d", this.maxSlotSize));
     }
 
-    public void setMaxSlotSize(final int newValue) {
-        int clamped = Math.max(ItemInterfaceLogic.MIN_MAX_SLOT_SIZE, newValue);
+    public void setMaxSlotSize(final long newValue) {
+        long clamped = Math.max(AbstractResourceInterfaceLogic.MIN_MAX_SLOT_SIZE,
+                                Math.min(newValue, AbstractResourceInterfaceLogic.getMaxMaxSlotSize()));
         this.host.setMaxSlotSize(clamped);
         this.maxSlotSize = clamped;
     }
@@ -56,7 +57,16 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     @Override
     public void onUpdate(final String field, final Object oldValue, final Object newValue) {
         if (field.equals("maxSlotSize") && this.textField != null) {
-            this.textField.setText(String.valueOf(this.maxSlotSize));
+            // Format with commas for readability, preserve cursor position
+            String formatted = String.format("%,d", this.maxSlotSize);
+            String currentText = this.textField.getText();
+
+            if (!currentText.equals(formatted)) {
+                int cursorFromEnd = currentText.length() - this.textField.getCursorPosition();
+                this.textField.setText(formatted);
+                int newCursor = Math.max(0, formatted.length() - cursorFromEnd);
+                this.textField.setCursorPosition(newCursor);
+            }
         }
 
         super.onUpdate(field, oldValue, newValue);

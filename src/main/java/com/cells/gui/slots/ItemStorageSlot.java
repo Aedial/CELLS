@@ -34,9 +34,17 @@ public class ItemStorageSlot<H extends ItemStorageSlot.IItemStorageHost> extends
     public interface IItemStorageHost {
         /**
          * Get the item in the specified storage slot.
+         * The ItemStack's count is capped at Integer.MAX_VALUE for API compatibility.
+         * Use {@link #getItemAmount(int)} for the true long amount.
          */
         @Nullable
         ItemStack getItemInStorage(int slotIndex);
+
+        /**
+         * Get the actual amount stored in the specified slot as a long.
+         * This bypasses the int limitation of ItemStack.getCount().
+         */
+        long getItemAmount(int slotIndex);
 
         /**
          * Get the type name for localization (e.g., "item").
@@ -92,7 +100,8 @@ public class ItemStorageSlot<H extends ItemStorageSlot.IItemStorageHost> extends
 
     @Override
     protected long getResourceAmount(ItemStack resource) {
-        return resource.getCount();
+        // Use the host's getItemAmount for true long precision
+        return this.host.getItemAmount(getTankIndex());
     }
 
     @Override

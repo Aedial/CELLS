@@ -38,8 +38,11 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.inv.IAEAppEngInventory;
 
+import com.cells.config.CellsConfig;
 import com.cells.items.ItemOverflowCard;
 import com.cells.items.ItemTrashUnselectedCard;
+import com.cells.items.ItemAutoPullCard;
+import com.cells.items.ItemAutoPushCard;
 import com.cells.util.TickManagerHelper;
 
 
@@ -107,25 +110,59 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public static final int UPGRADE_SLOTS = 4;
     public static final int DEFAULT_MAX_SLOT_SIZE = 16000; // mB (16 buckets)
     public static final int MIN_MAX_SLOT_SIZE = 1;
-    // TODO: add a config option for max slot size, and enforce it in the GUI and logic
-    // TODO: move to Long after we migrate out of resourceStack[] and into long[] for amounts
-    public static int MAX_MAX_SLOT_SIZE = Integer.MAX_VALUE;
+    public static final int DEFAULT_POLLING_RATE = 0; // 0 = adaptive (AE2-managed tick rates)
+
+    /**
+     * Get the maximum allowed slot size from config.
+     * @return The configured max slot size limit (defaults to Long.MAX_VALUE)
+     */
+    public static long getMaxMaxSlotSize() {
+        return CellsConfig.interfaceMaxSlotSizeLimit;
+    }
+
+    /**
+     * Get the minimum allowed polling rate from config.
+     * @return The configured minimum polling rate (defaults to 0 for adaptive)
+     */
+    public static int getMinPollingRate() {
+        return CellsConfig.interfaceMinPollingRate;
+    }
+
+    public static int getDefaultPollingRate() {
+        int minRate = getMinPollingRate();
+        return Math.max(minRate, DEFAULT_POLLING_RATE);
+    }
+
+    public long getDefaultMaxSlotSize() {
+        return Math.min(DEFAULT_MAX_SLOT_SIZE, getMaxMaxSlotSize());
+    }
 
     protected final Host host;
 
     /** Filter array - stores the filter resource for each slot. */
     protected final R[] filters;
 
-    // TODO: use a separate long[] for amounts and store the resource type in a parallel map
-    //       This way, we can import/export Long instead of Integer
-    /** Storage array - stores the current resource amount in each slot. */
+    /**
+     * Storage array - stores resource IDENTITY only (type + NBT, not amount).
+     * The actual amounts are stored in the parallel {@link #amounts} array.
+     * This separation allows amounts to exceed Integer.MAX_VALUE while still
+     * using native resource types that have int-based amount fields.
+     */
     protected final R[] storage;
+
+    /**
+     * Parallel amounts array - stores the actual amount for each storage slot.
+     * This is separate from storage[] because native resource types (FluidStack,
+     * GasStack, ItemStack) have int-based amount fields that cannot exceed ~2.1B.
+     * By storing amounts separately as long, we can store up to ~9.2 quintillion.
+     */
+    protected final long[] amounts;
 
     /** Upgrade inventory (accepts only specific upgrade cards). */
     protected final AppEngInternalInventory upgradeInventory;
 
     /** Maximum amount per slot in whatever units this resource uses (e.g., mB for fluids). */
-    protected int maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
+    protected long maxSlotSize;
 
     /** Polling rate in ticks (0 = adaptive). */
     protected int pollingRate = 0;
@@ -138,6 +175,15 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /** Whether trash unselected upgrade is installed (import only). */
     protected boolean installedTrashUnselectedUpgrade = false;
+
+    /** Whether auto-pull/push upgrade is installed. */
+    protected boolean installedAutoPushPullUpgrade = false;
+
+    /** Tick interval for auto-pull/push operations, stored in the respective card's NBT. */
+    protected int autoPullPushInterval = -1;
+
+    /** Quantity for auto-pull/push operations, stored in the respective card's NBT. */
+    protected int autoPushPullQuantity = 0;
 
     /** Number of installed capacity cards. */
     protected int installedCapacityUpgrades = 0;
@@ -157,10 +203,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     @SuppressWarnings("unchecked")
     protected AbstractResourceInterfaceLogic(Host host, Class<R> resourceClass) {
         this.host = host;
+        this.maxSlotSize = getDefaultMaxSlotSize();
 
         // Create arrays for filters and storage
         this.filters = (R[]) Array.newInstance(resourceClass, FILTER_SLOTS);
         this.storage = (R[]) Array.newInstance(resourceClass, STORAGE_SLOTS);
+        this.amounts = new long[STORAGE_SLOTS];
 
         // Create upgrade inventory with filtering for specific upgrade cards
         this.upgradeInventory = new AppEngInternalInventory(host, UPGRADE_SLOTS, 1) {
@@ -173,6 +221,33 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         refreshUpgrades();
         refreshFilterMap();
     }
+
+    // TODO: Add capabilities caching for Auto-Pull/Push cards. This involves :
+    // - Caching the adjacent IItemHandler/IFluidHandler/etc. gotten from the tile.
+    // - Weak map of Facing -> Cached Tile Entity for the isInvalid checks.
+    // - Weak map of Facing -> Cached Capability of the TE.
+    // - Invalidate the cache when the adjacent tile changes (neighbor change event) or when the card is removed.
+    //     -> If a neighbor changes, we need to check if it has a capability we can use and update the cache accordingly.
+    // - null and tile.isInvalid checks before using the cached capability.
+    // - update() only runs if we have a card installed and any cached capability is present.
+    // - When the card is detected, we check all adjacent tiles.
+    // - If we have no card, we can skip neighbor checks and capability caching entirely.
+    //
+    // What do we use for update()? AE2's tick manager with a custom tick rate based on the card's interval
+    // seems decently in-line with what we already have (fixed polling rate).
+    // But then, how do we differentiate between polling rate and push/pull rate?
+    // It's still the same tickingRequest() method, and we could poll too often if the card interval is very low.
+    // Could we make a fake grid node and compare it when we get the ticked to dispatch to the right logic?
+    // State management is gonna be a hassle, I feel it.
+    //
+    // What we can do :
+    // - Keep a timeSinceStart via tickingRequest's ticksSinceLastCall
+    // - If timeSinceStart >= lastCardRun + cardInterval, perform push/pull operation
+    // - If timeSinceStart >= lastNetworkIO + Polling Rate, perform network I/O operation
+    // - Then you take the minimum of the two intervals to determine the ticking rate
+    // PROBLEM: We can have BOTH Adaptive Polling Rate AND Fixed CardInterterval
+    //          And that's a hassle because it becomes a game of Hot/Cold
+    //          (we can still do it by relying on ticksSinceLastCall to guess the intervals)
 
     // ============================== Abstract methods ==============================
 
@@ -203,19 +278,32 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     }
 
     /**
-     * Get the amount of resource in a stack.
+     * Get the amount from an EXTERNAL resource stack.
+     * Used when receiving resources from external APIs (IFluidHandler, etc.).
+     * For internal storage amounts, use {@link #getSlotAmount(int)} instead.
      */
     protected abstract int getAmount(R resource);
 
     /**
-     * Set the amount of resource in a stack.
+     * Set the amount on a resource stack (for external API returns).
+     * NOTE: This modifies the resource object directly.
      */
     protected abstract void setAmount(R resource, int amount);
 
     /**
      * Create a copy of a resource with the given amount.
+     * Used for creating stacks to return via external APIs (int-based).
      */
     protected abstract R copyWithAmount(R resource, int amount);
+
+    /**
+     * Create an identity-only copy of a resource (amount=1).
+     * Used for storing resource type/NBT in the storage array without amount.
+     * Default implementation delegates to copyWithAmount(resource, 1).
+     */
+    protected R copyAsIdentity(R resource) {
+        return copyWithAmount(resource, 1);
+    }
 
     /**
      * Create a copy of a resource.
@@ -277,8 +365,97 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /**
      * Create a recovery item for remainder resources that couldn't be stored.
      * Return ItemStack.EMPTY if no recovery item is available for this type.
+     *
+     * @param identity The resource identity (type + NBT, not amount)
+     * @param amount The amount to store in the recovery item (supports long)
+     * @return A recovery ItemStack, or ItemStack.EMPTY if not available
      */
-    protected abstract ItemStack createRecoveryItem(R resource);
+    protected abstract ItemStack createRecoveryItem(R identity, long amount);
+
+    // ============================== Slot amount helpers ==============================
+
+    /**
+     * Get the amount stored in a specific slot.
+     * Uses the parallel amounts array for long precision.
+     */
+    public long getSlotAmount(int slot) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
+        return this.amounts[slot];
+    }
+
+    /**
+     * Set the amount stored in a specific slot.
+     * Uses the parallel amounts array for long precision.
+     */
+    protected void setSlotAmount(int slot, long amount) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return;
+        this.amounts[slot] = amount;
+    }
+
+    /**
+     * Adjust the amount stored in a specific slot by a delta value.
+     * Used by GUI containers for long-safe insertion/extraction operations.
+     * <p>
+     * If the resulting amount is <= 0, the slot is cleared (both identity and amount).
+     * If the slot was empty (identity null) and delta > 0, this does nothing.
+     * Use setResourceInSlot() to place items in empty slots.
+     *
+     * @param slot  The storage slot index
+     * @param delta The amount to add (positive) or subtract (negative)
+     * @return The actual amount added/removed (may be clamped to available space/contents)
+     */
+    public long adjustSlotAmount(int slot, long delta) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
+
+        R identity = this.storage[slot];
+
+        // Can't adjust an empty slot (use setResourceInSlot instead)
+        if (identity == null) return 0;
+
+        long currentAmount = this.amounts[slot];
+        long newAmount = currentAmount + delta;
+
+        if (newAmount <= 0) {
+            // Slot depleted - clear both identity and amount
+            long removed = currentAmount;
+            this.storage[slot] = null;
+            this.amounts[slot] = 0;
+            host.markDirtyAndSave();
+            return -removed; // Return negative to indicate removal
+        }
+
+        // Clamp to max slot size
+        long maxSize = getMaxSlotSize();
+        if (newAmount > maxSize) {
+            newAmount = maxSize;
+        }
+
+        long actualDelta = newAmount - currentAmount;
+        this.amounts[slot] = newAmount;
+        host.markDirtyAndSave();
+        return actualDelta;
+    }
+
+    /**
+     * Create a resource stack from the storage identity with the given amount.
+     * Clamps the amount to int for external API compatibility.
+     *
+     * @param slot The storage slot containing the identity
+     * @param amount The amount to apply (will be clamped to Integer.MAX_VALUE)
+     * @return The resource with the clamped amount, or null if slot is empty
+     */
+    @Nullable
+    protected R createStackFromSlot(int slot, long amount) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return null;
+
+        R identity = this.storage[slot];
+        if (identity == null) return null;
+
+        int clampedAmount = (int) Math.min(amount, Integer.MAX_VALUE);
+        return copyWithAmount(identity, clampedAmount);
+    }
+
+    // ============================== Slot access ==============================
 
     public AppEngInternalInventory getUpgradeInventory() {
         return this.upgradeInventory;
@@ -286,16 +463,18 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     public boolean isSlotEmpty(int slot) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return true;
-
-        R stored = this.storage[slot];
-        return stored == null || getAmount(stored) <= 0;
+        return this.storage[slot] == null || this.amounts[slot] <= 0;
     }
 
     @Nullable
     public R getResourceInSlot(int slot) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return null;
 
-        return this.storage[slot];
+        R identity = this.storage[slot];
+        if (identity == null || this.amounts[slot] <= 0) return null;
+
+        // Create a stack with the current amount (clamped to int for external APIs)
+        return createStackFromSlot(slot, this.amounts[slot]);
     }
 
     /**
@@ -303,12 +482,19 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Used for GUI-based resource pouring.
      *
      * @param slot The storage slot index
-     * @param resource The resource to set, or null to clear
+     * @param resource The resource to set (with amount), or null to clear
      */
     public void setResourceInSlot(int slot, @Nullable R resource) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return;
 
-        this.storage[slot] = resource;
+        if (resource == null) {
+            this.storage[slot] = null;
+            this.amounts[slot] = 0;
+        } else {
+            // Store identity and amount separately
+            this.storage[slot] = copyAsIdentity(resource);
+            this.amounts[slot] = getAmount(resource);
+        }
 
         // Rebuild filter map since storage changed
         refreshFilterMap();
@@ -342,31 +528,64 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /**
      * Insert resource into a specific storage slot (import interface operation).
-     * @return The amount actually inserted
+     * Uses the parallel amounts array for long precision internally.
+     *
+     * @return The amount actually inserted (clamped to int for external API compat)
      */
     public int insertIntoSlot(int slot, R resource) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
         if (resource == null || getAmount(resource) <= 0) return 0;
 
-        R current = this.storage[slot];
+        R identity = this.storage[slot];
 
         // TODO: Use keys with keysMatch instead of resourcesMatch for efficiency once we have cached keys in the filter map
         //       We have cached filters map, but not cached storage keys yet
         // If slot has resource, it must match
-        if (current != null && !resourcesMatch(current, resource)) return 0;
+        if (identity != null && !resourcesMatch(identity, resource)) return 0;
 
-        int capacity = this.maxSlotSize;
-        int currentAmount = current != null ? getAmount(current) : 0;
-        int spaceAvailable = capacity - currentAmount;
+        long currentAmount = this.amounts[slot];
+        long spaceAvailable = this.maxSlotSize - currentAmount;
         if (spaceAvailable <= 0) return 0;
 
-        int toInsert = Math.min(getAmount(resource), spaceAvailable);
+        // Input amount is int (from external APIs), but we store as long
+        int inputAmount = getAmount(resource);
+        long toInsert = Math.min(inputAmount, spaceAvailable);
 
-        if (current == null) {
-            this.storage[slot] = copyWithAmount(resource, toInsert);
-        } else {
-            setAmount(current, currentAmount + toInsert);
-        }
+        // Store identity only (amount=1), actual amount in parallel array
+        if (identity == null) this.storage[slot] = copyAsIdentity(resource);
+        this.amounts[slot] += toInsert;
+
+        this.host.markDirtyAndSave();
+        this.host.markForNetworkUpdate();
+        this.wakeUpIfAdaptive();
+
+        // Return int for external API compatibility (always fits since input was int)
+        return (int) toInsert;
+    }
+
+    /**
+     * Internal insert with long amount support.
+     * Used for ME network operations that use long amounts.
+     *
+     * @return The amount actually inserted (as long)
+     */
+    protected long insertIntoSlotLong(int slot, R resource, long amount) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
+        if (resource == null || amount <= 0) return 0;
+
+        R identity = this.storage[slot];
+
+        // If slot has resource, it must match
+        if (identity != null && !resourcesMatch(identity, resource)) return 0;
+
+        long currentAmount = this.amounts[slot];
+        long spaceAvailable = this.maxSlotSize - currentAmount;
+        if (spaceAvailable <= 0) return 0;
+
+        long toInsert = Math.min(amount, spaceAvailable);
+
+        if (identity == null) this.storage[slot] = copyAsIdentity(resource);
+        this.amounts[slot] += toInsert;
 
         this.host.markDirtyAndSave();
         this.host.markForNetworkUpdate();
@@ -377,25 +596,42 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /**
      * Drain resource from a specific storage slot (export interface operation).
-     * @return The resource extracted, or null if nothing extracted
+     * Uses the parallel amounts array for long precision internally.
+     *
+     * @param maxDrain Maximum amount to drain (int for external API compat)
+     * @return The resource extracted (clamped to int), or null if nothing extracted
      */
     @Nullable
     public R drainFromSlot(int slot, int maxDrain, boolean doDrain) {
+        return drainFromSlotLong(slot, maxDrain, doDrain);
+    }
+
+    /**
+     * Internal drain with long amount support.
+     * Used for ME network operations that use long amounts.
+     *
+     * @param maxDrain Maximum amount to drain (as long)
+     * @return The resource extracted (clamped to int for external APIs), or null if nothing extracted
+     */
+    @Nullable
+    protected R drainFromSlotLong(int slot, long maxDrain, boolean doDrain) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return null;
 
-        R current = this.storage[slot];
-        if (current == null || getAmount(current) <= 0) return null;
+        R identity = this.storage[slot];
+        long currentAmount = this.amounts[slot];
+        if (identity == null || currentAmount <= 0) return null;
 
-        int currentAmount = getAmount(current);
-        int toDrain = Math.min(maxDrain, currentAmount);
-        R drained = copyWithAmount(current, toDrain);
+        long toDrain = Math.min(maxDrain, currentAmount);
+
+        // Clamp to int for external API return (create stack with int amount)
+        int clampedDrain = (int) Math.min(toDrain, Integer.MAX_VALUE);
+        R drained = copyWithAmount(identity, clampedDrain);
 
         if (doDrain) {
-            int remaining = currentAmount - toDrain;
-            if (remaining <= 0) {
+            this.amounts[slot] -= toDrain;
+            if (this.amounts[slot] <= 0) {
                 this.storage[slot] = null;
-            } else {
-                setAmount(current, remaining);
+                this.amounts[slot] = 0;
             }
 
             this.host.markDirtyAndSave();
@@ -411,6 +647,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /**
      * Receive a resource into this interface based on filter configuration.
      * Used by import interface external handlers.
+     * Uses the parallel amounts array for long precision internally.
      *
      * @param resource The resource to receive
      * @param doTransfer If true, actually perform the transfer; if false, simulate
@@ -422,26 +659,26 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         K key = createKey(resource);
         if (key == null) return 0;
 
+        int inputAmount = getAmount(resource);
+
         // No filter matches - void if trash unselected upgrade installed, reject otherwise
         Integer slot = this.filterToSlotMap.get(key);
-        if (slot == null) return this.installedTrashUnselectedUpgrade ? getAmount(resource) : 0;
+        if (slot == null) return this.installedTrashUnselectedUpgrade ? inputAmount : 0;
 
-        // Insert into matching slot
-        R existing = this.storage[slot];
-        int capacity = this.maxSlotSize;
-        int currentAmount = (existing == null) ? 0 : getAmount(existing);
-        int space = capacity - currentAmount;
+        // Insert into matching slot using parallel amounts array
+        long currentAmount = this.amounts[slot];
+        long space = this.maxSlotSize - currentAmount;
 
         // Slot full - void overflow if upgrade installed, reject otherwise
-        if (space <= 0) return this.installedOverflowUpgrade ? getAmount(resource) : 0;
+        if (space <= 0) return this.installedOverflowUpgrade ? inputAmount : 0;
 
-        int toInsert = Math.min(getAmount(resource), space);
+        // Input is int, but we can accept up to maxSlotSize (long)
+        long toInsert = Math.min(inputAmount, space);
+
         if (doTransfer) {
-            if (existing == null) {
-                this.storage[slot] = copyWithAmount(resource, toInsert);
-            } else {
-                setAmount(existing, currentAmount + toInsert);
-            }
+            // Store identity only
+            if (this.storage[slot] == null) this.storage[slot] = copyAsIdentity(resource);
+            this.amounts[slot] += toInsert;
 
             this.host.markDirtyAndSave();
             this.host.markForNetworkUpdate();
@@ -451,10 +688,10 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         }
 
         // If overflow upgrade installed, accept all resource (void the excess)
-        int excess = getAmount(resource) - toInsert;
-        if (excess > 0 && this.installedOverflowUpgrade) return getAmount(resource);
+        int excess = inputAmount - (int) toInsert;
+        if (excess > 0 && this.installedOverflowUpgrade) return inputAmount;
 
-        return toInsert;
+        return (int) toInsert;
     }
 
     /**
@@ -469,8 +706,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public R drainAny(int maxDrain, boolean doDrain) {
         // Drain from first non-empty slot
         for (int slot : this.filterSlotList) {
-            R resource = this.storage[slot];
-            if (resource != null && getAmount(resource) > 0) {
+            if (this.storage[slot] != null && this.amounts[slot] > 0) {
                 return drainFromSlot(slot, maxDrain, doDrain);
             }
         }
@@ -526,7 +762,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     }
 
     @Override
-    public int getMaxSlotSize() {
+    public long getMaxSlotSize() {
         return this.maxSlotSize;
     }
 
@@ -535,9 +771,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * If export and reduced, returns overflow to the network.
      */
     @Override
-    public void setMaxSlotSize(int size) {
-        int oldSize = this.maxSlotSize;
-        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(size, MAX_MAX_SLOT_SIZE));
+    public void setMaxSlotSize(long size) {
+        long oldSize = this.maxSlotSize;
+        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(size, getMaxMaxSlotSize()));
 
         this.host.markDirtyAndSave();
 
@@ -559,11 +795,13 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /**
      * Set the polling rate with optional player notification on failure.
-     * @param ticks Polling rate in ticks (0 = adaptive)
+     * @param ticks Polling rate in ticks (0 = adaptive, but clamped to config minimum)
      * @param player Player to notify if re-registration fails, or null to skip notification
      */
     public void setPollingRate(int ticks, EntityPlayer player) {
-        this.pollingRate = Math.max(0, ticks);
+        // Enforce config minimum (0 means adaptive, but if config requires higher, enforce it)
+        int minRate = getMinPollingRate();
+        this.pollingRate = Math.max(minRate, ticks);
         this.host.markDirtyAndSave();
 
         // Re-register with the tick manager to apply the new TickingRequest bounds.
@@ -589,6 +827,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         if (!this.host.isExport()) {
             this.installedOverflowUpgrade = countUpgrade(ItemOverflowCard.class) > 0;
             this.installedTrashUnselectedUpgrade = countUpgrade(ItemTrashUnselectedCard.class) > 0;
+        }
+
+        this.installedAutoPushPullUpgrade = (countUpgrade(ItemAutoPullCard.class) > 0 ||
+                countUpgrade(ItemAutoPushCard.class) > 0);
+
+        if (this.installedAutoPushPullUpgrade) {
+            // Read the values from the first found auto-pull/push card (there should only be 1)
+            initAutoPullPushFromUpgrades();
         }
 
         int oldCapacityCount = this.installedCapacityUpgrades;
@@ -622,6 +868,36 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         return this.installedTrashUnselectedUpgrade;
     }
 
+    public boolean hasAutoPullPushUpgrade() {
+        return this.installedAutoPushPullUpgrade;
+    }
+
+    public int getAutoPullPushInterval() {
+        return this.autoPullPushInterval;
+    }
+
+    protected int initAutoPullPushFromUpgrades() {
+        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
+            if (stack.isEmpty()) continue;
+
+            if (this.installedAutoPushPullUpgrade && ((stack.getItem() instanceof ItemAutoPullCard) ||
+                (stack.getItem() instanceof ItemAutoPushCard))) {
+                NBTTagCompound tag = stack.getTagCompound();
+                if (tag != null && tag.hasKey("Interval", Constants.NBT.TAG_INT)) {
+                    this.autoPullPushInterval = tag.getInteger("Interval");
+                }
+                if (tag != null && tag.hasKey("Quantity", Constants.NBT.TAG_INT)) {
+                    this.autoPushPullQuantity = tag.getInteger("Quantity");
+                }
+
+                break;
+            }
+        }
+
+        return -1; // Default interval if not found
+    }
+
     protected int countCapacityUpgrades() {
         int count = 0;
         for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
@@ -651,6 +927,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             if (stack.getItem() instanceof ItemTrashUnselectedCard) {
                 return countUpgrade(ItemTrashUnselectedCard.class) < 1;
             }
+        }
+
+        if (stack.getItem() instanceof ItemAutoPullCard && !this.host.isExport()) {
+            return countUpgrade(ItemAutoPullCard.class) < 1;
+        }
+
+        if (stack.getItem() instanceof ItemAutoPushCard && this.host.isExport()) {
+            return countUpgrade(ItemAutoPushCard.class) < 1;
         }
 
         // Capacity card (both import and export)
@@ -713,15 +997,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             this.filters[slot] = null;
 
             // Return resource to network
-            R resource = this.storage[slot];
-            // TODO: Store quantity in a separate long[] array to avoid integer limits
-            if (resource != null && getAmount(resource) > 0) {
-                int notInserted = insertIntoNetwork(resource);
+            R identity = this.storage[slot];
+            long amount = this.amounts[slot];
+            if (identity != null && amount > 0) {
+                long notInserted = insertIntoNetworkLong(identity, amount);
 
-                // Try to create recovery item for remainder
+                // Create a single recovery item for remainder (supports long amounts)
                 if (notInserted > 0) {
-                    R remainder = copyWithAmount(resource, notInserted);
-                    ItemStack drop = createRecoveryItem(remainder);
+                    ItemStack drop = createRecoveryItem(identity, notInserted);
                     if (!drop.isEmpty() && world != null && pos != null) {
                         Block.spawnAsEntity(world, pos, drop);
                     }
@@ -730,6 +1013,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 }
 
                 this.storage[slot] = null;
+                this.amounts[slot] = 0;
             }
         }
 
@@ -774,7 +1058,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         } else {
             for (int i = 0; i < FILTER_SLOTS; i++) {
                 // Only clear filter if the corresponding storage slot is empty
-                if (i >= STORAGE_SLOTS || this.storage[i] == null || getAmount(this.storage[i]) <= 0) {
+                if (i >= STORAGE_SLOTS || this.storage[i] == null || this.amounts[i] <= 0) {
                     this.filters[i] = null;
                 }
             }
@@ -869,9 +1153,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     @Override
     public boolean isStorageEmpty(int slot) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return true;
-
-        R stored = this.storage[slot];
-        return stored == null || getAmount(stored) <= 0;
+        return this.storage[slot] == null || this.amounts[slot] <= 0;
     }
 
     /**
@@ -922,20 +1204,22 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public void getStorageDrops(List<ItemStack> drops) {
         // Try to return all storage contents to the network
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            R storedResource = this.storage[i];
-            if (storedResource == null || getAmount(storedResource) <= 0) continue;
+            R identity = this.storage[i];
+            long amount = this.amounts[i];
+            if (identity == null || amount <= 0) continue;
 
             // Try to insert into network
-            int notInserted = insertIntoNetwork(storedResource);
+            long notInserted = insertIntoNetworkLong(identity, amount);
+
+            // Create a single recovery item for the remainder (supports long amounts)
             if (notInserted > 0) {
-                // Create a recovery item for the remainder
-                R remainder = copyWithAmount(storedResource, notInserted);
-                ItemStack drop = createRecoveryItem(remainder);
+                ItemStack drop = createRecoveryItem(identity, notInserted);
                 if (!drop.isEmpty()) drops.add(drop);
             }
 
             // Clear the slot regardless
             this.storage[i] = null;
+            this.amounts[i] = 0;
         }
     }
 
@@ -1011,11 +1295,13 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         readStorageFromNBT(data);
         this.upgradeInventory.readFromNBT(data, "upgrades");
 
-        this.maxSlotSize = data.getInteger("maxSlotSize");
+        this.maxSlotSize = data.getLong("maxSlotSize");
         this.pollingRate = data.getInteger("pollingRate");
 
-        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(this.maxSlotSize, MAX_MAX_SLOT_SIZE));
-        if (this.pollingRate < 0) this.pollingRate = 0;
+        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(this.maxSlotSize, getMaxMaxSlotSize()));
+        // Enforce config minimum polling rate (0 = adaptive allowed only if config allows)
+        int minRate = getMinPollingRate();
+        this.pollingRate = Math.max(minRate, this.pollingRate);
 
 
         this.refreshFilterMap();
@@ -1024,6 +1310,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /**
      * Read storage data from NBT. Override in subclass for type-specific migration.
+     * Reads both identity and amounts from NBT, supporting long amounts.
      */
     protected void readStorageFromNBT(NBTTagCompound data) {
         String storageKey = getStorageNBTKey();
@@ -1033,8 +1320,21 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         for (String key : storageMap.getKeySet()) {
             try {
                 int slot = Integer.parseInt(key);
-                if (slot >= 0 && slot < STORAGE_SLOTS) {
-                    this.storage[slot] = readResourceFromNBT(storageMap.getCompoundTag(key));
+                if (slot < 0 || slot >= STORAGE_SLOTS) continue;
+
+                NBTTagCompound slotTag = storageMap.getCompoundTag(key);
+                R resource = readResourceFromNBT(slotTag);
+                if (resource == null) continue;
+
+                // Store identity only
+                this.storage[slot] = copyAsIdentity(resource);
+
+                // Read amount: prefer "Amount" (long), fall back to resource's native int amount
+                if (slotTag.hasKey("Amount")) {
+                    this.amounts[slot] = slotTag.getLong("Amount");
+                } else {
+                    // Legacy migration: use the resource's native int amount
+                    this.amounts[slot] = getAmount(resource);
                 }
             } catch (NumberFormatException ignored) {
             }
@@ -1047,16 +1347,18 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public void writeToNBT(NBTTagCompound data) {
         writeFiltersToNBT(data, getFiltersNBTKey());
         this.upgradeInventory.writeToNBT(data, "upgrades");
-        data.setInteger("maxSlotSize", this.maxSlotSize);
+        data.setLong("maxSlotSize", this.maxSlotSize);
         data.setInteger("pollingRate", this.pollingRate);
 
-        // Write storage - compound map format
+        // Write storage - compound map format with parallel amounts
         NBTTagCompound storageMap = new NBTTagCompound();
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] == null) continue;
+            if (this.storage[i] == null || this.amounts[i] <= 0) continue;
 
             NBTTagCompound slotTag = new NBTTagCompound();
             writeResourceToNBT(this.storage[i], slotTag);
+            // Write amount as long for full long precision
+            slotTag.setLong("Amount", this.amounts[i]);
             storageMap.setTag(String.valueOf(i), slotTag);
         }
         data.setTag(getStorageNBTKey(), storageMap);
@@ -1073,8 +1375,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
         // Clear all storage first
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null) {
+            if (this.storage[i] != null || this.amounts[i] != 0) {
                 this.storage[i] = null;
+                this.amounts[i] = 0;
                 changed = true;
             }
         }
@@ -1082,6 +1385,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         int count = data.readShort();
         for (int idx = 0; idx < count; idx++) {
             int slot = data.readShort();
+            long amount = data.readLong();
             NBTTagCompound tag = ByteBufUtils.readTag(data);
 
             if (slot < 0 || slot >= STORAGE_SLOTS) continue;
@@ -1089,7 +1393,8 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
             R resource = readResourceFromNBT(tag);
             if (resource != null) {
-                this.storage[slot] = resource;
+                this.storage[slot] = copyAsIdentity(resource);
+                this.amounts[slot] = amount;
                 changed = true;
             }
         }
@@ -1104,19 +1409,21 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         // Count non-empty storage slots first
         int count = 0;
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null && getAmount(this.storage[i]) > 0) count++;
+            if (this.storage[i] != null && this.amounts[i] > 0) count++;
         }
 
         data.writeShort(count);
 
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            R resource = this.storage[i];
-            if (resource == null || getAmount(resource) <= 0) continue;
+            R identity = this.storage[i];
+            long amount = this.amounts[i];
+            if (identity == null || amount <= 0) continue;
 
             data.writeShort(i);
+            data.writeLong(amount);
 
             NBTTagCompound tag = new NBTTagCompound();
-            writeResourceToNBT(resource, tag);
+            writeResourceToNBT(identity, tag);
             ByteBufUtils.writeTag(data, tag);
         }
     }
@@ -1185,7 +1492,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public NBTTagCompound downloadSettings() {
         NBTTagCompound output = new NBTTagCompound();
 
-        output.setInteger("maxSlotSize", this.maxSlotSize);
+        output.setLong("maxSlotSize", this.maxSlotSize);
         output.setInteger("pollingRate", this.pollingRate);
 
         return output;
@@ -1218,7 +1525,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         if (compound == null) return;
 
         if (compound.hasKey("maxSlotSize")) {
-            this.setMaxSlotSize(compound.getInteger("maxSlotSize"));
+            this.setMaxSlotSize(compound.getLong("maxSlotSize"));
         }
         if (compound.hasKey("pollingRate")) {
             this.setPollingRate(compound.getInteger("pollingRate"), player);
@@ -1332,11 +1639,11 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public void onFilterChanged(int slot) {
         if (this.host.isExport()) {
             // Export: if filter changed, return orphaned resources in that slot
-            R stored = this.storage[slot];
-            if (stored != null && getAmount(stored) > 0) {
+            R identity = this.storage[slot];
+            if (identity != null && this.amounts[slot] > 0) {
                 // Use cached filter key from slotToFilterMap for efficiency
                 K cachedFilterKey = this.slotToFilterMap.get(slot);
-                boolean isOrphaned = cachedFilterKey == null || !keysMatch(cachedFilterKey, createKey(stored));
+                boolean isOrphaned = cachedFilterKey == null || !keysMatch(cachedFilterKey, createKey(identity));
 
                 if (isOrphaned) returnSlotToNetwork(slot);
             }
@@ -1423,14 +1730,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         if (this.host.isExport()) {
             // Check if any configured slot needs resources
             for (int i : this.filterSlotList) {
-                R current = this.storage[i];
-                int currentAmount = (current == null) ? 0 : getAmount(current);
-                if (currentAmount < this.maxSlotSize) return true;
+                if (this.amounts[i] < this.maxSlotSize) return true;
             }
         } else {
             // Check if any filtered slot has resources to import
             for (int i : this.filterToSlotMap.values()) {
-                if (this.storage[i] != null && getAmount(this.storage[i]) > 0) return true;
+                if (this.storage[i] != null && this.amounts[i] > 0) return true;
             }
         }
 
@@ -1454,7 +1759,18 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     }
 
     /**
+     * Get the maximum request size for the AE network.
+     * This is used to clamp requests to avoid issues with some mods
+     * that do not handle large request sizes correctly.
+     * @return The maximum request size
+     */
+    protected long getMaxAENetworkRequestSize() {
+        return Long.MAX_VALUE;
+    }
+
+    /**
      * Import resources from internal storage into the ME network.
+     * Uses the parallel amounts array for long precision.
      */
     protected boolean importResources() {
         boolean didWork = false;
@@ -1463,18 +1779,23 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             IStorageGrid storageGrid = this.host.getGridProxy().getStorage();
             IMEInventory<AE> inventory = getMEInventory(storageGrid);
 
-            for (int i : this.filterToSlotMap.values()) {
-                R resource = this.storage[i];
-                if (resource == null || getAmount(resource) <= 0) continue;
+            for (int slot : this.filterToSlotMap.values()) {
+                R identity = this.storage[slot];
+                long amount = this.amounts[slot];
+                if (identity == null || amount <= 0) continue;
 
-                AE aeStack = toAEStack(resource);
+                // Create AE stack with identity only - setStackSize will set the actual amount
+                AE aeStack = toAEStack(copyWithAmount(identity, 1));
+                aeStack.setStackSize(Math.min(amount, getMaxAENetworkRequestSize()));
+
                 AE remaining = inventory.injectItems(aeStack, Actionable.MODULATE, this.host.getActionSource());
 
                 if (remaining == null) {
-                    this.storage[i] = null;
+                    this.storage[slot] = null;
+                    this.amounts[slot] = 0;
                     didWork = true;
-                } else if (getAEStackSize(remaining) < getAmount(resource)) {
-                    setAmount(resource, (int) getAEStackSize(remaining));
+                } else if (getAEStackSize(remaining) < amount) {
+                    this.amounts[slot] = getAEStackSize(remaining);
                     didWork = true;
                 }
             }
@@ -1489,6 +1810,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /**
      * Export resources from the ME network into storage slots.
+     * Uses the parallel amounts array for long precision.
      */
     protected boolean exportResources() {
         boolean didWork = false;
@@ -1501,35 +1823,37 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             returnOrphanedToNetwork();
             returnOverflowToNetwork();
 
-            for (int i : this.filterSlotList) {
-                R filter = this.filters[i];
+            for (int slot : this.filterSlotList) {
+                R filter = this.filters[slot];
                 if (filter == null) continue;
 
-                R current = this.storage[i];
+                R identity = this.storage[slot];
+                long currentAmount = this.amounts[slot];
 
                 // Skip slots where current resources don't match filter (still orphaned)
                 // Use cached filter key from slotToFilterMap for efficiency
-                if (current != null && getAmount(current) > 0) {
-                    K cachedFilterKey = this.slotToFilterMap.get(i);
-                    if (cachedFilterKey == null || !keysMatch(cachedFilterKey, createKey(current))) continue;
+                if (identity != null && currentAmount > 0) {
+                    K cachedFilterKey = this.slotToFilterMap.get(slot);
+                    if (cachedFilterKey == null || !keysMatch(cachedFilterKey, createKey(identity))) continue;
                 }
 
-                int currentAmount = (current == null) ? 0 : getAmount(current);
-                int space = this.maxSlotSize - currentAmount;
+                long space = this.maxSlotSize - currentAmount;
                 if (space <= 0) continue;
 
-                // Request resources from network
-                AE request = toAEStack(copyWithAmount(filter, space));
+                // Request resources from network (AE2 uses long natively)
+                AE request = toAEStack(copyWithAmount(filter, 1));
+                request.setStackSize(Math.min(space, getMaxAENetworkRequestSize()));
+
                 AE extracted = inventory.extractItems(request, Actionable.MODULATE, this.host.getActionSource());
                 if (extracted == null || getAEStackSize(extracted) <= 0) continue;
 
-                // Add to storage (clamp to prevent overflow)
-                int amount = Math.min((int) getAEStackSize(extracted), space);
-                if (current == null) {
-                    this.storage[i] = fromAEStack(extracted);
-                } else {
-                    setAmount(current, currentAmount + amount);
+                long extractedAmount = getAEStackSize(extracted);
+
+                // Add to storage
+                if (identity == null) {
+                    this.storage[slot] = copyAsIdentity(fromAEStack(extracted));
                 }
+                this.amounts[slot] += extractedAmount;
 
                 didWork = true;
             }
@@ -1546,23 +1870,38 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /**
      * Insert resources into the ME network.
-     * @return Amount that could not be inserted
+     * @return Amount that could not be inserted (int for external API compat)
      */
     protected int insertIntoNetwork(R resource) {
         if (resource == null || getAmount(resource) <= 0) return 0;
+        return (int) insertIntoNetworkLong(resource, getAmount(resource));
+    }
+
+    /**
+     * Insert resources into the ME network with long amount support.
+     *
+     * @param identity The resource identity (type/NBT)
+     * @param amount The amount to insert (long)
+     * @return Amount that could not be inserted (long)
+     */
+    protected long insertIntoNetworkLong(R identity, long amount) {
+        if (identity == null || amount <= 0) return 0;
 
         try {
             IStorageGrid storage = this.host.getGridProxy().getStorage();
             IMEInventory<AE> inventory = getMEInventory(storage);
 
-            AE aeStack = toAEStack(resource);
+            // Create AE stack with full long amount
+            AE aeStack = toAEStack(copyWithAmount(identity, 1));
+            aeStack.setStackSize(amount);
+
             AE remaining = inventory.injectItems(aeStack, Actionable.MODULATE, this.host.getActionSource());
 
             if (remaining == null) return 0;
 
-            return (int) getAEStackSize(remaining);
+            return getAEStackSize(remaining);
         } catch (GridAccessException e) {
-            return getAmount(resource);
+            return amount;
         }
     }
 
@@ -1572,15 +1911,17 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     protected void returnSlotToNetwork(int slot) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return;
 
-        R resource = this.storage[slot];
-        if (resource == null || getAmount(resource) <= 0) return;
+        R identity = this.storage[slot];
+        long amount = this.amounts[slot];
+        if (identity == null || amount <= 0) return;
 
-        int notInserted = insertIntoNetwork(resource);
+        long notInserted = insertIntoNetworkLong(identity, amount);
 
         if (notInserted <= 0) {
             this.storage[slot] = null;
+            this.amounts[slot] = 0;
         } else {
-            setAmount(resource, notInserted);
+            this.amounts[slot] = notInserted;
         }
 
         this.host.markForNetworkUpdate();
@@ -1590,16 +1931,16 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Return orphaned resources (no matching filter) to the network.
      */
     protected void returnOrphanedToNetwork() {
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            R stored = this.storage[i];
-            if (stored == null || getAmount(stored) <= 0) continue;
+        for (int slot = 0; slot < STORAGE_SLOTS; slot++) {
+            R identity = this.storage[slot];
+            if (identity == null || this.amounts[slot] <= 0) continue;
 
             // Use cached filter key from slotToFilterMap for efficiency
-            K cachedFilterKey = this.slotToFilterMap.get(i);
-            if (cachedFilterKey != null && keysMatch(cachedFilterKey, createKey(stored))) continue;
+            K cachedFilterKey = this.slotToFilterMap.get(slot);
+            if (cachedFilterKey != null && keysMatch(cachedFilterKey, createKey(identity))) continue;
 
             // Orphaned - return to network
-            returnSlotToNetwork(i);
+            returnSlotToNetwork(slot);
         }
     }
 
@@ -1607,22 +1948,21 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Return overflow resources (above maxSlotSize) to the network.
      */
     protected void returnOverflowToNetwork() {
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            R stored = this.storage[i];
-            if (stored == null) continue;
+        for (int slot = 0; slot < STORAGE_SLOTS; slot++) {
+            R identity = this.storage[slot];
+            if (identity == null) continue;
 
-            int amount = getAmount(stored);
+            long amount = this.amounts[slot];
             if (amount <= this.maxSlotSize) continue;
 
             // Has overflow - return excess to network
-            int overflow = amount - this.maxSlotSize;
-            R overflowResource = copyWithAmount(stored, overflow);
-            int notInserted = insertIntoNetwork(overflowResource);
+            long overflow = amount - this.maxSlotSize;
+            long notInserted = insertIntoNetworkLong(identity, overflow);
 
             // Reduce slot by what was successfully returned
-            int returned = overflow - notInserted;
+            long returned = overflow - notInserted;
             if (returned > 0) {
-                setAmount(stored, amount - returned);
+                this.amounts[slot] -= returned;
                 this.host.markForNetworkUpdate();
             }
         }

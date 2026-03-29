@@ -1,0 +1,18 @@
+{
+    "type": "forge:ore_shapeless",
+    "conditions": [
+        {
+            "type": "forge:mod_loaded",
+            "modid": "mekeng"
+        }
+    ],
+    "ingredients": [
+        {
+            "item": "cells:export_gas_interface"
+        }
+    ],
+    "result": {
+        "item": "cells:gas_part",
+        "data": 1
+    }
+}

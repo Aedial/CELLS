@@ -30,6 +30,7 @@ public class CellsConfig {
     public static final String CATEGORY_CELLS = "cells";
     public static final String CATEGORY_IDLE_DRAIN = "idle_drain";
     public static final String CATEGORY_ENABLED = "enabled_cells";
+    public static final String CATEGORY_INTERFACES = "interfaces";
 
     private static Configuration config;
 
@@ -101,6 +102,12 @@ public class CellsConfig {
 
     /** Enable NBT size computation and display in cell tooltips */
     public static boolean enableNbtSizeTooltip = true;
+
+    /** Maximum slot size limit for interfaces (caps user-configurable max slot size) */
+    public static long interfaceMaxSlotSizeLimit = Long.MAX_VALUE;
+
+    /** Minimum polling rate for interfaces (0 = allow adaptive) */
+    public static int interfaceMinPollingRate = 0;
 
     /**
      * Initializes the configuration from the given file.
@@ -310,6 +317,33 @@ public class CellsConfig {
         );
         p.setLanguageKey(Tags.MODID + ".config.enableNbtSizeTooltip");
         enableNbtSizeTooltip = p.getBoolean();
+
+        // Interfaces category
+        config.getCategory(CATEGORY_INTERFACES).setLanguageKey(Tags.MODID + ".config.category.interfaces");
+        config.addCustomCategoryComment(CATEGORY_INTERFACES,
+            "Settings for resource interfaces (Fluid, Gas, Essentia, Item import/export interfaces).");
+
+        // Use String to handle Long.MAX_VALUE precisely (double loses precision above 2^53)
+        p = config.get(CATEGORY_INTERFACES,
+            "interfaceMaxSlotSizeLimit", String.valueOf(Long.MAX_VALUE),
+            "Maximum slot size limit for interfaces. Caps the user-configurable max slot size per slot. Use -1 for unlimited (Long.MAX_VALUE)."
+        );
+        p.setLanguageKey(Tags.MODID + ".config.interfaceMaxSlotSizeLimit");
+        String maxSlotStr = p.getString();
+        try {
+            long parsed = Long.parseLong(maxSlotStr);
+            interfaceMaxSlotSizeLimit = parsed < 0 ? Long.MAX_VALUE : Math.max(1, parsed);
+        } catch (NumberFormatException e) {
+            interfaceMaxSlotSizeLimit = Long.MAX_VALUE;
+        }
+
+        p = config.get(CATEGORY_INTERFACES,
+            "interfaceMinPollingRate", 0,
+            "Minimum polling rate for interfaces in ticks. 0 allows adaptive (AE2-managed tick rates). " +
+            "Higher values force interfaces to poll at least this often, reducing responsiveness but saving performance.", 0, Integer.MAX_VALUE
+        );
+        p.setLanguageKey(Tags.MODID + ".config.interfaceMinPollingRate");
+        interfaceMinPollingRate = p.getInt();
 
         // Save if config was created or changed
         if (config.hasChanged()) config.save();

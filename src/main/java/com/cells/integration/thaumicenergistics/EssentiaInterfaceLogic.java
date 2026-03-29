@@ -1,6 +1,11 @@
 package com.cells.integration.thaumicenergistics;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -8,10 +13,20 @@ import io.netty.buffer.ByteBuf;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 import appeng.api.AEApi;
+import appeng.api.networking.IGridNode;
+import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
+import appeng.api.networking.ticking.TickRateModulation;
+import appeng.api.parts.IPart;
+import appeng.api.parts.IPartHost;
 import appeng.api.storage.IMEInventory;
+import appeng.api.util.AEPartLocation;
 
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
@@ -21,6 +36,7 @@ import thaumicenergistics.api.EssentiaStack;
 import thaumicenergistics.api.storage.IAEEssentiaStack;
 import thaumicenergistics.api.storage.IEssentiaStorageChannel;
 import thaumicenergistics.integration.appeng.AEEssentiaStack;
+import thaumicenergistics.part.PartEssentiaStorageBus;
 
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.items.ItemRecoveryContainer;
@@ -65,10 +81,34 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      */
     public static final int EXPORT_SUCTION = 0;
 
+    /**
+     * Tracks pending essentia changes that need to be notified to connected storage buses.
+     * Key is the Aspect, value is the cumulative delta (positive for additions, negative for removals).
+     * <p>
+     * Changes are accumulated during operations (import/export ticking, tube I/O) and then
+     * flushed to the network at the end of each tick or operation via
+     * {@link #notifyStorageBusOfChanges()}.
+     */
+    private final Map<Aspect, Long> pendingChanges = new HashMap<>();
+
+    /**
+     * Flag to track whether we have an adjacent essentia storage bus.
+     * This is cached to avoid checking all neighbors every tick.
+     * Set to true on neighbor change detection, cleared when no bus is found.
+     */
+    private boolean hasAdjacentStorageBus = false;
+
+    /**
+     * Flag indicating that neighbor check is needed (after a neighbor change event).
+     */
+    private boolean neighborCheckPending = true;
+
+    public long getDefaultMaxSlotSize() {
+        return Math.min(DEFAULT_MAX_SLOT_SIZE, getMaxMaxSlotSize());
+    }
+
     public EssentiaInterfaceLogic(Host host) {
         super(host, EssentiaStack.class);
-        // Override parent's default maxSlotSize for essentia-appropriate values
-        this.maxSlotSize = DEFAULT_MAX_SLOT_SIZE;
     }
 
     @Override
@@ -104,6 +144,17 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     }
 
     /**
+     * Since Thaumic Energistics has a bug that downgrades requests from
+     * Long.MAX_VALUE to Integer.MAX_VALUE, we clamp the request to avoid any voiding.
+     * There is no telling if any voiding *is happening*, but it *does* ask
+     * Long.MAX_VALUE essentia to our creative cells, while returning only Max Int.
+     */
+    @Override
+    protected long getMaxAENetworkRequestSize() {
+        return Integer.MAX_VALUE;
+    }
+
+    /**
      * Drain essentia from a specific slot.
      */
     @Nullable
@@ -128,11 +179,13 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         AspectList list = new AspectList();
 
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            EssentiaStack stored = this.storage[i];
-            if (stored == null || stored.getAmount() <= 0) continue;
+            EssentiaStack identity = this.storage[i];
+            long amount = this.amounts[i];
+            if (identity == null || amount <= 0) continue;
 
-            Aspect aspect = stored.getAspect();
-            if (aspect != null) list.add(aspect, stored.getAmount());
+            Aspect aspect = identity.getAspect();
+            // Clamp to int for AspectList API compatibility
+            if (aspect != null) list.add(aspect, (int) Math.min(amount, Integer.MAX_VALUE));
         }
 
         return list;
@@ -158,8 +211,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         int slot = findSlotForAspect(aspect);
         if (slot < 0) return false;
 
-        EssentiaStack stored = this.storage[slot];
-        return stored != null && stored.getAmount() >= amount;
+        return this.storage[slot] != null && this.amounts[slot] >= amount;
     }
 
     /**
@@ -170,9 +222,11 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     public int getEssentiaCount(Aspect aspect) {
         if (aspect == null) return 0;
 
-        for (EssentiaStack stored : this.storage) {
-            if (stored != null && stored.getAspect() == aspect) {
-                return stored.getAmount();
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            EssentiaStack identity = this.storage[i];
+            if (identity != null && identity.getAspect() == aspect) {
+                // Clamp to int for API compatibility
+                return (int) Math.min(this.amounts[i], Integer.MAX_VALUE);
             }
         }
 
@@ -206,7 +260,15 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         if (this.host.isExport()) return 0;
 
         EssentiaStack toInsert = new EssentiaStack(aspect, amount);
-        return receiveFiltered(toInsert, true);
+        int added = receiveFiltered(toInsert, true);
+
+        // Record the change for storage bus notification
+        if (added > 0) {
+            recordEssentiaChange(aspect, added);
+            notifyStorageBusOfChanges();
+        }
+
+        return added;
     }
 
     /**
@@ -234,7 +296,15 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         if (slot < 0) return 0;
 
         EssentiaStack drained = drainFromSlot(slot, amount, true);
-        return drained != null ? drained.getAmount() : 0;
+        int taken = drained != null ? drained.getAmount() : 0;
+
+        // Record the change for storage bus notification (negative = removal)
+        if (taken > 0) {
+            recordEssentiaChange(aspect, -taken);
+            notifyStorageBusOfChanges();
+        }
+
+        return taken;
     }
 
     /**
@@ -293,12 +363,301 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     @Nullable
     public Aspect getStoredEssentiaType() {
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            EssentiaStack stored = this.storage[i];
-            if (stored != null && stored.getAmount() > 0 && stored.getAspect() != null) {
-                return stored.getAspect();
+            EssentiaStack identity = this.storage[i];
+            if (identity != null && this.amounts[i] > 0 && identity.getAspect() != null) {
+                return identity.getAspect();
             }
         }
         return null;
+    }
+
+    // ============================== Storage Bus Notification ==============================
+
+    /**
+     * Called when a neighbor block changes.
+     * Checks if the changed neighbor is an Essentia Storage Bus and updates the cache.
+     *
+     * @param neighborPos The position of the neighbor that changed
+     */
+    public void onNeighborChanged(BlockPos neighborPos) {
+        World world = this.host.getHostWorld();
+        BlockPos pos = this.host.getHostPos();
+        if (world == null || pos == null || neighborPos == null) return;
+
+        // Check if the changed neighbor is a storage bus facing us
+        TileEntity te = world.getTileEntity(neighborPos);
+        if (te instanceof IPartHost) {
+            IPartHost partHost = (IPartHost) te;
+            // Find which direction the neighbor is from us, then check the opposite side
+            EnumFacing directionToNeighbor = null;
+            for (EnumFacing facing : EnumFacing.VALUES) {
+                if (pos.offset(facing).equals(neighborPos)) {
+                    directionToNeighbor = facing;
+                    break;
+                }
+            }
+
+            if (directionToNeighbor != null) {
+                // The storage bus faces towards us = opposite of our offset direction
+                AEPartLocation partSide = AEPartLocation.fromFacing(directionToNeighbor.getOpposite());
+                IPart part = partHost.getPart(partSide);
+
+                if (part instanceof PartEssentiaStorageBus) {
+                    this.hasAdjacentStorageBus = true;
+                    return;
+                }
+            }
+        }
+
+        // If no storage bus found at changed position, recheck all neighbors
+        // (in case a storage bus was removed and we need to update the flag)
+        this.neighborCheckPending = true;
+    }
+
+    /**
+     * Record an essentia change that needs to be notified to connected storage buses.
+     * Changes are accumulated and flushed at the end of tick operations.
+     * <p>
+     * Uses saturating addition to avoid overflow when accumulating many changes.
+     *
+     * @param aspect The aspect that changed
+     * @param delta  The change amount (positive for additions, negative for removals)
+     */
+    protected void recordEssentiaChange(Aspect aspect, long delta) {
+        if (aspect == null || delta == 0) return;
+
+        this.pendingChanges.merge(aspect, delta, this::saturatingAdd);
+    }
+
+    /**
+     * Check all adjacent positions for Essentia Storage Buses.
+     * Updates the {@link #hasAdjacentStorageBus} cache.
+     *
+     * @return true if at least one storage bus was found
+     */
+    protected boolean checkForAdjacentStorageBuses() {
+        World world = this.host.getHostWorld();
+        BlockPos pos = this.host.getHostPos();
+        if (world == null || pos == null) return false;
+
+        for (EnumFacing facing : EnumFacing.VALUES) {
+            BlockPos neighborPos = pos.offset(facing);
+            TileEntity te = world.getTileEntity(neighborPos);
+            if (te == null) continue;
+
+            // Check if neighbor is a cable bus that might have a storage bus part
+            if (te instanceof IPartHost) {
+                IPartHost partHost = (IPartHost) te;
+                // The storage bus would be facing towards us (opposite of our offset direction)
+                AEPartLocation partSide = AEPartLocation.fromFacing(facing.getOpposite());
+                IPart part = partHost.getPart(partSide);
+
+                if (part instanceof PartEssentiaStorageBus) {
+                    this.hasAdjacentStorageBus = true;
+                    return true;
+                }
+            }
+        }
+
+        this.hasAdjacentStorageBus = false;
+        return false;
+    }
+
+    /**
+     * Notify the ME network about pending essentia changes.
+     * <p>
+     * This uses {@code IStorageGrid.postAlterationOfStoredItems()} to inform the network
+     * about changes without triggering a full {@code MENetworkCellArrayUpdate} event.
+     * This is more efficient for content-only changes (no structural changes to cell providers).
+     * <p>
+     * IMPORTANT: We post to the STORAGE BUS's network, not our own network, because
+     * the storage bus exposes our interface to a potentially different ME network.
+     * <p>
+     * Called after each AE2 tick or after external I/O operations that modify storage.
+     */
+    protected void notifyStorageBusOfChanges() {
+        // If no pending changes, nothing to do
+        if (this.pendingChanges.isEmpty()) return;
+
+        // If no adjacent storage bus, clear changes and exit
+        if (!this.hasAdjacentStorageBus) {
+            this.pendingChanges.clear();
+            return;
+        }
+
+        // Find the adjacent storage bus and get its grid
+        PartEssentiaStorageBus storageBus = findAdjacentStorageBus();
+        if (storageBus == null) {
+            this.pendingChanges.clear();
+            return;
+        }
+
+        IGridNode gridNode = storageBus.getGridNode();
+        if (gridNode == null || gridNode.getGrid() == null) {
+            this.pendingChanges.clear();
+            return;
+        }
+
+        // Post changes to the STORAGE BUS's network (not our network!)
+        try {
+            IStorageGrid storageGrid = gridNode.getGrid().getCache(IStorageGrid.class);
+            if (storageGrid == null) {
+                this.pendingChanges.clear();
+                return;
+            }
+
+            IActionSource source = this.host.getActionSource();
+            IEssentiaStorageChannel channel = AEApi.instance().storage()
+                    .getStorageChannel(IEssentiaStorageChannel.class);
+
+            List<IAEEssentiaStack> changes = new ArrayList<>();
+            for (Map.Entry<Aspect, Long> entry : this.pendingChanges.entrySet()) {
+                Aspect aspect = entry.getKey();
+                long delta = entry.getValue();
+                if (delta == 0) continue;
+
+                // Create an AE stack with the delta
+                // Positive delta = added, negative delta = removed
+                EssentiaStack stack = new EssentiaStack(aspect, 1);
+                IAEEssentiaStack aeStack = AEEssentiaStack.fromEssentiaStack(stack);
+                if (aeStack != null) {
+                    // Set stack size to the delta (sign matters for the network)
+                    aeStack.setStackSize(delta);
+                    changes.add(aeStack);
+                }
+            }
+
+            if (!changes.isEmpty()) {
+                storageGrid.postAlterationOfStoredItems(channel, changes, source);
+            }
+
+        } catch (Exception e) {
+            // Grid access failed - ignore
+        }
+
+        // Clear pending changes
+        this.pendingChanges.clear();
+    }
+
+    /**
+     * Find an adjacent Essentia Storage Bus.
+     *
+     * @return The first found storage bus, or null if none found
+     */
+    @Nullable
+    private PartEssentiaStorageBus findAdjacentStorageBus() {
+        World world = this.host.getHostWorld();
+        BlockPos pos = this.host.getHostPos();
+        if (world == null || pos == null) return null;
+
+        for (EnumFacing facing : EnumFacing.VALUES) {
+            BlockPos neighborPos = pos.offset(facing);
+            TileEntity te = world.getTileEntity(neighborPos);
+            if (te == null) continue;
+
+            if (te instanceof IPartHost) {
+                IPartHost partHost = (IPartHost) te;
+                AEPartLocation partSide = AEPartLocation.fromFacing(facing.getOpposite());
+                IPart part = partHost.getPart(partSide);
+
+                if (part instanceof PartEssentiaStorageBus) {
+                    return (PartEssentiaStorageBus) part;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Capture the current storage state as a map of aspect to amount.
+     * Used to compute deltas after operations that change storage.
+     * <p>
+     * Uses saturating addition to avoid overflow when multiple slots contain the
+     * same aspect (which can happen with orphaned slots plus normal slots).
+     */
+    private Map<Aspect, Long> captureStorageState() {
+        Map<Aspect, Long> state = new HashMap<>();
+
+        for (int i = 0; i < STORAGE_SLOTS; i++) {
+            EssentiaStack identity = this.storage[i];
+            long amount = this.amounts[i];
+            if (identity == null || amount <= 0) continue;
+
+            // Use saturating addition to avoid overflow
+            Aspect aspect = identity.getAspect();
+            if (aspect != null) state.merge(aspect, amount, this::saturatingAdd);
+        }
+
+        return state;
+    }
+
+    /**
+     * Saturating addition for two longs.
+     * Returns Long.MAX_VALUE on overflow, Long.MIN_VALUE on underflow.
+     */
+    private long saturatingAdd(long a, long b) {
+        long result = a + b;
+        // Overflow if both operands have the same sign and the result has a different sign
+        if (((a ^ result) & (b ^ result)) < 0) {
+            return (a > 0) ? Long.MAX_VALUE : Long.MIN_VALUE;
+        }
+        return result;
+    }
+
+    /**
+     * Compute storage changes by comparing before and after states.
+     *
+     * @param before State captured before the operation
+     * @param after  State captured after the operation
+     */
+    private void computeAndRecordDeltas(Map<Aspect, Long> before, Map<Aspect, Long> after) {
+        // Find all aspects that changed
+        HashSet<Aspect> allAspects = new HashSet<>();
+        allAspects.addAll(before.keySet());
+        allAspects.addAll(after.keySet());
+
+        for (Aspect aspect : allAspects) {
+            long oldAmount = before.getOrDefault(aspect, 0L);
+            long newAmount = after.getOrDefault(aspect, 0L);
+            long delta = newAmount - oldAmount;
+
+            if (delta != 0) recordEssentiaChange(aspect, delta);
+        }
+    }
+
+    /**
+     * Override onTick to capture storage deltas and notify connected storage buses.
+     * <p>
+     * This allows storage buses to see our changes without triggering a full
+     * MENetworkCellArrayUpdate event. We capture state before ticking, let the
+     * parent class do its import/export work, then compute deltas and notify.
+     */
+    @Override
+    public TickRateModulation onTick() {
+        // Check for adjacent storage buses if needed (e.g. on init or after neighbor change)
+        if (this.neighborCheckPending) {
+            this.neighborCheckPending = false;
+            checkForAdjacentStorageBuses();
+        }
+
+        // If we have storage buses, capture state before tick operations
+        Map<Aspect, Long> beforeState = null;
+        if (this.hasAdjacentStorageBus) {
+            beforeState = captureStorageState();
+        }
+
+        // Let parent handle the actual import/export operations
+        TickRateModulation result = super.onTick();
+
+        // If we captured state, compute deltas and notify
+        if (beforeState != null) {
+            Map<Aspect, Long> afterState = captureStorageState();
+            computeAndRecordDeltas(beforeState, afterState);
+            notifyStorageBusOfChanges();
+        }
+
+        return result;
     }
 
     // ============================== Abstract method implementations ==============================
@@ -396,8 +755,9 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
 
         // Clear all storage first
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null) {
+            if (this.storage[i] != null || this.amounts[i] != 0) {
                 this.storage[i] = null;
+                this.amounts[i] = 0;
                 changed = true;
             }
         }
@@ -409,13 +769,14 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
             byte[] tagBytes = new byte[tagLen];
             data.readBytes(tagBytes);
             String tag = new String(tagBytes, StandardCharsets.UTF_8);
-            int amount = data.readInt();
+            long amount = data.readLong();
 
             if (slot < 0 || slot >= STORAGE_SLOTS) continue;
 
             Aspect aspect = Aspect.getAspect(tag);
             if (aspect != null) {
-                this.storage[slot] = new EssentiaStack(aspect, amount);
+                this.storage[slot] = copyAsIdentity(new EssentiaStack(aspect, 1));
+                this.amounts[slot] = amount;
                 changed = true;
             }
         }
@@ -428,16 +789,17 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         // Count non-empty storage slots first
         int count = 0;
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null && this.storage[i].getAmount() > 0) count++;
+            if (this.storage[i] != null && this.amounts[i] > 0) count++;
         }
 
         data.writeShort(count);
 
         for (int i = 0; i < STORAGE_SLOTS; i++) {
-            EssentiaStack essentia = this.storage[i];
-            if (essentia == null || essentia.getAmount() <= 0) continue;
+            EssentiaStack identity = this.storage[i];
+            long amount = this.amounts[i];
+            if (identity == null || amount <= 0) continue;
 
-            Aspect aspect = essentia.getAspect();
+            Aspect aspect = identity.getAspect();
             if (aspect == null) continue;
 
             String tag = aspect.getTag();
@@ -446,7 +808,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
             data.writeShort(i);
             data.writeByte(tagBytes.length);
             data.writeBytes(tagBytes);
-            data.writeInt(essentia.getAmount());
+            data.writeLong(amount);
         }
     }
 
@@ -519,15 +881,15 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     }
 
     @Override
-    protected ItemStack createRecoveryItem(EssentiaStack resource) {
-        if (resource == null || resource.getAspect() == null || resource.getAmount() <= 0) {
+    protected ItemStack createRecoveryItem(EssentiaStack identity, long amount) {
+        if (identity == null || identity.getAspect() == null || amount <= 0) {
             return ItemStack.EMPTY;
         }
 
         // Use the recovery container to store the essentia for later recovery
         return ItemRecoveryContainer.createForEssentia(
-            resource.getAspect().getTag(),
-            resource.getAmount()
+            identity.getAspect().getTag(),
+            amount
         );
     }
 }

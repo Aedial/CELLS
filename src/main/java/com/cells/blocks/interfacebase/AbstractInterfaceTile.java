@@ -149,12 +149,12 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
     }
 
     @Override
-    public int getMaxSlotSize() {
+    public long getMaxSlotSize() {
         return this.logic.getMaxSlotSize();
     }
 
     @Override
-    public void setMaxSlotSize(int size) {
+    public void setMaxSlotSize(long size) {
         this.logic.setMaxSlotSize(size);
     }
 

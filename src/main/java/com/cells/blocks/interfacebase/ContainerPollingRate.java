@@ -19,17 +19,14 @@ import net.minecraftforge.fml.relauncher.SideOnly;
  */
 public class ContainerPollingRate extends AEBaseContainer {
 
-    // TODO: use the min from config
-    static private final int DEFAULT_POLLING_RATE = 0; // 0 = adaptive (AE2 default)
-
     private final IInterfaceHost host;
 
     @SideOnly(Side.CLIENT)
     private IPollingRateListener listener;
 
-    /** Polling rate in ticks. 0 = adaptive (AE2 default). */
+    /** Polling rate in ticks. 0 = adaptive (AE2 default), unless config requires higher. */
     @GuiSync(0)
-    public long pollingRate = DEFAULT_POLLING_RATE;
+    public long pollingRate = AbstractResourceInterfaceLogic.getMinPollingRate();
 
     public ContainerPollingRate(final InventoryPlayer ip, final IInterfaceHost host) {
         super(ip, host instanceof TileEntity ? (TileEntity) host : null, host instanceof IPart ? (IPart) host : null);
@@ -43,8 +40,8 @@ public class ContainerPollingRate extends AEBaseContainer {
     }
 
     public void setPollingRate(final int newValue) {
-        // TODO: use the min from config
-        int clamped = Math.max(0, newValue);
+        int minRate = AbstractResourceInterfaceLogic.getMinPollingRate();
+        int clamped = Math.max(minRate, newValue);
         this.host.setPollingRate(clamped);
         this.pollingRate = clamped;
     }

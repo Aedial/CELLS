@@ -163,7 +163,7 @@ public class ContainerFluidInterface
         if (filterFluid != null && !filterFluid.getFluidStack().isFluidEqual(drainable)) return false;
 
         // Calculate how much we can insert into the tank
-        int capacity = this.host.getMaxSlotSize();
+        int capacity = (int) Math.min(this.host.getMaxSlotSize(), Integer.MAX_VALUE);
         FluidStack currentTankFluid = this.host.getFluidInTank(slot);
 
         // If tank has fluid, it must match
@@ -299,8 +299,9 @@ public class ContainerFluidInterface
 
         @Override
         public IFluidTankProperties[] getTankProperties() {
+            int maxTankSize = (int) Math.min(host.getMaxSlotSize(), Integer.MAX_VALUE);
             return new IFluidTankProperties[] {
-                new FluidTankProperties(fluid, host.getMaxSlotSize())
+                new FluidTankProperties(fluid, maxTankSize)
             };
         }
 

@@ -28,6 +28,11 @@ public interface IFluidInterfaceHost
      */
     FluidStack getFluidInTank(int slot);
 
+    @Override
+    default long getFluidAmount(int slot) {
+        return getInterfaceLogic().getSlotAmount(slot);
+    }
+
     /**
      * Insert fluid into a tank slot (import interfaces only).
      *

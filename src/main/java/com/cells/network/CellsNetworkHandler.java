@@ -9,6 +9,7 @@ import com.cells.network.packets.PacketSetConfigurableCellCapacity;
 import com.cells.network.packets.PacketSetConfigurableCellMaxTypes;
 import com.cells.network.packets.PacketSetMaxSlotSize;
 import com.cells.network.packets.PacketSetPollingRate;
+import com.cells.network.packets.PacketSetPullPushRate;
 import com.cells.network.sync.PacketQuickAddFilter;
 import com.cells.network.sync.PacketResourceSlot;
 
@@ -38,6 +39,7 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketSaveMemoryCardWithFilters.Handler.class, PacketSaveMemoryCardWithFilters.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketClearFilters.Handler.class, PacketClearFilters.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketChangePage.Handler.class, PacketChangePage.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetPullPushRate.Handler.class, PacketSetPullPushRate.class, packetId++, Side.SERVER);
 
         // Unified resource slot packet (bidirectional: handles filter sync for ALL resource types)
         INSTANCE.registerMessage(PacketResourceSlot.ServerHandler.class, PacketResourceSlot.class, packetId++, Side.SERVER);

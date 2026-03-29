@@ -249,7 +249,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             this.guiTop,
             2 + 4 * 16,
             () -> I18n.format("cells.max_slot_size.title") + "\n\n"
-                + I18n.format("cells.slot_size", (int) this.getMaxSlotSize(), unit) + "\n"
+                + I18n.format("cells.slot_size", String.format("%,d", this.getMaxSlotSize()), unit) + "\n"
                 + I18n.format("cells.max_slot_size.tooltip", unit),
             this.itemRender
         );

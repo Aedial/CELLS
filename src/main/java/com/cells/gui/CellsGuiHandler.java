@@ -33,6 +33,8 @@ import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.CreativeEssentiaCellGuiHandler;
 import com.cells.integration.thaumicenergistics.EssentiaInterfaceGuiHandler;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
+import com.cells.items.pullpush.ContainerPullPushCard;
+import com.cells.items.pullpush.GuiPullPushCard;
 
 
 /**
@@ -54,6 +56,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_CREATIVE_FLUID_CELL = 8;
     public static final int GUI_CREATIVE_GAS_CELL = 9;
     public static final int GUI_CREATIVE_ESSENTIA_CELL = 10;
+    public static final int GUI_PULL_PUSH_CARD = 11;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
@@ -262,6 +265,9 @@ public class CellsGuiHandler implements IGuiHandler {
                 }
                 return null;
 
+            case GUI_PULL_PUSH_CARD:
+                return new ContainerPullPushCard(player.inventory, EnumHand.values()[x]);
+
             case GUI_EXPORT_INTERFACE:
                 if (tile instanceof IItemInterfaceHost) {
                     return new ContainerItemInterface(player.inventory, tile);
@@ -401,6 +407,9 @@ public class CellsGuiHandler implements IGuiHandler {
                     return new GuiCreativeFluidCell(player.inventory, EnumHand.values()[x]);
                 }
                 return null;
+
+            case GUI_PULL_PUSH_CARD:
+                return new GuiPullPushCard(player.inventory, EnumHand.values()[x]);
 
             case GUI_EXPORT_INTERFACE:
                 if (tile instanceof IItemInterfaceHost) {

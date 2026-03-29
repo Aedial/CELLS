@@ -41,9 +41,17 @@ public class GasTankSlot<H extends GasTankSlot.IGasTankHost> extends AbstractRes
     public interface IGasTankHost {
         /**
          * Get the gas in the specified tank.
+         * The amount is capped at Integer.MAX_VALUE for API compatibility.
+         * Use {@link #getGasAmount(int)} for the true long amount.
          */
         @Nullable
         GasStack getGasInTank(int tankIndex);
+
+        /**
+         * Get the actual amount stored in the specified tank as a long.
+         * This bypasses the int limitation of GasStack.amount.
+         */
+        long getGasAmount(int tankIndex);
 
         /**
          * Get the type name for localization (e.g., "gas").
@@ -114,7 +122,8 @@ public class GasTankSlot<H extends GasTankSlot.IGasTankHost> extends AbstractRes
 
     @Override
     protected long getResourceAmount(GasStack resource) {
-        return resource.amount;
+        // Use the host's getGasAmount for true long precision
+        return this.host.getGasAmount(getTankIndex());
     }
 
     @Override

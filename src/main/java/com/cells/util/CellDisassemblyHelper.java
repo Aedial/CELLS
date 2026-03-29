@@ -5,13 +5,13 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumHand;
-import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
 
@@ -119,8 +119,9 @@ public final class CellDisassemblyHelper {
 
         IItemList<T> list = inv.getAvailableItems(channel.createList());
         if (!list.isEmpty()) {
-            player.sendStatusMessage(new TextComponentString(
-                    "§c" + I18n.format("message.cells.disassemble_fail_content")), true);
+            TextComponentTranslation msg = new TextComponentTranslation("message.cells.disassemble_fail_content");
+            msg.getStyle().setColor(TextFormatting.RED);
+            player.sendStatusMessage(msg, true);
             return false;
         }
 

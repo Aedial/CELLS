@@ -220,12 +220,12 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     }
 
     @Override
-    public int getMaxSlotSize() {
+    public long getMaxSlotSize() {
         return this.logic.getMaxSlotSize();
     }
 
     @Override
-    public void setMaxSlotSize(int size) {
+    public void setMaxSlotSize(long size) {
         this.logic.setMaxSlotSize(size);
     }
 

@@ -99,8 +99,15 @@ public class AbstractCustomUpgrade extends Item implements IUpgradeModule {
     @Override
     @SideOnly(Side.CLIENT)
     public void getSubItems(@Nonnull CreativeTabs tab, @Nonnull NonNullList<ItemStack> items) {
-        if (tierValues.length == 0 || !isInCreativeTab(tab)) return;
+        if (!isInCreativeTab(tab)) return;
 
+        // Items with no tiers add a single stack
+        if (tierValues.length == 0) {
+            items.add(new ItemStack(this, 1, 0));
+            return;
+        }
+
+        // Items with tiers add one stack per tier
         for (int i = 0; i < tierValues.length; i++) items.add(new ItemStack(this, 1, i));
     }
 

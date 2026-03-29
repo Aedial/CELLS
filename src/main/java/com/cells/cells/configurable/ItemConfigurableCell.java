@@ -16,7 +16,8 @@ import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
@@ -91,6 +92,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
      */
     @Override
     @Nonnull
+    @SideOnly(Side.CLIENT)
     public String getItemStackDisplayName(@Nonnull ItemStack stack) {
         ComponentInfo info = ComponentHelper.getComponentInfo(ComponentHelper.getInstalledComponent(stack));
         if (info == null) return super.getItemStackDisplayName(stack);
@@ -278,7 +280,9 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
         if (ComponentHelper.hasContent(stack)) {
             // Don't allow disassembly if the cell still has content in it
-            player.sendStatusMessage(new TextComponentString("§c" + I18n.format("message.cells.disassemble_fail_content")), true);
+            TextComponentTranslation msg = new TextComponentTranslation("message.cells.disassemble_fail_content");
+            msg.getStyle().setColor(TextFormatting.RED);
+            player.sendStatusMessage(msg, true);
             return false;
         }
 

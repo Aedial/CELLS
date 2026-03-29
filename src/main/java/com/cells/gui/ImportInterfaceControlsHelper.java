@@ -42,6 +42,8 @@ public class ImportInterfaceControlsHelper {
             lines.add("");
         }
 
+        // TODO: Mention Auto-Pull/Push cards when their logic is implemented.
+
         // Memory card section
         lines.add(I18n.format("cells.controls.memory_card_sneak"));
 

@@ -35,9 +35,17 @@ public class EssentiaTankSlot<H extends EssentiaTankSlot.IEssentiaTankHost> exte
     public interface IEssentiaTankHost {
         /**
          * Get the essentia in the specified slot.
+         * The amount is capped at Integer.MAX_VALUE for API compatibility.
+         * Use {@link #getEssentiaAmount(int)} for the true long amount.
          */
         @Nullable
         EssentiaStack getEssentiaInSlot(int slotIndex);
+
+        /**
+         * Get the actual amount stored in the specified slot as a long.
+         * This bypasses the int limitation of EssentiaStack.getAmount().
+         */
+        long getEssentiaAmount(int slotIndex);
 
         /**
          * Get the type name for localization (e.g., "essentia").
@@ -92,7 +100,8 @@ public class EssentiaTankSlot<H extends EssentiaTankSlot.IEssentiaTankHost> exte
 
     @Override
     protected long getResourceAmount(EssentiaStack resource) {
-        return resource.getAmount();
+        // Use the host's getEssentiaAmount for true long precision
+        return this.host.getEssentiaAmount(getTankIndex());
     }
 
     @Override

@@ -17,23 +17,23 @@ import com.cells.blocks.interfacebase.ContainerMaxSlotSize;
  */
 public class PacketSetMaxSlotSize implements IMessage {
 
-    private int maxSlotSize;
+    private long maxSlotSize;
 
     public PacketSetMaxSlotSize() {
     }
 
-    public PacketSetMaxSlotSize(int maxSlotSize) {
+    public PacketSetMaxSlotSize(long maxSlotSize) {
         this.maxSlotSize = maxSlotSize;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        this.maxSlotSize = buf.readInt();
+        this.maxSlotSize = buf.readLong();
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
-        buf.writeInt(this.maxSlotSize);
+        buf.writeLong(this.maxSlotSize);
     }
 
     public static class Handler implements IMessageHandler<PacketSetMaxSlotSize, IMessage> {

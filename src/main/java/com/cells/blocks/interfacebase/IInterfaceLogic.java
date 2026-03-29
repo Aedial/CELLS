@@ -25,12 +25,17 @@ public interface IInterfaceLogic {
     /**
      * @return Maximum fluid/item amount per slot.
      */
-    int getMaxSlotSize();
+    long getMaxSlotSize();
+
+    /**
+     * @return The default max slot size for this interface type, capped by the global max.
+     */
+    long getDefaultMaxSlotSize();
 
     /**
      * Set the maximum fluid/item amount per slot.
      */
-    void setMaxSlotSize(int size);
+    void setMaxSlotSize(long size);
 
     /**
      * @return Polling rate in ticks.

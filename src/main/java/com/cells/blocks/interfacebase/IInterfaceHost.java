@@ -27,9 +27,11 @@ public interface IInterfaceHost {
      */
     void markForNetworkUpdate();
 
-    int getMaxSlotSize();
+    long getMaxSlotSize();
 
-    void setMaxSlotSize(int size);
+    long getDefaultMaxSlotSize();
+
+    void setMaxSlotSize(long size);
 
     int getPollingRate();
 

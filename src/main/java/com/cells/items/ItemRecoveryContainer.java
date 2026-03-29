@@ -63,6 +63,7 @@ public class ItemRecoveryContainer extends Item {
     private static final String NBT_TYPE = "DropType";
     private static final String NBT_FLUID_NAME = "FluidName";
     private static final String NBT_FLUID_TAG = "FluidTag";
+    private static final String NBT_ITEM_DATA = "ItemData";
     private static final String NBT_AMOUNT = "Amount";
     // For gas/essentia integration
     private static final String NBT_GAS_NAME = "GasName";
@@ -74,6 +75,7 @@ public class ItemRecoveryContainer extends Item {
     public static final int TYPE_FLUID = 0;
     public static final int TYPE_GAS = 1;
     public static final int TYPE_ESSENTIA = 2;
+    public static final int TYPE_ITEM = 3;
 
     public ItemRecoveryContainer() {
         setRegistryName(Tags.MODID, "recovery_container");
@@ -82,11 +84,11 @@ public class ItemRecoveryContainer extends Item {
         // No creative tab - this is a transient item only
     }
 
-    private static ItemStack create(int type, String key, String name, int amount) {
+    private static ItemStack create(int type, String key, String name, long amount) {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setInteger(NBT_TYPE, type);
         nbt.setString(key, name);
-        nbt.setInteger(NBT_AMOUNT, amount);
+        nbt.setLong(NBT_AMOUNT, amount);
 
         ItemStack stack = new ItemStack(ItemRegistry.RECOVERY_CONTAINER);
         stack.setTagCompound(nbt);
@@ -94,18 +96,19 @@ public class ItemRecoveryContainer extends Item {
     }
 
     /**
-     * Create a new ItemStack containing the given fluid.
+     * Create a new ItemStack containing the given fluid with a long amount.
      *
-     * @param fluid The fluid to store (copied internally)
-     * @return A new ItemStack, or empty if fluid is null/empty
+     * @param fluid The fluid identity (type + NBT, amount ignored)
+     * @param amount The amount to store (up to Long.MAX_VALUE)
+     * @return A new ItemStack, or empty if fluid is null/invalid
      */
-    public static ItemStack createForFluid(@Nullable FluidStack fluid) {
-        if (fluid == null || fluid.amount <= 0) return ItemStack.EMPTY;
+    public static ItemStack createForFluid(@Nullable FluidStack fluid, long amount) {
+        if (fluid == null || amount <= 0) return ItemStack.EMPTY;
 
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setInteger(NBT_TYPE, TYPE_FLUID);
         nbt.setString(NBT_FLUID_NAME, fluid.getFluid().getName());
-        nbt.setInteger(NBT_AMOUNT, fluid.amount);
+        nbt.setLong(NBT_AMOUNT, amount);
 
         // Store fluid's NBT (for potions, etc.)
         if (fluid.tag != null) nbt.setTag(NBT_FLUID_TAG, fluid.tag.copy());
@@ -116,13 +119,27 @@ public class ItemRecoveryContainer extends Item {
     }
 
     /**
+     * Create a new ItemStack containing the given fluid.
+     * Uses the fluid's current amount.
+     *
+     * @param fluid The fluid to store (copied internally)
+     * @return A new ItemStack, or empty if fluid is null/empty
+     * @deprecated Use {@link #createForFluid(FluidStack, long)} for long amounts
+     */
+    @Deprecated
+    public static ItemStack createForFluid(@Nullable FluidStack fluid) {
+        if (fluid == null || fluid.amount <= 0) return ItemStack.EMPTY;
+        return createForFluid(fluid, fluid.amount);
+    }
+
+    /**
      * Create a new ItemStack containing the given gas (Mekanism integration).
      *
      * @param gasName The registry name of the gas
-     * @param amount  The amount in mB
+     * @param amount  The amount in mB (up to Long.MAX_VALUE)
      * @return A new ItemStack, or empty if invalid
      */
-    public static ItemStack createForGas(String gasName, int amount) {
+    public static ItemStack createForGas(String gasName, long amount) {
         if (gasName == null || gasName.isEmpty() || amount <= 0) return ItemStack.EMPTY;
         if (!MekanismEnergisticsIntegration.isModLoaded()) return ItemStack.EMPTY;
 
@@ -133,14 +150,40 @@ public class ItemRecoveryContainer extends Item {
      * Create a new ItemStack containing the given essentia (Thaumcraft integration).
      *
      * @param aspectTag The aspect tag name
-     * @param amount    The amount in units
+     * @param amount    The amount in units (up to Long.MAX_VALUE)
      * @return A new ItemStack, or empty if invalid
      */
-    public static ItemStack createForEssentia(String aspectTag, int amount) {
+    public static ItemStack createForEssentia(String aspectTag, long amount) {
         if (aspectTag == null || aspectTag.isEmpty() || amount <= 0) return ItemStack.EMPTY;
         if (!ThaumicEnergisticsIntegration.isModLoaded()) return ItemStack.EMPTY;
 
         return create(TYPE_ESSENTIA, NBT_ESSENTIA_TAG, aspectTag, amount);
+    }
+
+    /**
+     * Create a new ItemStack containing the given item with a long amount.
+     *
+     * @param item The item identity (type + NBT, count ignored)
+     * @param amount The amount to store (up to Long.MAX_VALUE)
+     * @return A new ItemStack, or empty if item is null/invalid
+     */
+    public static ItemStack createForItem(@Nullable ItemStack item, long amount) {
+        if (item == null || item.isEmpty() || amount <= 0) return ItemStack.EMPTY;
+
+        NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setInteger(NBT_TYPE, TYPE_ITEM);
+        nbt.setLong(NBT_AMOUNT, amount);
+
+        // Store the full item data (including NBT)
+        NBTTagCompound itemNbt = new NBTTagCompound();
+        ItemStack identity = item.copy();
+        identity.setCount(1);
+        identity.writeToNBT(itemNbt);
+        nbt.setTag(NBT_ITEM_DATA, itemNbt);
+
+        ItemStack stack = new ItemStack(ItemRegistry.RECOVERY_CONTAINER);
+        stack.setTagCompound(nbt);
+        return stack;
     }
 
     /**
@@ -160,27 +203,34 @@ public class ItemRecoveryContainer extends Item {
                 return "gas";
             case TYPE_ESSENTIA:
                 return "essentia";
+            case TYPE_ITEM:
+                return "item";
             default:
                 return "unknown";
         }
     }
 
     /**
-     * Get the stored amount.
+     * Get the stored amount as long.
      */
-    public static int getAmount(ItemStack stack) {
+    public static long getAmount(ItemStack stack) {
         if (!stack.hasTagCompound()) return 0;
 
-        return stack.getTagCompound().getInteger(NBT_AMOUNT);
+        // Try long first, fall back to int for backward compat
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (nbt.hasKey(NBT_AMOUNT, Constants.NBT.TAG_LONG)) {
+            return nbt.getLong(NBT_AMOUNT);
+        }
+        return nbt.getInteger(NBT_AMOUNT);
     }
 
     /**
      * Set the stored amount. If amount <= 0, the stack should be discarded.
      */
-    public static void setAmount(ItemStack stack, int amount) {
+    public static void setAmount(ItemStack stack, long amount) {
         if (!stack.hasTagCompound()) return;
 
-        stack.getTagCompound().setInteger(NBT_AMOUNT, amount);
+        stack.getTagCompound().setLong(NBT_AMOUNT, amount);
     }
 
     /**
@@ -196,6 +246,7 @@ public class ItemRecoveryContainer extends Item {
 
     /**
      * Get the FluidStack for this drop (only valid for TYPE_FLUID).
+     * Amount is clamped to Integer.MAX_VALUE for FluidStack compatibility.
      */
     @Nullable
     public static FluidStack getFluidStack(ItemStack stack) {
@@ -205,7 +256,9 @@ public class ItemRecoveryContainer extends Item {
         Fluid fluid = FluidRegistry.getFluid(fluidName);
         if (fluid == null) return null;
 
-        FluidStack fluidStack = new FluidStack(fluid, getAmount(stack));
+        // Clamp to int for FluidStack (external API limitation)
+        int amount = (int) Math.min(getAmount(stack), Integer.MAX_VALUE);
+        FluidStack fluidStack = new FluidStack(fluid, amount);
 
         // Restore fluid's NBT (for potions, etc.)
         NBTTagCompound itemNbt = stack.getTagCompound();
@@ -238,10 +291,32 @@ public class ItemRecoveryContainer extends Item {
         return stack.getTagCompound().getString(NBT_ESSENTIA_TAG);
     }
 
+    /**
+     * Get the contained ItemStack (only valid for TYPE_ITEM).
+     * Amount is clamped to the item's max stack size for ItemStack compatibility.
+     */
+    @Nullable
+    public static ItemStack getContainedItem(ItemStack stack) {
+        if (!stack.hasTagCompound()) return null;
+        if (getType(stack) != TYPE_ITEM) return null;
+
+        NBTTagCompound nbt = stack.getTagCompound();
+        if (!nbt.hasKey(NBT_ITEM_DATA, Constants.NBT.TAG_COMPOUND)) return null;
+
+        ItemStack contained = new ItemStack(nbt.getCompoundTag(NBT_ITEM_DATA));
+        if (contained.isEmpty()) return null;
+
+        // Clamp to item's max stack size for ItemStack API
+        int amount = (int) Math.min(getAmount(stack), contained.getMaxStackSize());
+        contained.setCount(amount);
+        return contained;
+    }
+
     // ============================== Display ==============================
 
     @Override
     @Nonnull
+    @SideOnly(Side.CLIENT)
     public String getItemStackDisplayName(@Nonnull ItemStack stack) {
         int type = getType(stack);
         String typeName = I18n.format("cells.type." + getTypeKey(type));
@@ -271,6 +346,10 @@ public class ItemRecoveryContainer extends Item {
 
                 return EssentiaDropHelper.getEssentiaDisplayName(getEssentiaTag(stack));
 
+            case TYPE_ITEM:
+                ItemStack contained = getContainedItem(stack);
+                return (contained != null && !contained.isEmpty()) ? contained.getDisplayName() : null;
+
             default:
                 return null;
         }
@@ -281,15 +360,16 @@ public class ItemRecoveryContainer extends Item {
     public void addInformation(@Nonnull ItemStack stack, @Nullable World world, @Nonnull List<String> tooltip,
                                @Nonnull ITooltipFlag flag) {
         int type = getType(stack);
-        int amount = getAmount(stack);
+        long amount = getAmount(stack);
         String typeKey = getTypeKey(type);
         String typeName = I18n.format("cells.type." + typeKey);
         String unitName = I18n.format("cells.unit." + typeKey);
 
         tooltip.add("§7" + I18n.format("tooltip.cells.recovery_container.type", typeName));
 
-        // Exact amount with type-appropriate unit
-        tooltip.add("§7" + I18n.format("tooltip.cells.recovery_container.amount", amount, unitName));
+        // Exact amount with type-appropriate unit (formatted as readable number)
+        String formattedAmount = ReadableNumberConverter.INSTANCE.toWideReadableForm(amount);
+        tooltip.add("§7" + I18n.format("tooltip.cells.recovery_container.amount", formattedAmount, unitName));
 
         // Usage hint
         tooltip.add("");
@@ -312,7 +392,7 @@ public class ItemRecoveryContainer extends Item {
     public static String getStackCountDisplay(ItemStack stack) {
         if (stack.isEmpty() || !(stack.getItem() instanceof ItemRecoveryContainer)) return null;
 
-        int amount = getAmount(stack);
+        long amount = getAmount(stack);
         if (amount <= 0) return null;
 
         return ReadableNumberConverter.INSTANCE.toSlimReadableForm(amount);
@@ -351,6 +431,11 @@ public class ItemRecoveryContainer extends Item {
                 if (ThaumicEnergisticsIntegration.isModLoaded()) {
                     return EssentiaDropHelper.getEssentiaColor(getEssentiaTag(stack));
                 }
+                break;
+
+            case TYPE_ITEM:
+                // Items don't have a simple color - use default white
+                // The renderer will show the item icon instead of tinting
                 break;
         }
 
@@ -443,7 +528,7 @@ public class ItemRecoveryContainer extends Item {
         if (heldStack.isEmpty()) return EnumActionResult.PASS;
 
         int type = getType(heldStack);
-        int amount = getAmount(heldStack);
+        int amount = (int) Math.min(getAmount(heldStack), Integer.MAX_VALUE);
         if (amount <= 0) return EnumActionResult.PASS;
 
         // Check if there's a valid target tile entity before deciding to handle this interaction
@@ -473,6 +558,8 @@ public class ItemRecoveryContainer extends Item {
                 }
                 break;
         }
+
+        // TODO: add special interaction for Import Interfaces to allow transfering more than Integer.MAX_VALUE
 
         // Use type-appropriate unit for message
         String typeKey = getTypeKey(type);
@@ -605,7 +692,7 @@ public class ItemRecoveryContainer extends Item {
                 mekanism.api.gas.Gas gas = mekanism.api.gas.GasRegistry.getGas(gasName);
                 if (gas == null) return 0;
 
-                int amount = getAmount(dropStack);
+                int amount = (int) Math.min(getAmount(dropStack), Integer.MAX_VALUE);
                 mekanism.api.gas.GasStack gasStack = new mekanism.api.gas.GasStack(gas, amount);
 
                 // Check for gas handler capability
@@ -693,7 +780,7 @@ public class ItemRecoveryContainer extends Item {
                 thaumcraft.api.aspects.Aspect aspect = thaumcraft.api.aspects.Aspect.getAspect(aspectTag);
                 if (aspect == null) return 0;
 
-                int amount = getAmount(dropStack);
+                int amount = (int) Math.min(getAmount(dropStack), Integer.MAX_VALUE);
 
                 // Check for essentia transport capability (Thaumcraft jars, etc.)
                 if (te instanceof thaumcraft.api.aspects.IAspectContainer) {

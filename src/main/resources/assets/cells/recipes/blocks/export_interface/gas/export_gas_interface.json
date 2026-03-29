@@ -1,0 +1,38 @@
+{
+    "type": "forge:ore_shaped",
+    "conditions": [
+        {
+            "type": "forge:mod_loaded",
+            "modid": "mekeng"
+        }
+    ],
+    "pattern": [
+        "aga",
+        "bfb",
+        "aia"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        },
+        "b": {
+            "item": "appliedenergistics2:material",
+            "data": 43
+        },
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 12
+        },
+        "g": {
+            "type": "forge:ore_dict",
+            "ore": "dustGold"
+        },
+        "i": {
+            "item": "mekeng:gas_export_bus"
+        }
+    },
+    "result": {
+        "item": "cells:export_gas_interface"
+    }
+}

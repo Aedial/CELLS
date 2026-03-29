@@ -36,9 +36,17 @@ public class FluidTankSlot<H extends FluidTankSlot.IFluidTankHost> extends Abstr
     public interface IFluidTankHost {
         /**
          * Get the fluid in the specified tank.
+         * The amount is capped at Integer.MAX_VALUE for API compatibility.
+         * Use {@link #getFluidAmount(int)} for the true long amount.
          */
         @Nullable
         FluidStack getFluidInTank(int tankIndex);
+
+        /**
+         * Get the actual amount stored in the specified tank as a long.
+         * This bypasses the int limitation of FluidStack.amount.
+         */
+        long getFluidAmount(int tankIndex);
 
         /**
          * Get the type name for localization (e.g., "fluid").
@@ -109,7 +117,8 @@ public class FluidTankSlot<H extends FluidTankSlot.IFluidTankHost> extends Abstr
 
     @Override
     protected long getResourceAmount(FluidStack resource) {
-        return resource.amount;
+        // Use the host's getFluidAmount for true long precision
+        return this.host.getFluidAmount(getTankIndex());
     }
 
     @Override

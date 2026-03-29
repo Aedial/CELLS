@@ -70,4 +70,23 @@ public interface IResourceInterfaceLogic<AE, K> extends IInterfaceLogic {
      * @return The slot index where the filter was added, or -1 if no space available
      */
     int addToFirstAvailableSlotAE(@Nonnull AE stack);
+
+    /**
+     * Get the amount stored in a specific slot.
+     * Uses long precision for accurate overflow handling.
+     *
+     * @param slot The storage slot index
+     * @return The amount stored in the slot (0 if invalid or empty)
+     */
+    long getSlotAmount(int slot);
+
+    /**
+     * Adjust the amount stored in a specific slot by a delta value.
+     * Used by GUI containers for long-safe insertion/extraction operations.
+     *
+     * @param slot  The storage slot index
+     * @param delta The amount to add (positive) or subtract (negative)
+     * @return The actual amount added/removed
+     */
+    long adjustSlotAmount(int slot, long delta);
 }

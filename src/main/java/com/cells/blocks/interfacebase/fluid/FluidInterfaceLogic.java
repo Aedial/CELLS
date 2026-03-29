@@ -220,8 +220,8 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
     }
 
     @Override
-    protected ItemStack createRecoveryItem(FluidStack resource) {
-        return ItemRecoveryContainer.createForFluid(resource);
+    protected ItemStack createRecoveryItem(FluidStack identity, long amount) {
+        return ItemRecoveryContainer.createForFluid(identity, amount);
     }
 
     /**
@@ -249,8 +249,9 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
             List<IFluidTankProperties> props = new ArrayList<>();
 
             for (int slot : logic.filterSlotList) {
-                FluidStack contents = logic.storage[slot];
-                int capacity = logic.maxSlotSize;
+                final int s = slot;
+                // Clamp to int for IFluidHandler API
+                int capacity = (int) Math.min(logic.maxSlotSize, Integer.MAX_VALUE);
 
                 FluidStackKey filterKey = logic.slotToFilterMap.get(slot);
 
@@ -258,7 +259,15 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
                     @Nullable
                     @Override
                     public FluidStack getContents() {
-                        return contents != null ? contents.copy() : null;
+                        // Create stack with actual amount from parallel array
+                        FluidStack identity = logic.storage[s];
+                        if (identity == null) return null;
+
+                        long amount = logic.amounts[s];
+                        if (amount <= 0) return null;
+
+                        // Clamp to int for external API
+                        return logic.copyWithAmount(identity, (int) Math.min(amount, Integer.MAX_VALUE));
                     }
 
                     @Override
@@ -327,8 +336,9 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
             List<IFluidTankProperties> props = new ArrayList<>();
 
             for (int slot : logic.filterSlotList) {
-                FluidStack contents = logic.storage[slot];
-                int capacity = logic.maxSlotSize;
+                final int s = slot;
+                // Clamp to int for IFluidHandler API
+                int capacity = (int) Math.min(logic.maxSlotSize, Integer.MAX_VALUE);
 
                 FluidStackKey filterKey = logic.slotToFilterMap.get(slot);
 
@@ -336,7 +346,15 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
                     @Nullable
                     @Override
                     public FluidStack getContents() {
-                        return contents != null ? contents.copy() : null;
+                        // Create stack with actual amount from parallel array
+                        FluidStack identity = logic.storage[s];
+                        if (identity == null) return null;
+
+                        long amount = logic.amounts[s];
+                        if (amount <= 0) return null;
+
+                        // Clamp to int for external API
+                        return logic.copyWithAmount(identity, (int) Math.min(amount, Integer.MAX_VALUE));
                     }
 
                     @Override
