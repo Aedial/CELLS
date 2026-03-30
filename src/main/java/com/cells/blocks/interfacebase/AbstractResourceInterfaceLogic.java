@@ -393,6 +393,40 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     }
 
     /**
+     * Set the resource and amount in a specific slot.
+     * Uses the parallel storage and amounts arrays for long precision.
+     * Use it only for OVERWRITING a slot, not for incremental changes.
+     *
+     * @param slot The storage slot index
+     * @param resource The resource to store (identity only, not amount)
+     * @param amount The amount to store
+     */
+    protected void setResourceInSlotWithAmount(int slot, R resource, long amount) {
+        if (slot < 0 || slot >= STORAGE_SLOTS) return;
+        this.storage[slot] = resource;
+        this.amounts[slot] = amount;
+    }
+
+    /**
+     * Same as setResourceInSlotWithAmount(int, R, long) but uses the resource's identity and amount.
+     *
+     * @param slot The storage slot index
+     * @param resource The resource to store (including amount)
+     */
+    protected void setResourceInSlotWithAmount(int slot, R resource) {
+        this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), getAmount(resource));
+    }
+
+    /**
+     * Clear a specific slot, removing both the resource and its amount.
+     *
+     * @param slot The storage slot index
+     */
+    protected void clearSlot(int slot) {
+        this.setResourceInSlotWithAmount(slot, null, 0);
+    }
+
+    /**
      * Adjust the amount stored in a specific slot by a delta value.
      * Used by GUI containers for long-safe insertion/extraction operations.
      * <p>
@@ -418,17 +452,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         if (newAmount <= 0) {
             // Slot depleted - clear both identity and amount
             long removed = currentAmount;
-            this.storage[slot] = null;
-            this.amounts[slot] = 0;
+            this.clearSlot(slot);
             host.markDirtyAndSave();
             return -removed; // Return negative to indicate removal
         }
 
         // Clamp to max slot size
         long maxSize = getMaxSlotSize();
-        if (newAmount > maxSize) {
-            newAmount = maxSize;
-        }
+        if (newAmount > maxSize) newAmount = maxSize;
 
         long actualDelta = newAmount - currentAmount;
         this.amounts[slot] = newAmount;
@@ -488,12 +519,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         if (slot < 0 || slot >= STORAGE_SLOTS) return;
 
         if (resource == null) {
-            this.storage[slot] = null;
-            this.amounts[slot] = 0;
+            this.clearSlot(slot);
         } else {
-            // Store identity and amount separately
-            this.storage[slot] = copyAsIdentity(resource);
-            this.amounts[slot] = getAmount(resource);
+            this.setResourceInSlotWithAmount(slot, resource);
         }
 
         // Rebuild filter map since storage changed
@@ -1012,8 +1040,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                     // This should never happen as we handle every type
                 }
 
-                this.storage[slot] = null;
-                this.amounts[slot] = 0;
+                this.clearSlot(slot);
             }
         }
 
@@ -1218,8 +1245,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             }
 
             // Clear the slot regardless
-            this.storage[i] = null;
-            this.amounts[i] = 0;
+            this.clearSlot(i);
         }
     }
 
@@ -1326,16 +1352,16 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 R resource = readResourceFromNBT(slotTag);
                 if (resource == null) continue;
 
-                // Store identity only
-                this.storage[slot] = copyAsIdentity(resource);
-
                 // Read amount: prefer "Amount" (long), fall back to resource's native int amount
+                long amount;
                 if (slotTag.hasKey("Amount")) {
-                    this.amounts[slot] = slotTag.getLong("Amount");
+                    amount = slotTag.getLong("Amount");
                 } else {
                     // Legacy migration: use the resource's native int amount
-                    this.amounts[slot] = getAmount(resource);
+                    amount = getAmount(resource);
                 }
+
+                this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), amount);
             } catch (NumberFormatException ignored) {
             }
         }
@@ -1376,8 +1402,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         // Clear all storage first
         for (int i = 0; i < STORAGE_SLOTS; i++) {
             if (this.storage[i] != null || this.amounts[i] != 0) {
-                this.storage[i] = null;
-                this.amounts[i] = 0;
+                this.clearSlot(i);
                 changed = true;
             }
         }
@@ -1393,8 +1418,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
             R resource = readResourceFromNBT(tag);
             if (resource != null) {
-                this.storage[slot] = copyAsIdentity(resource);
-                this.amounts[slot] = amount;
+                this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), amount);
                 changed = true;
             }
         }
@@ -1791,8 +1815,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 AE remaining = inventory.injectItems(aeStack, Actionable.MODULATE, this.host.getActionSource());
 
                 if (remaining == null) {
-                    this.storage[slot] = null;
-                    this.amounts[slot] = 0;
+                    this.clearSlot(slot);
                     didWork = true;
                 } else if (getAEStackSize(remaining) < amount) {
                     this.amounts[slot] = getAEStackSize(remaining);
@@ -1918,8 +1941,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         long notInserted = insertIntoNetworkLong(identity, amount);
 
         if (notInserted <= 0) {
-            this.storage[slot] = null;
-            this.amounts[slot] = 0;
+            this.clearSlot(slot);
         } else {
             this.amounts[slot] = notInserted;
         }

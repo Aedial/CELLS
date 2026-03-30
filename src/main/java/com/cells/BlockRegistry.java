@@ -14,6 +14,9 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.block.AEBaseItemBlock;
+import appeng.core.features.ActivityState;
+import appeng.core.features.BlockStackSrc;
+import appeng.tile.AEBaseTile;
 
 import com.cells.blocks.importinterface.BlockImportInterface;
 import com.cells.blocks.importinterface.TileImportInterface;
@@ -64,6 +67,17 @@ public class BlockRegistry {
             new ResourceLocation(Tags.MODID, "export_interface"));
         GameRegistry.registerTileEntity(TileFluidExportInterface.class,
             new ResourceLocation(Tags.MODID, "export_fluid_interface"));
+
+        // Register tile-to-item mappings for Network Tool display
+        // Without this, tiles won't show up in the Network Tool GUI
+        AEBaseTile.registerTileItem(TileImportInterface.class,
+            new BlockStackSrc(IMPORT_INTERFACE, 0, ActivityState.Enabled));
+        AEBaseTile.registerTileItem(TileFluidImportInterface.class,
+            new BlockStackSrc(FLUID_IMPORT_INTERFACE, 0, ActivityState.Enabled));
+        AEBaseTile.registerTileItem(TileExportInterface.class,
+            new BlockStackSrc(EXPORT_INTERFACE, 0, ActivityState.Enabled));
+        AEBaseTile.registerTileItem(TileFluidExportInterface.class,
+            new BlockStackSrc(FLUID_EXPORT_INTERFACE, 0, ActivityState.Enabled));
 
         // Register gas interface blocks if MekanismEnergistics is loaded
         if (MekanismEnergisticsIntegration.isModLoaded()) {
@@ -127,4 +141,5 @@ public class BlockRegistry {
             new ModelResourceLocation(block.getRegistryName(), "inventory")
         );
     }
+
 }

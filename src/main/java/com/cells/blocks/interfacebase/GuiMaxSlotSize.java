@@ -47,6 +47,10 @@ public class GuiMaxSlotSize extends AEBaseGui {
 
     private final IInterfaceHost host;
 
+    // Tracks whether keyTyped pre-skipped a comma so onQtyChanged can decide
+    // whether to nudge the cursor past the comma after reformatting.
+    private boolean commaSkipped;
+
     public GuiMaxSlotSize(final InventoryPlayer inventoryPlayer, final IInterfaceHost host) {
         super(new ContainerMaxSlotSize(inventoryPlayer, host));
         this.host = host;
@@ -183,6 +187,29 @@ public class GuiMaxSlotSize extends AEBaseGui {
     @Override
     protected void keyTyped(final char character, final int key) throws IOException {
         if (!this.checkHotbarKeys(key)) {
+            // Commas are virtual (auto-formatted), so we need to skip over them when
+            // pressing backspace or delete, otherwise the comma just gets re-added and
+            // the user's keypress appears to do nothing.
+            this.commaSkipped = false;
+
+            if (key == Keyboard.KEY_BACK) {
+                String text = this.sizeField.getText();
+                int cursor = this.sizeField.getCursorPosition();
+
+                if (cursor > 0 && text.charAt(cursor - 1) == ',') {
+                    this.sizeField.setCursorPosition(cursor - 1);
+                    this.commaSkipped = true;
+                }
+            } else if (key == Keyboard.KEY_DELETE) {
+                String text = this.sizeField.getText();
+                int cursor = this.sizeField.getCursorPosition();
+
+                if (cursor < text.length() && text.charAt(cursor) == ',') {
+                    this.sizeField.setCursorPosition(cursor + 1);
+                    this.commaSkipped = true;
+                }
+            }
+
             if ((key == Keyboard.KEY_DELETE || key == Keyboard.KEY_RIGHT
                 || key == Keyboard.KEY_LEFT || key == Keyboard.KEY_BACK
                 || Character.isDigit(character)) && this.sizeField.textboxKeyTyped(character, key)) {
@@ -197,14 +224,30 @@ public class GuiMaxSlotSize extends AEBaseGui {
                     out = out.substring(1);
                 }
 
-                if (out.isEmpty()) out = "1";
+                // Skip to allow empty field (unsaved)
+                if (!out.isEmpty()) {
+                    try {
+                        // Parse as long to handle large values
+                        this.onQtyChanged(Long.parseLong(out));
+                    } catch (final NumberFormatException e) {
+                        // Parsing failed should mean we exceeded Long.MAX_VALUE, so clamp to max
+                        this.onQtyChanged(Long.MAX_VALUE);
+                    }
+                }
 
-                try {
-                    // Parse as long to handle large values
-                    this.onQtyChanged(Long.parseLong(out));
-                } catch (final NumberFormatException e) {
-                    // Parsing failed should mean we exceeded Long.MAX_VALUE, so clamp to max
-                    this.onQtyChanged(Long.MAX_VALUE);
+                // After all processing (including potential reformat), if we
+                // pre-skipped a comma for backspace/delete, nudge the cursor past
+                // the comma so it lands on the correct side. This runs even when
+                // onQtyChanged didn't reformat (text unchanged).
+                if (this.commaSkipped) {
+                    String finalText = this.sizeField.getText();
+                    int cur = this.sizeField.getCursorPosition();
+
+                    if (cur < finalText.length() && finalText.charAt(cur) == ',') {
+                        this.sizeField.setCursorPosition(cur + 1);
+                    }
+
+                    this.commaSkipped = false;
                 }
             } else {
                 super.keyTyped(character, key);

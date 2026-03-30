@@ -140,6 +140,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
             // No component installed - show warning
             tooltip.add("§c" + I18n.format("tooltip.cells.configurable_cell.no_component"));
             tooltip.add("");
+            tooltip.add("§b" + I18n.format("tooltip.cells.click_to_configure"));
             tooltip.add("§7" + I18n.format("tooltip.cells.configurable_cell.info"));
             return;
         }
@@ -213,6 +214,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         // Show cell description
         tooltip.add("");
         tooltip.add("§7" + I18n.format("tooltip.cells.configurable_cell.info"));
+        tooltip.add("§b" + I18n.format("tooltip.cells.click_to_configure"));
     }
 
     // =====================

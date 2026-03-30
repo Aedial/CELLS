@@ -14,6 +14,9 @@ import net.minecraftforge.registries.IForgeRegistry;
 import appeng.api.AEApi;
 import appeng.api.parts.IPartModels;
 import appeng.block.AEBaseItemBlock;
+import appeng.core.features.ActivityState;
+import appeng.core.features.BlockStackSrc;
+import appeng.tile.AEBaseTile;
 
 import com.cells.Tags;
 
@@ -47,6 +50,12 @@ public final class EssentiaBlockRegistry {
             new ResourceLocation(Tags.MODID, "import_essentia_interface"));
         GameRegistry.registerTileEntity(TileEssentiaExportInterface.class,
             new ResourceLocation(Tags.MODID, "export_essentia_interface"));
+
+        // Register tile-to-item mappings for Network Tool display
+        AEBaseTile.registerTileItem(TileEssentiaImportInterface.class,
+            new BlockStackSrc(ESSENTIA_IMPORT_INTERFACE, 0, ActivityState.Enabled));
+        AEBaseTile.registerTileItem(TileEssentiaExportInterface.class,
+            new BlockStackSrc(ESSENTIA_EXPORT_INTERFACE, 0, ActivityState.Enabled));
     }
 
     /**

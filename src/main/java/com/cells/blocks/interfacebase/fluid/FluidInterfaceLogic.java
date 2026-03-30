@@ -24,6 +24,7 @@ import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.fluids.util.AEFluidStack;
 
+import com.cells.Cells;
 import com.cells.items.ItemRecoveryContainer;
 import com.cells.util.FluidStackKey;
 
@@ -181,13 +182,15 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
     }
 
     /**
-     * Override to handle legacy TAG_LIST format for storage.
-     * Old format: TAG_LIST with one entry per slot, empties marked "Empty".
-     * New format: TAG_COMPOUND with slot indices as string keys.
+     * Override to handle legacy formats for storage.
+     * Old TAG_LIST format: one entry per slot, empties marked "Empty".
+     * Old TAG_COMPOUND format: numeric string keys ("0", "1", etc.) with FluidName/Amount.
      */
     @Override
     protected void readStorageFromNBT(NBTTagCompound data) {
         String storageKey = getStorageNBTKey();
+
+        Cells.LOGGER.info("Reading fluid interface storage from NBT");
 
         // Try current compound format first
         if (data.hasKey(storageKey, Constants.NBT.TAG_COMPOUND)) {
@@ -195,17 +198,54 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
             return;
         }
 
-        // Legacy TAG_LIST format migration
+        Cells.LOGGER.info("Reading legacy fluid interface storage from NBT");
+
         String oldStorageKey = "fluidTanks";
+
+        // Legacy TAG_COMPOUND format migration
+        // Format: fluidTanks: { "0": {FluidName, Amount}, "1": {FluidName, Amount}, ... }
+        if (data.hasKey(oldStorageKey, Constants.NBT.TAG_COMPOUND)) {
+            NBTTagCompound storageCompound = data.getCompoundTag(oldStorageKey);
+            Cells.LOGGER.info("Found legacy TAG_COMPOUND format for fluid interface storage");
+
+            for (int i = 0; i < STORAGE_SLOTS; i++) {
+                FluidStack fs = null;
+                long amount = 0;
+
+                String slotKey = String.valueOf(i);
+                if (storageCompound.hasKey(slotKey, Constants.NBT.TAG_COMPOUND)) {
+                    NBTTagCompound slotTag = storageCompound.getCompoundTag(slotKey);
+                    Cells.LOGGER.info("Reading legacy slot: {}", slotTag.toString());
+                    FluidStack fluid = readResourceFromNBT(slotTag);
+                    if (fluid != null) {
+                        fs = copyAsIdentity(fluid);
+                        amount = slotTag.hasKey("Amount") ? slotTag.getInteger("Amount") : fluid.amount;
+                        Cells.LOGGER.info("Set slot {} to {} mB of {}", i, amount, fluid.getLocalizedName());
+                    }
+                }
+
+                this.setResourceInSlotWithAmount(i, fs, amount);
+            }
+            return;
+        }
+
+        // Legacy TAG_LIST format migration (unclear if it ever existed in production)
         if (data.hasKey(oldStorageKey, Constants.NBT.TAG_LIST)) {
             NBTTagList storageList = data.getTagList(oldStorageKey, Constants.NBT.TAG_COMPOUND);
             for (int i = 0; i < storageList.tagCount() && i < STORAGE_SLOTS; i++) {
+                FluidStack fs = null;
+                long amount = 0;
+
                 NBTTagCompound slotTag = storageList.getCompoundTagAt(i);
-                if (slotTag.hasKey("Empty")) {
-                    this.storage[i] = null;
-                } else {
-                    this.storage[i] = readResourceFromNBT(slotTag);
+                if (!slotTag.hasKey("Empty")) {
+                    FluidStack fluid = readResourceFromNBT(slotTag);
+                    if (fluid != null) {
+                        fs = copyAsIdentity(fluid);
+                        amount = slotTag.hasKey("Amount") ? slotTag.getInteger("Amount") : fluid.amount;
+                    }
                 }
+
+                this.setResourceInSlotWithAmount(i, fs, amount);
             }
         }
     }

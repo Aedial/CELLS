@@ -132,6 +132,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
         String quantityStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(quantity);
 
         tooltip.add(I18n.format("tooltip.cells.pull_card.desc", quantityStr, timeStr));
+        tooltip.add("§b" + I18n.format("tooltip.cells.click_to_configure"));
         tooltip.add(I18n.format("tooltip.cells.wip_do_not_use"));
 
         addCompatibilityTooltip(tooltip, "import_interface");

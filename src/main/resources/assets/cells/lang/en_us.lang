@@ -14,6 +14,7 @@ tooltip.cells.previous_page=Previous page
 tooltip.cells.next_page=Next page
 tooltip.cells.jei_view_contents=§7Press [§b%s§7] to view contents§r
 tooltip.cells.amount=%d/%d %s
+tooltip.cells.click_to_configure=Right-click to configure
 
 # Resource types and units (used in %s placeholders throughout)
 cells.type.item=Item
@@ -493,5 +494,7 @@ item.cells.pull_card.name=Auto-Pull Card
 item.cells.push_card.name=Auto-Push Card
 tooltip.cells.pull_card.desc=§7Allows Import Interfaces to pull §b%s§7 items/mB/etc. from adjacent inventories every §2%s§r.
 tooltip.cells.push_card.desc=§7Allows Export Interfaces to push §b%s§7 items/mB/etc. to adjacent inventories every §2%s§r.
-cells.push_pull_card.interval.title=Time Interval
-cells.push_pull_card.quantity.title=Transfer Quantity
+tooltip.cells.push_pull_card.limit.desc=§7Keeps §b%s§7 items/mB/etc. of each type in the adjacent inventory (no more, no less).
+cells.push_pull_card.interval.title=Time Interval:
+cells.push_pull_card.quantity.title=Transfer Quantity:
+cells.push_pull_card.limit.title=To keep in adjacent inventory:

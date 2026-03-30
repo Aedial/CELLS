@@ -11,6 +11,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [0.5.11-beta2] - 2026-03-30
 ### Fixed
 - Fix Essentia Storage Bus having caching issues with our interfaces (this is a bug from Thaumic Energistics). This fix makes the Essentia Interface itself handle all the work for the Bus and force changes onto it. This will not fix *any* other block you put the Bus on, either fix the Storage Bus or do the work yourself.
+- Fix Interface tiles not showing on Network Tool.
+- Fix migration of Export Fluid Interfaces from 0.5.9-rc.
+
+### Changed
+- Slight changes in Max Slot Size's typing behavior.
 
 
 ## [0.5.11-beta] - 2026-03-28

@@ -60,6 +60,9 @@ public class Cells {
             CapabilityManager.INSTANCE.register(IItemRepository.class, new IItemRepository.NullStorage(), IItemRepository.NullImpl::new);
         }
 
+        // Register data fixers for tile entity ID migration (must happen before any world is loaded)
+        CellsDataFixer.register();
+
         // Initialize configuration
         File configDir = event.getModConfigurationDirectory();
         CellsConfig.init(new File(configDir, Tags.MODID + ".cfg"));
