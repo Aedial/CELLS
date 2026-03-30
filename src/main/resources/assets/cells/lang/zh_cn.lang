@@ -14,6 +14,7 @@ tooltip.cells.previous_page=上一页
 tooltip.cells.next_page=下一页
 tooltip.cells.jei_view_contents=§7按[§b%s§7]查看内容§r
 tooltip.cells.amount=%d/%d %s
+tooltip.cells.click_to_configure=右键点击进行配置
 
 # Resource types and units (used in %s placeholders throughout)
 cells.type.item=物品
@@ -493,5 +494,7 @@ item.cells.pull_card.name=自动拉取卡
 item.cells.push_card.name=自动推送卡
 tooltip.cells.pull_card.desc=§7允许输入接口每隔§2%2$s§7从相邻容器拉取§b%1$s§7个物品/mB流体等。
 tooltip.cells.push_card.desc=§7允许输出接口每隔§2%2$s§7向相邻容器推送§b%1$s§7个物品/mB流体等。
+tooltip.cells.push_pull_card.limit.desc=§7将相邻容器内每种物品/流体等的数量维持在§b%s§7（不多不少）。
 cells.push_pull_card.interval.title=时间间隔
 cells.push_pull_card.quantity.title=传输数量
+cells.push_pull_card.limit.title=维持相邻容器内容数量：
