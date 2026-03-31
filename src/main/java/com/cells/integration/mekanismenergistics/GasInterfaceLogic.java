@@ -11,6 +11,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
+import net.minecraftforge.common.capabilities.Capability;
 
 import appeng.api.AEApi;
 import appeng.api.networking.storage.IStorageGrid;
@@ -21,6 +22,7 @@ import mekanism.api.gas.GasRegistry;
 import mekanism.api.gas.GasStack;
 import mekanism.api.gas.GasTankInfo;
 import mekanism.api.gas.IGasHandler;
+import mekanism.common.capabilities.Capabilities;
 
 import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.data.impl.AEGasStack;
@@ -196,8 +198,7 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
 
             Gas gas = GasRegistry.getGas(gasId);
             if (gas != null) {
-                this.storage[slot] = copyAsIdentity(new GasStack(gas, 1));
-                this.amounts[slot] = amount;
+                this.setResourceInSlotWithAmount(slot, new GasStack(gas, 1), amount);
                 changed = true;
             }
         }
@@ -291,6 +292,65 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
     @Override
     protected ItemStack createRecoveryItem(GasStack identity, long amount) {
         return ItemRecoveryContainer.createForGas(identity.getGas().getName(), amount);
+    }
+
+    // ============================== Auto-Pull/Push capability methods ==============================
+
+    @Override
+    @Nullable
+    protected Capability<?> getAdjacentCapability() {
+        return Capabilities.GAS_HANDLER_CAPABILITY;
+    }
+
+    @Override
+    protected long countResourceInHandler(Object handler, GasStackKey key, EnumFacing facing) {
+        if (!(handler instanceof IGasHandler)) return 0;
+
+        long total = 0;
+        Gas targetGas = key.getGas();
+        for (GasTankInfo tank : ((IGasHandler) handler).getTankInfo()) {
+            GasStack contents = tank.getGas();
+            if (contents != null && contents.getGas() == targetGas) total += contents.amount;
+        }
+        return total;
+    }
+
+    /**
+     * Extract gas from an adjacent IGasHandler.
+     * <p>
+     * Note: {@code IGasHandler.drawGas()} is type-agnostic: it draws whatever gas is in the
+     * handler, so we simulate first to verify the gas type matches before committing.
+     */
+    @Override
+    protected long extractResourceFromHandler(Object handler, GasStackKey key, int maxAmount, EnumFacing facing) {
+        if (!(handler instanceof IGasHandler)) return 0;
+
+        IGasHandler gasHandler = (IGasHandler) handler;
+        EnumFacing pullSide = facing.getOpposite();
+        Gas targetGas = key.getGas();
+
+        if (!gasHandler.canDrawGas(pullSide, targetGas)) return 0;
+
+        // drawGas is type-agnostic; simulate first to verify we get the right gas
+        GasStack simulated = gasHandler.drawGas(pullSide, maxAmount, false);
+        if (simulated == null || simulated.getGas() != targetGas || simulated.amount <= 0) return 0;
+
+        // Commit the verified amount
+        GasStack drawn = gasHandler.drawGas(pullSide, simulated.amount, true);
+        return drawn != null ? drawn.amount : 0;
+    }
+
+    @Override
+    protected long insertResourceIntoHandler(Object handler, GasStack identity, int maxAmount, EnumFacing facing) {
+        if (!(handler instanceof IGasHandler)) return 0;
+
+        IGasHandler gasHandler = (IGasHandler) handler;
+        EnumFacing pushSide = facing.getOpposite();
+        Gas targetGas = identity.getGas();
+
+        if (!gasHandler.canReceiveGas(pushSide, targetGas)) return 0;
+
+        return gasHandler.receiveGas(pushSide, new GasStack(targetGas, maxAmount), true);
     }
 
     // ============================== External handlers ==============================

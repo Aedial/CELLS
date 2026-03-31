@@ -1,5 +1,9 @@
 package com.cells.network;
 
+import net.minecraftforge.fml.common.network.NetworkRegistry;
+import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
+import net.minecraftforge.fml.relauncher.Side;
+
 import com.cells.Tags;
 import com.cells.network.packets.PacketChangePage;
 import com.cells.network.packets.PacketClearFilters;
@@ -9,13 +13,11 @@ import com.cells.network.packets.PacketSetConfigurableCellCapacity;
 import com.cells.network.packets.PacketSetConfigurableCellMaxTypes;
 import com.cells.network.packets.PacketSetMaxSlotSize;
 import com.cells.network.packets.PacketSetPollingRate;
+import com.cells.network.packets.PacketSetPullPushKeepQuantity;
+import com.cells.network.packets.PacketSetPullPushQuantity;
 import com.cells.network.packets.PacketSetPullPushRate;
 import com.cells.network.sync.PacketQuickAddFilter;
 import com.cells.network.sync.PacketResourceSlot;
-
-import net.minecraftforge.fml.common.network.NetworkRegistry;
-import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
-import net.minecraftforge.fml.relauncher.Side;
 
 
 /**
@@ -40,6 +42,8 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketClearFilters.Handler.class, PacketClearFilters.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketChangePage.Handler.class, PacketChangePage.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetPullPushRate.Handler.class, PacketSetPullPushRate.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetPullPushQuantity.Handler.class, PacketSetPullPushQuantity.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetPullPushKeepQuantity.Handler.class, PacketSetPullPushKeepQuantity.class, packetId++, Side.SERVER);
 
         // Unified resource slot packet (bidirectional: handles filter sync for ALL resource types)
         INSTANCE.registerMessage(PacketResourceSlot.ServerHandler.class, PacketResourceSlot.class, packetId++, Side.SERVER);

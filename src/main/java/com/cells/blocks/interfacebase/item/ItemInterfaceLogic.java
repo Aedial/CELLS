@@ -14,9 +14,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.EnumFacing;
 import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.Constants;
+import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
@@ -157,10 +160,16 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
 
     /**
      * Set storage at a specific slot. Converts EMPTY to null internally.
+     * Updates storage key maps via setResourceInSlotWithAmount.
      */
     public void setStorage(int slot, @Nullable ItemStack stack) {
         if (slot < 0 || slot >= STORAGE_SLOTS) return;
-        this.storage[slot] = (stack == null || stack.isEmpty()) ? null : stack;
+
+        if (stack == null || stack.isEmpty()) {
+            this.setResourceInSlotWithAmount(slot, null, 0);
+        } else {
+            this.setResourceInSlotWithAmount(slot, stack, this.amounts[slot]);
+        }
     }
 
     /**
@@ -283,6 +292,67 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
         return ItemRecoveryContainer.createForItem(identity, amount);
     }
 
+    // ============================== Auto-Pull/Push capability methods ==============================
+
+    // TODO: We need to use IItemRepository capability when available.
+    //       It is ALWAYS available, even if Storage Drawers is not present, since we initialize it.
+
+    @Override
+    @Nullable
+    protected Capability<?> getAdjacentCapability() {
+        return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY;
+    }
+
+    @Override
+    protected long countResourceInHandler(Object handler, ItemStackKey key, EnumFacing facing) {
+        if (!(handler instanceof IItemHandler)) return 0;
+
+        IItemHandler itemHandler = (IItemHandler) handler;
+        long total = 0;
+        for (int i = 0; i < itemHandler.getSlots(); i++) {
+            ItemStack stack = itemHandler.getStackInSlot(i);
+            if (!stack.isEmpty() && key.matches(stack)) total += stack.getCount();
+        }
+        return total;
+    }
+
+    @Override
+    protected long extractResourceFromHandler(Object handler, ItemStackKey key, int maxAmount, EnumFacing facing) {
+        if (!(handler instanceof IItemHandler)) return 0;
+
+        IItemHandler itemHandler = (IItemHandler) handler;
+        long totalExtracted = 0;
+        int remaining = maxAmount;
+
+        for (int i = 0; i < itemHandler.getSlots() && remaining > 0; i++) {
+            ItemStack stack = itemHandler.getStackInSlot(i);
+            if (stack.isEmpty() || !key.matches(stack)) continue;
+
+            ItemStack extracted = itemHandler.extractItem(i, remaining, false);
+            if (extracted.isEmpty()) continue;
+
+            totalExtracted += extracted.getCount();
+            remaining -= extracted.getCount();
+        }
+
+        return totalExtracted;
+    }
+
+    @Override
+    protected long insertResourceIntoHandler(Object handler, ItemStack identity, int maxAmount, EnumFacing facing) {
+        if (!(handler instanceof IItemHandler)) return 0;
+
+        IItemHandler itemHandler = (IItemHandler) handler;
+        ItemStack toInsert = copyWithAmount(identity, maxAmount);
+        ItemStack remainder = toInsert;
+
+        for (int i = 0; i < itemHandler.getSlots() && !remainder.isEmpty(); i++) {
+            remainder = itemHandler.insertItem(i, remainder, false);
+        }
+
+        return maxAmount - (remainder.isEmpty() ? 0 : remainder.getCount());
+    }
+
     // ============================== Item-specific stream serialization ==============================
 
     /**
@@ -321,8 +391,7 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
                 NBTTagCompound tag = CompressedStreamTools.readCompressed(new ByteArrayInputStream(nbtBytes));
                 ItemStack stack = new ItemStack(tag);
                 if (!stack.isEmpty()) {
-                    this.storage[slot] = copyAsIdentity(stack);
-                    this.amounts[slot] = amount;
+                    this.setResourceInSlotWithAmount(slot, copyAsIdentity(stack), amount);
                     changed = true;
                 }
             } catch (Exception e) {

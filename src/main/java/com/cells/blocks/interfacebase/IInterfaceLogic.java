@@ -235,8 +235,10 @@ public interface IInterfaceLogic {
 
     /**
      * Process a tick.
+     *
+     * @param ticksSinceLastCall Number of ticks elapsed since the last call (from AE2 tick manager)
      */
-    TickRateModulation onTick();
+    TickRateModulation onTick(int ticksSinceLastCall);
 
     /**
      * Get the type name for localization (e.g., "item", "fluid", "gas").

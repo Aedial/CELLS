@@ -17,6 +17,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
 import appeng.api.implementations.items.IMemoryCard;
@@ -79,6 +80,10 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     protected final IActionSource actionSource;
     protected L logic;
 
+    // Debounce: getTotalWorldTime is two field reads + a long compare,
+    // markChunkDirty is two chunk map lookups + a boolean write.
+    private long lastSaveTick = -1;
+
     protected AbstractInterfacePart(final ItemStack is) {
         super(is);
         this.actionSource = new MachineSource(this);
@@ -136,7 +141,20 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
 
     @Override
     public void markDirtyAndSave() {
-        this.getHost().markForSave();
+        TileEntity te = this.getHost().getTile();
+        if (te == null) return;
+
+        World w = te.getWorld();
+        if (w == null || w.isRemote) return;
+
+        // Debounce to once per tick
+        long currentTick = w.getTotalWorldTime();
+        if (this.lastSaveTick == currentTick) return;
+        this.lastSaveTick = currentTick;
+
+        // Call markChunkDirty directly on the host tile to flag the chunk for saving.
+        // We intentionally skip markForSave() / saveChanges() to bypass the bloat.
+        w.markChunkDirty(te.getPos(), te);
     }
 
     @Override
@@ -471,6 +489,15 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
         }
     }
 
+    // ============================== Neighbor change delegation ==============================
+
+    @Override
+    public void onNeighborChanged(IBlockAccess w, BlockPos pos, BlockPos neighbor) {
+        if (this.logic instanceof AbstractResourceInterfaceLogic) {
+            ((AbstractResourceInterfaceLogic<?, ?, ?>) this.logic).onNeighborChanged(neighbor);
+        }
+    }
+
     // ============================== IGridTickable ==============================
 
     @Override
@@ -482,7 +509,7 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     @Override
     @Nonnull
     public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
-        return this.logic.onTick();
+        return this.logic.onTick(ticksSinceLastCall);
     }
 
     // ============================== Utility methods ==============================

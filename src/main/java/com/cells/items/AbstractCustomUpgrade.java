@@ -8,6 +8,7 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.NonNullList;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -57,6 +58,23 @@ public class AbstractCustomUpgrade extends Item implements IUpgradeModule {
 
         this.tierValues = tierValues;
         this.tierNames = tierNames;
+    }
+
+    public static void setIntKey(ItemStack stack, String key, int value, int min) {
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag == null) {
+            tag = new NBTTagCompound();
+            stack.setTagCompound(tag);
+        }
+
+        tag.setInteger(key, Math.max(min, value));
+    }
+
+    public static int getIntKey(ItemStack stack, String key, int defaultValue) {
+        NBTTagCompound tag = stack.getTagCompound();
+        if (tag == null || !tag.hasKey(key)) return defaultValue;
+
+        return tag.getInteger(key);
     }
 
     /**

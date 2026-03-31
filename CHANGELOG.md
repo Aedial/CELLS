@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.12-alpha] - 2026-03-31
+### Added
+- Implement Auto-Pull and Auto-Push Card functionality for all resource interfaces (Item, Fluid, Gas, Essentia). Cards can be configured with transfer quantity, interval, and keep-quantity to automatically move resources between adjacent inventories and the ME network buffer.
+- Optimize the I/O both from and to the Interfaces.
+
+
 ## [0.5.11-beta2] - 2026-03-30
 ### Fixed
 - Fix Essentia Storage Bus having caching issues with our interfaces (this is a bug from Thaumic Energistics). This fix makes the Essentia Interface itself handle all the work for the Bus and force changes onto it. This will not fix *any* other block you put the Bus on, either fix the Storage Bus or do the work yourself.

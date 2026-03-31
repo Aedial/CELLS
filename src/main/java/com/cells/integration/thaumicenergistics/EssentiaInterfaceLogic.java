@@ -1,5 +1,6 @@
 package com.cells.integration.thaumicenergistics;
 
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,6 +18,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
+import net.minecraftforge.common.capabilities.Capability;
 
 import appeng.api.AEApi;
 import appeng.api.networking.IGridNode;
@@ -376,10 +378,15 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     /**
      * Called when a neighbor block changes.
      * Checks if the changed neighbor is an Essentia Storage Bus and updates the cache.
+     * Also delegates to the base class for IAspectContainer capability cache invalidation.
      *
      * @param neighborPos The position of the neighbor that changed
      */
+    @Override
     public void onNeighborChanged(BlockPos neighborPos) {
+        // Delegate to base class for capability cache invalidation (IAspectContainer scanning)
+        super.onNeighborChanged(neighborPos);
+
         World world = this.host.getHostWorld();
         BlockPos pos = this.host.getHostPos();
         if (world == null || pos == null || neighborPos == null) return;
@@ -634,7 +641,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      * parent class do its import/export work, then compute deltas and notify.
      */
     @Override
-    public TickRateModulation onTick() {
+    public TickRateModulation onTick(int ticksSinceLastCall) {
         // Check for adjacent storage buses if needed (e.g. on init or after neighbor change)
         if (this.neighborCheckPending) {
             this.neighborCheckPending = false;
@@ -643,12 +650,10 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
 
         // If we have storage buses, capture state before tick operations
         Map<Aspect, Long> beforeState = null;
-        if (this.hasAdjacentStorageBus) {
-            beforeState = captureStorageState();
-        }
+        if (this.hasAdjacentStorageBus) beforeState = captureStorageState();
 
         // Let parent handle the actual import/export operations
-        TickRateModulation result = super.onTick();
+        TickRateModulation result = super.onTick(ticksSinceLastCall);
 
         // If we captured state, compute deltas and notify
         if (beforeState != null) {
@@ -775,8 +780,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
 
             Aspect aspect = Aspect.getAspect(tag);
             if (aspect != null) {
-                this.storage[slot] = copyAsIdentity(new EssentiaStack(aspect, 1));
-                this.amounts[slot] = amount;
+                this.setResourceInSlotWithAmount(slot, new EssentiaStack(aspect, 1), amount);
                 changed = true;
             }
         }
@@ -891,5 +895,124 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
             identity.getAspect().getTag(),
             amount
         );
+    }
+
+    // ============================== Auto-Pull/Push capability methods ==============================
+
+    /**
+     * Essentia does not use Forge capabilities. Return null so the base class
+     * skips the standard Forge capability scanning. We override refreshCapabilityCache()
+     * instead to directly scan for IAspectContainer on adjacent tiles.
+     */
+    @Override
+    @Nullable
+    protected Capability<?> getAdjacentCapability() {
+        return null;
+    }
+
+    /**
+     * Override base capability cache to scan for IAspectContainer on adjacent tiles directly,
+     * since essentia doesn't use Forge capabilities.
+     */
+    @Override
+    protected void refreshCapabilityCache() {
+        this.cachedAdjacentTiles.clear();
+        this.cachedCapabilities.clear();
+        this.capabilityCachePopulated = true;
+
+        World world = this.host.getHostWorld();
+        BlockPos pos = this.host.getHostPos();
+        if (world == null || pos == null) return;
+
+        for (EnumFacing facing : EnumFacing.VALUES) {
+            BlockPos adjacentPos = pos.offset(facing);
+            if (!world.isBlockLoaded(adjacentPos)) continue;
+
+            TileEntity te = world.getTileEntity(adjacentPos);
+            if (te == null || te.isInvalid()) continue;
+            if (!(te instanceof IAspectContainer)) continue;
+
+            // Don't cache ourselves (should never happen, but just in case)
+            TileEntity selfTe = world.getTileEntity(pos);
+            if (te == selfTe) continue;
+
+            this.cachedAdjacentTiles.put(facing, new WeakReference<>(te));
+            this.cachedCapabilities.put(facing, te);
+        }
+    }
+
+    /**
+     * Override invalidation to also scan for IAspectContainer directly.
+     */
+    @Override
+    protected void invalidateCapabilityCacheForFacing(EnumFacing facing) {
+        this.cachedAdjacentTiles.remove(facing);
+        this.cachedCapabilities.remove(facing);
+
+        if (!this.installedAutoPushPullUpgrade) return;
+
+        World world = this.host.getHostWorld();
+        BlockPos pos = this.host.getHostPos();
+        if (world == null || pos == null) return;
+
+        BlockPos adjacentPos = pos.offset(facing);
+        if (!world.isBlockLoaded(adjacentPos)) return;
+
+        TileEntity te = world.getTileEntity(adjacentPos);
+        if (te == null || te.isInvalid()) return;
+        if (!(te instanceof IAspectContainer)) return;
+
+        this.cachedAdjacentTiles.put(facing, new WeakReference<>(te));
+        this.cachedCapabilities.put(facing, te);
+    }
+
+    @Override
+    protected long countResourceInHandler(Object handler, EssentiaStackKey key, EnumFacing facing) {
+        if (!(handler instanceof IAspectContainer)) return 0;
+
+        Aspect aspect = key.getAspect();
+        if (aspect == null) return 0;
+
+        return ((IAspectContainer) handler).containerContains(aspect);
+    }
+
+    /**
+     * Extract essentia from an adjacent IAspectContainer.
+     * <p>
+     * IMPORTANT: {@code takeFromContainer(Aspect, int)} is all-or-nothing: it returns false
+     * (and removes nothing) if the requested amount exceeds what's available. We MUST check
+     * {@code containerContains()} first and cap the extraction amount.
+     */
+    @Override
+    protected long extractResourceFromHandler(Object handler, EssentiaStackKey key, int maxAmount, EnumFacing facing) {
+        if (!(handler instanceof IAspectContainer)) return 0;
+
+        IAspectContainer container = (IAspectContainer) handler;
+        Aspect aspect = key.getAspect();
+        if (aspect == null) return 0;
+
+        // Cap at available amount (takeFromContainer is all-or-nothing)
+        int available = container.containerContains(aspect);
+        if (available <= 0) return 0;
+
+        int toExtract = Math.min(maxAmount, available);
+        if (!container.takeFromContainer(aspect, toExtract)) return 0;
+
+        return toExtract;
+    }
+
+    @Override
+    protected long insertResourceIntoHandler(Object handler, EssentiaStack identity, int maxAmount, EnumFacing facing) {
+        if (!(handler instanceof IAspectContainer)) return 0;
+
+        IAspectContainer container = (IAspectContainer) handler;
+        Aspect aspect = identity.getAspect();
+        if (aspect == null) return 0;
+
+        if (!container.doesContainerAccept(aspect)) return 0;
+
+        // addToContainer returns the leftover amount that could NOT be added
+        int leftover = container.addToContainer(aspect, maxAmount);
+        return maxAmount - leftover;
     }
 }

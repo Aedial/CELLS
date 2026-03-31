@@ -41,8 +41,10 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
 
     private static final String NBT_KEY_INTERVAL = "PullInterval";
     private static final String NBT_KEY_QUANTITY = "PullQuantity";
-    private static final int DEFAULT_INTERVAL = ContainerPullPushCard.MINIMUM_INTERVAL;
-    private static final long DEFAULT_QUANTITY = ContainerPullPushCard.MINIMUM_QUANTITY;
+    private static final String NBT_KEY_KEEP = "PullKeepQuantity";
+    private static final int DEFAULT_INTERVAL = ContainerPullPushCard.DEFAULT_INTERVAL;
+    private static final int DEFAULT_QUANTITY = ContainerPullPushCard.MINIMUM_QUANTITY;
+    private static final int DEFAULT_KEEP = ContainerPullPushCard.MINIMUM_KEEP_QUANTITY;
 
     public ItemAutoPullCard() {
         super("pull_card");
@@ -55,10 +57,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
      * @return The pull interval in ticks
      */
     public static int getInterval(ItemStack stack) {
-        NBTTagCompound tag = stack.getTagCompound();
-        if (tag == null || !tag.hasKey(NBT_KEY_INTERVAL)) return DEFAULT_INTERVAL;
-
-        return tag.getInteger(NBT_KEY_INTERVAL);
+        return AbstractCustomUpgrade.getIntKey(stack, NBT_KEY_INTERVAL, DEFAULT_INTERVAL);
     }
 
     /**
@@ -68,13 +67,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
      * @param interval The pull interval in ticks
      */
     public static void setInterval(ItemStack stack, int interval) {
-        NBTTagCompound tag = stack.getTagCompound();
-        if (tag == null) {
-            tag = new NBTTagCompound();
-            stack.setTagCompound(tag);
-        }
-
-        tag.setInteger(NBT_KEY_INTERVAL, Math.max(1, interval));
+        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_INTERVAL, interval, 1);
     }
 
     /**
@@ -83,11 +76,8 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
      * @param stack The card ItemStack
      * @return The pull quantity
      */
-    public static long getQuantity(ItemStack stack) {
-        NBTTagCompound tag = stack.getTagCompound();
-        if (tag == null || !tag.hasKey(NBT_KEY_QUANTITY)) return DEFAULT_QUANTITY;
-
-        return tag.getLong(NBT_KEY_QUANTITY);
+    public static int getQuantity(ItemStack stack) {
+        return AbstractCustomUpgrade.getIntKey(stack, NBT_KEY_QUANTITY, DEFAULT_QUANTITY);
     }
 
     /**
@@ -96,14 +86,28 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
      * @param stack The card ItemStack
      * @param quantity The pull quantity
      */
-    public static void setQuantity(ItemStack stack, long quantity) {
-        NBTTagCompound tag = stack.getTagCompound();
-        if (tag == null) {
-            tag = new NBTTagCompound();
-            stack.setTagCompound(tag);
-        }
+    public static void setQuantity(ItemStack stack, int quantity) {
+        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_QUANTITY, quantity, 0);
+    }
 
-        tag.setLong(NBT_KEY_QUANTITY, Math.max(0, quantity));
+    /**
+     * Get the keep quantity from the card's NBT.
+     *
+     * @param stack The card ItemStack
+     * @return The keep quantity
+     */
+    public static int getKeepQuantity(ItemStack stack) {
+        return AbstractCustomUpgrade.getIntKey(stack, NBT_KEY_KEEP, DEFAULT_KEEP);
+    }
+
+    /**
+     * Set the keep quantity in the card's NBT.
+     *
+     * @param stack The card ItemStack
+     * @param keepQuantity The keep quantity
+     */
+    public static void setKeepQuantity(ItemStack stack, int keepQuantity) {
+        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_KEEP, keepQuantity, 0);
     }
 
     @Override
@@ -128,12 +132,27 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
         int interval = getInterval(stack);
         String timeStr = PollingRateUtils.format(interval);
 
-        long quantity = getQuantity(stack);
-        String quantityStr = ReadableNumberConverter.INSTANCE.toWideReadableForm(quantity);
+        int quantity = getQuantity(stack);
+        String quantityStr = String.format("%,d", quantity);
+
+        int keep = getKeepQuantity(stack);
+        String keepStr = String.format("%,d", keep);
 
         tooltip.add(I18n.format("tooltip.cells.pull_card.desc", quantityStr, timeStr));
+
+        if (keep > 0) {
+            tooltip.add(I18n.format("tooltip.cells.push_pull_card.limit.desc", keepStr));
+        }
+
         tooltip.add("§b" + I18n.format("tooltip.cells.click_to_configure"));
-        tooltip.add(I18n.format("tooltip.cells.wip_do_not_use"));
+
+        if (interval < DEFAULT_INTERVAL) {
+            tooltip.add("");
+            tooltip.add(I18n.format("tooltip.cells.push_pull_card.interval_warning"));
+        }
+
+        tooltip.add("");
+        tooltip.add(I18n.format("tooltip.cells.useatyourownrisk"));
 
         addCompatibilityTooltip(tooltip, "import_interface");
     }

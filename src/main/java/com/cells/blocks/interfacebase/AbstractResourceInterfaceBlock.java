@@ -2,9 +2,12 @@ package com.cells.blocks.interfacebase;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
+import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
@@ -100,5 +103,24 @@ public abstract class AbstractResourceInterfaceBlock<T extends AEBaseTile> exten
         }
 
         return true;
+    }
+
+    /**
+     * Handle neighbor block changes to invalidate capability caches for auto-pull/push cards.
+     * Delegates to the tile entity's logic to update the specific facing direction.
+     */
+    @Override
+    public void neighborChanged(@Nonnull IBlockState state, @Nonnull World world, @Nonnull BlockPos pos,
+                                @Nonnull Block blockIn, @Nonnull BlockPos fromPos) {
+        if (world.isRemote) return;
+
+        final T tile = this.getTileEntity(world, pos);
+        if (tile instanceof AbstractInterfaceTile) {
+            AbstractInterfaceTile<?> interfaceTile = (AbstractInterfaceTile<?>) tile;
+            IInterfaceLogic logic = interfaceTile.getInterfaceLogic();
+            if (logic instanceof AbstractResourceInterfaceLogic) {
+                ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).onNeighborChanged(fromPos);
+            }
+        }
     }
 }

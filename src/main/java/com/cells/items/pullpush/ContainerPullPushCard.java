@@ -24,10 +24,16 @@ import com.cells.items.ItemAutoPushCard;
 public class ContainerPullPushCard extends AEBaseContainer {
 
     /** Minimum interval in ticks */
-    public static final int MINIMUM_INTERVAL = 20;
+    public static final int MINIMUM_INTERVAL = 1;
+
+    /** Default interval in ticks */
+    public static final int DEFAULT_INTERVAL = 20;
 
     /** Minimum quantity to be transferred per operation */
-    public static final long MINIMUM_QUANTITY = 1;
+    public static final int MINIMUM_QUANTITY = 1;
+
+    /** Minimum quantity to keep in the adjacent inventory */
+    public static final int MINIMUM_KEEP_QUANTITY = 0;
 
     /** The hand holding the card */
     private final EnumHand hand;
@@ -49,6 +55,10 @@ public class ContainerPullPushCard extends AEBaseContainer {
     @GuiSync(1)
     public long quantity = MINIMUM_QUANTITY;
 
+    /** Quantity to keep in the adjacent inventory */
+    @GuiSync(2)
+    public long keepsQuantity = MINIMUM_KEEP_QUANTITY;
+
     public ContainerPullPushCard(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, null, null);
         this.hand = hand;
@@ -61,9 +71,11 @@ public class ContainerPullPushCard extends AEBaseContainer {
         if (this.isPullCard) {
             this.interval = ItemAutoPullCard.getInterval(cardStack);
             this.quantity = ItemAutoPullCard.getQuantity(cardStack);
+            this.keepsQuantity = ItemAutoPullCard.getKeepQuantity(cardStack);
         } else {
             this.interval = ItemAutoPushCard.getInterval(cardStack);
             this.quantity = ItemAutoPushCard.getQuantity(cardStack);
+            this.keepsQuantity = ItemAutoPushCard.getKeepQuantity(cardStack);
         }
     }
 
@@ -72,6 +84,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
         this.listener = listener;
         this.listener.onIntervalChanged((int) Math.min(this.interval, Integer.MAX_VALUE));
         this.listener.onQuantityChanged((int) Math.min(this.quantity, Integer.MAX_VALUE));
+        this.listener.onKeepsQuantityChanged((int) Math.min(this.keepsQuantity, Integer.MAX_VALUE));
     }
 
     /**
@@ -98,7 +111,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
      * @param newValue The new quantity
      */
     public void setQuantity(final int newValue) {
-        long clamped = Math.max(MINIMUM_QUANTITY, newValue);
+        int clamped = Math.max(MINIMUM_QUANTITY, newValue);
 
         // Update NBT
         if (this.isPullCard) {
@@ -110,6 +123,24 @@ public class ContainerPullPushCard extends AEBaseContainer {
         this.quantity = clamped;
     }
 
+    /**
+     * Set the keep quantity for this card.
+     *
+     * @param newValue The new keep quantity
+     */
+    public void setKeepQuantity(final int newValue) {
+        int clamped = Math.max(MINIMUM_KEEP_QUANTITY, newValue);
+
+        // Update NBT
+        if (this.isPullCard) {
+            ItemAutoPullCard.setKeepQuantity(cardStack, clamped);
+        } else {
+            ItemAutoPushCard.setKeepQuantity(cardStack, clamped);
+        }
+
+        this.keepsQuantity = clamped;
+    }
+
     @Override
     public void detectAndSendChanges() {
         super.detectAndSendChanges();
@@ -119,9 +150,11 @@ public class ContainerPullPushCard extends AEBaseContainer {
             if (this.isPullCard) {
                 this.interval = ItemAutoPullCard.getInterval(cardStack);
                 this.quantity = ItemAutoPullCard.getQuantity(cardStack);
+                this.keepsQuantity = ItemAutoPullCard.getKeepQuantity(cardStack);
             } else {
                 this.interval = ItemAutoPushCard.getInterval(cardStack);
                 this.quantity = ItemAutoPushCard.getQuantity(cardStack);
+                this.keepsQuantity = ItemAutoPushCard.getKeepQuantity(cardStack);
             }
         }
     }
@@ -132,6 +165,8 @@ public class ContainerPullPushCard extends AEBaseContainer {
             this.listener.onIntervalChanged((int) Math.min(this.interval, Integer.MAX_VALUE));
         } else if (field.equals("quantity") && this.listener != null) {
             this.listener.onQuantityChanged((int) Math.min(this.quantity, Integer.MAX_VALUE));
+        } else if (field.equals("keepsQuantity") && this.listener != null) {
+            this.listener.onKeepsQuantityChanged((int) Math.min(this.keepsQuantity, Integer.MAX_VALUE));
         }
 
         super.onUpdate(field, oldValue, newValue);
@@ -161,5 +196,6 @@ public class ContainerPullPushCard extends AEBaseContainer {
     public interface IValuesListener {
         void onIntervalChanged(int interval);
         void onQuantityChanged(int quantity);
+        void onKeepsQuantityChanged(int keepsQuantity);
     }
 }

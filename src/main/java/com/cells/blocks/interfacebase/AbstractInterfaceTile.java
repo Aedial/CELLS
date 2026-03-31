@@ -68,6 +68,10 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
     // Storage is managed by the logic and serialized via writeToStream/readFromStream.
     private final AppEngInternalInventory dummyInventory = new AppEngInternalInventory(this, 0, 0);
 
+    // Debounce: getTotalWorldTime is two field reads + a long compare,
+    // markChunkDirty is two chunk map lookups + a boolean write.
+    private long lastSaveTick = -1;
+
     protected AbstractInterfaceTile() {
         this.getProxy().setFlags(GridFlags.REQUIRE_CHANNEL);
         this.getProxy().setIdlePowerUsage(1.0);
@@ -101,7 +105,16 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
 
     @Override
     public void markDirtyAndSave() {
-        this.markDirty();
+        if (this.world == null || this.world.isRemote) return;
+
+        // Debounce to once per tick
+        long currentTick = this.world.getTotalWorldTime();
+        if (this.lastSaveTick == currentTick) return;
+        this.lastSaveTick = currentTick;
+
+        // Call markChunkDirty directly to flag the chunk for saving.
+        // We intentionally skip markForSave() / saveChanges() to bypass the bloat.
+        this.world.markChunkDirty(this.pos, this);
     }
 
     @Override
@@ -350,6 +363,6 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
     @Override
     @Nonnull
     public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
-        return this.logic.onTick();
+        return this.logic.onTick(ticksSinceLastCall);
     }
 }

@@ -9,11 +9,14 @@ import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.util.EnumFacing;
 
 import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidTankProperties;
 
@@ -262,6 +265,49 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
     @Override
     protected ItemStack createRecoveryItem(FluidStack identity, long amount) {
         return ItemRecoveryContainer.createForFluid(identity, amount);
+    }
+
+    // ============================== Auto-Pull/Push capability methods ==============================
+
+    @Override
+    @Nullable
+    protected Capability<?> getAdjacentCapability() {
+        return CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY;
+    }
+
+    @Override
+    protected long countResourceInHandler(Object handler, FluidStackKey key, EnumFacing facing) {
+        if (!(handler instanceof IFluidHandler)) return 0;
+
+        long total = 0;
+        IFluidTankProperties[] tanks = ((IFluidHandler) handler).getTankProperties();
+        if (tanks == null) return 0;
+
+        for (IFluidTankProperties tank : tanks) {
+            FluidStack contents = tank.getContents();
+            if (contents != null && key.matches(contents)) total += contents.amount;
+        }
+        return total;
+    }
+
+    @Override
+    protected long extractResourceFromHandler(Object handler, FluidStackKey key, int maxAmount, EnumFacing facing) {
+        if (!(handler instanceof IFluidHandler)) return 0;
+
+        // IFluidHandler.drain(FluidStack, true) drains a specific fluid type up to the stack's amount.
+        // It already caps at the available amount internally, so no pre-check is needed.
+        FluidStack toDrain = new FluidStack(key.getFluid(), maxAmount, key.getNbt());
+        FluidStack drained = ((IFluidHandler) handler).drain(toDrain, true);
+        return drained != null ? drained.amount : 0;
+    }
+
+    @Override
+    protected long insertResourceIntoHandler(Object handler, FluidStack identity, int maxAmount, EnumFacing facing) {
+        if (!(handler instanceof IFluidHandler)) return 0;
+
+        FluidStack toFill = identity.copy();
+        toFill.amount = maxAmount;
+        return ((IFluidHandler) handler).fill(toFill, true);
     }
 
     /**

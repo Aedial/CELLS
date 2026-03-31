@@ -1,6 +1,7 @@
 # Misc
 itemGroup.cells=C.E.L.L.S
 tooltip.cells.wip_do_not_use=§c⚠ Work in Progress - Do Not Use ⚠§r
+tooltip.cells.useatyourownrisk=§eMay not behave as expected. Use at your own risk.§r
 tooltip.cells.card.separator=, 
 tooltip.cells.card.compatible=Compatible with: %s
 tooltip.cells.type.compact=ME Compacting Cell
@@ -495,6 +496,10 @@ item.cells.push_card.name=Auto-Push Card
 tooltip.cells.pull_card.desc=§7Allows Import Interfaces to pull §b%s§7 items/mB/etc. from adjacent inventories every §2%s§r.
 tooltip.cells.push_card.desc=§7Allows Export Interfaces to push §b%s§7 items/mB/etc. to adjacent inventories every §2%s§r.
 tooltip.cells.push_pull_card.limit.desc=§7Keeps §b%s§7 items/mB/etc. of each type in the adjacent inventory (no more, no less).
+tooltip.cells.push_pull_card.interval_warning=Interval lower than 1s may cause performance issues.
 cells.push_pull_card.interval.title=Time Interval:
+cells.push_pull_card.interval.tooltip=How often the card performs a transfer operation.
 cells.push_pull_card.quantity.title=Transfer Quantity:
+cells.push_pull_card.quantity.tooltip=How many items/mB/etc. to transfer per operation.
 cells.push_pull_card.limit.title=To keep in adjacent inventory:
+cells.push_pull_card.limit.tooltip=How many items/mB/etc. of each type to maintain in the adjacent inventory (no more, no less).
