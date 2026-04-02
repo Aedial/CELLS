@@ -193,15 +193,11 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
     protected void readStorageFromNBT(NBTTagCompound data) {
         String storageKey = getStorageNBTKey();
 
-        Cells.LOGGER.info("Reading fluid interface storage from NBT");
-
         // Try current compound format first
         if (data.hasKey(storageKey, Constants.NBT.TAG_COMPOUND)) {
             super.readStorageFromNBT(data);
             return;
         }
-
-        Cells.LOGGER.info("Reading legacy fluid interface storage from NBT");
 
         String oldStorageKey = "fluidTanks";
 
@@ -209,7 +205,6 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
         // Format: fluidTanks: { "0": {FluidName, Amount}, "1": {FluidName, Amount}, ... }
         if (data.hasKey(oldStorageKey, Constants.NBT.TAG_COMPOUND)) {
             NBTTagCompound storageCompound = data.getCompoundTag(oldStorageKey);
-            Cells.LOGGER.info("Found legacy TAG_COMPOUND format for fluid interface storage");
 
             for (int i = 0; i < STORAGE_SLOTS; i++) {
                 FluidStack fs = null;
@@ -218,12 +213,10 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
                 String slotKey = String.valueOf(i);
                 if (storageCompound.hasKey(slotKey, Constants.NBT.TAG_COMPOUND)) {
                     NBTTagCompound slotTag = storageCompound.getCompoundTag(slotKey);
-                    Cells.LOGGER.info("Reading legacy slot: {}", slotTag.toString());
                     FluidStack fluid = readResourceFromNBT(slotTag);
                     if (fluid != null) {
                         fs = copyAsIdentity(fluid);
                         amount = slotTag.hasKey("Amount") ? slotTag.getInteger("Amount") : fluid.amount;
-                        Cells.LOGGER.info("Set slot {} to {} mB of {}", i, amount, fluid.getLocalizedName());
                     }
                 }
 

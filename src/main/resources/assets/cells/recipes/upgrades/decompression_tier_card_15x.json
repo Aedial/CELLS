@@ -1,27 +1,11 @@
 {
-    "type": "minecraft:crafting_shaped",
-    "pattern": [
-        "plp",
-        "scs",
-        "psp"
-    ],
-    "key": {
-        "p": {
-            "item": "minecraft:sticky_piston"
-        },
-        "l": {
-            "item": "cells:overclocked_processor",
-            "data": 2
-        },
-        "s": {
-            "item": "appliedenergistics2:material",
-            "data": 47
-        },
-        "c": {
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        {
             "item": "cells:decompression_tier_card",
             "data": 3
         }
-    },
+    ],
     "result": {
         "item": "cells:decompression_tier_card",
         "count": 1,

@@ -56,7 +56,14 @@ public class ItemEqualDistributionCard extends AbstractCustomUpgrade {
         if (tier == Integer.MAX_VALUE) {
             tooltip.add("§7" + I18n.format("tooltip.cells.equal_distribution_card.desc.infinite"));
         } else {
-            tooltip.add("§7" + I18n.format("tooltip.cells.equal_distribution_card.desc", tier));
+            String divider = String.format("%,.1f", (float) 100 / tier);
+            if (divider.endsWith(".0")) {
+                divider = divider.substring(0, divider.length() - 2) + "%";
+            } else {
+                divider = String.format("1/%d", tier);
+            }
+
+            tooltip.add("§7" + I18n.format("tooltip.cells.equal_distribution_card.desc", tier, divider));
         }
         addCompatibilityTooltip(tooltip, "hyperdensity");
     }

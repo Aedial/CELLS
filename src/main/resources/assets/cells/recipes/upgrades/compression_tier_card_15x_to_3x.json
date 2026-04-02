@@ -3,12 +3,12 @@
     "ingredients": [
         {
             "item": "cells:compression_tier_card",
-            "data": 0
+            "data": 4
         }
     ],
     "result": {
         "item": "cells:compression_tier_card",
         "count": 1,
-        "data": 1
+        "data": 0
     }
 }

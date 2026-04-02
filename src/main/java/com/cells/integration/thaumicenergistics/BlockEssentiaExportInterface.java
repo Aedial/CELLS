@@ -15,8 +15,8 @@ import com.cells.blocks.interfacebase.AbstractResourceInterfaceBlock;
  * A filtered interface that pulls essentia from the ME network based on filter configuration.
  * External machines can extract essentia via the Thaumcraft tube network.
  * <p>
- * Implements {@link thaumcraft.api.aspects.IEssentiaTransport} with HIGH suction,
- * acting as an essentia SINK for the tube network.
+ * Implements {@link thaumcraft.api.aspects.IEssentiaTransport} with LOW suction,
+ * acting as an essentia SOURCE for the tube network (tubes pull essentia from us).
  */
 public class BlockEssentiaExportInterface extends AbstractResourceInterfaceBlock<TileEssentiaExportInterface> {
 

@@ -79,12 +79,20 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
 
         AEApi.instance().client().addCellInformation(cellHandler, tooltip);
 
-        CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
-
-        // Add NBT size information (if enabled in config)
-        if (CellsConfig.enableNbtSizeTooltip && cellHandler != null) {
+        // Get capacity and types from the cell inventory for upgrade tooltips
+        if (cellHandler != null) {
             ICellInventory<IAEItemStack> cellInv = cellHandler.getCellInv();
-            if (cellInv instanceof INBTSizeProvider) {
+
+            if (cellInv instanceof HyperDensityCellInventory) {
+                long bytes = cellInv.getTotalBytes() * BYTE_MULTIPLIER;
+                long capacity = CellMathHelper.multiplyWithOverflowProtection(bytes, 8);
+                int maxTypes = CellsConfig.hdItemMaxTypes;
+
+                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip, capacity, maxTypes);
+            }
+
+            // Add NBT size information (if enabled in config)
+            if (CellsConfig.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
                 int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
                 long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
                 String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);

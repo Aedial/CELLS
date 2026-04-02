@@ -10,6 +10,7 @@ import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
@@ -23,6 +24,7 @@ import appeng.api.storage.data.IAEItemStack;
 import com.cells.cells.common.AbstractTieredCellItem;
 import com.cells.config.CellsConfig;
 import com.cells.util.CellDisassemblyHelper;
+import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
 
@@ -64,6 +66,11 @@ public abstract class ItemCompactingCellBase extends AbstractTieredCellItem impl
 
         AEApi.instance().client().addCellInformation(cellHandler, tooltip);
 
+        // Add JEI cell view hint if JEI is loaded and cell view is enabled
+        if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) {
+            addJeiCellViewHint(tooltip);
+        }
+
         // Try to get the internal CompactingCellInventory for compression info
         if (cellHandler != null) {
             ICellInventory<?> cellInv = cellHandler.getCellInv();
@@ -71,8 +78,12 @@ public abstract class ItemCompactingCellBase extends AbstractTieredCellItem impl
             if (cellInv instanceof CompactingCellInventory) {
                 addCompactingCellInfo((CompactingCellInventory) cellInv, tooltip);
 
+                long bytes = ((CompactingCellInventory) cellInv).getTotalBytes();
+                long capacity = CellMathHelper.multiplyWithOverflowProtection(bytes, 8);
+                int maxTypes = 1;
+
                 tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
-                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
+                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip, capacity, maxTypes);
                 return;
             }
         }

@@ -72,7 +72,9 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     /**
      * Default suction for import interface (sink - high suction, wants essentia).
      * The import interface is a SINK that accepts essentia FROM the tube network
-     * TO store in the ME network. High suction means tubes will push essentia to us.
+     * TO store in the ME network. This does not mean, however, that tubes will
+     * push essentia to us. The tubes network is pull-based, so we'd need to
+     * actively pull the essentia.
      */
     public static final int IMPORT_SUCTION = 128;
 
@@ -328,26 +330,21 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     }
 
     /**
-     * Get the suction type (aspect) for a specific slot or null for any.
-     * Returns the first filter aspect if any filters are set.
+     * Get the suction type (aspect) for IEssentiaTransport.
      * <p>
-     * Note: The tube network is designed to handle ONE aspect type per connection.
-     * Machines like Thaumatorium cycle through their needed aspects one at a time.
-     * For multiple aspects, use multiple import interfaces with different filters,
-     * or rely on the fact that addEssentia() accepts any filtered aspect.
+     * We return null (accept any aspect) to maximize compatibility with tube routing.
+     * Thaumcraft tubes seem to prefer routing to sinks that accept any type.
+     * The actual filtering happens in addToContainer() -> receiveFiltered() where
+     * we only accept essentia matching our filters.
+     * <p>
+     * This behavior matches how Thaumcraft jars work - they return null for suction
+     * type but only store one aspect type per jar.
+     * <p>
+     * For export interfaces (sources), we return null to indicate we can provide any
+     * type we have stored. The actual aspect is reported via getEssentiaType().
      */
     @Nullable
     public Aspect getSuctionType() {
-        // For import interfaces (sinks), advertise what we want to accept
-        if (!this.host.isExport()) {
-            for (int i = 0; i < FILTER_SLOTS; i++) {
-                EssentiaStack filter = this.filters[i];
-                if (filter != null && filter.getAspect() != null) {
-                    return filter.getAspect();
-                }
-            }
-        }
-        // For export interfaces (sources), return null = any type we have
         return null;
     }
 

@@ -169,7 +169,7 @@ tooltip.cells.overflow_card.desc=Voids overflow items when cell is full
 
 # Ore Dictionary Card
 item.cells.oredict_card.name=Ore Dictionary Card
-tooltip.cells.oredict_card.desc=Allows ore dictionary equivalent items to be inserted
+tooltip.cells.oredict_card.desc=Allows ore dictionary equivalent items to be inserted (e.g., coppers from different mods)
 
 # Trash Unselected Card
 item.cells.trash_unselected_card.name=Trash Unselected Card
@@ -185,7 +185,7 @@ item.cells.equal_distribution_card.16x.name=Equal Distribution Card (16x)
 item.cells.equal_distribution_card.32x.name=Equal Distribution Card (32x)
 item.cells.equal_distribution_card.63x.name=Equal Distribution Card (63x)
 item.cells.equal_distribution_card.infinite.name=Equal Distribution Card (unbounded)
-tooltip.cells.equal_distribution_card.desc=Limits cell to %d types, dividing capacity equally
+tooltip.cells.equal_distribution_card.desc=Limits cell to %d types, dividing capacity equally (each type is limited to %d of the cell). Reserves half of the cell's capacity for types overhead.
 tooltip.cells.equal_distribution_card.desc.infinite=Divides capacity equally among all types. Use it if you increased the 'max types' in config.
 
 # Compression Tier Card
@@ -194,7 +194,7 @@ item.cells.compression_tier_card.6x.name=Compression Tier Card (6x)
 item.cells.compression_tier_card.9x.name=Compression Tier Card (9x)
 item.cells.compression_tier_card.12x.name=Compression Tier Card (12x)
 item.cells.compression_tier_card.15x.name=Compression Tier Card (15x)
-tooltip.cells.compression_tier_card.desc=Enables up to %d compression tiers. Reinsert the cell after installing to apply the new compression tiers.
+tooltip.cells.compression_tier_card.desc=Enables up to %d compression tiers. For best performance, use the lowest tier you can.
 
 # Decompression Tier Card
 item.cells.decompression_tier_card.3x.name=Decompression Tier Card (3x)
@@ -202,7 +202,7 @@ item.cells.decompression_tier_card.6x.name=Decompression Tier Card (6x)
 item.cells.decompression_tier_card.9x.name=Decompression Tier Card (9x)
 item.cells.decompression_tier_card.12x.name=Decompression Tier Card (12x)
 item.cells.decompression_tier_card.15x.name=Decompression Tier Card (15x)
-tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers. Reinsert the cell after installing to apply the new decompression tiers.
+tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers. For best performance, use the lowest tier you can.
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k Hyper-Density ME Storage Cell
@@ -284,7 +284,7 @@ item.cells.hyper_density_fluid_component.1g.name=1G Hyper-Density ME Fluid Stora
 
 # Compacting Cell Tooltips
 tooltip.cells.compacting_cell.not_partitioned=Partition required to use
-tooltip.cells.compacting_cell.stores_one_type=Stores one item type with compression
+tooltip.cells.compacting_cell.stores_one_type=Stores 1 item type with compression
 tooltip.cells.compacting_cell.insert_to_set_compression=Insert the partitioned item to set compression chain
 tooltip.cells.compacting_cell.converts_up=Compresses to: %s
 tooltip.cells.compacting_cell.converts_down=Decompresses to: %s
@@ -301,6 +301,7 @@ tooltip.cells.hyper_density_fluid_component.info=Hyper-Density fluid storage com
 tooltip.cells.upgrade.overflow_active=Voids overflow
 tooltip.cells.upgrade.equal_distribution_active=Split in %d types
 tooltip.cells.upgrade.equal_distribution_active.infinite=Equal distribution active
+tooltip.cells.upgrade.per_type=Per-type capacity: %s
 tooltip.cells.upgrade.compression_tier_active=Compression tiers: %d
 tooltip.cells.upgrade.decompression_tier_active=Decompression tiers: %d
 tooltip.cells.upgrade.oredict_active=Oredict conversion active
@@ -399,20 +400,20 @@ cells.export_interface.essentia.title=Essentia Export Interface
 
 # Info tooltips for block items
 ## Item interfaces (hardcoded in BlockImportInterface/BlockExportInterface)
-tooltip.cells.import_interface.info=Import items into the ME network through filtered slots. Does not support stocking or crafting.
-tooltip.cells.export_interface.info=Export items from the ME network through filtered slots. Items can be extracted by pipes and hoppers.
+tooltip.cells.import_interface.info=Import items into the ME network through filtered slots. Does not support stocking or crafting. Automatic extraction is available through Pull Card.
+tooltip.cells.export_interface.info=Exposes items from the ME network through filtered slots. Automatic insertion is available through Push Card.
 
 ## Fluid/Gas/Essentia interfaces (from AbstractResourceInterfaceBlock using translationKey.info pattern)
-tooltip.cells.import_interface.fluid.info=Import fluids into the ME network through filtered slots.
-tooltip.cells.export_interface.fluid.info=Export fluids from the ME network through filtered slots. Fluids can be extracted by pipes.
-tooltip.cells.import_interface.gas.info=Import gas into the ME network.
-tooltip.cells.export_interface.gas.info=Export gas from the ME network through filtered slots. Gas can be extracted by pipes.
-tooltip.cells.import_interface.essentia.info=Import essentia into the ME network.
-tooltip.cells.export_interface.essentia.info=Export essentia from the ME network through filtered slots. Essentia can be extracted by tubes.
-tooltip.cells.export_interface.essentia.part.info=Export essentia from the ME network through filtered slots.
+tooltip.cells.import_interface.fluid.info=Import fluids into the ME network through filtered slots. Automatic extraction is available through Pull Card.
+tooltip.cells.export_interface.fluid.info=Exposes fluids from the ME network through filtered slots. Automatic insertion is available through Push Card.
+tooltip.cells.import_interface.gas.info=Import gas into the ME network through filtered slots. Automatic extraction is available through Pull Card.
+tooltip.cells.export_interface.gas.info=Exposes gas from the ME network through filtered slots. Automatic insertion is available through Push Card.
+tooltip.cells.import_interface.essentia.info=Import essentia into the ME network through filtered slots. Any extraction should be done via Pull Card (incompatible with tubes).
+tooltip.cells.export_interface.essentia.info=Exposes essentia from the ME network through filtered slots. Compatible with tubes, Infusion, Thaumatorium, Essentia Hatch, etc.
+tooltip.cells.export_interface.essentia.part.info=Exposes essentia from the ME network through filtered slots.
 
 # Essentia part warning (parts cannot participate in tube network)
-tooltip.cells.essentia_part.no_tubes=§eCannot interact with Thaumcraft tubes/Storage Bus
+tooltip.cells.essentia_part.no_tubes=§eThis part can only be used with Push/Pull card. Use the full block for more interactions.
 
 # Configurable Cell warnings
 cells.configurable_cell.split_stack=Split the cell stack first, before inserting a component.
@@ -497,6 +498,7 @@ tooltip.cells.pull_card.desc=§7Allows Import Interfaces to pull §b%s§7 items/
 tooltip.cells.push_card.desc=§7Allows Export Interfaces to push §b%s§7 items/mB/etc. to adjacent inventories every §2%s§r.
 tooltip.cells.push_pull_card.limit.desc=§7Keeps §b%s§7 items/mB/etc. of each type in the adjacent inventory (no more, no less).
 tooltip.cells.push_pull_card.interval_warning=Interval lower than 1s may cause performance issues.
+tooltip.cells.push_pull_card.polling_rate_warning=Set the interface's polling rate as a multiple of interval for best results. Unaligned timings may cause delays in either.
 cells.push_pull_card.interval.title=Time Interval:
 cells.push_pull_card.interval.tooltip=How often the card performs a transfer operation.
 cells.push_pull_card.quantity.title=Transfer Quantity:

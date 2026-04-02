@@ -51,6 +51,7 @@ import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.mixin.MixinState;
 import com.cells.util.CellDisassemblyHelper;
+import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
 import com.cells.util.NBTSizeHelper;
@@ -204,7 +205,10 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         tooltip.add("§b" + I18n.format("tooltip.cells.configurable_cell.capacity_per_type", capacityStr, unitStr));
 
         // Show upgrade information
-        CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
+        // Calculate total capacity in items (bytes * 8 items per byte)
+        int perByte = 8 * info.getChannelType().getCountPerBit();
+        long totalCapacity = CellMathHelper.multiplyWithOverflowProtection(info.getBytes(), perByte);
+        CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip, totalCapacity, maxTypes);
 
         // Add JEI cell view hint if JEI is loaded and cell view is enabled
         if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) {

@@ -10,6 +10,7 @@ import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
@@ -76,16 +77,26 @@ public abstract class ItemHyperDensityCompactingCellBase extends AbstractTieredC
 
         AEApi.instance().client().addCellInformation(cellHandler, tooltip);
 
+        // Add JEI cell view hint if JEI is loaded and cell view is enabled
+        if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) {
+            addJeiCellViewHint(tooltip);
+        }
+
         // Get compacting cell info if available
         if (cellHandler != null) {
             ICellInventory<?> cellInv = cellHandler.getCellInv();
 
             if (cellInv instanceof HyperDensityCompactingCellInventory) {
-                addHDCompactingCellInfo((HyperDensityCompactingCellInventory) cellInv, tooltip);
+                HyperDensityCompactingCellInventory hdCompInv = (HyperDensityCompactingCellInventory) cellInv;
+                addHDCompactingCellInfo(hdCompInv, tooltip);
+
+                long bytes = hdCompInv.getTotalBytes() * BYTE_MULTIPLIER;
+                long capacity = CellMathHelper.multiplyWithOverflowProtection(bytes, 8);
+                int maxTypes = 1;
+
+                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip, capacity, maxTypes);
             }
         }
-
-        CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
 
         // Add hyper-density and compacting explanations
         tooltip.add("");

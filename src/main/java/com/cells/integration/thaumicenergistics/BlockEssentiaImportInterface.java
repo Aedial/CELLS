@@ -15,9 +15,6 @@ import com.cells.blocks.interfacebase.AbstractResourceInterfaceBlock;
  * A filtered interface that only accepts essentia matching its filter configuration.
  * Essentia is pushed into the interface by the Thaumcraft tube network and automatically
  * imported into the ME network.
- * <p>
- * Implements {@link thaumcraft.api.aspects.IEssentiaTransport} with LOW suction,
- * acting as an essentia SOURCE for the tube network.
  */
 public class BlockEssentiaImportInterface extends AbstractResourceInterfaceBlock<TileEssentiaImportInterface> {
 

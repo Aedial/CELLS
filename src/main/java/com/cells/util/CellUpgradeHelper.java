@@ -159,7 +159,7 @@ public final class CellUpgradeHelper {
      * @param tooltip  The tooltip list to add to
      */
     @SideOnly(Side.CLIENT)
-    public static void addUpgradeTooltips(IItemHandler upgrades, List<String> tooltip) {
+    public static void addUpgradeTooltips(IItemHandler upgrades, List<String> tooltip, long capacity, int maxTypes) {
         if (upgrades == null) return;
 
         for (int i = 0; i < upgrades.getSlots(); i++) {
@@ -178,6 +178,10 @@ public final class CellUpgradeHelper {
                 } else {
                     tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.equal_distribution_active", limit));
                 }
+
+                if (limit == Integer.MAX_VALUE) limit = maxTypes;
+                String per_type = String.format("%,d", capacity / limit / 2);
+                tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.per_type", per_type));
             }
 
             if (stack.getItem() == ItemRegistry.COMPRESSION_TIER_CARD) {

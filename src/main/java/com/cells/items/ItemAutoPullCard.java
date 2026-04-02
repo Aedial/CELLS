@@ -144,6 +144,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
             tooltip.add(I18n.format("tooltip.cells.push_pull_card.limit.desc", keepStr));
         }
 
+        tooltip.add("§e" + I18n.format("tooltip.cells.push_pull_card.polling_rate_warning"));
         tooltip.add("§b" + I18n.format("tooltip.cells.click_to_configure"));
 
         if (interval < DEFAULT_INTERVAL) {
