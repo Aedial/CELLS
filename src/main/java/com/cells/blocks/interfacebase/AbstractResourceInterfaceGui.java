@@ -24,6 +24,7 @@ import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiCustomSlot;
 import appeng.container.AEBaseContainer;
 import appeng.container.interfaces.IJEIGhostIngredients;
+import appeng.tile.inventory.AppEngInternalInventory;
 
 import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
@@ -32,9 +33,12 @@ import com.cells.client.KeyBindings;
 import com.cells.gui.DynamicTooltipTabButton;
 import com.cells.gui.GuiClearFiltersButton;
 import com.cells.gui.GuiPageNavigation;
+import com.cells.gui.GuiPullPushUpgradeButton;
 import com.cells.gui.ImportInterfaceControlsHelper;
 import com.cells.gui.slots.AbstractResourceFilterSlot;
 import com.cells.gui.slots.AbstractResourceTankSlot;
+import com.cells.items.ItemAutoPullCard;
+import com.cells.items.ItemAutoPushCard;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketChangePage;
 import com.cells.network.packets.PacketClearFilters;
@@ -88,6 +92,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     private DynamicTooltipTabButton pollingRateButton;
     private GuiClearFiltersButton clearFiltersButton;
     private GuiPageNavigation pageNavigation;
+    private GuiPullPushUpgradeButton pullPushButton;
 
     // JEI ghost target mapping
     protected final Map<Object, Object> mapTargetSlot = new HashMap<>();
@@ -211,6 +216,13 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        // Update pull/push button state (enabled/disabled, card icon)
+        if (this.pullPushButton != null) {
+            ItemStack card = findPullPushCard();
+            this.pullPushButton.setCardStack(card);
+            this.pullPushButton.enabled = !card.isEmpty();
+        }
+
         super.drawScreen(mouseX, mouseY, partialTicks);
 
         // Re-render the held item AFTER custom slots.
@@ -300,6 +312,30 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             }
         );
         this.buttonList.add(this.pageNavigation);
+
+        // Pull/Push upgrade button (below upgrade slots)
+        // When a Pull/Push card is installed in the upgrades, clicking this button
+        // opens the card's configuration GUI directly from the interface.
+        this.pullPushButton = new GuiPullPushUpgradeButton(
+            4,
+            this.guiLeft + 184,
+            this.guiTop + 104,
+            () -> {
+                ItemStack card = this.findPullPushCard();
+                if (card.isEmpty()) {
+                    String cardName = this.host.isExport()
+                        ? I18n.format("item.cells.push_card.name")
+                        : I18n.format("item.cells.pull_card.name");
+                    return I18n.format("cells.pull_push_button.disabled", cardName);
+                }
+
+                String title = I18n.format("cells.pull_push_button.enabled.title");
+                String desc = "§7" + I18n.format("cells.pull_push_button.enabled.desc");
+                return title + "\n\n" + desc;
+            },
+            this.itemRender
+        );
+        this.buttonList.add(this.pullPushButton);
     }
 
     @Override
@@ -401,6 +437,21 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         if (btn == this.clearFiltersButton) {
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketClearFilters());
         }
+
+        if (btn == this.pullPushButton && this.pullPushButton.enabled) {
+            BlockPos pullPushPos = this.host.getHostPos();
+            int guiId = this.host.isPart()
+                ? com.cells.gui.CellsGuiHandler.GUI_PART_PULL_PUSH_CARD_INTERFACE
+                : com.cells.gui.CellsGuiHandler.GUI_PULL_PUSH_CARD_INTERFACE;
+
+            if (this.host.isPart()) {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pullPushPos, guiId, this.host.getPartSide()));
+            } else {
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                    pullPushPos.getX(), pullPushPos.getY(), pullPushPos.getZ(), guiId));
+            }
+        }
     }
 
     /**
@@ -477,5 +528,31 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         }
 
         super.keyTyped(typedChar, keyCode);
+    }
+
+    // ============================== Pull/Push card helpers ==============================
+
+    /**
+     * Scans the host's upgrade inventory for an installed Pull/Push card.
+     *
+     * @return The card ItemStack, or {@link ItemStack#EMPTY} if none is installed.
+     */
+    @SuppressWarnings("rawtypes")
+    private ItemStack findPullPushCard() {
+        if (!(this.host instanceof IFilterableInterfaceHost)) return ItemStack.EMPTY;
+
+        AppEngInternalInventory upgradeInv =
+            ((IFilterableInterfaceHost) this.host).getUpgradeInventory();
+
+        for (int i = 0; i < upgradeInv.getSlots(); i++) {
+            ItemStack stack = upgradeInv.getStackInSlot(i);
+
+            if (stack.getItem() instanceof ItemAutoPullCard
+                || stack.getItem() instanceof ItemAutoPushCard) {
+                return stack;
+            }
+        }
+
+        return ItemStack.EMPTY;
     }
 }

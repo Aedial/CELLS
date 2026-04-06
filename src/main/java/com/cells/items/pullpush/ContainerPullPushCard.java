@@ -3,16 +3,20 @@ package com.cells.items.pullpush;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumHand;
 
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import appeng.api.parts.IPart;
 import appeng.container.AEBaseContainer;
 import appeng.container.guisync.GuiSync;
 import appeng.util.Platform;
+import appeng.tile.inventory.AppEngInternalInventory;
 
 import com.cells.ItemRegistry;
+import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
 import com.cells.items.ItemAutoPullCard;
 import com.cells.items.ItemAutoPushCard;
 
@@ -35,7 +39,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
     /** Minimum quantity to keep in the adjacent inventory */
     public static final int MINIMUM_KEEP_QUANTITY = 0;
 
-    /** The hand holding the card */
+    /** The hand holding the card (null in interface mode) */
     private final EnumHand hand;
 
     /** The card ItemStack - cached reference */
@@ -43,6 +47,15 @@ public class ContainerPullPushCard extends AEBaseContainer {
 
     /** Whether this is a pull card (true) or push card (false) */
     private final boolean isPullCard;
+
+    /**
+     * Reference to the interface host when the card is being edited from within
+     * an interface GUI. Null when the card is hand-held. Used to call
+     * {@link IFilterableInterfaceHost#refreshUpgrades()} after changes so the
+     * interface picks up the new settings without re-inserting the card.
+     */
+    @SuppressWarnings("rawtypes")
+    private final IFilterableInterfaceHost interfaceHost;
 
     @SideOnly(Side.CLIENT)
     private IValuesListener listener;
@@ -59,14 +72,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
     @GuiSync(2)
     public long keepsQuantity;
 
-    public ContainerPullPushCard(InventoryPlayer playerInv, EnumHand hand) {
-        super(playerInv, null, null);
-        this.hand = hand;
-        this.cardStack = playerInv.player.getHeldItem(hand);
-
-        // Determine card type
-        this.isPullCard = cardStack.getItem() == ItemRegistry.PULL_CARD;
-
+    private void initVars() {
         // Load initial interval from NBT
         if (this.isPullCard) {
             this.interval = ItemAutoPullCard.getInterval(cardStack);
@@ -77,6 +83,54 @@ public class ContainerPullPushCard extends AEBaseContainer {
             this.quantity = ItemAutoPushCard.getQuantity(cardStack);
             this.keepsQuantity = ItemAutoPushCard.getKeepQuantity(cardStack);
         }
+    }
+
+    /**
+     * Hand-held mode: the player is holding the card and right-clicked to open the GUI.
+     */
+    public ContainerPullPushCard(InventoryPlayer playerInv, EnumHand hand) {
+        super(playerInv, null, null);
+        this.hand = hand;
+        this.interfaceHost = null;
+        this.cardStack = playerInv.player.getHeldItem(hand);
+
+        // Determine card type
+        this.isPullCard = this.cardStack.getItem() == ItemRegistry.PULL_CARD;
+
+        this.initVars();
+    }
+
+    /**
+     * Interface mode: the card is in the interface's upgrade inventory and is
+     * being edited from the interface GUI. Changes will trigger
+     * {@link IFilterableInterfaceHost#refreshUpgrades()} so the interface
+     * immediately picks up the new settings.
+     */
+    @SuppressWarnings("rawtypes")
+    public ContainerPullPushCard(InventoryPlayer playerInv, IFilterableInterfaceHost host) {
+        super(playerInv,
+            host instanceof TileEntity ? (TileEntity) host : null,
+            host instanceof IPart ? (IPart) host : null);
+
+        this.hand = null;
+        this.interfaceHost = host;
+
+        // Find the pull/push card in the upgrade inventory
+        AppEngInternalInventory upgradeInv = host.getUpgradeInventory();
+        ItemStack found = ItemStack.EMPTY;
+
+        for (int i = 0; i < upgradeInv.getSlots(); i++) {
+            ItemStack stack = upgradeInv.getStackInSlot(i);
+            if (stack.getItem() instanceof ItemAutoPullCard || stack.getItem() instanceof ItemAutoPushCard) {
+                found = stack;
+                break;
+            }
+        }
+
+        this.cardStack = found;
+        this.isPullCard = found.getItem() instanceof ItemAutoPullCard;
+
+        this.initVars();
     }
 
     @SideOnly(Side.CLIENT)
@@ -103,6 +157,10 @@ public class ContainerPullPushCard extends AEBaseContainer {
         }
 
         this.interval = clamped;
+
+        // In interface mode, refresh upgrades so the interface picks up the
+        // new interval without needing to remove and re-insert the card.
+        if (this.interfaceHost != null) this.interfaceHost.refreshUpgrades();
     }
 
     /**
@@ -121,6 +179,8 @@ public class ContainerPullPushCard extends AEBaseContainer {
         }
 
         this.quantity = clamped;
+
+        if (this.interfaceHost != null) this.interfaceHost.refreshUpgrades();
     }
 
     /**
@@ -139,24 +199,16 @@ public class ContainerPullPushCard extends AEBaseContainer {
         }
 
         this.keepsQuantity = clamped;
+
+        if (this.interfaceHost != null) this.interfaceHost.refreshUpgrades();
     }
 
     @Override
     public void detectAndSendChanges() {
         super.detectAndSendChanges();
 
-        if (Platform.isServer()) {
-            // Read current interval from NBT
-            if (this.isPullCard) {
-                this.interval = ItemAutoPullCard.getInterval(cardStack);
-                this.quantity = ItemAutoPullCard.getQuantity(cardStack);
-                this.keepsQuantity = ItemAutoPullCard.getKeepQuantity(cardStack);
-            } else {
-                this.interval = ItemAutoPushCard.getInterval(cardStack);
-                this.quantity = ItemAutoPushCard.getQuantity(cardStack);
-                this.keepsQuantity = ItemAutoPushCard.getKeepQuantity(cardStack);
-            }
-        }
+        // Read current interval from NBT
+        if (Platform.isServer()) this.initVars();
     }
 
     @Override
@@ -174,11 +226,30 @@ public class ContainerPullPushCard extends AEBaseContainer {
 
     @Override
     public boolean canInteractWith(EntityPlayer playerIn) {
-        // The player must still be holding the card
+        // Interface mode: delegate to AEBaseContainer's distance check
+        if (this.hand == null) return super.canInteractWith(playerIn);
+
+        // Hand mode: the player must still be holding the card
         ItemStack held = playerIn.getHeldItem(this.hand);
         if (held.isEmpty()) return false;
 
         return held.getItem() == ItemRegistry.PULL_CARD || held.getItem() == ItemRegistry.PUSH_CARD;
+    }
+
+    /**
+     * @return true if this container is in interface mode (card is in an upgrade slot),
+     *         false if the card is hand-held.
+     */
+    public boolean isInterfaceMode() {
+        return this.interfaceHost != null;
+    }
+
+    /**
+     * @return The interface host when in interface mode, or null in hand mode.
+     */
+    @SuppressWarnings("rawtypes")
+    public IFilterableInterfaceHost getInterfaceHost() {
+        return this.interfaceHost;
     }
 
     public boolean isPullCard() {

@@ -261,9 +261,6 @@ public final class CellTextureColors {
         if (tier < 0 || tier >= TIER_COUNT) tier = 0;
 
         switch (tintIndex) {
-            case LAYER_FRAME:
-                return NO_TINT;
-
             case LAYER_OUTER_HIGHLIGHTS:
                 return OUTER_HIGHLIGHT_COLORS[tier];
 
@@ -276,6 +273,7 @@ public final class CellTextureColors {
             case LAYER_OUTER_SHAPE:
                 return cellType.getOuterColor(tier);
 
+            case LAYER_FRAME:
             default:
                 return NO_TINT;
         }

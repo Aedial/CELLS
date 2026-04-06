@@ -232,4 +232,5 @@ Show the available slots from the block the player is looking at.
 
 ## Credits
 - Chinese translation: @ZHAY10086
+- Russian translation: @MrKoteo
 - Hyper-Density Item/Fluid Cells'/Cell Components' textures: ArchEzekiel

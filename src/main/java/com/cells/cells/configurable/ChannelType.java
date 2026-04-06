@@ -101,10 +101,10 @@ public enum ChannelType {
      */
     public String getNbtTagKey() {
         switch (this) {
-            case ITEM:     return "itemType";
             case FLUID:    return "fluidType";
             case ESSENTIA: return "essentiaType";
             case GAS:      return "gasType";
+            case ITEM:
             default:       return "itemType";
         }
     }

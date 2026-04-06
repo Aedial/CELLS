@@ -75,10 +75,10 @@ public class CellItemColors implements IItemColor {
 
             ChannelType channel = info.getChannelType();
             switch (channel) {
-                case ITEM:     return CellType.CONFIGURABLE_ITEM;
                 case FLUID:    return CellType.CONFIGURABLE_FLUID;
                 case GAS:      return CellType.CONFIGURABLE_GAS;
                 case ESSENTIA: return CellType.CONFIGURABLE_ESSENTIA;
+                case ITEM:
                 default:       return CellType.CONFIGURABLE_ITEM;
             }
         }

@@ -509,6 +509,11 @@ cells.push_pull_card.quantity.tooltip=How many items/mB/etc. to transfer per ope
 cells.push_pull_card.limit.title=To keep in adjacent inventory:
 cells.push_pull_card.limit.tooltip=How many items/mB/etc. of each type to maintain in the adjacent inventory (no more, no less).
 
+# Pull/Push Upgrade Button (interface GUI)
+cells.pull_push_button.disabled=Insert %s to interact
+cells.pull_push_button.enabled.title=Configure Pull/Push Card
+cells.pull_push_button.enabled.desc=Click to open the card's configuration GUI.
+
 # /inspectSlot Command
 commands.cells.inspect_slots.usage=/inspectSlots [--handler] [resource1] [resource2] ...
 commands.cells.inspect_slots.not_player=This command must be run by a player.

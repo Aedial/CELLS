@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.12-beta2] - 2026-04-04
+### Added
+- Add in-interface GUI for Pull/Push Cards. This way, you can configure the card without removing it and inserting it back.
+
+
 ## [0.5.12-beta] - 2026-04-03
 ### Fixed
 - Fix Fluid (Hyper-Density/Configurable), Gas (Configurable), and Essentia (Configurable) partitions using Item config, which allowed items to be encoded even if they were not valid for this specific cell type. Items are now correctly validated at encoding time. Re-encoding should not be required for cells that already have a valid partition, but it's always good to do it in order to remove invalid items.

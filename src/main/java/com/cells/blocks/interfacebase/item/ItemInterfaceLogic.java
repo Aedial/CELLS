@@ -40,6 +40,7 @@ import appeng.util.item.AEItemStack;
 import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
 
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
+import com.cells.blocks.interfacebase.managers.InterfaceAdjacentHandler;
 import com.cells.items.ItemRecoveryContainer;
 import com.cells.util.ItemStackKey;
 

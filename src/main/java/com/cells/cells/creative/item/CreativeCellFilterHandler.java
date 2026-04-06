@@ -71,8 +71,6 @@ public class CreativeCellFilterHandler
 
     @Override
     public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
-        if (stack == null) stack = ItemStack.EMPTY;
-
         // Reject invalid stacks (e.g., storage cells)
         if (!stack.isEmpty() && !isItemValid(slot, stack)) return;
 

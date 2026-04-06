@@ -15,6 +15,7 @@ import com.cells.blocks.interfacebase.item.ContainerItemInterface;
 import com.cells.blocks.interfacebase.fluid.GuiFluidInterface;
 import com.cells.blocks.interfacebase.item.GuiItemInterface;
 import com.cells.blocks.interfacebase.fluid.IFluidInterfaceHost;
+import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
 import com.cells.blocks.interfacebase.IInterfaceHost;
 import com.cells.blocks.interfacebase.item.IItemInterfaceHost;
 import com.cells.blocks.interfacebase.ContainerMaxSlotSize;
@@ -57,6 +58,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_CREATIVE_GAS_CELL = 9;
     public static final int GUI_CREATIVE_ESSENTIA_CELL = 10;
     public static final int GUI_PULL_PUSH_CARD = 11;
+    public static final int GUI_PULL_PUSH_CARD_INTERFACE = 12;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
@@ -65,6 +67,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_PART_POLLING_RATE = 103;
     public static final int GUI_PART_EXPORT_INTERFACE = 104;
     public static final int GUI_PART_FLUID_EXPORT_INTERFACE = 105;
+    public static final int GUI_PART_PULL_PUSH_CARD_INTERFACE = 106;
 
     // Lazily initialized gas GUI handler (null if MekanismEnergistics not loaded)
     private GasInterfaceGuiHandler gasGuiHandler;
@@ -217,6 +220,13 @@ public class CellsGuiHandler implements IGuiHandler {
                         return new ContainerFluidInterface(player.inventory, part);
                     }
                     break;
+
+                case GUI_PART_PULL_PUSH_CARD_INTERFACE:
+                    if (part instanceof IFilterableInterfaceHost) {
+                        //noinspection rawtypes
+                        return new ContainerPullPushCard(player.inventory, (IFilterableInterfaceHost) part);
+                    }
+                    break;
             }
 
             return null;
@@ -267,6 +277,13 @@ public class CellsGuiHandler implements IGuiHandler {
 
             case GUI_PULL_PUSH_CARD:
                 return new ContainerPullPushCard(player.inventory, EnumHand.values()[x]);
+
+            case GUI_PULL_PUSH_CARD_INTERFACE:
+                if (tile instanceof IFilterableInterfaceHost) {
+                    //noinspection rawtypes
+                    return new ContainerPullPushCard(player.inventory, (IFilterableInterfaceHost) tile);
+                }
+                break;
 
             case GUI_EXPORT_INTERFACE:
                 if (tile instanceof IItemInterfaceHost) {
@@ -360,6 +377,13 @@ public class CellsGuiHandler implements IGuiHandler {
                         return new GuiFluidInterface(player.inventory, part);
                     }
                     break;
+
+                case GUI_PART_PULL_PUSH_CARD_INTERFACE:
+                    if (part instanceof IFilterableInterfaceHost) {
+                        //noinspection rawtypes
+                        return new GuiPullPushCard(player.inventory, (IFilterableInterfaceHost) part);
+                    }
+                    break;
             }
 
             return null;
@@ -410,6 +434,13 @@ public class CellsGuiHandler implements IGuiHandler {
 
             case GUI_PULL_PUSH_CARD:
                 return new GuiPullPushCard(player.inventory, EnumHand.values()[x]);
+
+            case GUI_PULL_PUSH_CARD_INTERFACE:
+                if (tile instanceof IFilterableInterfaceHost) {
+                    //noinspection rawtypes
+                    return new GuiPullPushCard(player.inventory, (IFilterableInterfaceHost) tile);
+                }
+                break;
 
             case GUI_EXPORT_INTERFACE:
                 if (tile instanceof IItemInterfaceHost) {

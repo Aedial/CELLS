@@ -148,6 +148,8 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
         if (te == null) return;
 
         World w = te.getWorld();
+        // World may be null on tile load
+        //noinspection ConstantValue
         if (w == null || w.isRemote) return;
 
         // Debounce to once per tick

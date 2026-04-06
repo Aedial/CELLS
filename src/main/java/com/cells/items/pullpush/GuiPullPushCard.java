@@ -13,11 +13,16 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.math.BlockPos;
 
 import appeng.client.gui.AEBaseGui;
+import appeng.client.gui.widgets.GuiTabButton;
 
 import com.cells.Tags;
+import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
+import com.cells.blocks.interfacebase.IInterfaceHost;
 import com.cells.network.CellsNetworkHandler;
+import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketSetPullPushKeepQuantity;
 import com.cells.network.packets.PacketSetPullPushQuantity;
 import com.cells.network.packets.PacketSetPullPushRate;
@@ -55,6 +60,18 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
     private GuiTextField quantityField;
     private GuiTextField keepsField;
 
+    /**
+     * Back button shown when opened from the interface GUI, to return to the
+     * main interface GUI. Null when opened from the player's hand.
+     */
+    private GuiTabButton backButton;
+
+    /**
+     * The interface host when this GUI is opened from an interface.
+     * Null when the card is hand-held.
+     */
+    private final IInterfaceHost interfaceHost;
+
     final private boolean isImport;
 
     private int currentInterval = ContainerPullPushCard.DEFAULT_INTERVAL;
@@ -65,11 +82,28 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
     // decide whether to nudge the cursor past the comma after reformatting.
     private boolean commaSkipped;
 
+    /**
+     * Hand-held mode: opened by right-clicking the card in hand.
+     */
     public GuiPullPushCard(final InventoryPlayer inventoryPlayer, final EnumHand hand) {
         super(new ContainerPullPushCard(inventoryPlayer, hand));
         this.xSize = 176;
         this.ySize = 156;
         this.isImport = ((ContainerPullPushCard) this.inventorySlots).isPullCard();
+        this.interfaceHost = null;
+    }
+
+    /**
+     * Interface mode: opened from the interface GUI via the Pull/Push upgrade button.
+     * Includes a back button to return to the interface GUI.
+     */
+    @SuppressWarnings("rawtypes")
+    public GuiPullPushCard(final InventoryPlayer inventoryPlayer, final IFilterableInterfaceHost host) {
+        super(new ContainerPullPushCard(inventoryPlayer, host));
+        this.xSize = 176;
+        this.ySize = 156;
+        this.isImport = ((ContainerPullPushCard) this.inventorySlots).isPullCard();
+        this.interfaceHost = host;
     }
 
     @Override
@@ -116,6 +150,16 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
         this.keepsField.setVisible(true);
         this.keepsField.setFocused(false);
         this.keepsField.setText(String.format("%,d", this.currentKeepsQuantity));
+
+        // Back button to return to the interface GUI (only in interface mode)
+        if (this.interfaceHost != null) {
+            this.buttonList.add(this.backButton = new GuiTabButton(
+                this.guiLeft + 154, this.guiTop,
+                this.interfaceHost.getBackButtonStack(),
+                I18n.format(this.interfaceHost.getGuiTitleLangKey()),
+                this.itemRender
+            ));
+        }
     }
 
     @Override
@@ -182,6 +226,17 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
     @Override
     protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
         super.actionPerformed(btn);
+
+        // Handle back button (interface mode only)
+        if (btn == this.backButton && this.interfaceHost != null) {
+            BlockPos pos = this.interfaceHost.getHostPos();
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenGui(
+                pos,
+                this.interfaceHost.getMainGuiId(),
+                this.interfaceHost.getPartSide()
+            ));
+            return;
+        }
 
         int delta = getButtonDelta(btn);
         if (delta != 0) addInterval(delta);

@@ -62,8 +62,7 @@ public class TileExportInterface extends AbstractInterfaceTile<ItemInterfaceLogi
     @Override
     public boolean hasCapability(Capability<?> capability, @Nullable EnumFacing facing) {
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) return true;
-        if (Capabilities.ITEM_REPOSITORY_CAPABILITY != null
-                && capability == Capabilities.ITEM_REPOSITORY_CAPABILITY) return true;
+        if (capability == Capabilities.ITEM_REPOSITORY_CAPABILITY) return true;
         return super.hasCapability(capability, facing);
     }
 
@@ -73,8 +72,7 @@ public class TileExportInterface extends AbstractInterfaceTile<ItemInterfaceLogi
         if (capability == CapabilityItemHandler.ITEM_HANDLER_CAPABILITY) {
             return CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.cast(this.logic.getExternalHandler());
         }
-        if (Capabilities.ITEM_REPOSITORY_CAPABILITY != null
-                && capability == Capabilities.ITEM_REPOSITORY_CAPABILITY) {
+        if (capability == Capabilities.ITEM_REPOSITORY_CAPABILITY) {
             return Capabilities.ITEM_REPOSITORY_CAPABILITY.cast(this.logic.getItemRepository());
         }
         return super.getCapability(capability, facing);
