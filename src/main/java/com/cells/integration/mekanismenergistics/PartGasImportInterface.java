@@ -60,11 +60,6 @@ public class PartGasImportInterface extends AbstractInterfacePart<GasInterfaceLo
     }
 
     @Override
-    protected String getMemoryCardName() {
-        return "tile.cells.import_interface.gas";
-    }
-
-    @Override
     public boolean isExport() {
         return false;
     }
@@ -85,11 +80,6 @@ public class PartGasImportInterface extends AbstractInterfacePart<GasInterfaceLo
     @Override
     public void setGasInTank(int slot, @Nullable GasStack gas) {
         this.logic.setGasInTank(slot, gas);
-    }
-
-    @Override
-    public int insertGasIntoTank(int slot, GasStack gas) {
-        return this.logic.insertGasIntoTank(slot, gas);
     }
 
     @Override

@@ -74,7 +74,7 @@ public class AbstractCellInventoryHandler<T extends IAEStack<T>> extends MEInven
         for (int x = 0; x < config.getSlots(); x++) {
             ItemStack is = config.getStackInSlot(x);
             if (!is.isEmpty()) {
-                T configItem = channel.createStack(is);
+                T configItem = convertConfigItem(is, channel);
                 if (configItem != null) priorityList.add(configItem);
             }
         }
@@ -91,6 +91,21 @@ public class AbstractCellInventoryHandler<T extends IAEStack<T>> extends MEInven
                 this.setPartitionList(new PrecisePriorityList<>(priorityList));
             }
         }
+    }
+
+    /**
+     * Convert a config slot ItemStack to the channel's AE stack type.
+     * <p>
+     * By default, delegates to {@code channel.createStack(is)}. Override in subclasses
+     * where the channel's createStack doesn't handle ItemStack inputs (e.g., essentia
+     * channel only accepts Aspect/EssentiaStack objects, not ItemStacks).
+     *
+     * @param is The ItemStack from the config inventory slot
+     * @param channel The storage channel for this cell
+     * @return The converted AE stack, or null if conversion failed
+     */
+    protected T convertConfigItem(ItemStack is, IStorageChannel<T> channel) {
+        return channel.createStack(is);
     }
 
     @Override

@@ -54,10 +54,6 @@ public final class EssentiaStackKey {
         return new EssentiaStackKey(aspectTag);
     }
 
-    public String getAspectTag() {
-        return this.aspectTag;
-    }
-
     @Nullable
     public Aspect getAspect() {
         return Aspect.getAspect(this.aspectTag);

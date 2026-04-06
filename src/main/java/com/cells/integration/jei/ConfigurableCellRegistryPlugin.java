@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.item.ItemStack;
 
 import mezz.jei.api.recipe.IFocus;
@@ -15,8 +17,6 @@ import mezz.jei.api.recipe.VanillaRecipeCategoryUid;
 import com.cells.ItemRegistry;
 import com.cells.cells.configurable.ComponentHelper;
 import com.cells.cells.configurable.ComponentInfo;
-
-import javax.annotation.Nonnull;
 
 
 /**

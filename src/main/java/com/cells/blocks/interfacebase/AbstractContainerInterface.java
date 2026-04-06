@@ -93,10 +93,9 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         this.setupToolbox(anchor);
 
         // Add upgrade slots
-        for (int i = 0; i < AbstractResourceInterfaceLogic.UPGRADE_SLOTS; i++) {
-            this.addSlotToContainer(new SlotUpgrade<>(
-                this.host.getUpgradeInventory(), i, 186, 25 + i * 18, this.host
-            ));
+        AppEngInternalInventory upgradeInv = this.host.getUpgradeInventory();
+        for (int i = 0; i < upgradeInv.getSlots(); i++) {
+            this.addSlotToContainer(new SlotUpgrade(upgradeInv, i, 186, 25 + i * 18));
         }
 
         // Bind player inventory
@@ -281,16 +280,19 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
 
     @Override
     public void detectAndSendChanges() {
-        super.detectAndSendChanges();
-
-        // Validate toolbox is still in expected slot
-        this.checkToolbox();
-
-        // Sync GuiSync values from host
+        // Copy host values into @GuiSync fields BEFORE super.detectAndSendChanges().
+        // AE2's SyncData sends the initial value on the first tick (when clientVersion == null),
+        // so the fields must already hold the correct host values by then. Otherwise the client
+        // sees the constructor default until the next tick detects the change.
         if (this.maxSlotSize != this.host.getMaxSlotSize()) this.maxSlotSize = this.host.getMaxSlotSize();
         if (this.pollingRate != this.host.getPollingRate()) this.pollingRate = this.host.getPollingRate();
         if (this.currentPage != this.host.getCurrentPage()) this.currentPage = this.host.getCurrentPage();
         if (this.totalPages != this.host.getTotalPages()) this.totalPages = this.host.getTotalPages();
+
+        super.detectAndSendChanges();
+
+        // Validate toolbox is still in expected slot
+        this.checkToolbox();
 
         // Server-side filter sync
         if (!Platform.isServer()) return;
@@ -587,31 +589,37 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         // === Shift-clicking from player inventory ===
 
         // Priority 1: Try to insert into upgrade slots if item is a valid upgrade
-        if (this.host.isValidUpgrade(clickedStack)) {
-            boolean insertedAny = false;
+        AppEngInternalInventory upgradeInv = this.host.getUpgradeInventory();
+        boolean insertedAny = false;
 
-            // Insert as many as possible into empty upgrade slots
-            // Iterate by slot type (SlotUpgrade), not by index, to avoid toolbox slots
-            for (Slot containerSlot : this.inventorySlots) {
-                if (clickedStack.isEmpty()) break;
-                if (!(containerSlot instanceof SlotUpgrade)) continue;
-                if (containerSlot.getHasStack()) continue;
-                if (!containerSlot.isItemValid(clickedStack)) continue;
+        // Insert as many as possible into empty upgrade slots
+        for (int i = 0; i < upgradeInv.getSlots(); i++) {
+            // Gate shift-click through the same isItemValid check that direct clicks use;
+            // Forge's insertItem does NOT call isItemValid, so we must check manually.
+            if (!upgradeInv.isItemValid(i, clickedStack)) continue;
 
-                // Found empty upgrade slot - insert one item
-                ItemStack toInsert = clickedStack.splitStack(1);
-                containerSlot.putStack(toInsert);
-                containerSlot.onSlotChanged();
+            int previousCount = clickedStack.getCount();
+            // Pass a copy to avoid shared-reference corruption: Forge's ItemStackHandler
+            // stores the input directly (no copy) when the slot is empty and the full
+            // stack fits, so mutating clickedStack would also zero the upgrade slot.
+            ItemStack remainder = upgradeInv.insertItem(i, clickedStack.copy(), false);
+            if (remainder.getCount() < previousCount) {
+                clickedStack.setCount(remainder.getCount());
                 insertedAny = true;
-            }
 
-            if (insertedAny) {
-                if (clickedStack.isEmpty()) slot.putStack(ItemStack.EMPTY);
-                slot.onSlotChanged();
-                this.detectAndSendChanges();
+                if (clickedStack.isEmpty()) break;
             }
+        }
 
-            // Don't try filter extraction for upgrade items
+        if (insertedAny) {
+            if (clickedStack.isEmpty()) slot.putStack(ItemStack.EMPTY);
+            slot.onSlotChanged();
+            this.detectAndSendChanges();
+
+            // Return EMPTY to stop the vanilla loop from re-invoking this method.
+            // Without this, the loop sees remaining items and calls again — but now
+            // the upgrade slots are full, so the leftover falls through to the
+            // filter path, placing upgrade cards as filters.
             return ItemStack.EMPTY;
         }
 
@@ -779,18 +787,10 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
     /**
      * Common upgrade slot implementation.
      */
-    protected static class SlotUpgrade<H extends IInterfaceHost> extends SlotNormal {
-        private final H host;
-
-        public SlotUpgrade(AppEngInternalInventory inv, int idx, int x, int y, H host) {
+    protected static class SlotUpgrade extends SlotNormal {
+        public SlotUpgrade(AppEngInternalInventory inv, int idx, int x, int y) {
             super(inv, idx, x, y);
-            this.host = host;
             this.setIIcon(13 * 16 + 15); // UPGRADES icon
-        }
-
-        @Override
-        public boolean isItemValid(@Nonnull ItemStack stack) {
-            return host.isValidUpgrade(stack);
         }
 
         @Override

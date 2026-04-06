@@ -5,8 +5,6 @@ import javax.annotation.Nullable;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 
-import thaumcraft.api.aspects.Aspect;
-
 import thaumicenergistics.api.EssentiaStack;
 
 import appeng.items.parts.PartModels;
@@ -72,11 +70,6 @@ public class PartEssentiaExportInterface extends AbstractInterfacePart<EssentiaI
     }
 
     @Override
-    protected String getMemoryCardName() {
-        return "tile.cells.export_interface.essentia";
-    }
-
-    @Override
     public boolean isExport() {
         return true;
     }
@@ -104,30 +97,4 @@ public class PartEssentiaExportInterface extends AbstractInterfacePart<EssentiaI
         return this.logic.drainEssentiaFromSlot(slot, maxDrain, doDrain);
     }
 
-    @Override
-    public boolean doesContainerAccept(Aspect aspect) {
-        return this.logic.doesContainerAccept(aspect);
-    }
-
-    @Override
-    public boolean doesContainerContainAmount(Aspect aspect, int amount) {
-        return this.logic.doesContainerContainAmount(aspect, amount);
-    }
-
-    @Override
-    public int addToContainer(Aspect aspect, int amount) {
-        // Export interface does not accept essentia (logic handles direction check)
-        return this.logic.addToContainer(aspect, amount);
-    }
-
-    @Override
-    public int takeEssentiaAmount(Aspect aspect, int amount) {
-        // Export interface provides essentia to external sources (logic handles direction check)
-        return this.logic.takeEssentiaAmount(aspect, amount);
-    }
-
-    @Override
-    public int getEssentiaCount(Aspect aspect) {
-        return this.logic.getEssentiaCount(aspect);
-    }
 }

@@ -71,11 +71,11 @@ public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellCont
      */
     protected void createFilterSlots() {
         // Uses the template method pattern - subclass provides the slot factory
-        for (int row = 0; row < container.GRID_ROWS; row++) {
-            for (int col = 0; col < container.GRID_COLS; col++) {
-                int slotIndex = row * container.GRID_COLS + col;
-                int x = container.FILTER_START_X + col * 18;
-                int y = container.FILTER_START_Y + row * 18;
+        for (int row = 0; row < AbstractCreativeCellContainer.GRID_ROWS; row++) {
+            for (int col = 0; col < AbstractCreativeCellContainer.GRID_COLS; col++) {
+                int slotIndex = row * AbstractCreativeCellContainer.GRID_COLS + col;
+                int x = AbstractCreativeCellContainer.FILTER_START_X + col * 18;
+                int y = AbstractCreativeCellContainer.FILTER_START_Y + row * 18;
                 GuiCustomSlot slot = createSlotForIndex(slotIndex, x, y);
                 if (slot != null) this.guiSlots.add(slot);
             }

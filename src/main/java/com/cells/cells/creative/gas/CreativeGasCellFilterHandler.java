@@ -6,7 +6,6 @@ import javax.annotation.Nullable;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
-import mekanism.api.gas.Gas;
 import mekanism.api.gas.GasStack;
 
 import com.cells.cells.creative.AbstractCreativeCellFilterHandler;
@@ -84,16 +83,5 @@ public class CreativeGasCellFilterHandler extends AbstractCreativeCellFilterHand
      */
     public boolean isInFilter(@Nullable GasStack stack) {
         return isStackInFilter(stack);
-    }
-
-    /**
-     * Check if a gas type is in the filter.
-     * Convenience method for checking by Gas directly.
-     */
-    public boolean isInFilter(@Nullable Gas gas) {
-        if (gas == null) return false;
-
-        GasStackKey key = GasStackKey.of(gas);
-        return isInFilter(key);
     }
 }

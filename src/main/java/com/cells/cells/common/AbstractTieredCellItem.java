@@ -226,11 +226,4 @@ public abstract class AbstractTieredCellItem extends Item implements ICellWorkbe
 
         return values[0];
     }
-
-    /**
-     * Get the tier count (number of tiers available).
-     */
-    public int getNumTiers() {
-        return getTiers().length;
-    }
 }

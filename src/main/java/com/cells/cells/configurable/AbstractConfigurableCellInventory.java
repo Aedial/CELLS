@@ -11,7 +11,6 @@ import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.data.IAEStack;
-import appeng.items.contents.CellConfig;
 import appeng.util.Platform;
 
 import com.cells.cells.common.INBTSizeProvider;
@@ -115,7 +114,7 @@ public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> i
 
     @Override
     public IItemHandler getConfigInventory() {
-        return new CellConfig(cellStack);
+        return ConfigInventoryHelper.getConfigInventory(cellStack, componentInfo.getChannelType());
     }
 
     @Override

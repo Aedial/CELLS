@@ -49,15 +49,15 @@ public class ContainerPullPushCard extends AEBaseContainer {
 
     /** Interval in ticks, synced between client and server */
     @GuiSync(0)
-    public long interval = MINIMUM_INTERVAL;
+    public long interval;
 
     /** Quantity to be transfered per operation */
     @GuiSync(1)
-    public long quantity = MINIMUM_QUANTITY;
+    public long quantity;
 
     /** Quantity to keep in the adjacent inventory */
     @GuiSync(2)
-    public long keepsQuantity = MINIMUM_KEEP_QUANTITY;
+    public long keepsQuantity;
 
     public ContainerPullPushCard(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, null, null);

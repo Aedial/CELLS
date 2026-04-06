@@ -9,6 +9,9 @@ This is a limitation of the ME Chest's implementation, which doesn't listen for 
 ### I have 9.2+ Quintillion items but the terminal shows way less than that
 It may be that your version of AE2 does not handle Long overflows (so far, AE2-UEL 0.56.7 doesn't), causing the count to wrap around and show incorrect values. This is purely a display issue, and your items are safe in the cells. Cell Terminal should show the correct values as it does not accumulate the content of multiple cells, but rather shows each cell separately.
 
+### Why does the Essentia Import Interface require a Pull Card?
+Because Thaumcraft's essentia transport system is pull-based: anything importing needs to pull and anything exporting is passive. Tubes pull every few ticks and jars pull from tubes all the same. Doing that would basically be the same as using the Pull Card, but with either more lag or less throughput. The Pull Card allows the interface to pull in a more optimized and controlled way.
+
 ### What mods does C.E.L.L.S. support?
 The mod requires AE2-UEL. It also has support for:
 - MixinBooter: Allows C.E.L.L.S.'s Storage Cells to stack to 64. Without it, allowing them to stack enables a duplication exploit with the ME Chest. Also provides the item count display for the JEI Cell Preview.
@@ -26,17 +29,23 @@ Because of limitations in Minecraft and AE2 :
 
 ## Features
 
-### Import Interface/Fluid Import Interface
-A block that acts as a filtered interface for importing items/fluids into the ME network. It needs to be configured to allow specific content, and can be used to import items/fluids into the network from machines that don't necessarily have a filtered export capability (Woot, Ultimate Mob Farm, etc). It does not have any exporting/stocking or crafting capabilities, and only works as an import interface. The top part of each slot is used for the filter, while the bottom part is used for the actual import. The size of the slots can be configured in the GUI, allowing higher/lower amount of each item/fluid to be kept in the interface if the export targets are full. The polling rate can also be configured, allowing content to be imported at a fixed interval instead of AE2's adaptive rates.
+### Import Interface (Item/Fluid/Gas/Essentia)
+A block that acts as a filtered interface for importing content into the ME network. It needs to be configured to allow specific content, and can be used to import items/fluids into the network from machines that don't necessarily have a filtered export capability (Woot, Ultimate Mob Farm, etc). It does not have any pulling, exporting/stocking, or crafting capabilities, and only works as an import interface.
 
-They hold 36 slots, expandable up to 5x with capacity cards.
+The top part of each slot is used for the filter, while the bottom part is used for the actual import. The size of the slots can be configured in the GUI, allowing higher/lower amount of each item/fluid to be kept in the interface if the export targets are full (up to max long, external I/O is capped to max int by Minecraft). The polling rate can also be configured, allowing content to be imported at a fixed interval (in ticks) instead of AE2's adaptive rates.
 
-### Export Interface/Fluid Export Interface
-The counterpart to the Import Interface, allowing items/fluids to be exported from the ME network to any outside piping. Slot size and polling rate apply all the same as the Import Interface.
+The Import Interface works best with machines that do not try to merge items stacks, as the insertion slot has no impact on where the item goes. Only being part of the filter and the remaining space in its dedicated slot matters.
+
+These interfaces hold 36 slots, expandable up to 5x with capacity cards.
+
+### Export Interface (Item, Fluid, Gas, Essentia)
+The counterpart to the Import Interface, allowing content to be exported from the ME network to any outside piping. Slot size and polling rate apply all the same as the Import Interface.
+ 
+The Essentia Export Interface works with Storage Bus, Thaumatorium, and Infusion out of the box. Tubes also work, but are hampered by their 1 essentia type limit.
 
 
-### Creative Cell (Item/Fluid)
-A cell that can only be set in creative mode, providing 4.6 quintillion of each set item/fluid (up to 63 different types per cell). It is the equivalent of a Drawer with the Vending upgrade.
+### Creative Cell (Item, Fluid, Gas, Essentia)
+A cell that can only be set in creative mode, providing 4.6 quintillion of each set slot (up to 63 different items/fluids/gases/essentia per cell). It is the equivalent of a Drawer with the Vending upgrade.
 
 
 ### Compacting Storage Cells
@@ -114,6 +123,18 @@ Install in a cell's upgrade slots to void excess items when full. Useful for aut
 Install in an Import Interface to void items that don't match any filter. This is useful to prevent clogging the machine with leftover items, especially when used with machines that export items without filtering capabilities.
 
 **Compatible with**: Import Interfaces
+
+
+#### Pull Card
+Install in an Import Interface to pull items from adjacent inventories. This is useful for automated systems where items need to be imported from external sources. Can set the time interval, quantity per operation, and quantity to maintain in the adjacent inventories. The quantity is per interface's filter.
+
+**Compatible with**: Import Interfaces
+
+
+#### Push Card
+Similar to the Pull Card, but for pushing items to adjacent inventories.
+
+**Compatible with**: Export Interfaces
 
 
 #### Equal Distribution Card
@@ -202,6 +223,12 @@ Fill a storage cell with a specified quantity of items or fluids, for testing pu
 - The storage cell must be held in the main hand.
 - Example: `/fillCell minecraft:iron_ingot 10k` fills the held cell with 10,000 Iron Ingots.
 
+### /inspectSlots
+Show the available slots from the block the player is looking at.
+- Usage: `/inspectSlots [--handler] [arg1] [arg2] ...`
+- The player must be looking at a block with slots (e.g., a chest or a tank).
+- `--handler` can be used to bypass IItemRepository and show the `IItemHandler` slots.
+- Additional arguments can be passed to simulate insertions against these slots. Autocompletion is offered for these arguments.
 
 ## Credits
 - Chinese translation: @ZHAY10086

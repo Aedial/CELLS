@@ -66,6 +66,9 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
     // In-memory cache: ItemStackKey -> NBT index for O(1) lookups
     // Built on load, updated on insert/remove. Avoids string key generation per operation.
     private final Map<ItemStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    private final Map<Integer, IAEItemStack> nbtIndexToItemStack = new HashMap<>();
+    // Cached counts by NBT index, avoids NBT reads in getAvailableItems and getStoredCount
+    private final Map<Integer, Long> nbtIndexToCount = new HashMap<>();
 
     // Next available NBT index for new items (computed on load, updated on insert)
     private int cachedNextIndex = 0;
@@ -145,6 +148,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
         storedItemCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        nbtIndexToItemStack.clear();
+        nbtIndexToCount.clear();
         itemNbtSizes.clear();
         totalNbtSize = 0;
         cachedNextIndex = 0;
@@ -190,6 +195,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
                     }
 
                     keyToNbtIndex.put(key, index);
+                    nbtIndexToItemStack.put(index, channel.createStack(stack));
+                    nbtIndexToCount.put(index, count);
                     storedItemCount = CellMathHelper.addWithOverflowProtection(storedItemCount, count);
                     storedTypes++;
 
@@ -221,10 +228,6 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
         }
 
         return true;
-    }
-
-    private long loadLongFromTag(NBTTagCompound tag) {
-        return tag.getLong(NBT_STORED_COUNT);
     }
 
     private void saveLongToTag(NBTTagCompound tag, long value) {
@@ -325,8 +328,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
     }
 
     /**
-     * Get the stored item data for a specific item from NBT.
-     * Uses ItemStackKey cache for O(1) lookup.
+     * Get the stored item count for a specific item.
+     * Uses in-memory caches for O(1) lookup with no NBT access.
      */
     private long getStoredCount(IAEItemStack item) {
         ItemStackKey key = ItemStackKey.of(item.getDefinition());
@@ -335,8 +338,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
         Integer index = keyToNbtIndex.get(key);
         if (index == null) return 0;
 
-        NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
-        return loadLongFromTag(itemsTag.getCompoundTag(String.valueOf(index)));
+        return nbtIndexToCount.getOrDefault(index, 0L);
     }
 
     /**
@@ -360,12 +362,15 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
 
                 itemsTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
+                nbtIndexToItemStack.remove(index);
+                nbtIndexToCount.remove(index);
             }
         } else if (index != null) {
             // Item already exists - just update the count (no re-serialization needed)
             // NBT size change is minimal (just the count value), don't recalculate
             NBTTagCompound itemTag = itemsTag.getCompoundTag(String.valueOf(index));
             saveLongToTag(itemTag, count);
+            nbtIndexToCount.put(index, count);
         } else {
             // New item - serialize fully and assign a new sequential index
             index = cachedNextIndex++;
@@ -375,6 +380,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
             item.getDefinition().writeToNBT(itemTag);
             saveLongToTag(itemTag, count);
             itemsTag.setTag(nbtKey, itemTag);
+            nbtIndexToItemStack.put(index, item.copy());
+            nbtIndexToCount.put(index, count);
 
             keyToNbtIndex.put(key, index);
 
@@ -500,21 +507,13 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
 
     @Override
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
-        NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
-
-        for (String key : itemsTag.getKeySet()) {
-            NBTTagCompound itemTag = itemsTag.getCompoundTag(key);
-            ItemStack stack = new ItemStack(itemTag);
-            if (stack.isEmpty()) continue;
-
-            long count = loadLongFromTag(itemTag);
+        for (Map.Entry<Integer, IAEItemStack> entry : nbtIndexToItemStack.entrySet()) {
+            long count = nbtIndexToCount.getOrDefault(entry.getKey(), 0L);
             if (count <= 0) continue;
 
-            IAEItemStack aeStack = channel.createStack(stack);
-            if (aeStack != null) {
-                aeStack.setStackSize(count);
-                out.add(aeStack);
-            }
+            IAEItemStack aeStack = entry.getValue();
+            aeStack.setStackSize(count);
+            out.add(aeStack);
         }
 
         return out;

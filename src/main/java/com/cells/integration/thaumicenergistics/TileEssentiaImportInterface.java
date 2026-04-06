@@ -61,11 +61,6 @@ public class TileEssentiaImportInterface extends AbstractInterfaceTile<EssentiaI
     }
 
     @Override
-    public int insertEssentiaIntoSlot(int slot, EssentiaStack essentia) {
-        return this.logic.insertEssentiaIntoSlot(slot, essentia);
-    }
-
-    @Override
     public boolean doesContainerAccept(Aspect aspect) {
         return this.logic.doesContainerAccept(aspect);
     }
@@ -78,16 +73,6 @@ public class TileEssentiaImportInterface extends AbstractInterfaceTile<EssentiaI
     @Override
     public int addToContainer(Aspect aspect, int amount) {
         return this.logic.addToContainer(aspect, amount);
-    }
-
-    @Override
-    public int takeEssentiaAmount(Aspect aspect, int amount) {
-        return this.logic.takeEssentiaAmount(aspect, amount);
-    }
-
-    @Override
-    public int getEssentiaCount(Aspect aspect) {
-        return this.logic.getEssentiaCount(aspect);
     }
 
     // ============================== IAspectContainer Implementation ==============================

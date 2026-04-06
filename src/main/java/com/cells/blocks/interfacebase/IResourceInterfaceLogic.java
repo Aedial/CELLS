@@ -64,14 +64,6 @@ public interface IResourceInterfaceLogic<AE, K> extends IInterfaceLogic {
     int findSlotByKey(@Nonnull K key);
 
     /**
-     * Add a filter to the first available slot using AE stack type.
-     *
-     * @param stack The stack to add as a filter
-     * @return The slot index where the filter was added, or -1 if no space available
-     */
-    int addToFirstAvailableSlotAE(@Nonnull AE stack);
-
-    /**
      * Get the amount stored in a specific slot.
      * Uses long precision for accurate overflow handling.
      *

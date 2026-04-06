@@ -21,7 +21,9 @@ import thaumcraft.api.items.ItemsTC;
 import thaumicenergistics.api.EssentiaStack;
 import thaumicenergistics.api.ThEApi;
 import thaumicenergistics.api.storage.IAEEssentiaStack;
-import thaumicenergistics.integration.appeng.AEEssentiaStack;
+import thaumicenergistics.api.storage.IEssentiaStorageChannel;
+
+import appeng.api.AEApi;
 
 import com.cells.blocks.interfacebase.AbstractContainerInterface;
 import com.cells.gui.QuickAddHelper;
@@ -98,7 +100,10 @@ public class ContainerEssentiaInterface
     protected IAEEssentiaStack extractFilterFromContainer(ItemStack container) {
         EssentiaStack essentia = QuickAddHelper.getEssentiaFromItemStack(container);
         if (essentia == null || essentia.getAmount() <= 0) return null;
-        return AEEssentiaStack.fromEssentiaStack(essentia);
+
+        // Use the API channel's createStack() instead of internal AEEssentiaStack.fromEssentiaStack()
+        IEssentiaStorageChannel channel = AEApi.instance().storage().getStorageChannel(IEssentiaStorageChannel.class);
+        return channel.createStack(essentia);
     }
 
     @Override

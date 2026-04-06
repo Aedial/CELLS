@@ -2,7 +2,8 @@ package com.cells.blocks.interfacebase;
 
 import java.io.IOException;
 
-import com.cells.util.PollingRateUtils;
+import javax.annotation.Nonnull;
+
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.gui.GuiButton;
@@ -16,8 +17,7 @@ import appeng.client.gui.widgets.GuiTabButton;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketSetPollingRate;
-
-import javax.annotation.Nonnull;
+import com.cells.util.PollingRateUtils;
 
 
 /**

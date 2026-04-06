@@ -33,31 +33,13 @@ public interface IFilterableInterfaceHost<T, K> extends IInterfaceHost {
     @Nonnull
     IInterfaceLogic getInterfaceLogic();
 
-    default long getDefaultMaxSlotSize() {
-        return getInterfaceLogic().getDefaultMaxSlotSize();
-    }
-
     // ================================= Slot Information (delegated to logic) =================================
-
-    /**
-     * @return Total number of filter slots available (across all pages).
-     */
-    default int getFilterSlots() {
-        return getInterfaceLogic().getFilterSlots();
-    }
 
     /**
      * @return Number of effective filter slots based on installed capacity upgrades.
      */
     default int getEffectiveFilterSlots() {
         return getInterfaceLogic().getEffectiveFilterSlots();
-    }
-
-    /**
-     * @return Number of slots per page for pagination.
-     */
-    default int getSlotsPerPage() {
-        return getInterfaceLogic().getSlotsPerPage();
     }
 
     // ================================= Pagination (delegated to logic) =================================
@@ -159,16 +141,6 @@ public interface IFilterableInterfaceHost<T, K> extends IInterfaceHost {
     // ================================= Filter Modification =================================
 
     /**
-     * Add a filter to the first available slot.
-     * Respects import/export rules (import won't add to slots with non-empty storage).
-     * Does NOT check for duplicates - caller should check isInFilter first.
-     *
-     * @param stack The stack to add as a filter
-     * @return The slot index where the filter was added, or -1 if no space available
-     */
-    int addToFirstAvailableSlot(@Nonnull T stack);
-
-    /**
      * Rebuild the internal filter cache (key -> slot map).
      * Should be called after any direct filter modifications.
      */
@@ -198,41 +170,6 @@ public interface IFilterableInterfaceHost<T, K> extends IInterfaceHost {
      */
     default void refreshUpgrades() {
         getInterfaceLogic().refreshUpgrades();
-    }
-
-    /**
-     * Check if an item is a valid upgrade for this interface.
-     */
-    default boolean isValidUpgrade(ItemStack stack) {
-        return getInterfaceLogic().isValidUpgrade(stack);
-    }
-
-    /**
-     * @return Number of capacity upgrades currently installed.
-     */
-    default int getInstalledCapacityUpgrades() {
-        return getInterfaceLogic().getInstalledCapacityUpgrades();
-    }
-
-    /**
-     * @return The starting slot index for the current page.
-     */
-    default int getCurrentPageStartSlot() {
-        return getInterfaceLogic().getCurrentPageStartSlot();
-    }
-
-    /**
-     * @return true if the overflow upgrade is installed (import only).
-     */
-    default boolean hasOverflowUpgrade() {
-        return getInterfaceLogic().hasOverflowUpgrade();
-    }
-
-    /**
-     * @return true if the trash unselected upgrade is installed (import only).
-     */
-    default boolean hasTrashUnselectedUpgrade() {
-        return getInterfaceLogic().hasTrashUnselectedUpgrade();
     }
 
     // ================================= Localization =================================

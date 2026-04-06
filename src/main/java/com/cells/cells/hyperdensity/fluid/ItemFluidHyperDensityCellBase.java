@@ -20,6 +20,7 @@ import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
+import appeng.fluids.helper.FluidCellConfig;
 
 import com.cells.cells.common.AbstractTieredCellItem;
 import com.cells.cells.common.INBTSizeProvider;
@@ -84,11 +85,12 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
             ICellInventory<IAEFluidStack> cellInv = cellHandler.getCellInv();
 
             if (cellInv instanceof FluidHyperDensityCellInventory) {
-                long bytes = cellInv.getTotalBytes() * BYTE_MULTIPLIER;
-                long capacity = CellMathHelper.multiplyWithOverflowProtection(bytes, 8);
-                int maxTypes = CellsConfig.hdFluidMaxTypes;
+                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
+            }
 
-                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip, capacity, maxTypes);
+            if (CellUpgradeHelper.hasEqualDistributionUpgrade(getUpgradesInventory(stack))) {
+                long per_type = this.getBytesPerType(stack);
+                tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.per_type", per_type));
             }
 
             // Add NBT size information (if enabled in config)
@@ -187,6 +189,11 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
     @Override
     public boolean isHyperDensityCell(@Nonnull ItemStack i) {
         return true;
+    }
+
+    @Override
+    public IItemHandler getConfigInventory(ItemStack is) {
+        return new FluidCellConfig(is);
     }
 
     // =====================

@@ -29,9 +29,6 @@ public class CompactingHelper {
     /** Default number of tiers when no tier card is installed. */
     public static final int DEFAULT_TIERS = 3;
 
-    /** Maximum supported tiers (for 15x cards). */
-    public static final int MAX_SUPPORTED_TIERS = 15;
-
     private static final InventoryLookup lookup1 = new InventoryLookup(1, 1);
     private static final InventoryLookup lookup2 = new InventoryLookup(2, 2);
     private static final InventoryLookup lookup3 = new InventoryLookup(3, 3);

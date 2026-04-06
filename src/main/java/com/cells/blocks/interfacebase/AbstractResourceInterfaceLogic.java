@@ -1,11 +1,7 @@
 package com.cells.blocks.interfacebase;
 
-import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,23 +11,16 @@ import javax.annotation.Nullable;
 
 import io.netty.buffer.ByteBuf;
 
-import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.fml.common.network.ByteBufUtils;
 import net.minecraftforge.items.IItemHandler;
 
-import appeng.api.config.Actionable;
-import appeng.api.config.Upgrades;
-import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.networking.ticking.IGridTickable;
@@ -39,18 +28,15 @@ import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.storage.IMEInventory;
 import appeng.api.storage.data.IAEStack;
-import appeng.core.settings.TickRates;
-import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.inv.IAEAppEngInventory;
 
-import com.cells.config.CellsConfig;
-import com.cells.items.ItemOverflowCard;
-import com.cells.items.ItemTrashUnselectedCard;
-import com.cells.items.ItemAutoPullCard;
-import com.cells.items.ItemAutoPushCard;
-import com.cells.util.TickManagerHelper;
+import com.cells.blocks.interfacebase.managers.InterfaceAdjacentHandler;
+import com.cells.blocks.interfacebase.managers.InterfaceInventoryManager;
+import com.cells.blocks.interfacebase.managers.InterfaceTickScheduler;
+import com.cells.blocks.interfacebase.managers.InterfaceUpgradeManager;
+
 
 
 /**
@@ -113,40 +99,16 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public static final int FILTER_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
     public static final int STORAGE_SLOTS = SLOTS_PER_PAGE * MAX_PAGES;
     public static final int TOTAL_SLOTS = Math.min(FILTER_SLOTS, STORAGE_SLOTS);
-    public static final int UPGRADE_SLOTS = 4;
     public static final int DEFAULT_MAX_SLOT_SIZE = 16000; // mB (16 buckets)
-    public static final int MIN_MAX_SLOT_SIZE = 1;
-    public static final int DEFAULT_POLLING_RATE = 0; // 0 = adaptive (AE2-managed tick rates)
-
-    /**
-     * Get the maximum allowed slot size from config.
-     * @return The configured max slot size limit (defaults to Long.MAX_VALUE)
-     */
-    public static long getMaxMaxSlotSize() {
-        return CellsConfig.interfaceMaxSlotSizeLimit;
-    }
-
-    /**
-     * Get the minimum allowed polling rate from config.
-     * @return The configured minimum polling rate (defaults to 0 for adaptive)
-     */
-    public static int getMinPollingRate() {
-        return CellsConfig.interfaceMinPollingRate;
-    }
-
-    public static int getDefaultPollingRate() {
-        int minRate = getMinPollingRate();
-        return Math.max(minRate, DEFAULT_POLLING_RATE);
-    }
 
     public long getDefaultMaxSlotSize() {
-        return Math.min(DEFAULT_MAX_SLOT_SIZE, getMaxMaxSlotSize());
+        return DEFAULT_MAX_SLOT_SIZE;
     }
 
     protected final Host host;
 
     /** Filter array - stores the filter resource for each slot. */
-    protected final R[] filters;
+    private final R[] filters;
 
     /**
      * Storage array - stores resource IDENTITY only (type + NBT, not amount).
@@ -154,7 +116,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * This separation allows amounts to exceed Integer.MAX_VALUE while still
      * using native resource types that have int-based amount fields.
      */
-    protected final R[] storage;
+    private final R[] storage;
 
     /**
      * Parallel amounts array - stores the actual amount for each storage slot.
@@ -162,145 +124,171 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * GasStack, ItemStack) have int-based amount fields that cannot exceed ~2.1B.
      * By storing amounts separately as long, we can store up to ~9.2 quintillion.
      */
-    protected final long[] amounts;
-
-    /** Upgrade inventory (accepts only specific upgrade cards). */
-    protected final AppEngInternalInventory upgradeInventory;
-
-    /** Maximum amount per slot in whatever units this resource uses (e.g., mB for fluids). */
-    protected long maxSlotSize;
-
-    /** Polling rate in ticks (0 = adaptive). */
-    protected int pollingRate = 0;
-
-    /** Whether we are currently sleeping (not being ticked by AE2). */
-    protected boolean isSleeping = false;
-
-    /** Whether overflow upgrade is installed (import only). */
-    protected boolean installedOverflowUpgrade = false;
-
-    /** Whether trash unselected upgrade is installed (import only). */
-    protected boolean installedTrashUnselectedUpgrade = false;
-
-    /** Whether auto-pull/push upgrade is installed. */
-    protected boolean installedAutoPushPullUpgrade = false;
-
-    /** Tick interval for auto-pull/push operations, stored in the respective card's NBT. */
-    protected int autoPullPushInterval = -1;
-
-    /** Quantity for auto-pull/push operations, stored in the respective card's NBT. */
-    protected int autoPushPullQuantity = 0;
-
-    /** Keep quantity for auto-pull/push operations, stored in the respective card's NBT. */
-    protected int autoPullPushKeepQuantity = 0;
-
-    /** Number of installed capacity cards. */
-    protected int installedCapacityUpgrades = 0;
+    private final long[] amounts;
 
     /** Current GUI page index (0-based). */
     protected int currentPage = 0;
 
-    /** Mapping of filter resource keys to their corresponding slot index. */
-    protected final Map<K, Integer> filterToSlotMap = new HashMap<>();
+    // ============================== Managers ==============================
+    // These managers own the business logic and their respective private state.
+    // The logic class orchestrates them and provides callback implementations.
 
-    /** Reverse mapping: slot index to filter key. */
-    protected final Map<Integer, K> slotToFilterMap = new HashMap<>();
+    /** Manages upgrade cards (overflow, trash unselected, auto-pull/push, capacity). */
+    protected final InterfaceUpgradeManager upgradeManager;
 
-    /** List of slot indices that have filters, in slot order. */
-    protected List<Integer> filterSlotList = new ArrayList<>();
+    /** Manages combined filter/storage operations, mappings, network I/O, and serialization. */
+    protected final InterfaceInventoryManager<R, AE, K> inventoryManager;
 
-    /** Mapping of storage resource keys to their corresponding slot index. */
-    protected final Map<K, Integer> storageToSlotMap = new HashMap<>();
+    /** Manages tick scheduling, polling rate, and sleep/wake state. */
+    protected final InterfaceTickScheduler tickScheduler;
 
-    /** Reverse mapping: slot index to storage key. */
-    protected final Map<Integer, K> slotToStorageKeyMap = new HashMap<>();
-
-    /**
-     * Set of slot indices that are "orphaned", the stored identity doesn't match the filter.
-     * Export interfaces return orphaned resources to the ME network.
-     * A slot is orphaned when it has a non-null identity AND either:
-     * - No filter is set for that slot, OR
-     * - The filter key doesn't match the storage key.
-     */
-    protected final Set<Integer> orphanedSlots = new HashSet<>();
-
-    // ============================== Capability cache for Auto-Pull/Push ==============================
-
-    /**
-     * Cached weak references to adjacent tile entities, keyed by facing direction.
-     * WeakReference prevents memory leaks if the TE is removed without neighborChanged firing.
-     * Must check {@code ref.get() != null && !te.isInvalid()} before every use.
-     */
-    protected final Map<EnumFacing, WeakReference<TileEntity>> cachedAdjacentTiles = new EnumMap<>(EnumFacing.class);
-
-    /**
-     * Cached capability handlers from adjacent tiles, keyed by facing direction.
-     * The Object type is intentional, the concrete type (IItemHandler, IFluidHandler, etc.)
-     * is known only by the subclass. Stored as Object to allow for multiple possible capabilities.
-     */
-    protected final Map<EnumFacing, Object> cachedCapabilities = new EnumMap<>(EnumFacing.class);
-
-    /**
-     * Cumulative elapsed ticks since the interface started ticking.
-     * Used for timing both the card interval and network I/O independently.
-     */
-    protected long totalElapsedTicks = 0;
-
-    /** Elapsed ticks value when the last card operation was performed. */
-    protected long lastCardOperationTick = 0;
-
-    /** Elapsed ticks value when the last network I/O was performed. */
-    protected long lastNetworkIOTick = 0;
-
-    /**
-     * Whether the capability cache has been scanned at least once.
-     * Prevents redundant scans when no card is installed.
-     */
-    protected boolean capabilityCachePopulated = false;
+    /** Manages capability cache and auto-pull/push with adjacent blocks. */
+    protected final InterfaceAdjacentHandler<R, K> adjacentHandler;
 
     @SuppressWarnings("unchecked")
     protected AbstractResourceInterfaceLogic(Host host, Class<R> resourceClass) {
         this.host = host;
-        this.maxSlotSize = getDefaultMaxSlotSize();
 
         // Create arrays for filters and storage
         this.filters = (R[]) Array.newInstance(resourceClass, FILTER_SLOTS);
         this.storage = (R[]) Array.newInstance(resourceClass, STORAGE_SLOTS);
         this.amounts = new long[STORAGE_SLOTS];
 
-        // Create upgrade inventory with filtering for specific upgrade cards
-        this.upgradeInventory = new AppEngInternalInventory(host, UPGRADE_SLOTS, 1) {
-            @Override
-            public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-                return AbstractResourceInterfaceLogic.this.isValidUpgrade(stack);
-            }
-        };
+        // Initialize managers (order matters: inventory before adjacent, which needs it)
+        this.upgradeManager = new InterfaceUpgradeManager(host, host.isExport(), createUpgradeCallbacks());
+
+        this.inventoryManager = new InterfaceInventoryManager<>(createInventoryResourceOps(), createInventoryCallbacks(),
+                this.filters, this.storage, this.amounts, this.getDefaultMaxSlotSize());
+
+        this.tickScheduler = new InterfaceTickScheduler(createTickCallbacks());
+
+        this.adjacentHandler = createAdjacentHandler(
+                createAdjacentResourceOps(), createAdjacentCallbacks(), this.inventoryManager);
 
         refreshUpgrades();
         refreshFilterMap();
     }
 
+    // ============================== Manager callback factories ==============================
+    // These methods create anonymous callback implementations that bridge manager interfaces
+    // to the logic's own methods and host. Defined as factory methods to keep the constructor clean.
+
+    private InterfaceUpgradeManager.Callbacks createUpgradeCallbacks() {
+        return new InterfaceUpgradeManager.Callbacks() {
+            @Override public AENetworkProxy getGridProxy() { return host.getGridProxy(); }
+            @Override public IGridTickable getTickable() { return host.getTickable(); }
+            @Override public void onCapacityReduction(int oldCount, int newCount) { inventoryManager.handleCapacityReduction(oldCount, newCount); }
+            @Override public void onAutoPullPushInstalled() { refreshCapabilityCache(); }
+            @Override public void onAutoPullPushRemoved() { clearCapabilityCache(); }
+            @Override public void wakeUpIfAdaptive() { AbstractResourceInterfaceLogic.this.wakeUpIfAdaptive(); }
+            @Override public void clampCurrentPage(int maxPage) { if (currentPage > maxPage) currentPage = maxPage; }
+        };
+    }
+
+    private InterfaceInventoryManager.ResourceOps<R, AE, K> createInventoryResourceOps() {
+        return new InterfaceInventoryManager.ResourceOps<R, AE, K>() {
+            @Override public K createKey(R resource) { return AbstractResourceInterfaceLogic.this.createKey(resource); }
+            @Override public int getAmount(R resource) { return AbstractResourceInterfaceLogic.this.getAmount(resource); }
+            @Override public R copyWithAmount(R resource, int amount) { return AbstractResourceInterfaceLogic.this.copyWithAmount(resource, amount); }
+            @Override public R copyAsIdentity(R resource) { return AbstractResourceInterfaceLogic.this.copyAsIdentity(resource); }
+            @Override public R copy(R resource) { return AbstractResourceInterfaceLogic.this.copy(resource); }
+            @Override public String getLocalizedName(R resource) { return AbstractResourceInterfaceLogic.this.getLocalizedName(resource); }
+            @Override public AE toAEStack(R resource) { return AbstractResourceInterfaceLogic.this.toAEStack(resource); }
+            @Override public R fromAEStack(AE aeStack) { return AbstractResourceInterfaceLogic.this.fromAEStack(aeStack); }
+            @Override public long getAEStackSize(AE aeStack) { return AbstractResourceInterfaceLogic.this.getAEStackSize(aeStack); }
+            @Override public IMEInventory<AE> getMEInventory(IStorageGrid storage) { return AbstractResourceInterfaceLogic.this.getMEInventory(storage); }
+            @Override public void writeResourceToNBT(R resource, NBTTagCompound tag) { AbstractResourceInterfaceLogic.this.writeResourceToNBT(resource, tag); }
+            @Override public R readResourceFromNBT(NBTTagCompound tag) { return AbstractResourceInterfaceLogic.this.readResourceFromNBT(tag); }
+            @Override public void writeResourceToStream(R resource, ByteBuf data) { AbstractResourceInterfaceLogic.this.writeResourceToStream(resource, data); }
+            @Override public R readResourceFromStream(ByteBuf data) { return AbstractResourceInterfaceLogic.this.readResourceFromStream(data); }
+            @Override public ItemStack createRecoveryItem(R identity, long amount) { return AbstractResourceInterfaceLogic.this.createRecoveryItem(identity, amount); }
+        };
+    }
+
+    private InterfaceInventoryManager.Callbacks createInventoryCallbacks() {
+        return new InterfaceInventoryManager.Callbacks() {
+            @Override public boolean isExport() { return host.isExport(); }
+            @Override public void markDirtyAndSave() { host.markDirtyAndSave(); }
+            @Override public void markForNetworkUpdate() { host.markForNetworkUpdate(); }
+            @Override public void wakeUpIfAdaptive() { AbstractResourceInterfaceLogic.this.wakeUpIfAdaptive(); }
+            @Override public int getEffectiveFilterSlots() { return AbstractResourceInterfaceLogic.this.getEffectiveFilterSlots(); }
+            @Override public AENetworkProxy getGridProxy() { return host.getGridProxy(); }
+            @Override public IActionSource getActionSource() { return host.getActionSource(); }
+            @Override public long getMaxAENetworkRequestSize() { return AbstractResourceInterfaceLogic.this.getMaxAENetworkRequestSize(); }
+            @Override public World getHostWorld() { return host.getHostWorld(); }
+            @Override public BlockPos getHostPos() { return host.getHostPos(); }
+        };
+    }
+
+    private InterfaceTickScheduler.Callbacks createTickCallbacks() {
+        return new InterfaceTickScheduler.Callbacks() {
+            @Override public AENetworkProxy getGridProxy() { return host.getGridProxy(); }
+            @Override public IGridTickable getTickable() { return host.getTickable(); }
+            @Override public void markDirtyAndSave() { host.markDirtyAndSave(); }
+            @Override public boolean performNetworkIO() { return host.isExport() ? inventoryManager.exportResources() : inventoryManager.importResources(); }
+            @Override public boolean performAutoPullPush() { return AbstractResourceInterfaceLogic.this.performAutoPullPush(); }
+            @Override public boolean hasWorkToDo() { return inventoryManager.hasWorkToDo(); }
+        };
+    }
+
+    private InterfaceAdjacentHandler.ResourceOps<R, K> createAdjacentResourceOps() {
+        return new InterfaceAdjacentHandler.ResourceOps<R, K>() {
+            @Override public List<Capability<?>> getAdjacentCapabilities() { return AbstractResourceInterfaceLogic.this.getAdjacentCapabilities(); }
+            @Override public long countResourceInHandler(Object handler, K key, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.countResourceInHandler(handler, key, facing); }
+            @Override public long extractResourceFromHandler(Object handler, K key, int maxAmount, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.extractResourceFromHandler(handler, key, maxAmount, facing); }
+            @Override public long insertResourceIntoHandler(Object handler, R identity, int maxAmount, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.insertResourceIntoHandler(handler, identity, maxAmount, facing); }
+            @Override public R copyAsIdentity(R resource) { return AbstractResourceInterfaceLogic.this.copyAsIdentity(resource); }
+            @Override public Map<K, Long> buildResourceCountMap(Object handler, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.buildResourceCountMap(handler, facing); }
+            @Override public void flushOperationCaches() { AbstractResourceInterfaceLogic.this.flushOperationCaches(); }
+        };
+    }
+
+    private InterfaceAdjacentHandler.Callbacks createAdjacentCallbacks() {
+        return new InterfaceAdjacentHandler.Callbacks() {
+            @Override public World getHostWorld() { return host.getHostWorld(); }
+            @Override public BlockPos getHostPos() { return host.getHostPos(); }
+            @Override public boolean isExport() { return host.isExport(); }
+            @Override public void markDirtyAndSave() { host.markDirtyAndSave(); }
+            @Override public void markForNetworkUpdate() { host.markForNetworkUpdate(); }
+        };
+    }
+
+    /**
+     * Factory method for creating the adjacent handler.
+     * Subclasses can override to provide a custom handler (e.g. for essentia's IAspectContainer scanning).
+     * <p>
+     * Called during construction, so subclass fields are NOT yet initialized.
+     * Implementations must not depend on subclass instance state.
+     */
+    protected InterfaceAdjacentHandler<R, K> createAdjacentHandler(
+            InterfaceAdjacentHandler.ResourceOps<R, K> ops,
+            InterfaceAdjacentHandler.Callbacks callbacks,
+            InterfaceInventoryManager<R, ?, K> inventoryManager
+    ) {
+        return new InterfaceAdjacentHandler<>(ops, callbacks, inventoryManager);
+    }
+
     // ============================== Capability cache management ==============================
 
     /**
-     * Get the Forge Capability object that this interface type uses for adjacent interaction.
-     * E.g., {@code CapabilityItemHandler.ITEM_HANDLER_CAPABILITY} for items,
-     * {@code CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY} for fluids.
+     * Get the Forge Capabilities that this interface type uses for adjacent interaction,
+     * in priority order. The first non-null capability that an adjacent tile supports
+     * will be cached and used for pull/push operations.
      * <p>
-     * This is the capability we query from adjacent tile entities.
-     * The returned Object is cast-safe because each subclass knows its type.
-     * FIXME: Return a list of capabilities, in order of priority (f.e., IItemRepository first, then IItemHandler).
+     * For example, item interfaces return [IItemRepository, IItemHandler] to prefer
+     * slotless bulk operations (efficient for Storage Drawers) over slot-by-slot iteration.
      *
-     * @return The Forge Capability instance, or null if this type does not support auto-pull/push
+     * @return Ordered list of capabilities to try, or empty if this type does not use Forge capabilities
      */
-    @Nullable
-    protected abstract Capability<?> getAdjacentCapability();
+    protected abstract List<Capability<?>> getAdjacentCapabilities();
 
     /**
      * Count how much of a resource matching the given key exists in the adjacent handler.
      * Used for keepQuantity calculations in both pull and push operations.
-     * TODO: Provide a map<K, Long> of all resources in the adjacent handler
-     *       to avoid fetching the slots multiple times for each filter during pulls/pushes.
+     * <p>
+     * Prefer implementing {@link #buildResourceCountMap} to pre-compute all counts at once,
+     * rather than scanning the handler's slots per-key. This method is only called as a
+     * fallback when buildResourceCountMap returns null.
      *
      * @param handler The adjacent handler (typed appropriately by each subclass)
      * @param key The resource key to count
@@ -308,6 +296,24 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @return The total amount of matching resources in the adjacent handler
      */
     protected abstract long countResourceInHandler(Object handler, K key, EnumFacing facing);
+
+    /**
+     * Build a map of all resources and their total amounts in the adjacent handler.
+     * Used to pre-compute counts for keepQuantity calculations, avoiding repeated
+     * iteration over the handler's slots for each filter during pull/push operations.
+     * <p>
+     * Default returns null, falling back to per-key {@link #countResourceInHandler} calls.
+     * Subclasses should override when the handler supports efficient enumeration
+     * (e.g. IItemRepository.getAllItems(), IFluidHandler.getTankProperties()).
+     *
+     * @param handler The adjacent handler
+     * @param facing The direction from us to the adjacent block
+     * @return Map of resource key → total amount, or null for per-key fallback
+     */
+    @Nullable
+    protected Map<K, Long> buildResourceCountMap(Object handler, EnumFacing facing) {
+        return null;
+    }
 
     /**
      * Extract resources matching the given key from the adjacent handler.
@@ -351,109 +357,15 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @return true if any resources were transferred
      */
     protected boolean pullFromAdjacent(Object adjacentHandler, EnumFacing facing, int quantity, int keepQuantity) {
-        boolean didWork = false;
-
-        for (int filterIdx : this.filterSlotList) {
-            K filterKey = this.slotToFilterMap.get(filterIdx);
-            if (filterKey == null) continue;
-
-            long spaceRemaining = this.maxSlotSize - this.amounts[filterIdx];
-            if (spaceRemaining <= 0) continue;
-
-            // quantity is int, so no need to check for overflow when casting it
-            int maxToExtract = (int) Math.min(quantity, spaceRemaining);
-
-            if (keepQuantity > 0) {
-                long adjacentAvailable = countResourceInHandler(adjacentHandler, filterKey, facing);
-                long available = adjacentAvailable - keepQuantity;
-                if (available <= 0) continue;
-
-                maxToExtract = (int) Math.min(maxToExtract, available);
-            }
-
-            if (maxToExtract <= 0) continue;
-
-            long extracted = extractResourceFromHandler(adjacentHandler, filterKey, maxToExtract, facing);
-            if (extracted <= 0) continue;
-
-            // Insert into our buffer, identity may already be preserved from filter match
-            if (this.storage[filterIdx] == null) {
-                this.setResourceInSlotWithAmount(filterIdx, copyAsIdentity(this.filters[filterIdx]), extracted);
-            } else {
-                this.amounts[filterIdx] += extracted;
-            }
-
-            didWork = true;
-        }
-
-        if (didWork) {
-            this.host.markDirtyAndSave();
-            this.host.markForNetworkUpdate();
-        }
-
-        return didWork;
+        return this.adjacentHandler.pullFromAdjacent(adjacentHandler, facing, quantity, keepQuantity);
     }
 
     /**
      * Push resources from our internal storage buffer to an adjacent capability handler.
-     * <p>
-     * Iterates our filter slots, and for each slot with stored resources, pushes up to the
-     * card's configured quantity while respecting keepQuantity in the adjacent inventory.
-     * <p>
-     * Orphaned resources (where the stored identity no longer matches the current filter) are
-     * skipped, they will be handled by the normal network I/O tick which pushes orphans back
-     * to the ME network.
-     *
-     * @param adjacentHandler The adjacent capability handler (already validated by cache)
-     * @param facing The direction from us to the adjacent block
-     * @param quantity Maximum amount to transfer per resource type (from card config)
-     * @param keepQuantity Target amount in adjacent inventory (0 = push freely)
-     * @return true if any resources were transferred
+     * Delegates to {@link InterfaceAdjacentHandler#pushToAdjacent}.
      */
     protected boolean pushToAdjacent(Object adjacentHandler, EnumFacing facing, int quantity, int keepQuantity) {
-        boolean didWork = false;
-
-        for (int filterIdx : this.filterSlotList) {
-            R identity = this.storage[filterIdx];
-            if (identity == null) continue;
-
-            long ourStored = this.amounts[filterIdx];
-            if (ourStored <= 0) continue;
-
-            // Skip orphaned resources, the normal network I/O tick handles these
-            if (this.orphanedSlots.contains(filterIdx)) continue;
-
-            K filterKey = this.slotToFilterMap.get(filterIdx);
-            if (filterKey == null) continue;
-
-            // quantity is int, so no need to check for overflow when casting it
-            int maxToPush = (int) Math.min(quantity, ourStored);
-
-            if (keepQuantity > 0) {
-                long adjacentAmount = countResourceInHandler(adjacentHandler, filterKey, facing);
-                long deficit = keepQuantity - adjacentAmount;
-                if (deficit <= 0) continue;
-
-                maxToPush = (int) Math.min(maxToPush, deficit);
-            }
-
-            if (maxToPush <= 0) continue;
-
-            long accepted = insertResourceIntoHandler(adjacentHandler, identity, maxToPush, facing);
-            if (accepted <= 0) continue;
-
-            this.amounts[filterIdx] -= accepted;
-            if (this.amounts[filterIdx] <= 0) this.clearSlot(filterIdx);
-
-            didWork = true;
-        }
-
-        if (didWork) {
-            this.host.markDirtyAndSave();
-            this.host.markForNetworkUpdate();
-        }
-
-        return didWork;
+        return this.adjacentHandler.pushToAdjacent(adjacentHandler, facing, quantity, keepQuantity);
     }
 
     /**
@@ -461,92 +373,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Called when a card is installed or when the interface first loads with a card.
      */
     protected void refreshCapabilityCache() {
-        this.cachedAdjacentTiles.clear();
-        this.cachedCapabilities.clear();
-        this.capabilityCachePopulated = true;
-
-        Capability<?> cap = getAdjacentCapability();
-        if (cap == null) return;
-
-        World world = this.host.getHostWorld();
-        BlockPos pos = this.host.getHostPos();
-        if (world == null || pos == null) return;
-
-        for (EnumFacing facing : EnumFacing.VALUES) {
-            refreshCapabilityCacheForFacing(world, pos, facing, cap);
-        }
-    }
-
-    /**
-     * Refresh the capability cache for a single facing direction.
-     *
-     * @param world The world
-     * @param pos Our position
-     * @param facing The direction to check
-     * @param cap The capability to query
-     */
-    private void refreshCapabilityCacheForFacing(
-            World world, BlockPos pos, EnumFacing facing, Capability<?> cap
-    ) {
-        BlockPos adjacentPos = pos.offset(facing);
-
-        // Don't load chunks to check neighbors
-        if (!world.isBlockLoaded(adjacentPos)) {
-            this.cachedAdjacentTiles.remove(facing);
-            this.cachedCapabilities.remove(facing);
-            return;
-        }
-
-        TileEntity te = world.getTileEntity(adjacentPos);
-        if (te == null || te.isInvalid()) {
-            this.cachedAdjacentTiles.remove(facing);
-            this.cachedCapabilities.remove(facing);
-            return;
-        }
-
-        // Query capability from the face of the adjacent block facing us (opposite direction)
-        EnumFacing adjacentFace = facing.getOpposite();
-        Object handler = te.getCapability(cap, adjacentFace);
-        if (handler != null) {
-            this.cachedAdjacentTiles.put(facing, new WeakReference<>(te));
-            this.cachedCapabilities.put(facing, handler);
-        } else {
-            this.cachedAdjacentTiles.remove(facing);
-            this.cachedCapabilities.remove(facing);
-        }
+        this.adjacentHandler.refreshCapabilityCache();
     }
 
     /**
      * Clear all cached capabilities. Called when the card is removed.
      */
     protected void clearCapabilityCache() {
-        this.cachedAdjacentTiles.clear();
-        this.cachedCapabilities.clear();
-        this.capabilityCachePopulated = false;
-    }
-
-    /**
-     * Invalidate the capability cache for a specific facing direction.
-     * Called from {@link #onNeighborChanged(BlockPos)} when an adjacent block changes.
-     * Immediately re-scans the specific facing if a card is installed.
-     *
-     * @param facing The direction that changed
-     */
-    protected void invalidateCapabilityCacheForFacing(EnumFacing facing) {
-        this.cachedAdjacentTiles.remove(facing);
-        this.cachedCapabilities.remove(facing);
-
-        // If we have a card, immediately try to re-cache
-        if (!this.installedAutoPushPullUpgrade) return;
-
-        Capability<?> cap = getAdjacentCapability();
-        if (cap == null) return;
-
-        World world = this.host.getHostWorld();
-        BlockPos pos = this.host.getHostPos();
-        if (world == null || pos == null) return;
-
-        refreshCapabilityCacheForFacing(world, pos, facing, cap);
+        this.adjacentHandler.clearCapabilityCache();
     }
 
     /**
@@ -556,49 +390,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @param neighborPos The position of the block that changed
      */
     public void onNeighborChanged(BlockPos neighborPos) {
-        BlockPos pos = this.host.getHostPos();
-        if (pos == null || neighborPos == null) return;
-
-        for (EnumFacing facing : EnumFacing.VALUES) {
-            if (pos.offset(facing).equals(neighborPos)) {
-                invalidateCapabilityCacheForFacing(facing);
-                return;
-            }
-        }
-    }
-
-    /**
-     * Validate a cached capability is still usable.
-     * Checks that the WeakReference is still alive and the tile entity is not invalidated.
-     * If stale, removes the cache entry and returns null.
-     *
-     * @param facing The direction to check
-     * @return The cached handler if still valid, or null
-     */
-    @Nullable
-    protected Object getValidCachedCapability(EnumFacing facing) {
-        WeakReference<TileEntity> ref = this.cachedAdjacentTiles.get(facing);
-        if (ref == null) return null;
-
-        TileEntity te = ref.get();
-        if (te == null || te.isInvalid()) {
-            // Stale reference, evict cache entry
-            this.cachedAdjacentTiles.remove(facing);
-            this.cachedCapabilities.remove(facing);
-            return null;
-        }
-
-        return this.cachedCapabilities.get(facing);
-    }
-
-    /**
-     * Check if any cached capability is present and valid.
-     */
-    protected boolean hasAnyCachedCapability() {
-        for (EnumFacing facing : EnumFacing.VALUES) {
-            if (getValidCachedCapability(facing) != null) return true;
-        }
-        return false;
+        this.adjacentHandler.onNeighborChanged(neighborPos, this.upgradeManager.hasAutoPullPushUpgrade());
     }
 
     // ============================== Auto-Pull/Push execution ==============================
@@ -610,28 +402,24 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @return true if any resource was transferred
      */
     protected boolean performAutoPullPush() {
-        if (!this.installedAutoPushPullUpgrade) return false;
-        if (this.filterSlotList.isEmpty()) return false;
+        if (!this.upgradeManager.hasAutoPullPushUpgrade()) return false;
+        if (this.inventoryManager.getFilterSlotList().isEmpty()) return false;
 
         // Ensure cache is populated (handles first tick after load)
-        if (!this.capabilityCachePopulated) refreshCapabilityCache();
+        if (!this.adjacentHandler.isCachePopulated()) refreshCapabilityCache();
 
-        boolean didWork = false;
-        boolean isExport = this.host.isExport();
-
-        for (EnumFacing facing : EnumFacing.VALUES) {
-            Object handler = getValidCachedCapability(facing);
-            if (handler == null) continue;
-
-            if (isExport) {
-                didWork |= pushToAdjacent(handler, facing, this.autoPushPullQuantity, this.autoPullPushKeepQuantity);
-            } else {
-                didWork |= pullFromAdjacent(handler, facing, this.autoPushPullQuantity, this.autoPullPushKeepQuantity);
-            }
-        }
-
-        return didWork;
+        return this.adjacentHandler.performAutoPullPush(
+                this.upgradeManager.getAutoPushPullQuantity(),
+                this.upgradeManager.getAutoPullPushKeepQuantity());
     }
+
+    /**
+     * Called at the end of each auto-pull/push cycle to flush any transient caches
+     * built during handler interaction. Default no-op; overridden by subclasses
+     * that cache adjacent handler state across multiple extract/insert operations
+     * within a single cycle (e.g. IItemHandler slot caching for items).
+     */
+    protected void flushOperationCaches() { }
 
     // ============================== Abstract methods ==============================
 
@@ -726,6 +514,29 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     protected abstract R readResourceFromNBT(NBTTagCompound tag);
 
     /**
+     * Write a resource to a ByteBuf stream for client sync.
+     * Default implementation wraps writeResourceToNBT via ByteBufUtils.
+     * Override in subclasses that need a different wire format (e.g., compressed NBT for items,
+     * compact string encoding for essentia).
+     */
+    protected void writeResourceToStream(R resource, ByteBuf data) {
+        NBTTagCompound tag = new NBTTagCompound();
+        writeResourceToNBT(resource, tag);
+        ByteBufUtils.writeTag(data, tag);
+    }
+
+    /**
+     * Read a resource from a ByteBuf stream for client sync.
+     * Must match the format written by {@link #writeResourceToStream}.
+     * @return The resource, or null if data is corrupted or unreadable.
+     */
+    @Nullable
+    protected R readResourceFromStream(ByteBuf data) {
+        NBTTagCompound tag = ByteBufUtils.readTag(data);
+        return tag != null ? readResourceFromNBT(tag) : null;
+    }
+
+    /**
      * Get the resource name string for stream serialization (e.g., fluid registry name).
      */
     protected abstract String getResourceName(R resource);
@@ -756,258 +567,78 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     protected abstract ItemStack createRecoveryItem(R identity, long amount);
 
-    // TODO: Streamline the methods to reduce the size of the abstract class.
-    //       There are several things that could be moved to helper classes or interfaces, such as:
-    //         - Ticking management (card intervals, adaptive tick rates, etc.)
-    //         - Filter management (mapping, updates, etc.)
-    //         - Upgrade management (detecting installed upgrades, applying their effects, etc.)
-
     // ============================== Slot amount helpers ==============================
+    // These delegate to inventoryManager for the actual logic.
 
     /**
      * Get the amount stored in a specific slot.
-     * Uses the parallel amounts array for long precision.
      */
     public long getSlotAmount(int slot) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
-        return this.amounts[slot];
-    }
-
-    /**
-     * Set the amount stored in a specific slot.
-     * Uses the parallel amounts array for long precision.
-     */
-    protected void setSlotAmount(int slot, long amount) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return;
-        this.amounts[slot] = amount;
+        return this.inventoryManager.getSlotAmount(slot);
     }
 
     /**
      * Set the resource and amount in a specific slot.
-     * Uses the parallel storage and amounts arrays for long precision.
-     * Use it only for OVERWRITING a slot, not for incremental changes.
      * Updates the storage key map and orphan tracking.
-     *
-     * @param slot The storage slot index
-     * @param resource The resource to store (identity only, not amount), or null to clear identity
-     * @param amount The amount to store
      */
     protected void setResourceInSlotWithAmount(int slot, R resource, long amount) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return;
-        this.storage[slot] = resource;
-        this.amounts[slot] = amount;
-
-        updateStorageKeyForSlot(slot, resource);
+        this.inventoryManager.setResourceInSlotWithAmount(slot, resource, amount);
     }
 
     /**
      * Same as setResourceInSlotWithAmount(int, R, long) but uses the resource's identity and amount.
-     *
-     * @param slot The storage slot index
-     * @param resource The resource to store (including amount)
      */
     protected void setResourceInSlotWithAmount(int slot, R resource) {
-        this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), getAmount(resource));
-    }
-
-    /**
-     * Update the storage key map and orphan status for a single slot.
-     * Called whenever the storage identity changes.
-     *
-     * @param slot The storage slot index
-     * @param resource The new resource identity, or null if the slot is being cleared
-     */
-    private void updateStorageKeyForSlot(int slot, @Nullable R resource) {
-        // Remove old storage key mapping
-        K oldKey = this.slotToStorageKeyMap.remove(slot);
-        if (oldKey != null) this.storageToSlotMap.remove(oldKey);
-
-        if (resource != null) {
-            K newKey = createKey(resource);
-            if (newKey != null) {
-                this.storageToSlotMap.put(newKey, slot);
-                this.slotToStorageKeyMap.put(slot, newKey);
-            }
-
-            // Recalculate orphan status: orphaned if filter key doesn't match storage key
-            recalculateOrphanStatus(slot, newKey);
-        } else {
-            // No identity, cannot be orphaned
-            this.orphanedSlots.remove(slot);
-        }
-    }
-
-    /**
-     * Recalculate orphan status for a slot.
-     * A slot is orphaned when it has a storage identity that doesn't match its filter.
-     *
-     * @param slot The storage slot index
-     * @param storageKey The current storage key (may be null)
-     */
-    private void recalculateOrphanStatus(int slot, @Nullable K storageKey) {
-        if (storageKey == null) {
-            this.orphanedSlots.remove(slot);
-            return;
-        }
-
-        K filterKey = this.slotToFilterMap.get(slot);
-        if (filterKey == null || !keysMatch(filterKey, storageKey)) {
-            this.orphanedSlots.add(slot);
-        } else {
-            this.orphanedSlots.remove(slot);
-        }
-    }
-
-    /**
-     * Check if a slot is orphaned (has identity that doesn't match its filter).
-     * O(1) lookup using the orphanedSlots set.
-     */
-    public boolean isOrphanedSlot(int slot) {
-        return this.orphanedSlots.contains(slot);
+        this.inventoryManager.setResourceInSlotWithAmount(slot, resource);
     }
 
     /**
      * Clear a specific slot, zeroing its amount.
-     * <p>
      * Identity preservation: when a slot has a matching filter (not orphaned),
-     * the identity is kept even when amount reaches 0. This avoids unnecessary
-     * {@link #copyAsIdentity(Object)} calls when the slot is refilled with the
-     * same resource type. The identity is only fully cleared when:
-     * <ul>
-     *   <li>No filter is set for the slot, OR</li>
-     *   <li>The slot is orphaned (identity doesn't match filter)</li>
-     * </ul>
-     *
-     * @param slot The storage slot index
+     * the identity is kept even when amount reaches 0.
      */
     protected void clearSlot(int slot) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return;
-
-        this.amounts[slot] = 0;
-
-        // Keep identity if filter matches (avoids copy on refill)
-        if (this.filters[slot] != null && !this.orphanedSlots.contains(slot)) return;
-
-        // No filter or orphaned, fully clear the identity
-        this.storage[slot] = null;
-        updateStorageKeyForSlot(slot, null);
+        this.inventoryManager.clearSlot(slot);
     }
 
     /**
      * Adjust the amount stored in a specific slot by a delta value.
-     * Used by GUI containers for long-safe insertion/extraction operations.
-     * <p>
-     * If the resulting amount is <= 0, the slot is cleared (both identity and amount).
-     * If the slot was empty (identity null) and delta > 0, this does nothing.
-     * Use setResourceInSlot() to place items in empty slots.
-     *
-     * @param slot  The storage slot index
-     * @param delta The amount to add (positive) or subtract (negative)
-     * @return The actual amount added/removed (may be clamped to available space/contents)
      */
     public long adjustSlotAmount(int slot, long delta) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
-
-        R identity = this.storage[slot];
-
-        // Can't adjust an empty slot (use setResourceInSlot instead)
-        if (identity == null || this.amounts[slot] <= 0) return 0;
-
-        long currentAmount = this.amounts[slot];
-        long newAmount = currentAmount + delta;
-
-        if (newAmount <= 0) {
-            // Slot depleted, clearSlot preserves identity if filter matches
-            long removed = currentAmount;
-            this.clearSlot(slot);
-            host.markDirtyAndSave();
-            return -removed; // Return negative to indicate removal
-        }
-
-        // Clamp to max slot size
-        long maxSize = getMaxSlotSize();
-        if (newAmount > maxSize) newAmount = maxSize;
-
-        long actualDelta = newAmount - currentAmount;
-        this.amounts[slot] = newAmount;
-        host.markDirtyAndSave();
-        return actualDelta;
+        return this.inventoryManager.adjustSlotAmount(slot, delta);
     }
 
     /**
      * Create a resource stack from the storage identity with the given amount.
-     * Clamps the amount to int for external API compatibility.
-     *
-     * @param slot The storage slot containing the identity
-     * @param amount The amount to apply (will be clamped to Integer.MAX_VALUE)
-     * @return The resource with the clamped amount, or null if slot is empty
      */
     @Nullable
     protected R createStackFromSlot(int slot, long amount) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return null;
-
-        R identity = this.storage[slot];
-        if (identity == null) return null;
-
-        int clampedAmount = (int) Math.min(amount, Integer.MAX_VALUE);
-        return copyWithAmount(identity, clampedAmount);
+        return this.inventoryManager.createStackFromSlot(slot, amount);
     }
 
     // ============================== Slot access ==============================
 
     public AppEngInternalInventory getUpgradeInventory() {
-        return this.upgradeInventory;
-    }
-
-    public boolean isSlotEmpty(int slot) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return true;
-        return this.storage[slot] == null || this.amounts[slot] <= 0;
+        return this.upgradeManager.getUpgradeInventory();
     }
 
     @Nullable
     public R getResourceInSlot(int slot) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return null;
-
-        R identity = this.storage[slot];
-        if (identity == null || this.amounts[slot] <= 0) return null;
-
-        // Create a stack with the current amount (clamped to int for external APIs)
-        return createStackFromSlot(slot, this.amounts[slot]);
+        return this.inventoryManager.getResourceInSlot(slot);
     }
 
     /**
      * Set the resource in a specific storage slot.
      * Used for GUI-based resource pouring.
-     *
-     * @param slot The storage slot index
-     * @param resource The resource to set (with amount), or null to clear
      */
     public void setResourceInSlot(int slot, @Nullable R resource) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return;
-
-        if (resource == null) {
-            this.clearSlot(slot);
-        } else {
-            this.setResourceInSlotWithAmount(slot, resource);
-        }
-
-        // Rebuild filter map since storage changed
-        refreshFilterMap();
-
-        // Trigger network update to sync storage to clients
-        this.host.markForNetworkUpdate();
-
-        // Wake up to process the new content (import will push to network)
-        this.wakeUpIfAdaptive();
+        this.inventoryManager.setResourceInSlot(slot, resource);
     }
 
     @Override
     @Nullable
     public AE getFilter(int slot) {
-        if (slot < 0 || slot >= FILTER_SLOTS) return null;
-
-        R filter = this.filters[slot];
-        return filter != null ? toAEStack(filter) : null;
+        return this.inventoryManager.getFilter(slot);
     }
 
     /**
@@ -1015,493 +646,119 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     @Override
     public void setFilter(int slot, @Nullable AE aeResource) {
-        if (slot < 0 || slot >= FILTER_SLOTS) return;
-
-        this.filters[slot] = aeResource != null ? copyWithAmount(fromAEStack(aeResource), 1) : null;
-        onFilterChanged(slot);
+        this.inventoryManager.setFilter(slot, aeResource);
     }
 
     /**
      * Insert resource into a specific storage slot (import interface operation).
-     * Uses the parallel amounts array for long precision internally.
      *
      * @return The amount actually inserted (clamped to int for external API compat)
      */
     public int insertIntoSlot(int slot, R resource) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
-        if (resource == null || getAmount(resource) <= 0) return 0;
-
-        R identity = this.storage[slot];
-
-        // Use cached storage key for O(1) matching instead of resourcesMatch
-        if (identity != null) {
-            K storageKey = this.slotToStorageKeyMap.get(slot);
-            K incomingKey = createKey(resource);
-            if (storageKey == null || incomingKey == null || !keysMatch(storageKey, incomingKey)) return 0;
-        }
-
-        long currentAmount = this.amounts[slot];
-        long spaceAvailable = this.maxSlotSize - currentAmount;
-        if (spaceAvailable <= 0) return 0;
-
-        // Input amount is int (from external APIs), but we store as long
-        int inputAmount = getAmount(resource);
-        long toInsert = Math.min(inputAmount, spaceAvailable);
-
-        // Identity may already be preserved from a previous clearSlot (filter match).
-        // Only set identity if truly null (first ever use or after orphan clear).
-        if (identity == null) {
-            this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), toInsert);
-        } else {
-            this.amounts[slot] += toInsert;
-        }
-
-        this.host.markDirtyAndSave();
-        this.host.markForNetworkUpdate();
-        this.wakeUpIfAdaptive();
-
-        // Return int for external API compatibility (always fits since input was int)
-        return (int) toInsert;
+        return this.inventoryManager.insertIntoSlot(slot, resource);
     }
 
     /**
      * Internal insert with long amount support.
-     * Used for ME network operations that use long amounts.
      *
      * @return The amount actually inserted (as long)
      */
     protected long insertIntoSlotLong(int slot, R resource, long amount) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return 0;
-        if (resource == null || amount <= 0) return 0;
-
-        R identity = this.storage[slot];
-
-        // Use cached storage key for O(1) matching
-        if (identity != null) {
-            K storageKey = this.slotToStorageKeyMap.get(slot);
-            K incomingKey = createKey(resource);
-            if (storageKey == null || incomingKey == null || !keysMatch(storageKey, incomingKey)) return 0;
-        }
-
-        long currentAmount = this.amounts[slot];
-        long spaceAvailable = this.maxSlotSize - currentAmount;
-        if (spaceAvailable <= 0) return 0;
-
-        long toInsert = Math.min(amount, spaceAvailable);
-
-        // Identity may already be preserved from a previous clearSlot (filter match).
-        if (identity == null) {
-            this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), toInsert);
-        } else {
-            this.amounts[slot] += toInsert;
-        }
-
-        this.host.markDirtyAndSave();
-        this.host.markForNetworkUpdate();
-        this.wakeUpIfAdaptive();
-
-        return toInsert;
+        return this.inventoryManager.insertIntoSlotLong(slot, resource, amount);
     }
 
     /**
      * Drain resource from a specific storage slot (export interface operation).
-     * Uses the parallel amounts array for long precision internally.
-     *
-     * @param maxDrain Maximum amount to drain (int for external API compat)
-     * @return The resource extracted (clamped to int), or null if nothing extracted
      */
     @Nullable
     public R drainFromSlot(int slot, int maxDrain, boolean doDrain) {
-        return drainFromSlotLong(slot, maxDrain, doDrain);
-    }
-
-    /**
-     * Internal drain with long amount support.
-     * Used for ME network operations that use long amounts.
-     *
-     * @param maxDrain Maximum amount to drain (as long)
-     * @return The resource extracted (clamped to int for external APIs), or null if nothing extracted
-     */
-    @Nullable
-    protected R drainFromSlotLong(int slot, long maxDrain, boolean doDrain) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return null;
-
-        R identity = this.storage[slot];
-        long currentAmount = this.amounts[slot];
-        if (identity == null || currentAmount <= 0) return null;
-
-        long toDrain = Math.min(maxDrain, currentAmount);
-
-        // Clamp to int for external API return (create stack with int amount)
-        int clampedDrain = (int) Math.min(toDrain, Integer.MAX_VALUE);
-        R drained = copyWithAmount(identity, clampedDrain);
-
-        if (doDrain) {
-            this.amounts[slot] -= toDrain;
-            if (this.amounts[slot] <= 0) this.clearSlot(slot);
-
-            this.host.markDirtyAndSave();
-            this.host.markForNetworkUpdate();
-
-            // Wake up to request more resources (export replenishes)
-            this.wakeUpIfAdaptive();
-        }
-
-        return drained;
+        return this.inventoryManager.drainFromSlot(slot, maxDrain, doDrain);
     }
 
     /**
      * Receive a resource into this interface based on filter configuration.
      * Used by import interface external handlers.
-     * Uses the parallel amounts array for long precision internally.
-     *
-     * @param resource The resource to receive
-     * @param doTransfer If true, actually perform the transfer; if false, simulate
-     * @return The amount accepted (may include voided amounts if upgrades are installed)
      */
     public int receiveFiltered(R resource, boolean doTransfer) {
-        if (resource == null || getAmount(resource) <= 0) return 0;
-
-        K key = createKey(resource);
-        if (key == null) return 0;
-
-        int inputAmount = getAmount(resource);
-
-        // No filter matches - void if trash unselected upgrade installed, reject otherwise
-        Integer slot = this.filterToSlotMap.get(key);
-        if (slot == null) return this.installedTrashUnselectedUpgrade ? inputAmount : 0;
-
-        // Insert into matching slot using parallel amounts array
-        long currentAmount = this.amounts[slot];
-        long space = this.maxSlotSize - currentAmount;
-
-        // Slot full - void overflow if upgrade installed, reject otherwise
-        if (space <= 0) return this.installedOverflowUpgrade ? inputAmount : 0;
-
-        // Input is int, but we can accept up to maxSlotSize (long)
-        long toInsert = Math.min(inputAmount, space);
-
-        if (doTransfer) {
-            // Identity may already be preserved from a previous clearSlot (filter match).
-            if (this.storage[slot] == null) {
-                this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), toInsert);
-            } else {
-                this.amounts[slot] += toInsert;
-            }
-
-            this.host.markDirtyAndSave();
-            this.host.markForNetworkUpdate();
-
-            // Wake up to import resources
-            this.wakeUpIfAdaptive();
-        }
-
-        // If overflow upgrade installed, accept all resource (void the excess)
-        int excess = inputAmount - (int) toInsert;
-        if (excess > 0 && this.installedOverflowUpgrade) return inputAmount;
-
-        return (int) toInsert;
+        return this.inventoryManager.receiveFiltered(resource, doTransfer,
+                this.upgradeManager.hasOverflowUpgrade(),
+                this.upgradeManager.hasTrashUnselectedUpgrade());
     }
 
     /**
      * Drain any available resource from this interface.
-     * Used by export interface external handlers for untyped drain requests.
-     *
-     * @param maxDrain Maximum amount to drain
-     * @param doDrain If true, actually drain; if false, simulate
-     * @return The drained resource, or null if nothing available
      */
     @Nullable
     public R drainAny(int maxDrain, boolean doDrain) {
-        // Drain from first non-empty slot
-        for (int slot : this.filterSlotList) {
-            if (this.storage[slot] != null && this.amounts[slot] > 0) {
-                return drainFromSlot(slot, maxDrain, doDrain);
-            }
-        }
-
-        return null;
+        return this.inventoryManager.drainAny(maxDrain, doDrain);
     }
 
     /**
      * Drain a specific resource from this interface.
-     * Used by export interface external handlers for typed drain requests.
-     *
-     * @param request The resource to drain (type and max amount)
-     * @param doDrain If true, actually drain; if false, simulate
-     * @return The drained resource, or null if not available
      */
     @Nullable
     public R drainSpecific(R request, boolean doDrain) {
-        if (request == null || getAmount(request) <= 0) return null;
-
-        K key = createKey(request);
-        if (key == null) return null;
-
-        Integer slot = this.filterToSlotMap.get(key);
-        if (slot == null) return null;
-
-        return drainFromSlot(slot, getAmount(request), doDrain);
+        return this.inventoryManager.drainSpecific(request, doDrain);
     }
 
     /**
      * Check if this interface can receive the given resource type.
-     * Used by import interface external handlers for capability queries.
-     *
-     * @param resource The resource to check (only type matters, not amount)
-     * @return true if a filter exists for this resource type
      */
     public boolean canReceive(R resource) {
-        if (resource == null) return false;
-
-        K key = createKey(resource);
-        return key != null && this.filterToSlotMap.containsKey(key);
+        return this.inventoryManager.canReceive(resource);
     }
 
     /**
      * Check if this interface can drain the given resource type.
-     * Used by export interface external handlers for capability queries.
-     *
-     * @param resource The resource to check (only type matters, not amount)
-     * @return true if a filter exists for this resource type
      */
     public boolean canDrain(R resource) {
-        // Same logic as canReceive - we can drain what we have filters for
-        return canReceive(resource);
+        return this.inventoryManager.canDrain(resource);
+    }
+
+    @Override
+    public long validateMaxSlotSize(long newMax) {
+        return this.inventoryManager.validateMaxSlotSize(newMax);
+    }
+
+    @Override
+    public long setMaxSlotSize(long newMax) {
+        return this.inventoryManager.setMaxSlotSize(newMax);
     }
 
     @Override
     public long getMaxSlotSize() {
-        return this.maxSlotSize;
-    }
-
-    /**
-     * Set the maximum tank capacity.
-     * If export and reduced, returns overflow to the network.
-     */
-    @Override
-    public void setMaxSlotSize(long size) {
-        long oldSize = this.maxSlotSize;
-        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(size, getMaxMaxSlotSize()));
-
-        this.host.markDirtyAndSave();
-
-        if (this.host.isExport()) {
-            if (oldSize > this.maxSlotSize) returnOverflowToNetwork();
-            if (oldSize < this.maxSlotSize) this.wakeUpIfAdaptive();
-        }
+        return this.inventoryManager.getMaxSlotSize();
     }
 
     @Override
     public int getPollingRate() {
-        return this.pollingRate;
+        return this.tickScheduler.getPollingRate();
     }
 
     @Override
-    public void setPollingRate(int ticks) {
-        this.setPollingRate(ticks, null);
+    public int setPollingRate(int ticks) {
+        return this.setPollingRate(ticks, null);
     }
 
     /**
      * Set the polling rate with optional player notification on failure.
-     * @param ticks Polling rate in ticks (0 = adaptive, but clamped to config minimum)
-     * @param player Player to notify if re-registration fails, or null to skip notification
      */
-    public void setPollingRate(int ticks, EntityPlayer player) {
-        // Enforce config minimum (0 means adaptive, but if config requires higher, enforce it)
-        int minRate = getMinPollingRate();
-        this.pollingRate = Math.max(minRate, ticks);
-        this.host.markDirtyAndSave();
-
-        // Re-register with the tick manager to apply the new TickingRequest bounds.
-        AENetworkProxy proxy = this.host.getGridProxy();
-        if (proxy.isReady()) {
-            if (!TickManagerHelper.reRegisterTickable(proxy.getNode(), this.host.getTickable())) {
-                if (player != null) {
-                    player.sendMessage(new TextComponentTranslation("message.cells.polling_rate_delayed"));
-                }
-            }
-
-            // When switching to adaptive mode, wake up the interface immediately
-            // to prevent it from sleeping indefinitely waiting for external triggers.
-            this.wakeUpIfAdaptive();
-        }
+    public int setPollingRate(int ticks, EntityPlayer player) {
+        return this.tickScheduler.setPollingRate(ticks, player);
     }
 
     /**
      * Refresh the status of installed upgrades.
-     * Handles card lifecycle: when auto-pull/push card is inserted or removed,
-     * updates the capability cache and re-registers the tick rate.
+     * Delegates to upgradeManager.
      */
     @Override
     public void refreshUpgrades() {
-        if (!this.host.isExport()) {
-            this.installedOverflowUpgrade = countUpgrade(ItemOverflowCard.class) > 0;
-            this.installedTrashUnselectedUpgrade = countUpgrade(ItemTrashUnselectedCard.class) > 0;
-        }
-
-        boolean wasCardInstalled = this.installedAutoPushPullUpgrade;
-        int oldCardInterval = this.autoPullPushInterval;
-
-        this.installedAutoPushPullUpgrade = (countUpgrade(ItemAutoPullCard.class) > 0 ||
-                countUpgrade(ItemAutoPushCard.class) > 0);
-
-        if (this.installedAutoPushPullUpgrade) {
-            // Read the values from the first found auto-pull/push card (there should only be 1)
-            initAutoPullPushFromUpgrades();
-
-            // Card just installed or settings changed, scan adjacent tiles and re-register tick rate
-            if (!wasCardInstalled) {
-                refreshCapabilityCache();
-                reRegisterTickRate();
-            } else if (this.autoPullPushInterval != oldCardInterval) {
-                // Card interval changed: re-register tick rate to match
-                reRegisterTickRate();
-            }
-        } else if (wasCardInstalled) {
-            // Card was removed: clear cache, reset timers, revert tick rate
-            clearCapabilityCache();
-            this.autoPullPushInterval = -1;
-            this.autoPushPullQuantity = 0;
-            this.autoPullPushKeepQuantity = 0;
-            this.totalElapsedTicks = 0;
-            this.lastCardOperationTick = 0;
-            this.lastNetworkIOTick = 0;
-            reRegisterTickRate();
-        }
-
-        int oldCapacityCount = this.installedCapacityUpgrades;
-        this.installedCapacityUpgrades = countCapacityUpgrades();
-
-        // Handle capacity card removal
-        if (this.installedCapacityUpgrades < oldCapacityCount) {
-            handleCapacityReduction(oldCapacityCount, this.installedCapacityUpgrades);
-        }
-
-        // Clamp current page to valid range
-        int maxPage = this.installedCapacityUpgrades;
-        if (this.currentPage > maxPage) this.currentPage = maxPage;
-    }
-
-    /**
-     * Re-register with the AE2 tick manager to apply changed tick rate bounds.
-     * Called when the card is installed, removed, or its interval changes.
-     */
-    private void reRegisterTickRate() {
-        AENetworkProxy proxy = this.host.getGridProxy();
-        if (!proxy.isReady()) return;
-
-        TickManagerHelper.reRegisterTickable(proxy.getNode(), this.host.getTickable());
-
-        // When switching to adaptive mode (card removed), wake up to prevent sleeping forever
-        this.wakeUpIfAdaptive();
-    }
-
-    protected int countUpgrade(Class<?> itemClass) {
-        int count = 0;
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack existing = this.upgradeInventory.getStackInSlot(i);
-            if (!existing.isEmpty() && itemClass.isInstance(existing.getItem())) count++;
-        }
-
-        return count;
-    }
-
-    public boolean hasOverflowUpgrade() {
-        return this.installedOverflowUpgrade;
-    }
-
-    public boolean hasTrashUnselectedUpgrade() {
-        return this.installedTrashUnselectedUpgrade;
-    }
-
-    public boolean hasAutoPullPushUpgrade() {
-        return this.installedAutoPushPullUpgrade;
-    }
-
-    public int getAutoPullPushInterval() {
-        return this.autoPullPushInterval;
-    }
-
-    protected int initAutoPullPushFromUpgrades() {
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-
-            if (stack.getItem() instanceof ItemAutoPullCard || stack.getItem() instanceof ItemAutoPushCard) {
-                if (stack.getItem() instanceof ItemAutoPullCard) {
-                    this.autoPullPushInterval = ItemAutoPullCard.getInterval(stack);
-                    this.autoPushPullQuantity = ItemAutoPullCard.getQuantity(stack);
-                    this.autoPullPushKeepQuantity = ItemAutoPullCard.getKeepQuantity(stack);
-                } else {
-                    this.autoPullPushInterval = ItemAutoPushCard.getInterval(stack);
-                    this.autoPushPullQuantity = ItemAutoPushCard.getQuantity(stack);
-                    this.autoPullPushKeepQuantity = ItemAutoPushCard.getKeepQuantity(stack);
-                }
-
-                break;
-            }
-        }
-
-        return -1; // Default interval if not found
-    }
-
-    protected int countCapacityUpgrades() {
-        int count = 0;
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
-            if (stack.isEmpty()) continue;
-            if (!(stack.getItem() instanceof IUpgradeModule)) continue;
-
-            IUpgradeModule module = (IUpgradeModule) stack.getItem();
-            if (module.getType(stack) == Upgrades.CAPACITY) count++;
-        }
-
-        return count;
-    }
-
-    /**
-     * Check if an item is a valid upgrade for this interface.
-     */
-    public boolean isValidUpgrade(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-
-        // Overflow and Trash unselected are import-only (make no sense for export)
-        if (!this.host.isExport()) {
-            if (stack.getItem() instanceof ItemOverflowCard) {
-                return countUpgrade(ItemOverflowCard.class) < 1;
-            }
-
-            if (stack.getItem() instanceof ItemTrashUnselectedCard) {
-                return countUpgrade(ItemTrashUnselectedCard.class) < 1;
-            }
-        }
-
-        if (stack.getItem() instanceof ItemAutoPullCard && !this.host.isExport()) {
-            return countUpgrade(ItemAutoPullCard.class) < 1;
-        }
-
-        if (stack.getItem() instanceof ItemAutoPushCard && this.host.isExport()) {
-            return countUpgrade(ItemAutoPushCard.class) < 1;
-        }
-
-        // Capacity card (both import and export)
-        if (stack.getItem() instanceof IUpgradeModule) {
-            IUpgradeModule module = (IUpgradeModule) stack.getItem();
-            if (module.getType(stack) == Upgrades.CAPACITY) return true;
-        }
-
-        return false;
-    }
-
-    @Override
-    public int getInstalledCapacityUpgrades() {
-        return this.installedCapacityUpgrades;
+        this.upgradeManager.refreshUpgrades();
     }
 
     @Override
     public int getTotalPages() {
-        return 1 + this.installedCapacityUpgrades;
+        return 1 + this.upgradeManager.getInstalledCapacityUpgrades();
     }
 
     @Override
@@ -1511,64 +768,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     @Override
     public void setCurrentPage(int page) {
-        this.currentPage = Math.max(0, Math.min(page, this.installedCapacityUpgrades));
-    }
-
-    @Override
-    public int getCurrentPageStartSlot() {
-        return this.currentPage * SLOTS_PER_PAGE;
-    }
-
-    @Override
-    public int getSlotsPerPage() {
-        return SLOTS_PER_PAGE;
-    }
-
-    @Override
-    public int getFilterSlots() {
-        return FILTER_SLOTS;
-    }
-
-    /**
-     * Handle capacity reduction by clearing filters and returning resources from removed pages.
-     */
-    protected void handleCapacityReduction(int oldCount, int newCount) {
-        int newMaxSlot = (1 + newCount) * SLOTS_PER_PAGE;
-        int oldMaxSlot = (1 + oldCount) * SLOTS_PER_PAGE;
-
-        World world = this.host.getHostWorld();
-        BlockPos pos = this.host.getHostPos();
-
-        // Process slots that are being removed
-        for (int slot = newMaxSlot; slot < oldMaxSlot && slot < STORAGE_SLOTS; slot++) {
-            // Clear the filter
-            this.filters[slot] = null;
-
-            // Return resource to network
-            R identity = this.storage[slot];
-            long amount = this.amounts[slot];
-            if (identity != null && amount > 0) {
-                long notInserted = insertIntoNetworkLong(identity, amount);
-
-                // Create a single recovery item for remainder (supports long amounts)
-                if (notInserted > 0) {
-                    ItemStack drop = createRecoveryItem(identity, notInserted);
-                    if (!drop.isEmpty() && world != null && pos != null) {
-                        Block.spawnAsEntity(world, pos, drop);
-                    }
-                    // If no recovery item available, remainder is voided
-                    // This should never happen as we handle every type
-                }
-            }
-
-            // Force-clear slot (including any preserved identity with amount=0)
-            this.storage[slot] = null;
-            this.amounts[slot] = 0;
-            updateStorageKeyForSlot(slot, null);
-        }
-
-        this.refreshFilterMap();
-        this.host.markDirtyAndSave();
+        this.currentPage = Math.max(0, Math.min(page, this.upgradeManager.getInstalledCapacityUpgrades()));
     }
 
     /**
@@ -1577,42 +777,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     @Override
     public void refreshFilterMap() {
-        this.filterToSlotMap.clear();
-        this.slotToFilterMap.clear();
-
-        List<Integer> validSlots = new ArrayList<>();
-
-        for (int i = 0; i < TOTAL_SLOTS; i++) {
-            R filter = this.filters[i];
-            if (filter == null) continue;
-
-            K key = createKey(filter);
-            if (key != null) {
-                this.filterToSlotMap.put(key, i);
-                this.slotToFilterMap.put(i, key);
-                validSlots.add(i);
-            }
-        }
-
-        this.filterSlotList = validSlots;
-
-        // Rebuild storage key map and orphan status from current storage state
-        this.storageToSlotMap.clear();
-        this.slotToStorageKeyMap.clear();
-        this.orphanedSlots.clear();
-
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            R identity = this.storage[i];
-            if (identity == null) continue;
-
-            K storageKey = createKey(identity);
-            if (storageKey != null) {
-                this.storageToSlotMap.put(storageKey, i);
-                this.slotToStorageKeyMap.put(i, storageKey);
-            }
-
-            recalculateOrphanStatus(i, storageKey);
-        }
+        this.inventoryManager.refreshFilterMap();
     }
 
     /**
@@ -1622,174 +787,105 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     @Override
     public void clearFilters() {
-        if (this.host.isExport()) {
-            for (int i = 0; i < FILTER_SLOTS; i++) this.filters[i] = null;
-        } else {
-            for (int i = 0; i < FILTER_SLOTS; i++) {
-                // Only clear filter if the corresponding storage slot is empty (amount-based,
-                // since preserved identities with amount=0 count as empty)
-                if (i >= STORAGE_SLOTS || this.amounts[i] <= 0) {
-                    this.filters[i] = null;
-                }
-            }
-        }
-
-        this.refreshFilterMap();
-        this.host.markDirtyAndSave();
-        this.host.markForNetworkUpdate();
-    }
-
-    /**
-     * Find the first empty filter slot.
-     * @return The slot index, or -1 if no empty slots available
-     */
-    public int findEmptyFilterSlot() {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (this.filters[i] == null) return i;
-        }
-
-        return -1;
-    }
-
-    /**
-     * Find the storage slot that matches the given resource.
-     * @return The slot index, or -1 if no matching filter found
-     */
-    public int findSlotForResource(R resource) {
-        if (resource == null) return -1;
-
-        K key = createKey(resource);
-        if (key == null) return -1;
-
-        Integer slot = this.filterToSlotMap.get(key);
-        return slot != null ? slot : -1;
+        this.inventoryManager.clearFilters();
     }
 
     // ============================== IFilterableInterfaceHost support ==============================
 
-    /**
-     * Check if a filter with the given key exists.
-     * O(1) operation using the internal HashMap.
-     *
-     * @param key The key to check
-     * @return true if a filter exists for this key
-     */
     @Override
     public boolean isInFilter(@Nonnull K key) {
-        return this.filterToSlotMap.containsKey(key);
+        return this.inventoryManager.isInFilter(key);
     }
 
-    /**
-     * Check if a resource is in the filter.
-     * Creates a key and delegates to isInFilter(K).
-     *
-     * @param resource The resource to check
-     * @return true if a filter exists for this resource
-     */
     public boolean isResourceInFilter(@Nullable R resource) {
-        if (resource == null) return false;
-
-        K key = createKey(resource);
-        return key != null && isInFilter(key);
+        return this.inventoryManager.isResourceInFilter(resource);
     }
 
-    /**
-     * Find the slot index for a given key.
-     *
-     * @param key The key to find
-     * @return The slot index, or -1 if not found
-     */
     @Override
     public int findSlotByKey(@Nonnull K key) {
-        Integer slot = this.filterToSlotMap.get(key);
-        return slot != null ? slot : -1;
+        return this.inventoryManager.findSlotByKey(key);
     }
 
     /**
      * Get the effective number of filter slots based on installed capacity upgrades.
-     *
-     * @return Number of effective slots (SLOTS_PER_PAGE * totalPages)
      */
     public int getEffectiveFilterSlots() {
         return SLOTS_PER_PAGE * getTotalPages();
     }
 
-    /**
-     * Check if the storage at a specific slot is empty.
-     *
-     * @param slot The slot index
-     * @return true if the storage slot is empty
-     */
     @Override
     public boolean isStorageEmpty(int slot) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return true;
-        return this.storage[slot] == null || this.amounts[slot] <= 0;
+        return this.inventoryManager.isSlotEmpty(slot);
+    }
+
+    // ============================== Array accessor methods for subclasses ==============================
+    // Subclasses should use these instead of directly accessing the storage/filter/amounts arrays.
+    // These delegate to the inventoryManager which owns the canonical data.
+
+    /**
+     * Get the raw storage identity for a specific slot (without amount).
+     * This is the resource type/NBT stored in that slot, or null if empty.
+     */
+    @Nullable
+    protected R getStorageIdentity(int slot) {
+        return this.inventoryManager.getStorageIdentity(slot);
     }
 
     /**
-     * Add a resource to the first available filter slot.
-     * Respects import/export rules (import won't add to slots with non-empty storage).
-     * Does NOT check for duplicates - caller should check isInFilter first.
-     *
-     * @param resource The resource to add as a filter
-     * @return The slot index where the filter was added, or -1 if no space available
+     * Get the raw filter resource for a specific slot.
+     * @return The filter resource, or null if no filter is set
      */
-    public int addToFirstAvailableSlot(@Nonnull R resource) {
-        final boolean isExport = this.host.isExport();
-        final int effectiveSlots = getEffectiveFilterSlots();
-
-        for (int i = 0; i < effectiveSlots; i++) {
-            if (this.filters[i] != null) continue;
-
-            // Import mode: only use slot if storage is also empty
-            if (!isExport && !isStorageEmpty(i)) continue;
-
-            // Set the filter
-            this.filters[i] = copyWithAmount(resource, 1);
-            onFilterChanged(i);
-            return i;
-        }
-
-        return -1;
+    @Nullable
+    protected R getRawFilter(int slot) {
+        return this.inventoryManager.getRawFilter(slot);
     }
 
     /**
-     * Add an AE-wrapped resource to the first available filter slot.
-     * Convenience wrapper that converts from AE type to native type.
-     *
-     * @param aeResource The AE-wrapped resource to add as a filter
-     * @return The slot index where the filter was added, or -1 if no space available
+     * Get an unmodifiable view of the filter slot list (slot indices with filters, in order).
      */
-    @Override
-    public int addToFirstAvailableSlotAE(@Nonnull AE aeResource) {
-        R resource = fromAEStack(aeResource);
-        return addToFirstAvailableSlot(resource);
+    protected List<Integer> getFilterSlotList() {
+        return this.inventoryManager.getFilterSlotList();
+    }
+
+    /**
+     * Get the set of slot indices that have non-null storage identities.
+     * Some may have amount == 0 due to identity preservation (filter match).
+     */
+    protected Set<Integer> getOccupiedStorageSlots() {
+        return this.inventoryManager.getOccupiedStorageSlots();
+    }
+
+    /**
+     * Get the filter key for a specific slot.
+     * @return The key, or null if no filter in that slot
+     */
+    @Nullable
+    protected K getFilterKey(int slot) {
+        return this.inventoryManager.getFilterKey(slot);
+    }
+
+    /**
+     * Check if a filter key exists.
+     */
+    protected boolean containsFilterKey(@Nonnull K key) {
+        return this.inventoryManager.containsFilterKey(key);
+    }
+
+    /**
+     * Get the filter slot index for a given key.
+     * @return The slot index, or null if not found
+     */
+    @Nullable
+    protected Integer getFilterSlotForKey(K key) {
+        return this.inventoryManager.getFilterSlot(key);
     }
 
     /**
      * Collect stored resources that should be dropped (not upgrades).
      * Attempts to return stored resources to the ME network first.
-     * Creates ItemRecoveryContainer items for any resources that couldn't be returned.
      */
     public void getStorageDrops(List<ItemStack> drops) {
-        // Try to return all storage contents to the network
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            R identity = this.storage[i];
-            long amount = this.amounts[i];
-            if (identity == null || amount <= 0) continue;
-
-            // Try to insert into network
-            long notInserted = insertIntoNetworkLong(identity, amount);
-
-            // Create a single recovery item for the remainder (supports long amounts)
-            if (notInserted > 0) {
-                ItemStack drop = createRecoveryItem(identity, notInserted);
-                if (!drop.isEmpty()) drops.add(drop);
-            }
-
-            // Clear the slot regardless
-            this.clearSlot(i);
-        }
+        this.inventoryManager.getStorageDrops(drops);
     }
 
     /**
@@ -1798,12 +894,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     public void getDrops(List<ItemStack> drops) {
         getStorageDrops(drops);
-
-        // Drop upgrades
-        for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
-            ItemStack stack = this.upgradeInventory.getStackInSlot(i);
-            if (!stack.isEmpty()) drops.add(stack);
-        }
+        this.upgradeManager.getUpgradeDrops(drops);
     }
 
     /**
@@ -1822,38 +913,8 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         return getTypeName() + "Storage";
     }
 
-    protected void writeFiltersToNBT(NBTTagCompound data, String name) {
-        NBTTagCompound filtersMap = new NBTTagCompound();
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            R filter = this.filters[i];
-            if (filter == null) continue;
-
-            NBTTagCompound filterTag = new NBTTagCompound();
-            writeResourceToNBT(filter, filterTag);
-            filtersMap.setTag("#" + i, filterTag);
-        }
-        data.setTag(name, filtersMap);
-    }
-
     protected void readFiltersFromNBT(NBTTagCompound data, String name) {
-        if (!data.hasKey(name, Constants.NBT.TAG_COMPOUND)) return;
-
-        NBTTagCompound filtersMap = data.getCompoundTag(name);
-        for (String key : filtersMap.getKeySet()) {
-            if (!key.startsWith("#")) continue;
-
-            try {
-                int slot = Integer.parseInt(key.substring(1));
-                if (slot < 0 || slot >= FILTER_SLOTS) continue;
-
-                NBTTagCompound filterTag = filtersMap.getCompoundTag(key);
-                if (filterTag.isEmpty()) continue;
-
-                R filter = readResourceFromNBT(filterTag);
-                if (filter != null) this.filters[slot] = filter;
-            } catch (NumberFormatException ignored) {
-            }
-        }
+        this.inventoryManager.readFiltersFromNBT(data, name);
     }
 
     /**
@@ -1862,19 +923,13 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public void readFromNBT(NBTTagCompound data) {
         readFiltersFromNBT(data, getFiltersNBTKey());
         readStorageFromNBT(data);
-        this.upgradeInventory.readFromNBT(data, "upgrades");
 
-        this.maxSlotSize = data.getLong("maxSlotSize");
-        this.pollingRate = data.getInteger("pollingRate");
+        this.upgradeManager.readFromNBT(data);
+        this.inventoryManager.readFromNBT(data);
+        this.tickScheduler.readFromNBT(data);
 
-        this.maxSlotSize = Math.max(MIN_MAX_SLOT_SIZE, Math.min(this.maxSlotSize, getMaxMaxSlotSize()));
-        // Enforce config minimum polling rate (0 = adaptive allowed only if config allows)
-        int minRate = getMinPollingRate();
-        this.pollingRate = Math.max(minRate, this.pollingRate);
-
-
-        this.refreshFilterMap();
-        this.refreshUpgrades();
+        this.inventoryManager.refreshFilterMap();
+        this.upgradeManager.refreshUpgrades();
     }
 
     /**
@@ -1882,118 +937,38 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Reads both identity and amounts from NBT, supporting long amounts.
      */
     protected void readStorageFromNBT(NBTTagCompound data) {
-        String storageKey = getStorageNBTKey();
-        if (!data.hasKey(storageKey, Constants.NBT.TAG_COMPOUND)) return;
-
-        NBTTagCompound storageMap = data.getCompoundTag(storageKey);
-        for (String key : storageMap.getKeySet()) {
-            try {
-                int slot = Integer.parseInt(key);
-                if (slot < 0 || slot >= STORAGE_SLOTS) continue;
-
-                NBTTagCompound slotTag = storageMap.getCompoundTag(key);
-                R resource = readResourceFromNBT(slotTag);
-                if (resource == null) continue;
-
-                // Read amount: prefer "Amount" (long), fall back to resource's native int amount
-                long amount;
-                if (slotTag.hasKey("Amount")) {
-                    amount = slotTag.getLong("Amount");
-                } else {
-                    // Legacy migration: use the resource's native int amount
-                    amount = getAmount(resource);
-                }
-
-                this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), amount);
-            } catch (NumberFormatException ignored) {
-            }
-        }
+        this.inventoryManager.readStorageFromNBT(data, getStorageNBTKey());
     }
 
     /**
      * Write logic state to NBT. Call from host's writeToNBT.
      */
     public void writeToNBT(NBTTagCompound data) {
-        writeFiltersToNBT(data, getFiltersNBTKey());
-        this.upgradeInventory.writeToNBT(data, "upgrades");
-        data.setLong("maxSlotSize", this.maxSlotSize);
-        data.setInteger("pollingRate", this.pollingRate);
-
-        // Write storage - compound map format with parallel amounts
-        NBTTagCompound storageMap = new NBTTagCompound();
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] == null || this.amounts[i] <= 0) continue;
-
-            NBTTagCompound slotTag = new NBTTagCompound();
-            writeResourceToNBT(this.storage[i], slotTag);
-            // Write amount as long for full long precision
-            slotTag.setLong("Amount", this.amounts[i]);
-            storageMap.setTag(String.valueOf(i), slotTag);
-        }
-        data.setTag(getStorageNBTKey(), storageMap);
+        this.inventoryManager.writeFiltersToNBT(data, getFiltersNBTKey());
+        this.inventoryManager.writeStorageToNBT(data, getStorageNBTKey());
+        this.upgradeManager.writeToNBT(data);
+        this.inventoryManager.writeToNBT(data);
+        this.tickScheduler.writeToNBT(data);
     }
 
     // ============================== Stream serialization ==============================
+    // These delegate to inventoryManager, which uses ResourceOps for type-specific
+    // resource encoding. Subclasses customize wire format by overriding
+    // writeResourceToStream() / readResourceFromStream() instead of these methods.
 
     /**
      * Read storage data from a ByteBuf stream for client sync.
      * @return true if any data changed
      */
     public boolean readStorageFromStream(ByteBuf data) {
-        boolean changed = false;
-
-        // Full clear for deserialization, bypass identity preservation in clearSlot()
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null || this.amounts[i] != 0) {
-                this.storage[i] = null;
-                this.amounts[i] = 0;
-                changed = true;
-            }
-        }
-
-        int count = data.readShort();
-        for (int idx = 0; idx < count; idx++) {
-            int slot = data.readShort();
-            long amount = data.readLong();
-            NBTTagCompound tag = ByteBufUtils.readTag(data);
-
-            if (slot < 0 || slot >= STORAGE_SLOTS) continue;
-            if (tag == null) continue;
-
-            R resource = readResourceFromNBT(tag);
-            if (resource != null) {
-                this.setResourceInSlotWithAmount(slot, copyAsIdentity(resource), amount);
-                changed = true;
-            }
-        }
-
-        return changed;
+        return this.inventoryManager.readStorageFromStream(data);
     }
 
     /**
      * Write storage data to a ByteBuf stream for client sync.
      */
     public void writeStorageToStream(ByteBuf data) {
-        // Count non-empty storage slots first
-        int count = 0;
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null && this.amounts[i] > 0) count++;
-        }
-
-        data.writeShort(count);
-
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            R identity = this.storage[i];
-            long amount = this.amounts[i];
-            if (identity == null || amount <= 0) continue;
-
-            data.writeShort(i);
-            data.writeLong(amount);
-
-            NBTTagCompound tag = new NBTTagCompound();
-            writeResourceToNBT(identity, tag);
-            ByteBufUtils.writeTag(data, tag);
-        }
+        this.inventoryManager.writeStorageToStream(data);
     }
 
     /**
@@ -2001,57 +976,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @return true if any data changed
      */
     public boolean readFiltersFromStream(ByteBuf data) {
-        boolean changed = false;
-
-        // Clear all filters first
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (this.filters[i] != null) {
-                this.filters[i] = null;
-                changed = true;
-            }
-        }
-
-        int count = data.readShort();
-        for (int idx = 0; idx < count; idx++) {
-            int slot = data.readShort();
-            NBTTagCompound tag = ByteBufUtils.readTag(data);
-
-            if (slot < 0 || slot >= FILTER_SLOTS) continue;
-            if (tag == null) continue;
-
-            R resource = readResourceFromNBT(tag);
-            if (resource != null) {
-                this.filters[slot] = resource;
-                changed = true;
-            }
-        }
-
-        this.refreshFilterMap();
-        return changed;
+        return this.inventoryManager.readFiltersFromStream(data);
     }
 
     /**
      * Write filter data to a ByteBuf stream for client sync.
      */
     public void writeFiltersToStream(ByteBuf data) {
-        // Count non-empty filters first
-        int count = 0;
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (this.filters[i] != null) count++;
-        }
-
-        data.writeShort(count);
-
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            R filter = this.filters[i];
-            if (filter == null) continue;
-
-            data.writeShort(i);
-
-            NBTTagCompound tag = new NBTTagCompound();
-            writeResourceToNBT(filter, tag);
-            ByteBufUtils.writeTag(data, tag);
-        }
+        this.inventoryManager.writeFiltersToStream(data);
     }
 
     /**
@@ -2060,8 +992,8 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public NBTTagCompound downloadSettings() {
         NBTTagCompound output = new NBTTagCompound();
 
-        output.setLong("maxSlotSize", this.maxSlotSize);
-        output.setInteger("pollingRate", this.pollingRate);
+        this.inventoryManager.writeToNBT(output);
+        this.tickScheduler.writeToNBT(output);
 
         return output;
     }
@@ -2071,7 +1003,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     public NBTTagCompound downloadSettingsWithFilter() {
         NBTTagCompound output = downloadSettings();
-        writeFiltersToNBT(output, getFiltersNBTKey());
+        this.inventoryManager.writeFiltersToNBT(output, getFiltersNBTKey());
 
         return output;
     }
@@ -2081,7 +1013,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     public NBTTagCompound downloadSettingsForDismantle() {
         NBTTagCompound output = downloadSettingsWithFilter();
-        this.upgradeInventory.writeToNBT(output, "upgrades");
+        this.upgradeManager.writeToNBT(output);
 
         return output;
     }
@@ -2092,55 +1024,29 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public void uploadSettings(NBTTagCompound compound, EntityPlayer player) {
         if (compound == null) return;
 
-        if (compound.hasKey("maxSlotSize")) {
-            this.setMaxSlotSize(compound.getLong("maxSlotSize"));
-        }
-        if (compound.hasKey("pollingRate")) {
-            this.setPollingRate(compound.getInteger("pollingRate"), player);
-        }
+        this.inventoryManager.readFromNBT(compound);
+        this.tickScheduler.readFromNBT(compound, player);
 
         // Merge upgrades FIRST (capacity cards enable extra pages for filters)
-        if (compound.hasKey("upgrades")) {
-            mergeUpgradesFromNBT(compound, "upgrades");
-        }
+        this.upgradeManager.readFromNBT(compound);
 
         // Merge filter inventory from memory card instead of replacing
         if (compound.hasKey(getFiltersNBTKey())) {
             mergeFiltersFromNBT(compound, getFiltersNBTKey(), player);
         }
-    }
 
-    protected void mergeUpgradesFromNBT(NBTTagCompound data, String name) {
-        if (!data.hasKey(name)) return;
-
-        AppEngInternalInventory sourceUpgrades = new AppEngInternalInventory(null, UPGRADE_SLOTS, 1);
-        sourceUpgrades.readFromNBT(data, name);
-
-        for (int i = 0; i < sourceUpgrades.getSlots(); i++) {
-            ItemStack sourceUpgrade = sourceUpgrades.getStackInSlot(i);
-            if (sourceUpgrade.isEmpty()) continue;
-
-            int targetSlot = -1;
-            for (int j = 0; j < this.upgradeInventory.getSlots(); j++) {
-                if (this.upgradeInventory.getStackInSlot(j).isEmpty()) {
-                    targetSlot = j;
-                    break;
-                }
-            }
-
-            if (targetSlot >= 0) {
-                this.upgradeInventory.setStackInSlot(targetSlot, sourceUpgrade.copy());
-            }
-        }
-
-        this.refreshUpgrades();
+        // Apply the loaded upgrade/filter state to cached fields.
+        // Without this, capacity cards, auto-pull/push cards, and filter maps
+        // remain at default values until manually re-triggered by the user.
+        this.inventoryManager.refreshFilterMap();
+        this.upgradeManager.refreshUpgrades();
     }
 
     protected void mergeFiltersFromNBT(NBTTagCompound data, String name, @Nullable EntityPlayer player) {
         if (!data.hasKey(name)) return;
 
         // Read source filters into temporary array
-        R[] sourceFilters = createFilterArray();
+        List<R> sourceFilters = new ArrayList<>();
         NBTTagCompound filtersMap = data.getCompoundTag(name);
         for (String key : filtersMap.getKeySet()) {
             if (!key.startsWith("#")) continue;
@@ -2152,51 +1058,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 NBTTagCompound filterTag = filtersMap.getCompoundTag(key);
                 if (filterTag.isEmpty()) continue;
 
-                sourceFilters[slot] = readResourceFromNBT(filterTag);
+                sourceFilters.add(readResourceFromNBT(filterTag));
             } catch (NumberFormatException ignored) {
             }
         }
 
-        List<R> skippedFilters = new ArrayList<>();
-
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            R sourceFilter = sourceFilters[i];
-            if (sourceFilter == null) continue;
-
-            K sourceKey = createKey(sourceFilter);
-            if (sourceKey == null) continue;
-
-            // Skip if filter already exists in target
-            if (this.filterToSlotMap.containsKey(sourceKey)) continue;
-
-            // Find an empty slot
-            int targetSlot = findEmptyFilterSlot();
-            if (targetSlot < 0) {
-                skippedFilters.add(copy(sourceFilter));
-                continue;
-            }
-
-            // Add the filter
-            this.filters[targetSlot] = copy(sourceFilter);
-            this.filterToSlotMap.put(sourceKey, targetSlot);
-            this.slotToFilterMap.put(targetSlot, sourceKey);
-        }
-
-        this.refreshFilterMap();
-
-        // Notify player about skipped filters
-        if (player != null && !skippedFilters.isEmpty()) {
-            String filters = skippedFilters.stream()
-                .map(this::getLocalizedName)
-                .reduce((a, b) -> a + "\n- " + b)
-                .orElse("");
-            player.sendMessage(new TextComponentTranslation("message.cells.filters_not_added", skippedFilters.size(), filters));
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    protected R[] createFilterArray() {
-        return (R[]) Array.newInstance(filters.getClass().getComponentType(), FILTER_SLOTS);
+        this.inventoryManager.mergeFilters(sourceFilters, player);
     }
 
     // ============================== Inventory change handling ==============================
@@ -2205,26 +1072,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Handle filter changes. Call from host or subclass.
      */
     public void onFilterChanged(int slot) {
-        // Refresh maps first so orphan status is up to date
-        this.refreshFilterMap();
-
-        if (this.host.isExport()) {
-            // Export: if filter changed, return orphaned resources in that slot
-            if (this.orphanedSlots.contains(slot) && this.amounts[slot] > 0) {
-                returnSlotToNetwork(slot);
-            }
-        }
-
-        // If storage has a preserved identity that no longer matches the new filter,
-        // clear it so the slot can be repopulated with the correct identity
-        R identity = this.storage[slot];
-        if (identity != null && this.amounts[slot] <= 0 && this.orphanedSlots.contains(slot)) {
-            this.storage[slot] = null;
-            updateStorageKeyForSlot(slot, null);
-        }
-
-        this.wakeUpIfAdaptive();
-        this.host.markDirtyAndSave();
+        this.inventoryManager.onFilterChanged(slot);
     }
 
     /**
@@ -2237,15 +1085,10 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @param added The added stack (unused but kept for signature compatibility)
      */
     public void onChangeInventory(IItemHandler inv, int slot, ItemStack removed, ItemStack added) {
-        if (inv == this.upgradeInventory) onUpgradeChanged();
-    }
-
-    /**
-     * Handle upgrade inventory changes.
-     */
-    public void onUpgradeChanged() {
-        this.refreshUpgrades();
-        this.host.markDirtyAndSave();
+        if (inv == this.upgradeManager.getUpgradeInventory()) {
+            this.refreshUpgrades();
+            this.host.markDirtyAndSave();
+        }
     }
 
     // ============================== Tick handling ==============================
@@ -2260,53 +1103,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Special case: Adaptive polling + card installed:
      * The node must never sleep, otherwise the card timer won't advance.
      * We cap the max wait to avoid waiting longer than the card interval, but allow going faster when there's work to do.
-     *
+     * <p>
      * As we never sleep with the card installed, calling wakeUpIfAdaptive() is useless for any method the card calls,
      * like performAutoPullPush(). Instead, we rely on the tick manager to call onTick at the configured rate.
      */
     public TickingRequest getTickingRequest() {
-        if (this.installedAutoPushPullUpgrade && this.autoPullPushInterval > 0) {
-            // Card installed: determine effective tick rate
-            int cardInterval = this.autoPullPushInterval;
-
-            if (this.pollingRate > 0) {
-                // Fixed polling + card: use the smaller interval, never sleep
-                int effectiveRate = Math.min(this.pollingRate, cardInterval);
-                this.isSleeping = false;
-
-                return new TickingRequest(effectiveRate, effectiveRate, false, true);
-            }
-
-            // Adaptive polling + card: use card interval as min, capped max, never sleep
-            int min = Math.min(cardInterval, TickRates.Interface.getMin());
-            int max = Math.min(cardInterval, TickRates.Interface.getMax());
-
-            // Ensure min <= max
-            if (min > max) max = min;
-            this.isSleeping = false;
-
-            return new TickingRequest(min, max, false, true);
-        }
-
-        // No card (original behavior)
-        if (this.pollingRate > 0) {
-            this.isSleeping = false;
-
-            return new TickingRequest(
-                this.pollingRate,
-                this.pollingRate,
-                false,
-                true
-            );
-        }
-
-        this.isSleeping = !hasWorkToDo();
-
-        return new TickingRequest(
-            TickRates.Interface.getMin(),
-            TickRates.Interface.getMax(),
-            this.isSleeping,
-            true
+        return this.tickScheduler.getTickingRequest(
+            this.upgradeManager.hasAutoPullPushUpgrade(),
+            this.upgradeManager.getAutoPullPushInterval()
         );
     }
 
@@ -2324,83 +1128,11 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * @return The appropriate tick rate modulation
      */
     public TickRateModulation onTick(int ticksSinceLastCall) {
-        if (!this.host.getGridProxy().isActive()) {
-            this.isSleeping = true;
-            return TickRateModulation.SLEEP;
-        }
-
-        this.totalElapsedTicks += ticksSinceLastCall;
-
-        boolean didNetworkWork = false;
-
-        // === Card operation (auto-pull/push) ===
-        if (this.installedAutoPushPullUpgrade && this.autoPullPushInterval > 0) {
-            long ticksSinceLastCard = this.totalElapsedTicks - this.lastCardOperationTick;
-            if (ticksSinceLastCard >= this.autoPullPushInterval) {
-                performAutoPullPush();
-                this.lastCardOperationTick = this.totalElapsedTicks;
-            }
-        }
-
-        // === Network I/O (import/export to ME network) ===
-        boolean shouldDoNetworkIO = false;
-        if (this.pollingRate > 0) {
-            // Fixed polling rate: check elapsed time
-            long ticksSinceLastIO = this.totalElapsedTicks - this.lastNetworkIOTick;
-            shouldDoNetworkIO = ticksSinceLastIO >= this.pollingRate;
-        } else {
-            // Adaptive mode: always attempt network I/O when ticked
-            shouldDoNetworkIO = true;
-        }
-
-        if (shouldDoNetworkIO) {
-            didNetworkWork = this.host.isExport() ? exportResources() : importResources();
-            this.lastNetworkIOTick = this.totalElapsedTicks;
-        }
-
-        // === Determine tick rate modulation ===
-        if (this.installedAutoPushPullUpgrade && this.autoPullPushInterval > 0) {
-            // Both timers are fixed: maintain SAME rate
-            if (this.pollingRate > 0) return TickRateModulation.SAME;
-
-            // Adaptive + card: if network I/O did work, go faster; otherwise maintain SAME
-            // to keep the card timer advancing. Never sleep with a card installed.
-            if (didNetworkWork) return TickRateModulation.FASTER;
-
-            // Check if we should slow down while keeping card timer alive
-            // We are hard-capped by the card interval in getTickingRequest(),
-            // so we won't wait longer than the card allows.
-            boolean hasIOWork = hasWorkToDo();
-            return hasIOWork ? TickRateModulation.SAME : TickRateModulation.SLOWER;
-        }
-
-        // No card: original adaptive/fixed behavior
-        if (this.pollingRate > 0) return TickRateModulation.SAME;
-        if (didNetworkWork) return TickRateModulation.FASTER;
-
-        boolean shouldSleep = !hasWorkToDo();
-        this.isSleeping = shouldSleep;
-
-        return shouldSleep ? TickRateModulation.SLEEP : TickRateModulation.SLOWER;
-    }
-
-    /**
-     * Check if there's work to do based on direction.
-     */
-    public boolean hasWorkToDo() {
-        if (this.host.isExport()) {
-            // Check if any configured slot needs resources
-            for (int i : this.filterSlotList) {
-                if (this.amounts[i] < this.maxSlotSize) return true;
-            }
-        } else {
-            // Check if any filtered slot has resources to import
-            for (int i : this.filterToSlotMap.values()) {
-                if (this.storage[i] != null && this.amounts[i] > 0) return true;
-            }
-        }
-
-        return false;
+        return this.tickScheduler.onTick(
+            ticksSinceLastCall,
+            this.upgradeManager.hasAutoPullPushUpgrade(),
+            this.upgradeManager.getAutoPullPushInterval()
+        );
     }
 
     /**
@@ -2408,15 +1140,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Only calls alertDevice() when actually sleeping - tick modulation handles the rest.
      */
     public void wakeUpIfAdaptive() {
-        if (this.pollingRate > 0) return;
-        if (!this.isSleeping) return;
-
-        try {
-            this.host.getGridProxy().getTick().alertDevice(this.host.getGridProxy().getNode());
-            this.isSleeping = false;
-        } catch (GridAccessException e) {
-            // Not connected to grid
-        }
+        this.tickScheduler.wakeUpIfAdaptive();
     }
 
     /**
@@ -2427,200 +1151,5 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     protected long getMaxAENetworkRequestSize() {
         return Long.MAX_VALUE;
-    }
-
-    /**
-     * Import resources from internal storage into the ME network.
-     * Uses the parallel amounts array for long precision.
-     */
-    protected boolean importResources() {
-        boolean didWork = false;
-
-        try {
-            IStorageGrid storageGrid = this.host.getGridProxy().getStorage();
-            IMEInventory<AE> inventory = getMEInventory(storageGrid);
-
-            for (int slot : this.filterToSlotMap.values()) {
-                R identity = this.storage[slot];
-                long amount = this.amounts[slot];
-                if (identity == null || amount <= 0) continue;
-
-                // Create AE stack with identity only - setStackSize will set the actual amount
-                AE aeStack = toAEStack(copyWithAmount(identity, 1));
-                aeStack.setStackSize(Math.min(amount, getMaxAENetworkRequestSize()));
-
-                AE remaining = inventory.injectItems(aeStack, Actionable.MODULATE, this.host.getActionSource());
-
-                if (remaining == null) {
-                    this.clearSlot(slot);
-                    didWork = true;
-                } else if (getAEStackSize(remaining) < amount) {
-                    this.amounts[slot] = getAEStackSize(remaining);
-                    didWork = true;
-                }
-            }
-        } catch (GridAccessException e) {
-            // Not connected to grid
-        }
-
-        if (didWork) this.host.markForNetworkUpdate();
-
-        return didWork;
-    }
-
-    /**
-     * Export resources from the ME network into storage slots.
-     * Uses the parallel amounts array for long precision.
-     */
-    protected boolean exportResources() {
-        boolean didWork = false;
-
-        try {
-            IStorageGrid storageGrid = this.host.getGridProxy().getStorage();
-            IMEInventory<AE> inventory = getMEInventory(storageGrid);
-
-            // First, return any orphaned or overflow resources to the network
-            returnOrphanedToNetwork();
-            returnOverflowToNetwork();
-
-            for (int slot : this.filterSlotList) {
-                R filter = this.filters[slot];
-                if (filter == null) continue;
-
-                R identity = this.storage[slot];
-                long currentAmount = this.amounts[slot];
-
-                // Skip orphaned slots (identity doesn't match filter)
-                if (this.orphanedSlots.contains(slot)) continue;
-
-                long space = this.maxSlotSize - currentAmount;
-                if (space <= 0) continue;
-
-                // Request resources from network (AE2 uses long natively)
-                AE request = toAEStack(copyWithAmount(filter, 1));
-                request.setStackSize(Math.min(space, getMaxAENetworkRequestSize()));
-
-                AE extracted = inventory.extractItems(request, Actionable.MODULATE, this.host.getActionSource());
-                if (extracted == null || getAEStackSize(extracted) <= 0) continue;
-
-                long extractedAmount = getAEStackSize(extracted);
-
-                // Identity may already be preserved from a previous clearSlot (filter match).
-                if (identity == null) {
-                    this.setResourceInSlotWithAmount(slot, copyAsIdentity(fromAEStack(extracted)), extractedAmount);
-                } else {
-                    this.amounts[slot] += extractedAmount;
-                }
-
-                didWork = true;
-            }
-        } catch (GridAccessException e) {
-            // Not connected to grid
-        }
-
-        if (didWork) this.host.markForNetworkUpdate();
-
-        return didWork;
-    }
-
-    // ============================== Network operations ==============================
-
-    /**
-     * Insert resources into the ME network.
-     * @return Amount that could not be inserted (int for external API compat)
-     */
-    protected int insertIntoNetwork(R resource) {
-        if (resource == null || getAmount(resource) <= 0) return 0;
-        return (int) insertIntoNetworkLong(resource, getAmount(resource));
-    }
-
-    /**
-     * Insert resources into the ME network with long amount support.
-     *
-     * @param identity The resource identity (type/NBT)
-     * @param amount The amount to insert (long)
-     * @return Amount that could not be inserted (long)
-     */
-    protected long insertIntoNetworkLong(R identity, long amount) {
-        if (identity == null || amount <= 0) return 0;
-
-        try {
-            IStorageGrid storage = this.host.getGridProxy().getStorage();
-            IMEInventory<AE> inventory = getMEInventory(storage);
-
-            // Create AE stack with full long amount
-            AE aeStack = toAEStack(copyWithAmount(identity, 1));
-            aeStack.setStackSize(amount);
-
-            AE remaining = inventory.injectItems(aeStack, Actionable.MODULATE, this.host.getActionSource());
-
-            if (remaining == null) return 0;
-
-            return getAEStackSize(remaining);
-        } catch (GridAccessException e) {
-            return amount;
-        }
-    }
-
-    /**
-     * Return a slot's contents to the network.
-     */
-    protected void returnSlotToNetwork(int slot) {
-        if (slot < 0 || slot >= STORAGE_SLOTS) return;
-
-        R identity = this.storage[slot];
-        long amount = this.amounts[slot];
-        if (identity == null || amount <= 0) return;
-
-        long notInserted = insertIntoNetworkLong(identity, amount);
-
-        if (notInserted <= 0) {
-            this.clearSlot(slot);
-        } else {
-            this.amounts[slot] = notInserted;
-        }
-
-        this.host.markForNetworkUpdate();
-    }
-
-    /**
-     * Return orphaned resources (no matching filter) to the network.
-     * Uses the pre-computed orphanedSlots set for O(1) per-slot lookup.
-     */
-    protected void returnOrphanedToNetwork() {
-        if (this.orphanedSlots.isEmpty()) return;
-
-        // Iterate a copy to avoid ConcurrentModificationException (clearSlot modifies orphanedSlots)
-        for (int slot : new ArrayList<>(this.orphanedSlots)) {
-            R identity = this.storage[slot];
-            if (identity == null || this.amounts[slot] <= 0) continue;
-
-            // Orphaned, return to network
-            returnSlotToNetwork(slot);
-        }
-    }
-
-    /**
-     * Return overflow resources (above maxSlotSize) to the network.
-     */
-    protected void returnOverflowToNetwork() {
-        for (int slot = 0; slot < STORAGE_SLOTS; slot++) {
-            R identity = this.storage[slot];
-            if (identity == null) continue;
-
-            long amount = this.amounts[slot];
-            if (amount <= this.maxSlotSize) continue;
-
-            // Has overflow - return excess to network
-            long overflow = amount - this.maxSlotSize;
-            long notInserted = insertIntoNetworkLong(identity, overflow);
-
-            // Reduce slot by what was successfully returned
-            long returned = overflow - notInserted;
-            if (returned > 0) {
-                this.amounts[slot] -= returned;
-                this.host.markForNetworkUpdate();
-            }
-        }
     }
 }

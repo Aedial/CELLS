@@ -44,17 +44,15 @@ public final class ItemStackKey {
         return new ItemStackKey(it, m, tag);
     }
 
-    public Item getItem() {
-        return this.item;
-    }
-
-    public int getMeta() {
-        return this.meta;
-    }
-
-    @Nullable
-    public NBTTagCompound getNbt() {
-        return this.nbt;
+    /**
+     * Create an ItemStack from this key with the specified count.
+     * Useful when an API requires an ItemStack but we only have a key
+     * (e.g. IItemRepository.getStoredItemCount needs a stack parameter).
+     */
+    public ItemStack toStack(int count) {
+        ItemStack stack = new ItemStack(this.item, count, this.meta);
+        if (this.nbt != null) stack.setTagCompound(this.nbt.copy());
+        return stack;
     }
 
     /**

@@ -64,10 +64,6 @@ public enum CellsPartType {
         return ImmutableList.of(modelFromBaseName(baseName));
     }
 
-    public String getId() {
-        return this.id;
-    }
-
     public int getBaseDamage() {
         return this.baseDamage;
     }

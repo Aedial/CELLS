@@ -8,7 +8,7 @@ import com.cells.cells.hyperdensity.compacting.ItemHyperDensityCompactingCompone
 import com.cells.cells.hyperdensity.fluid.ItemFluidHyperDensityComponent;
 import com.cells.cells.hyperdensity.item.ItemHyperDensityComponent;
 import com.cells.cells.normal.compacting.ItemCompactingComponent;
-import com.cells.client.CellTextureColors.ComponentType;
+import com.cells.client.CellTextureColors.CellType;
 
 
 /**
@@ -44,7 +44,7 @@ public class ComponentItemColors implements IItemColor {
         if (tintIndex != 0) return NO_TINT;
 
         Item item = stack.getItem();
-        ComponentType componentType = getComponentType(item);
+        CellType componentType = getComponentType(item);
         if (componentType == null) return NO_TINT;
 
         return CellTextureColors.getComponentWaveColor(componentType);
@@ -54,27 +54,14 @@ public class ComponentItemColors implements IItemColor {
      * Determine the ComponentType for a given item.
      *
      * @param item The component item
-     * @return The ComponentType, or null if not a recognized component
+     * @return The CellType, or null if not a recognized component
      */
-    private ComponentType getComponentType(Item item) {
-        if (item instanceof ItemCompactingComponent) return ComponentType.COMPACTING;
-        if (item instanceof ItemHyperDensityComponent) return ComponentType.HYPER_DENSITY_ITEM;
-        if (item instanceof ItemFluidHyperDensityComponent) return ComponentType.HYPER_DENSITY_FLUID;
-        if (item instanceof ItemHyperDensityCompactingComponent) return ComponentType.HYPER_DENSITY_COMPACTING;
+    private CellType getComponentType(Item item) {
+        if (item instanceof ItemCompactingComponent) return CellType.COMPACTING;
+        if (item instanceof ItemHyperDensityComponent) return CellType.HYPER_DENSITY_ITEM;
+        if (item instanceof ItemFluidHyperDensityComponent) return CellType.HYPER_DENSITY_FLUID;
+        if (item instanceof ItemHyperDensityCompactingComponent) return CellType.HYPER_DENSITY_COMPACTING;
 
         return null;
-    }
-
-    /**
-     * Check if a given item should use this color handler.
-     *
-     * @param item The item to check
-     * @return true if this item is a component using the layered texture system
-     */
-    public static boolean isLayeredComponent(Item item) {
-        return item instanceof ItemCompactingComponent
-            || item instanceof ItemHyperDensityComponent
-            || item instanceof ItemFluidHyperDensityComponent
-            || item instanceof ItemHyperDensityCompactingComponent;
     }
 }

@@ -5,6 +5,7 @@ import java.util.List;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.AEApi;
 import appeng.api.storage.ICellInventory;
@@ -16,7 +17,6 @@ import appeng.api.storage.data.IAEStack;
 import com.cells.Cells;
 import com.cells.cells.common.INBTSizeProvider;
 import com.cells.cells.configurable.ComponentInfo;
-import com.cells.cells.configurable.ConfigurableCellInventoryHandler;
 import com.cells.config.CellsConfig;
 import com.cells.util.NBTSizeHelper;
 
@@ -109,7 +109,7 @@ public final class ThaumicEnergisticsIntegration {
                 if (channel != essentiaChannel) return null;
 
                 ConfigurableCellEssentiaInventory inventory = new ConfigurableCellEssentiaInventory(is, container, info);
-                return (ICellInventoryHandler<T>) new ConfigurableCellInventoryHandler<>(inventory, essentiaChannel);
+                return (ICellInventoryHandler<T>) new ConfigurableCellEssentiaInventoryHandler(inventory, essentiaChannel);
             } catch (Exception e) {
                 Cells.LOGGER.error("Failed to create essentia cell inventory", e);
                 return null;
@@ -147,6 +147,24 @@ public final class ThaumicEnergisticsIntegration {
             } catch (Exception e) {
                 Cells.LOGGER.error("Failed to add essentia cell info to tooltip", e);
             }
+        }
+    }
+
+    /**
+     * Get the essentia-aware config inventory for a cell.
+     * Converts essentia containers to ItemDummyAspect stacks on insertion.
+     *
+     * @param cellStack The cell ItemStack
+     * @return An EssentiaCellConfig, or null if Thaumic Energistics is not loaded
+     */
+    public static IItemHandler getConfigInventory(ItemStack cellStack) {
+        if (!isModLoaded()) return null;
+
+        try {
+            return new EssentiaCellConfig(cellStack);
+        } catch (Exception e) {
+            Cells.LOGGER.error("Failed to create essentia cell config", e);
+            return null;
         }
     }
 

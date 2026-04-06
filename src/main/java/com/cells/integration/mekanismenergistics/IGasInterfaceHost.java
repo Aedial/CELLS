@@ -41,17 +41,6 @@ public interface IGasInterfaceHost
     void setGasInTank(int slot, @Nullable GasStack gas);
 
     /**
-     * Insert gas into a tank slot (import interfaces only).
-     *
-     * @param slot The tank slot index
-     * @param gas The gas to insert
-     * @return The amount actually inserted
-     */
-    default int insertGasIntoTank(int slot, GasStack gas) {
-        throw new UnsupportedOperationException("insertGasIntoTank is only supported on import interfaces");
-    }
-
-    /**
      * Extract gas from a tank slot (export interfaces only).
      *
      * @param slot The tank slot index

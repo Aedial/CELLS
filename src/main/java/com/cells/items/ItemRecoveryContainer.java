@@ -32,6 +32,8 @@ import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.items.CapabilityItemHandler;
+import net.minecraftforge.items.IItemHandler;
 
 import appeng.util.ReadableNumberConverter;
 
@@ -50,7 +52,7 @@ import com.cells.util.FluidStackKey;
  * <p>
  * Features:
  * <ul>
- *   <li>Stores up to Integer.MAX_VALUE of a single fluid/gas/essentia</li>
+ *   <li>Stores up to Long.MAX_VALUE of a single fluid/gas/essentia/item</li>
  *   <li>Displays quantity using AE2-style number formatting</li>
  *   <li>Tints texture based on contained fluid color</li>
  *   <li>Right-click on fluid containers or import interfaces to transfer contents</li>
@@ -528,7 +530,9 @@ public class ItemRecoveryContainer extends Item {
         if (heldStack.isEmpty()) return EnumActionResult.PASS;
 
         int type = getType(heldStack);
-        int amount = (int) Math.min(getAmount(heldStack), Integer.MAX_VALUE);
+        // Use long to preserve the full amount without capping at Integer.MAX_VALUE.
+        // Individual transfer APIs return int, but we track the total as long.
+        long amount = getAmount(heldStack);
         if (amount <= 0) return EnumActionResult.PASS;
 
         // Check if there's a valid target tile entity before deciding to handle this interaction
@@ -539,7 +543,7 @@ public class ItemRecoveryContainer extends Item {
         // The transfer (or failure message) will be handled server-side.
         if (world.isRemote) return EnumActionResult.SUCCESS;
 
-        int transferred = 0;
+        long transferred = 0;
 
         switch (type) {
             case TYPE_FLUID:
@@ -557,16 +561,22 @@ public class ItemRecoveryContainer extends Item {
                     transferred = EssentiaDropHelper.tryTransferEssentia(heldStack, te, facing);
                 }
                 break;
+
+            case TYPE_ITEM:
+                transferred = tryTransferItem(heldStack, te, facing);
+                break;
         }
 
-        // TODO: add special interaction for Import Interfaces to allow transfering more than Integer.MAX_VALUE
+        // TODO: Add special interaction for Import Interfaces to allow transfering more than Integer.MAX_VALUE
+        //       Normal capabilities CANNOT transfer more than max int, no matter how much you delude yourself
+        //       into thinking the problem is already solved
 
         // Use type-appropriate unit for message
         String typeKey = getTypeKey(type);
         String unitName = new TextComponentTranslation("cells.unit." + typeKey).getFormattedText();
 
         if (transferred > 0) {
-            int remaining = amount - transferred;
+            long remaining = amount - transferred;
             if (remaining <= 0) {
                 player.setHeldItem(hand, ItemStack.EMPTY);
             } else {
@@ -599,7 +609,6 @@ public class ItemRecoveryContainer extends Item {
     }
 
     /**
-    /**
      * Try to transfer fluid from this drop to a tile entity via fluid handler capability.
      *
      * @return The amount transferred
@@ -613,6 +622,39 @@ public class ItemRecoveryContainer extends Item {
         if (fluidHandler != null) return fluidHandler.fill(fluidStack, true);
 
         return 0;
+    }
+
+    /**
+     * Try to transfer items from this drop to a tile entity via item handler capability.
+     *
+     * @return The total amount transferred
+     */
+    private static long tryTransferItem(ItemStack dropStack, TileEntity te, EnumFacing facing) {
+        ItemStack contained = getContainedItem(dropStack);
+        if (contained == null || contained.isEmpty()) return 0;
+
+        IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, facing);
+        if (handler == null) return 0;
+
+        long totalAmount = getAmount(dropStack);
+        long totalTransferred = 0;
+
+        // Single pass through all handler slots, inserting up to one stack per slot
+        for (int slot = 0; slot < handler.getSlots(); slot++) {
+            long remaining = totalAmount - totalTransferred;
+            if (remaining <= 0) break;
+
+            int batchSize = (int) Math.min(remaining, Integer.MAX_VALUE);
+            ItemStack toInsert = contained.copy();
+            toInsert.setCount(batchSize);
+
+            ItemStack leftover = handler.insertItem(slot, toInsert, false);
+            int inserted = batchSize - leftover.getCount();
+
+            if (inserted > 0) totalTransferred += inserted;
+        }
+
+        return totalTransferred;
     }
 
     // ============================== Integration helpers (inner classes) ==============================
@@ -787,11 +829,9 @@ public class ItemRecoveryContainer extends Item {
                     thaumcraft.api.aspects.IAspectContainer container =
                         (thaumcraft.api.aspects.IAspectContainer) te;
 
-                    // Try to add essentia - returns amount actually added
-                    int added = container.addToContainer(aspect, amount);
-
-                    // addToContainer returns what was added
-                    return added;
+                    // addToContainer returns the amount of essentia LEFT OVER that could not be added
+                    int leftover = container.addToContainer(aspect, amount);
+                    return amount - leftover;
                 }
 
                 return 0;

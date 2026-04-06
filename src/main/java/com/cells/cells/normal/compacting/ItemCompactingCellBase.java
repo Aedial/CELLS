@@ -24,7 +24,6 @@ import appeng.api.storage.data.IAEItemStack;
 import com.cells.cells.common.AbstractTieredCellItem;
 import com.cells.config.CellsConfig;
 import com.cells.util.CellDisassemblyHelper;
-import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
 
@@ -78,12 +77,8 @@ public abstract class ItemCompactingCellBase extends AbstractTieredCellItem impl
             if (cellInv instanceof CompactingCellInventory) {
                 addCompactingCellInfo((CompactingCellInventory) cellInv, tooltip);
 
-                long bytes = ((CompactingCellInventory) cellInv).getTotalBytes();
-                long capacity = CellMathHelper.multiplyWithOverflowProtection(bytes, 8);
-                int maxTypes = 1;
-
                 tooltip.add("§e" + I18n.format("tooltip.cells.compacting_cell.ioport_warning"));
-                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip, capacity, maxTypes);
+                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
                 return;
             }
         }
@@ -95,7 +90,6 @@ public abstract class ItemCompactingCellBase extends AbstractTieredCellItem impl
 
     /**
      * Add compacting-specific tooltip info (compression chain status).
-     * Extracted to allow reuse in HD compacting cells.
      */
     protected void addCompactingCellInfo(CompactingCellInventory compactingInv, List<String> tooltip) {
         if (!compactingInv.hasPartition()) {

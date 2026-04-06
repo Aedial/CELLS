@@ -2,7 +2,6 @@ package com.cells.cells.hyperdensity.item;
 
 import net.minecraft.item.ItemStack;
 
-import com.cells.ItemRegistry;
 import com.cells.Tags;
 
 
@@ -61,26 +60,9 @@ public class ItemHyperDensityCell extends ItemHyperDensityCellBase {
     }
 
     /**
-     * Create a cell ItemStack for the given tier.
-     * @param tier 0=1k, 1=4k, 2=16k, 3=64k, 4=256k, 5=1M, 6=4M, 7=16M, 8=64M, 9=256M, 10=1G
-     */
-    public static ItemStack create(int tier) {
-        if (tier < 0 || tier >= TIER_NAMES.length) tier = 0;
-
-        return new ItemStack(ItemRegistry.HYPER_DENSITY_CELL, 1, tier);
-    }
-
-    /**
      * Get the tier names for model registration.
      */
     public static String[] getTierNames() {
         return TIER_NAMES;
-    }
-
-    /**
-     * Get the number of tiers available.
-     */
-    public static int getTierCount() {
-        return TIER_NAMES.length;
     }
 }

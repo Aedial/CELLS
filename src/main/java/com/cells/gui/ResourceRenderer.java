@@ -87,20 +87,6 @@ public final class ResourceRenderer {
     private static final String MEKENG_MODID = "mekeng";
 
     /**
-     * Check if the stack is a gas stack.
-     */
-    public static boolean isGasStack(IAEStack<?> stack) {
-        if (!Loader.isModLoaded(MEKENG_MODID)) return false;
-
-        return isGasStackInternal(stack);
-    }
-
-    @Optional.Method(modid = MEKENG_MODID)
-    private static boolean isGasStackInternal(IAEStack<?> stack) {
-        return stack instanceof com.mekeng.github.common.me.data.IAEGasStack;
-    }
-
-    /**
      * Render a gas stack (IAEGasStack) at the given position.
      */
     public static void renderGas(IAEStack<?> stack, int x, int y, int width, int height) {

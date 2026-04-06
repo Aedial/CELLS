@@ -42,7 +42,8 @@ public class ImportInterfaceControlsHelper {
             lines.add("");
         }
 
-        // TODO: Mention Auto-Pull/Push cards when their logic is implemented.
+        lines.add(I18n.format("cells.controls.push_pull_cards"));
+        lines.add("");
 
         // Memory card section
         lines.add(I18n.format("cells.controls.memory_card_sneak"));
@@ -109,8 +110,9 @@ public class ImportInterfaceControlsHelper {
         int contentHeight = wrappedLines.size() * LINE_HEIGHT;
         int panelHeight = contentHeight + (PADDING * 2);
 
-        int panelBottom = guiHeight;
-        int panelTop = panelBottom - panelHeight;
+        // Center the panel vertically within the GUI height
+        int panelTop = (guiHeight - panelHeight) / 2;
+        int panelBottom = panelTop + panelHeight;
 
         // Draw AE2-style panel background
         Gui.drawRect(panelLeft, panelTop, panelRight, panelBottom, 0xC0000000);

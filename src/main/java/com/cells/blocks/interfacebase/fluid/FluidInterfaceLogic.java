@@ -1,7 +1,10 @@
 package com.cells.blocks.interfacebase.fluid;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -27,7 +30,6 @@ import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.fluids.util.AEFluidStack;
 
-import com.cells.Cells;
 import com.cells.items.ItemRecoveryContainer;
 import com.cells.util.FluidStackKey;
 
@@ -85,14 +87,6 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
     @Nullable
     public FluidStack drainFluidFromTank(int slot, int maxDrain, boolean doDrain) {
         return drainFromSlot(slot, maxDrain, doDrain);
-    }
-
-    public int insertFluidsIntoNetwork(FluidStack fluid) {
-        return insertIntoNetwork(fluid);
-    }
-
-    public int findSlotForFluid(FluidStack fluid) {
-        return findSlotForResource(fluid);
     }
 
     // ============================== Abstract method implementations ==============================
@@ -263,9 +257,8 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
     // ============================== Auto-Pull/Push capability methods ==============================
 
     @Override
-    @Nullable
-    protected Capability<?> getAdjacentCapability() {
-        return CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY;
+    protected List<Capability<?>> getAdjacentCapabilities() {
+        return Collections.singletonList(CapabilityFluidHandler.FLUID_HANDLER_CAPABILITY);
     }
 
     @Override
@@ -278,9 +271,29 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
 
         for (IFluidTankProperties tank : tanks) {
             FluidStack contents = tank.getContents();
-            if (contents != null && key.matches(contents)) total += contents.amount;
+            if (key.matches(contents)) total += contents.amount;
         }
         return total;
+    }
+
+    @Override
+    @Nullable
+    protected Map<FluidStackKey, Long> buildResourceCountMap(Object handler, EnumFacing facing) {
+        if (!(handler instanceof IFluidHandler)) return null;
+
+        IFluidTankProperties[] tanks = ((IFluidHandler) handler).getTankProperties();
+        if (tanks == null) return null;
+
+        Map<FluidStackKey, Long> map = new HashMap<>();
+        for (IFluidTankProperties tank : tanks) {
+            FluidStack contents = tank.getContents();
+            if (contents == null || contents.amount <= 0) continue;
+
+            FluidStackKey key = FluidStackKey.of(contents);
+            if (key != null) map.merge(key, (long) contents.amount, Long::sum);
+        }
+
+        return map;
     }
 
     @Override
@@ -303,13 +316,6 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
         return ((IFluidHandler) handler).fill(toFill, true);
     }
 
-    /**
-     * Handle fluid filter changes. Call from host's onFluidInventoryChanged.
-     */
-    public void onFluidFilterChanged(int slot) {
-        onFilterChanged(slot);
-    }
-
     // ============================== External handlers ==============================
 
     /**
@@ -327,22 +333,22 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
         public IFluidTankProperties[] getTankProperties() {
             List<IFluidTankProperties> props = new ArrayList<>();
 
-            for (int slot : logic.filterSlotList) {
-                final int s = slot;
-                // Clamp to int for IFluidHandler API
-                int capacity = (int) Math.min(logic.maxSlotSize, Integer.MAX_VALUE);
+            int capacity = logic.inventoryManager.getMaxSlotSizeInt();
 
-                FluidStackKey filterKey = logic.slotToFilterMap.get(slot);
+            for (int slot : logic.getFilterSlotList()) {
+                final int s = slot;
+
+                FluidStackKey filterKey = logic.getFilterKey(slot);
 
                 props.add(new IFluidTankProperties() {
                     @Nullable
                     @Override
                     public FluidStack getContents() {
                         // Create stack with actual amount from parallel array
-                        FluidStack identity = logic.storage[s];
+                        FluidStack identity = logic.getStorageIdentity(s);
                         if (identity == null) return null;
 
-                        long amount = logic.amounts[s];
+                        long amount = logic.getSlotAmount(s);
                         if (amount <= 0) return null;
 
                         // Clamp to int for external API
@@ -414,22 +420,22 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
         public IFluidTankProperties[] getTankProperties() {
             List<IFluidTankProperties> props = new ArrayList<>();
 
-            for (int slot : logic.filterSlotList) {
-                final int s = slot;
-                // Clamp to int for IFluidHandler API
-                int capacity = (int) Math.min(logic.maxSlotSize, Integer.MAX_VALUE);
+            int capacity = logic.inventoryManager.getMaxSlotSizeInt();
 
-                FluidStackKey filterKey = logic.slotToFilterMap.get(slot);
+            for (int slot : logic.getFilterSlotList()) {
+                final int s = slot;
+
+                FluidStackKey filterKey = logic.getFilterKey(slot);
 
                 props.add(new IFluidTankProperties() {
                     @Nullable
                     @Override
                     public FluidStack getContents() {
                         // Create stack with actual amount from parallel array
-                        FluidStack identity = logic.storage[s];
+                        FluidStack identity = logic.getStorageIdentity(s);
                         if (identity == null) return null;
 
-                        long amount = logic.amounts[s];
+                        long amount = logic.getSlotAmount(s);
                         if (amount <= 0) return null;
 
                         // Clamp to int for external API

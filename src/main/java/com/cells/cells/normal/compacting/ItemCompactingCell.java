@@ -2,7 +2,6 @@ package com.cells.cells.normal.compacting;
 
 import net.minecraft.item.ItemStack;
 
-import com.cells.ItemRegistry;
 import com.cells.Tags;
 
 
@@ -72,16 +71,6 @@ public class ItemCompactingCell extends ItemCompactingCellBase {
     protected ItemStack getCellComponent(int tier) {
         // All tiers now have components (1k-2G)
         return ItemCompactingComponent.create(tier);
-    }
-
-    /**
-     * Create a cell ItemStack for the given tier.
-     * @param tier 0=1k, 1=4k, 2=16k, 3=64k, 4=256k, 5=1M, 6=4M, 7=16M, 8=64M, 9=256M, 10=1G, 11=2G
-     */
-    public static ItemStack create(int tier) {
-        if (tier < 0 || tier >= TIER_NAMES.length) tier = 0;
-
-        return new ItemStack(ItemRegistry.COMPACTING_CELL, 1, tier);
     }
 
     /**

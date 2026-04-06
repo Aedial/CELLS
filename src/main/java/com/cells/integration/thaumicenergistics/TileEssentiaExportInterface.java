@@ -85,16 +85,6 @@ public class TileEssentiaExportInterface extends AbstractInterfaceTile<EssentiaI
         return this.logic.addToContainer(aspect, amount);
     }
 
-    @Override
-    public int takeEssentiaAmount(Aspect aspect, int amount) {
-        return this.logic.takeEssentiaAmount(aspect, amount);
-    }
-
-    @Override
-    public int getEssentiaCount(Aspect aspect) {
-        return this.logic.getEssentiaCount(aspect);
-    }
-
     // ============================== IAspectSource / IAspectContainer Implementation ==============================
 
     /**

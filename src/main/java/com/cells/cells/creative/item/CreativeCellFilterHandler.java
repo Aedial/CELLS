@@ -70,7 +70,7 @@ public class CreativeCellFilterHandler
     }
 
     @Override
-    public void setStackInSlot(int slot, ItemStack stack) {
+    public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
         if (stack == null) stack = ItemStack.EMPTY;
 
         // Reject invalid stacks (e.g., storage cells)
@@ -106,9 +106,7 @@ public class CreativeCellFilterHandler
     public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
         // Reject storage cells - they shouldn't be used as filters
         // Use CellViewHelper.isCell() for the most generic check possible
-        if (!stack.isEmpty() && CellViewHelper.isCell(stack)) return false;
-
-        return true;
+        return stack.isEmpty() || !CellViewHelper.isCell(stack);
     }
 
     /**

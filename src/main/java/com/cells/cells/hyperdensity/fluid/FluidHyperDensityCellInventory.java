@@ -62,6 +62,10 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
 
     // In-memory cache: FluidStackKey -> NBT index for O(1) lookups
     private final Map<FluidStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    // Cached AEFluidStacks by NBT index, avoids expensive reconstruction in getAvailableItems
+    private final Map<Integer, IAEFluidStack> nbtIndexToFluidStack = new HashMap<>();
+    // Cached counts by NBT index, avoids NBT reads in getAvailableItems and getStoredCount
+    private final Map<Integer, Long> nbtIndexToCount = new HashMap<>();
 
     // Next available NBT index for new fluids (computed on load, updated on insert)
     private int cachedNextIndex = 0;
@@ -134,6 +138,8 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         storedFluidCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        nbtIndexToFluidStack.clear();
+        nbtIndexToCount.clear();
         fluidNbtSizes.clear();
         totalNbtSize = 0;
         cachedNextIndex = 0;
@@ -179,6 +185,8 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
                     }
 
                     keyToNbtIndex.put(key, index);
+                    nbtIndexToFluidStack.put(index, channel.createStack(stack));
+                    nbtIndexToCount.put(index, count);
                     storedFluidCount = CellMathHelper.addWithOverflowProtection(storedFluidCount, count);
                     storedTypes++;
 
@@ -210,10 +218,6 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         }
 
         return true;
-    }
-
-    private long loadLongFromTag(NBTTagCompound tag) {
-        return tag.getLong(NBT_STORED_COUNT);
     }
 
     private void saveLongToTag(NBTTagCompound tag, long value) {
@@ -297,8 +301,8 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     }
 
     /**
-     * Get the stored fluid data for a specific fluid from NBT.
-     * Uses FluidStackKey cache for O(1) lookup.
+     * Get the stored fluid count for a specific fluid.
+     * Uses in-memory caches for O(1) lookup with no NBT access.
      */
     private long getStoredCount(IAEFluidStack fluid) {
         FluidStackKey key = FluidStackKey.of(fluid.getFluidStack());
@@ -307,8 +311,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         Integer index = keyToNbtIndex.get(key);
         if (index == null) return 0;
 
-        NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
-        return loadLongFromTag(fluidsTag.getCompoundTag(String.valueOf(index)));
+        return nbtIndexToCount.getOrDefault(index, 0L);
     }
 
     /**
@@ -332,12 +335,15 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
 
                 fluidsTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
+                nbtIndexToFluidStack.remove(index);
+                nbtIndexToCount.remove(index);
             }
         } else if (index != null) {
             // Fluid already exists - just update the count (no re-serialization needed)
             // NBT size change is minimal (just the count value), don't recalculate
             NBTTagCompound fluidTag = fluidsTag.getCompoundTag(String.valueOf(index));
             saveLongToTag(fluidTag, count);
+            nbtIndexToCount.put(index, count);
         } else {
             // New fluid - serialize fully and assign a new sequential index
             index = cachedNextIndex++;
@@ -347,6 +353,8 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
             fluid.getFluidStack().writeToNBT(fluidTag);
             saveLongToTag(fluidTag, count);
             fluidsTag.setTag(nbtKey, fluidTag);
+            nbtIndexToFluidStack.put(index, fluid.copy());
+            nbtIndexToCount.put(index, count);
 
             keyToNbtIndex.put(key, index);
 
@@ -460,21 +468,13 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
 
     @Override
     public IItemList<IAEFluidStack> getAvailableItems(IItemList<IAEFluidStack> out) {
-        NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
-
-        for (String key : fluidsTag.getKeySet()) {
-            NBTTagCompound fluidTag = fluidsTag.getCompoundTag(key);
-            FluidStack fs = FluidStack.loadFluidStackFromNBT(fluidTag);
-            if (fs == null) continue;
-
-            long count = loadLongFromTag(fluidTag);
+        for (Map.Entry<Integer, IAEFluidStack> entry : nbtIndexToFluidStack.entrySet()) {
+            long count = nbtIndexToCount.getOrDefault(entry.getKey(), 0L);
             if (count <= 0) continue;
 
-            IAEFluidStack aeStack = channel.createStack(fs);
-            if (aeStack != null) {
-                aeStack.setStackSize(count);
-                out.add(aeStack);
-            }
+            IAEFluidStack aeStack = entry.getValue();
+            aeStack.setStackSize(count);
+            out.add(aeStack);
         }
 
         return out;

@@ -90,11 +90,7 @@ public abstract class ItemHyperDensityCompactingCellBase extends AbstractTieredC
                 HyperDensityCompactingCellInventory hdCompInv = (HyperDensityCompactingCellInventory) cellInv;
                 addHDCompactingCellInfo(hdCompInv, tooltip);
 
-                long bytes = hdCompInv.getTotalBytes() * BYTE_MULTIPLIER;
-                long capacity = CellMathHelper.multiplyWithOverflowProtection(bytes, 8);
-                int maxTypes = 1;
-
-                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip, capacity, maxTypes);
+                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
             }
         }
 

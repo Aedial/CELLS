@@ -1,12 +1,13 @@
 package com.cells.integration.thaumicenergistics;
 
-import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -40,7 +41,10 @@ import thaumicenergistics.api.storage.IEssentiaStorageChannel;
 import thaumicenergistics.integration.appeng.AEEssentiaStack;
 import thaumicenergistics.part.PartEssentiaStorageBus;
 
+import com.cells.Cells;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
+import com.cells.blocks.interfacebase.managers.InterfaceAdjacentHandler;
+import com.cells.blocks.interfacebase.managers.InterfaceInventoryManager;
 import com.cells.items.ItemRecoveryContainer;
 
 
@@ -85,6 +89,9 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      */
     public static final int EXPORT_SUCTION = 0;
 
+    /** Flag to track whether an aspect tag error has been logged. */
+    private static final Set<Aspect> tagErrorLogged = new HashSet<>();
+
     /**
      * Tracks pending essentia changes that need to be notified to connected storage buses.
      * Key is the Aspect, value is the cumulative delta (positive for additions, negative for removals).
@@ -107,8 +114,9 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      */
     private boolean neighborCheckPending = true;
 
+    @Override
     public long getDefaultMaxSlotSize() {
-        return Math.min(DEFAULT_MAX_SLOT_SIZE, getMaxMaxSlotSize());
+        return DEFAULT_MAX_SLOT_SIZE;
     }
 
     public EssentiaInterfaceLogic(Host host) {
@@ -166,13 +174,6 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         return drainFromSlot(slot, maxDrain, doDrain);
     }
 
-    /**
-     * Insert essentia into the ME network.
-     */
-    public int insertEssentiaIntoNetwork(EssentiaStack essentia) {
-        return insertIntoNetwork(essentia);
-    }
-
     // ============================== IAspectContainer Support ==============================
 
     /**
@@ -182,14 +183,11 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     public AspectList getAspects() {
         AspectList list = new AspectList();
 
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            EssentiaStack identity = this.storage[i];
-            long amount = this.amounts[i];
-            if (identity == null || amount <= 0) continue;
-
-            Aspect aspect = identity.getAspect();
-            // Clamp to int for AspectList API compatibility
-            if (aspect != null) list.add(aspect, (int) Math.min(amount, Integer.MAX_VALUE));
+        List<Integer> slots = this.inventoryManager.getNonEmptyStorageSlots();
+        for (int slot : slots) {
+            Aspect aspect = getStorageIdentity(slot).getAspect();
+            // Clamp to int for AspectList API compatibility (aspect should never be null)
+            if (aspect != null) list.add(aspect, (int) Math.min(getSlotAmount(slot), Integer.MAX_VALUE));
         }
 
         return list;
@@ -215,7 +213,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         int slot = findSlotForAspect(aspect);
         if (slot < 0) return false;
 
-        return this.storage[slot] != null && this.amounts[slot] >= amount;
+        return getStorageIdentity(slot) != null && getSlotAmount(slot) >= amount;
     }
 
     /**
@@ -226,15 +224,14 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     public int getEssentiaCount(Aspect aspect) {
         if (aspect == null) return 0;
 
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            EssentiaStack identity = this.storage[i];
-            if (identity != null && identity.getAspect() == aspect) {
-                // Clamp to int for API compatibility
-                return (int) Math.min(this.amounts[i], Integer.MAX_VALUE);
-            }
-        }
+        EssentiaStackKey key = EssentiaStackKey.of(aspect);
+        Integer slot = this.inventoryManager.getFilterSlot(key);
+        if (slot == null) return 0;
 
-        return 0;
+        if (key != this.inventoryManager.getStorageKey(slot)) return 0;
+
+        long amount = getSlotAmount(slot);
+        return (int) Math.min(amount, Integer.MAX_VALUE);
     }
 
     /**
@@ -257,11 +254,11 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      * @return The amount actually added
      */
     public int addToContainer(Aspect aspect, int amount) {
-        if (aspect == null || amount <= 0) return 0;
+        if (aspect == null || amount <= 0) return amount;
 
         // Only import interfaces accept essentia from tubes (they are sinks)
         // Export interfaces PROVIDE essentia, they don't accept it
-        if (this.host.isExport()) return 0;
+        if (this.host.isExport()) return amount;
 
         EssentiaStack toInsert = new EssentiaStack(aspect, amount);
         int added = receiveFiltered(toInsert, true);
@@ -272,7 +269,8 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
             notifyStorageBusOfChanges();
         }
 
-        return added;
+        // IAspectContainer contract: return the leftover that could NOT be added
+        return amount - added;
     }
 
     /**
@@ -361,12 +359,12 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      */
     @Nullable
     public Aspect getStoredEssentiaType() {
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            EssentiaStack identity = this.storage[i];
-            if (identity != null && this.amounts[i] > 0 && identity.getAspect() != null) {
-                return identity.getAspect();
-            }
+        // TODO: getNonEmptyStorageSlots might not be sorted, is it any big of a deal?
+        for (int slot : this.inventoryManager.getNonEmptyStorageSlots()) {
+            EssentiaStack identity = getStorageIdentity(slot);
+            if (identity.getAspect() != null) return identity.getAspect();
         }
+
         return null;
     }
 
@@ -497,18 +495,16 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         }
 
         IGridNode gridNode = storageBus.getGridNode();
-        if (gridNode == null || gridNode.getGrid() == null) {
+        if (gridNode == null) {
             this.pendingChanges.clear();
             return;
+        } else {
+            gridNode.getGrid();
         }
 
         // Post changes to the STORAGE BUS's network (not our network!)
         try {
             IStorageGrid storageGrid = gridNode.getGrid().getCache(IStorageGrid.class);
-            if (storageGrid == null) {
-                this.pendingChanges.clear();
-                return;
-            }
 
             IActionSource source = this.host.getActionSource();
             IEssentiaStorageChannel channel = AEApi.instance().storage()
@@ -524,11 +520,9 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
                 // Positive delta = added, negative delta = removed
                 EssentiaStack stack = new EssentiaStack(aspect, 1);
                 IAEEssentiaStack aeStack = AEEssentiaStack.fromEssentiaStack(stack);
-                if (aeStack != null) {
-                    // Set stack size to the delta (sign matters for the network)
-                    aeStack.setStackSize(delta);
-                    changes.add(aeStack);
-                }
+                // Set stack size to the delta (sign matters for the network)
+                aeStack.setStackSize(delta);
+                changes.add(aeStack);
             }
 
             if (!changes.isEmpty()) {
@@ -583,13 +577,12 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     private Map<Aspect, Long> captureStorageState() {
         Map<Aspect, Long> state = new HashMap<>();
 
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            EssentiaStack identity = this.storage[i];
-            long amount = this.amounts[i];
-            if (identity == null || amount <= 0) continue;
+        for (int slot : inventoryManager.getOccupiedStorageSlots()) {
+            long amount = getSlotAmount(slot);
+            if (amount <= 0) continue;
 
             // Use saturating addition to avoid overflow
-            Aspect aspect = identity.getAspect();
+            Aspect aspect = getStorageIdentity(slot).getAspect();
             if (aspect != null) state.merge(aspect, amount, this::saturatingAdd);
         }
 
@@ -751,127 +744,40 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
 
     // ============================== Stream Serialization ==============================
 
+    /**
+     * Essentia uses a compact string encoding (aspect tag + UTF-8) instead of NBT.
+     */
     @Override
-    public boolean readStorageFromStream(ByteBuf data) {
-        boolean changed = false;
+    protected void writeResourceToStream(EssentiaStack resource, ByteBuf data) {
+        Aspect aspect = resource.getAspect();
+        String tag = aspect.getTag();
+        byte[] tagBytes = tag.getBytes(StandardCharsets.UTF_8);
 
-        // Clear all storage first
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null || this.amounts[i] != 0) {
-                this.storage[i] = null;
-                this.amounts[i] = 0;
-                changed = true;
-            }
+        if (tagBytes.length > 255 && !tagErrorLogged.contains(aspect)) {
+            // Aspect tags should never exceed 255 bytes, but we check just in case
+            tagErrorLogged.add(aspect);
+            Cells.LOGGER.error("Aspect tag '{}' is too long to serialize ({} bytes). Someone is being naughty!",
+                tag, tagBytes.length);
         }
 
-        int count = data.readShort();
-        for (int idx = 0; idx < count; idx++) {
-            int slot = data.readShort();
-            int tagLen = data.readByte() & 0xFF;
-            byte[] tagBytes = new byte[tagLen];
-            data.readBytes(tagBytes);
-            String tag = new String(tagBytes, StandardCharsets.UTF_8);
-            long amount = data.readLong();
-
-            if (slot < 0 || slot >= STORAGE_SLOTS) continue;
-
-            Aspect aspect = Aspect.getAspect(tag);
-            if (aspect != null) {
-                this.setResourceInSlotWithAmount(slot, new EssentiaStack(aspect, 1), amount);
-                changed = true;
-            }
-        }
-
-        return changed;
+        data.writeByte(tagBytes.length);
+        data.writeBytes(tagBytes);
     }
 
+    /**
+     * Read an essentia resource from compact string encoding.
+     * @return The essentia stack, or null if the aspect tag is unknown.
+     */
     @Override
-    public void writeStorageToStream(ByteBuf data) {
-        // Count non-empty storage slots first
-        int count = 0;
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null && this.amounts[i] > 0) count++;
-        }
+    @Nullable
+    protected EssentiaStack readResourceFromStream(ByteBuf data) {
+        int tagLen = data.readByte() & 0xFF;
+        byte[] tagBytes = new byte[tagLen];
+        data.readBytes(tagBytes);
+        String tag = new String(tagBytes, StandardCharsets.UTF_8);
 
-        data.writeShort(count);
-
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            EssentiaStack identity = this.storage[i];
-            long amount = this.amounts[i];
-            if (identity == null || amount <= 0) continue;
-
-            Aspect aspect = identity.getAspect();
-            if (aspect == null) continue;
-
-            String tag = aspect.getTag();
-            byte[] tagBytes = tag.getBytes(StandardCharsets.UTF_8);
-
-            data.writeShort(i);
-            data.writeByte(tagBytes.length);
-            data.writeBytes(tagBytes);
-            data.writeLong(amount);
-        }
-    }
-
-    @Override
-    public boolean readFiltersFromStream(ByteBuf data) {
-        boolean changed = false;
-
-        // Clear all filters first
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (this.filters[i] != null) {
-                this.filters[i] = null;
-                changed = true;
-            }
-        }
-
-        int count = data.readShort();
-        for (int idx = 0; idx < count; idx++) {
-            int slot = data.readShort();
-            int tagLen = data.readByte() & 0xFF;
-            byte[] tagBytes = new byte[tagLen];
-            data.readBytes(tagBytes);
-            String tag = new String(tagBytes, StandardCharsets.UTF_8);
-
-            if (slot < 0 || slot >= FILTER_SLOTS) continue;
-
-            Aspect aspect = Aspect.getAspect(tag);
-            if (aspect != null) {
-                // Filters have amount 1 (type only)
-                this.filters[slot] = new EssentiaStack(aspect, 1);
-                changed = true;
-            }
-        }
-
-        if (changed) this.refreshFilterMap();
-
-        return changed;
-    }
-
-    @Override
-    public void writeFiltersToStream(ByteBuf data) {
-        // Count non-empty filters first
-        int count = 0;
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (this.filters[i] != null) count++;
-        }
-
-        data.writeShort(count);
-
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            EssentiaStack essentia = this.filters[i];
-            if (essentia == null) continue;
-
-            Aspect aspect = essentia.getAspect();
-            if (aspect == null) continue;
-
-            String tag = aspect.getTag();
-            byte[] tagBytes = tag.getBytes(StandardCharsets.UTF_8);
-
-            data.writeShort(i);
-            data.writeByte(tagBytes.length);
-            data.writeBytes(tagBytes);
-        }
+        Aspect aspect = Aspect.getAspect(tag);
+        return aspect != null ? new EssentiaStack(aspect, 1) : null;
     }
 
     @Override
@@ -897,70 +803,26 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     // ============================== Auto-Pull/Push capability methods ==============================
 
     /**
-     * Essentia does not use Forge capabilities. Return null so the base class
-     * skips the standard Forge capability scanning. We override refreshCapabilityCache()
-     * instead to directly scan for IAspectContainer on adjacent tiles.
+     * Provide an {@link EssentiaAdjacentHandler} that scans for {@link IAspectContainer}
+     * on adjacent tiles instead of using Forge capabilities.
      */
     @Override
-    @Nullable
-    protected Capability<?> getAdjacentCapability() {
-        return null;
+    protected EssentiaAdjacentHandler createAdjacentHandler(
+            InterfaceAdjacentHandler.ResourceOps<EssentiaStack, EssentiaStackKey> ops,
+            InterfaceAdjacentHandler.Callbacks callbacks,
+            InterfaceInventoryManager<EssentiaStack, ?, EssentiaStackKey> inventoryManager
+    ) {
+        return new EssentiaAdjacentHandler(ops, callbacks, inventoryManager);
     }
 
     /**
-     * Override base capability cache to scan for IAspectContainer on adjacent tiles directly,
-     * since essentia doesn't use Forge capabilities.
+     * Essentia does not use Forge capabilities. Return an empty list so the base class
+     * skips the standard Forge capability scanning (the actual scanning is handled
+     * by {@link EssentiaAdjacentHandler#scanAndCacheFacing}).
      */
     @Override
-    protected void refreshCapabilityCache() {
-        this.cachedAdjacentTiles.clear();
-        this.cachedCapabilities.clear();
-        this.capabilityCachePopulated = true;
-
-        World world = this.host.getHostWorld();
-        BlockPos pos = this.host.getHostPos();
-        if (world == null || pos == null) return;
-
-        for (EnumFacing facing : EnumFacing.VALUES) {
-            BlockPos adjacentPos = pos.offset(facing);
-            if (!world.isBlockLoaded(adjacentPos)) continue;
-
-            TileEntity te = world.getTileEntity(adjacentPos);
-            if (te == null || te.isInvalid()) continue;
-            if (!(te instanceof IAspectContainer)) continue;
-
-            // Don't cache ourselves (should never happen, but just in case)
-            TileEntity selfTe = world.getTileEntity(pos);
-            if (te == selfTe) continue;
-
-            this.cachedAdjacentTiles.put(facing, new WeakReference<>(te));
-            this.cachedCapabilities.put(facing, te);
-        }
-    }
-
-    /**
-     * Override invalidation to also scan for IAspectContainer directly.
-     */
-    @Override
-    protected void invalidateCapabilityCacheForFacing(EnumFacing facing) {
-        this.cachedAdjacentTiles.remove(facing);
-        this.cachedCapabilities.remove(facing);
-
-        if (!this.installedAutoPushPullUpgrade) return;
-
-        World world = this.host.getHostWorld();
-        BlockPos pos = this.host.getHostPos();
-        if (world == null || pos == null) return;
-
-        BlockPos adjacentPos = pos.offset(facing);
-        if (!world.isBlockLoaded(adjacentPos)) return;
-
-        TileEntity te = world.getTileEntity(adjacentPos);
-        if (te == null || te.isInvalid()) return;
-        if (!(te instanceof IAspectContainer)) return;
-
-        this.cachedAdjacentTiles.put(facing, new WeakReference<>(te));
-        this.cachedCapabilities.put(facing, te);
+    protected List<Capability<?>> getAdjacentCapabilities() {
+        return Collections.emptyList();
     }
 
     @Override

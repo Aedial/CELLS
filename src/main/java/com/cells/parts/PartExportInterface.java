@@ -63,6 +63,7 @@ public class PartExportInterface extends AbstractInterfacePart<ItemInterfaceLogi
 
     @Override
     protected String getMemoryCardName() {
+        // the 'item' variant doesn't have the type suffix
         return "tile.cells.export_interface";
     }
 
@@ -74,11 +75,6 @@ public class PartExportInterface extends AbstractInterfacePart<ItemInterfaceLogi
     @Override
     public int getMainGuiId() {
         return CellsGuiHandler.GUI_PART_EXPORT_INTERFACE;
-    }
-
-    @Override
-    public IItemHandlerModifiable getFilterInventory() {
-        return this.logic.getFilterInventory();
     }
 
     @Override

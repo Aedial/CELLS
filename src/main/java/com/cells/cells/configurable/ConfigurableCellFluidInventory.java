@@ -36,6 +36,10 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
 
     // In-memory cache: FluidStackKey -> NBT index
     private final Map<FluidStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    // Cached AEFluidStacks by NBT index, avoids expensive reconstruction in getAvailableItems
+    private final Map<Integer, IAEFluidStack> nbtIndexToFluidStack = new HashMap<>();
+    // Cached counts by NBT index, avoids NBT reads in getAvailableItems and getStoredCount
+    private final Map<Integer, Long> nbtIndexToCount = new HashMap<>();
     private final Map<FluidStackKey, Integer> fluidNbtSizes = new HashMap<>();
     private int cachedNextIndex = 0;
 
@@ -51,6 +55,8 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
         storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        nbtIndexToFluidStack.clear();
+        nbtIndexToCount.clear();
         fluidNbtSizes.clear();
         totalNbtSize = 0;
         cachedNextIndex = 0;
@@ -68,6 +74,8 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
                     if (index >= cachedNextIndex) cachedNextIndex = index + 1;
 
                     keyToNbtIndex.put(key, index);
+                    nbtIndexToFluidStack.put(index, channel.createStack(stack));
+                    nbtIndexToCount.put(index, count);
                     storedCount += count;
                     storedTypes++;
 
@@ -89,8 +97,7 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
         Integer index = keyToNbtIndex.get(key);
         if (index == null) return 0;
 
-        NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
-        return fluidsTag.getCompoundTag(String.valueOf(index)).getLong(NBT_STORED_COUNT);
+        return nbtIndexToCount.getOrDefault(index, 0L);
     }
 
     private void setStoredCount(IAEFluidStack fluid, long count) {
@@ -108,11 +115,14 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
 
                 fluidsTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
+                nbtIndexToFluidStack.remove(index);
+                nbtIndexToCount.remove(index);
             }
         } else if (index != null) {
             // Update count only - NBT size change is minimal
             NBTTagCompound fluidTag = fluidsTag.getCompoundTag(String.valueOf(index));
             fluidTag.setLong(NBT_STORED_COUNT, count);
+            nbtIndexToCount.put(index, count);
         } else {
             index = cachedNextIndex++;
             NBTTagCompound fluidTag = new NBTTagCompound();
@@ -120,6 +130,8 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
             fluidTag.setLong(NBT_STORED_COUNT, count);
             fluidsTag.setTag(String.valueOf(index), fluidTag);
             keyToNbtIndex.put(key, index);
+            nbtIndexToFluidStack.put(index, fluid.copy());
+            nbtIndexToCount.put(index, count);
 
             // Track NBT size for this new fluid (if enabled)
             if (CellsConfig.enableNbtSizeTooltip) {
@@ -204,21 +216,13 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
 
     @Override
     public IItemList<IAEFluidStack> getAvailableItems(IItemList<IAEFluidStack> out) {
-        NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
-
-        for (String key : fluidsTag.getKeySet()) {
-            NBTTagCompound fluidTag = fluidsTag.getCompoundTag(key);
-            FluidStack stack = FluidStack.loadFluidStackFromNBT(fluidTag);
-            if (stack == null) continue;
-
-            long count = fluidTag.getLong(NBT_STORED_COUNT);
+        for (Map.Entry<Integer, IAEFluidStack> entry : nbtIndexToFluidStack.entrySet()) {
+            long count = nbtIndexToCount.getOrDefault(entry.getKey(), 0L);
             if (count <= 0) continue;
 
-            IAEFluidStack aeStack = channel.createStack(stack);
-            if (aeStack != null) {
-                aeStack.setStackSize(count);
-                out.add(aeStack);
-            }
+            IAEFluidStack aeStack = entry.getValue();
+            aeStack.setStackSize(count);
+            out.add(aeStack);
         }
 
         return out;

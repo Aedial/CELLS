@@ -43,6 +43,10 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
 
     // In-memory cache: GasStackKey -> NBT index
     private final Map<GasStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    // Cached AEGasStacks by NBT index, avoids reconstruction in getAvailableItems
+    private final Map<Integer, IAEGasStack> nbtIndexToGasStack = new HashMap<>();
+    // Cached counts by NBT index, avoids NBT reads in getAvailableItems and getStoredCount
+    private final Map<Integer, Long> nbtIndexToCount = new HashMap<>();
     // NBT size tracking per gas type
     private final Map<GasStackKey, Integer> gasEntryNbtSizes = new HashMap<>();
     private int cachedNextIndex = 0;
@@ -59,6 +63,8 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
         storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        nbtIndexToGasStack.clear();
+        nbtIndexToCount.clear();
         gasEntryNbtSizes.clear();
         totalNbtSize = 0;
         cachedNextIndex = 0;
@@ -77,6 +83,8 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
                     if (index >= cachedNextIndex) cachedNextIndex = index + 1;
 
                     keyToNbtIndex.put(key, index);
+                    nbtIndexToGasStack.put(index, AEGasStack.of(new GasStack(gas, 1)));
+                    nbtIndexToCount.put(index, count);
                     storedCount += count;
                     storedTypes++;
 
@@ -98,8 +106,7 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
         Integer index = keyToNbtIndex.get(key);
         if (index == null) return 0;
 
-        NBTTagCompound gasTag = tagCompound.getCompoundTag(NBT_GAS_TYPE);
-        return gasTag.getCompoundTag(String.valueOf(index)).getLong(NBT_STORED_COUNT);
+        return nbtIndexToCount.getOrDefault(index, 0L);
     }
 
     private void setStoredCount(IAEGasStack gas, long count) {
@@ -117,11 +124,14 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
 
                 gasTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
+                nbtIndexToGasStack.remove(index);
+                nbtIndexToCount.remove(index);
             }
         } else if (index != null) {
             // Update count only - NBT size change is minimal
             NBTTagCompound entryTag = gasTag.getCompoundTag(String.valueOf(index));
             entryTag.setLong(NBT_STORED_COUNT, count);
+            nbtIndexToCount.put(index, count);
         } else {
             // New gas - serialize fully
             index = cachedNextIndex++;
@@ -130,6 +140,8 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
             entryTag.setLong(NBT_STORED_COUNT, count);
             gasTag.setTag(String.valueOf(index), entryTag);
             keyToNbtIndex.put(key, index);
+            nbtIndexToGasStack.put(index, gas.copy());
+            nbtIndexToCount.put(index, count);
 
             // Track NBT size for this new gas (if enabled)
             if (CellsConfig.enableNbtSizeTooltip) {
@@ -217,23 +229,13 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
 
     @Override
     public IItemList<IAEGasStack> getAvailableItems(IItemList<IAEGasStack> out) {
-        NBTTagCompound gasTag = tagCompound.getCompoundTag(NBT_GAS_TYPE);
-
-        for (String key : gasTag.getKeySet()) {
-            NBTTagCompound entryTag = gasTag.getCompoundTag(key);
-            String gasName = entryTag.getString(NBT_GAS_NAME);
-            Gas gas = GasRegistry.getGas(gasName);
-            if (gas == null) continue;
-
-            long count = entryTag.getLong(NBT_STORED_COUNT);
+        for (Map.Entry<Integer, IAEGasStack> entry : nbtIndexToGasStack.entrySet()) {
+            long count = nbtIndexToCount.getOrDefault(entry.getKey(), 0L);
             if (count <= 0) continue;
 
-            GasStack stack = new GasStack(gas, (int) Math.min(count, Integer.MAX_VALUE));
-            IAEGasStack aeStack = AEGasStack.of(stack);
-            if (aeStack != null) {
-                aeStack.setStackSize(count);
-                out.add(aeStack);
-            }
+            IAEGasStack aeStack = entry.getValue();
+            aeStack.setStackSize(count);
+            out.add(aeStack);
         }
 
         return out;

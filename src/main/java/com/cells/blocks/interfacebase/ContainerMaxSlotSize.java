@@ -26,12 +26,11 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     private GuiTextField textField;
 
     @GuiSync(0)
-    public long maxSlotSize;
+    public long maxSlotSize = -1;
 
     public ContainerMaxSlotSize(final InventoryPlayer ip, final IInterfaceHost host) {
         super(ip, host instanceof TileEntity ? (TileEntity) host : null, host instanceof IPart ? (IPart) host : null);
         this.host = host;
-        this.maxSlotSize = host.getMaxSlotSize();
     }
 
     @SideOnly(Side.CLIENT)
@@ -41,10 +40,7 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
     }
 
     public void setMaxSlotSize(final long newValue) {
-        long clamped = Math.max(AbstractResourceInterfaceLogic.MIN_MAX_SLOT_SIZE,
-                                Math.min(newValue, AbstractResourceInterfaceLogic.getMaxMaxSlotSize()));
-        this.host.setMaxSlotSize(clamped);
-        this.maxSlotSize = clamped;
+        this.maxSlotSize = this.host.setMaxSlotSize(newValue);
     }
 
     @Override
@@ -70,9 +66,5 @@ public class ContainerMaxSlotSize extends AEBaseContainer {
         }
 
         super.onUpdate(field, oldValue, newValue);
-    }
-
-    public IInterfaceHost getHost() {
-        return this.host;
     }
 }

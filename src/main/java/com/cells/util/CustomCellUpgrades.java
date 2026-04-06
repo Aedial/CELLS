@@ -63,7 +63,7 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
             final List<CustomUpgrades> allowedCustomUpgrades) {
         super(cellStack, null, slots);
         this.cellStack = cellStack;
-        int lostUpgrades = this.readFromNBTWithoutShrinking(Platform.openNbtData(cellStack), "upgrades");
+        int lostUpgrades = this.readFromNBTWithoutShrinking(Platform.openNbtData(cellStack));
         this.setFilter(new CustomUpgradeFilter());
 
         if (lostUpgrades > 0) {
@@ -91,12 +91,11 @@ public class CustomCellUpgrades extends StackUpgradeInventory {
      * </p>
      *
      * @param data The NBT compound containing the inventory data
-     * @param name The key name for the inventory in NBT
      *
      * @return The number of items due to a change in inventory size (newSize < oldSize)
      */
-    private int readFromNBTWithoutShrinking(NBTTagCompound data, String name) {
-        NBTTagCompound invData = data.getCompoundTag(name);
+    private int readFromNBTWithoutShrinking(NBTTagCompound data) {
+        NBTTagCompound invData = data.getCompoundTag("upgrades");
         if (invData.isEmpty()) return 0;
 
         // Read items WITHOUT calling setSize - preserve our current inventory size

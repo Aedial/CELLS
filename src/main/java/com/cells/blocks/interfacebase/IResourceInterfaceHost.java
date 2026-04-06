@@ -59,11 +59,6 @@ public interface IResourceInterfaceHost<AE extends IAEStack<AE>, K>
         return getInterfaceLogic().findSlotByKey(key);
     }
 
-    @Override
-    default int addToFirstAvailableSlot(@Nonnull AE stack) {
-        return getInterfaceLogic().addToFirstAvailableSlotAE(stack);
-    }
-
     /**
      * Get the stored amount (as long) in a specific slot.
      * Used for accurate space calculations when amounts can exceed int max.

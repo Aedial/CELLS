@@ -27,15 +27,15 @@ public interface IInterfaceHost {
      */
     void markForNetworkUpdate();
 
+    long validateMaxSlotSize(long size);
+
     long getMaxSlotSize();
 
-    long getDefaultMaxSlotSize();
-
-    void setMaxSlotSize(long size);
+    long setMaxSlotSize(long size);
 
     int getPollingRate();
 
-    void setPollingRate(int ticks);
+    int setPollingRate(int ticks);
 
     /**
      * @return true if this is an export interface, false if import.
@@ -107,9 +107,4 @@ public interface IInterfaceHost {
      * Does NOT include upgrades (those stay in the source interface).
      */
     NBTTagCompound downloadSettingsWithFilter();
-
-    /**
-     * Check if an item is a valid upgrade for this interface.
-     */
-    boolean isValidUpgrade(ItemStack stack);
 }

@@ -95,15 +95,4 @@ public abstract class AbstractCreativeCellContainer<H> extends AEBaseContainer {
         return super.slotClick(slotId, dragType, clickTypeIn, player);
     }
 
-    /**
-     * Clear all filter slots.
-     */
-    public abstract void clearAllFilters();
-
-    /**
-     * Get the filter handler for external access.
-     */
-    public H getFilterHandler() {
-        return filterHandler;
-    }
 }

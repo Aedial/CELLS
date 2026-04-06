@@ -56,17 +56,6 @@ public final class NBTSizeHelper {
     }
 
     /**
-     * Calculate the size of an item's NBT data specifically.
-     * This is the NBT that would be serialized via ItemStack.writeToNBT().
-     *
-     * @param itemNbt The item's NBT compound (from writeToNBT)
-     * @return Size in bytes
-     */
-    public static int calculateItemNbtSize(NBTTagCompound itemNbt) {
-        return calculateSize(itemNbt);
-    }
-
-    /**
      * Format a byte size into a human-readable string.
      * Examples: "1.2 KB", "3.5 MB", "512 B"
      *

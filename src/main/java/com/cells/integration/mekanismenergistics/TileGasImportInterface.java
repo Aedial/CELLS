@@ -44,11 +44,6 @@ public class TileGasImportInterface extends AbstractInterfaceTile<GasInterfaceLo
     }
 
     @Override
-    public int insertGasIntoTank(int slot, GasStack gas) {
-        return this.logic.insertGasIntoTank(slot, gas);
-    }
-
-    @Override
     public int getMainGuiId() {
         return GasInterfaceGuiHandler.GUI_GAS_IMPORT_INTERFACE;
     }

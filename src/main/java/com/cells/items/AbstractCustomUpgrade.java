@@ -16,7 +16,6 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
 
-import com.cells.ItemRegistry;
 import com.cells.Tags;
 import com.cells.core.CellsCreativeTab;
 
@@ -142,18 +141,6 @@ public class AbstractCustomUpgrade extends Item implements IUpgradeModule {
         if (meta >= 0 && meta < tierValues.length) return tierValues[meta];
 
         return tierValues[0];
-    }
-
-    /**
-     * Creates a Decompression Tier Card for the given tier.
-     *
-     * @param tier 0=3x, 1=6x, 2=9x, 3=12x, 4=15x
-     * @return The card ItemStack
-     */
-    public ItemStack create(int tier) {
-        if (tier < 0 || tier >= tierNames.length) tier = 0;
-
-        return new ItemStack(ItemRegistry.DECOMPRESSION_TIER_CARD, 1, tier);
     }
 
     /**

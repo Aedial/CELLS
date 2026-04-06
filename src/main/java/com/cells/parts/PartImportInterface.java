@@ -60,10 +60,9 @@ public class PartImportInterface extends AbstractInterfacePart<ItemInterfaceLogi
         return MODELS_HAS_CHANNEL;
     }
 
-    // TODO: refactor card name with tile.cells.import_interface + logic.getTypeName()
-
     @Override
     protected String getMemoryCardName() {
+        // the 'item' variant doesn't have the type suffix
         return "tile.cells.import_interface";
     }
 
@@ -75,11 +74,6 @@ public class PartImportInterface extends AbstractInterfacePart<ItemInterfaceLogi
     @Override
     public int getMainGuiId() {
         return CellsGuiHandler.GUI_PART_IMPORT_INTERFACE;
-    }
-
-    @Override
-    public IItemHandlerModifiable getFilterInventory() {
-        return this.logic.getFilterInventory();
     }
 
     @Override

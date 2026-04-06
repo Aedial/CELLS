@@ -7,7 +7,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 
 import appeng.api.parts.IPart;
-import appeng.api.util.AEPartLocation;
 
 import com.cells.blocks.interfacebase.ContainerMaxSlotSize;
 import com.cells.blocks.interfacebase.ContainerPollingRate;
@@ -37,14 +36,6 @@ public class GasInterfaceGuiHandler implements IGuiHandler {
     public static final int GUI_PART_GAS_EXPORT_INTERFACE = 301;
     public static final int GUI_PART_GAS_MAX_SLOT_SIZE = 302;
     public static final int GUI_PART_GAS_POLLING_RATE = 303;
-
-    /**
-     * Open a GUI for a part, encoding the side information.
-     * Convenience method that delegates to {@link GuiIdUtils#openPartGui}.
-     */
-    public static void openPartGui(EntityPlayer player, TileEntity tile, AEPartLocation side, int guiId) {
-        GuiIdUtils.openPartGui(player, tile, side, guiId);
-    }
 
     /**
      * Check if a GUI ID is for a gas part (encoded with side, base >= 300).

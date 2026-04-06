@@ -28,7 +28,7 @@ import com.cells.util.PollingRateUtils;
  * GUI for configuring the interval and quantity of a Pull/Push Card.
  * Has +/- buttons for 1s, 1m, 1h, 1d. Holding shift multiplies by 10.
  * Time is displayed in format "1d 2h 3m 4s" (skipping zero parts) or "0".
- *
+ * <p>
  * Also has text fields for quantity and keep quantity (comma-formatted,
  * capped at Integer.MAX_VALUE) with "/ max" display after each field.
  * Hovering over a label shows a tooltip explaining the field.
@@ -55,7 +55,7 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
     private GuiTextField quantityField;
     private GuiTextField keepsField;
 
-    final private boolean isExport;
+    final private boolean isImport;
 
     private int currentInterval = ContainerPullPushCard.DEFAULT_INTERVAL;
     private int currentQuantity = ContainerPullPushCard.MINIMUM_QUANTITY;
@@ -69,7 +69,7 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
         super(new ContainerPullPushCard(inventoryPlayer, hand));
         this.xSize = 176;
         this.ySize = 156;
-        this.isExport = ((ContainerPullPushCard) this.inventorySlots).isPullCard();
+        this.isImport = ((ContainerPullPushCard) this.inventorySlots).isPullCard();
     }
 
     @Override
@@ -144,7 +144,7 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
 
     @Override
     public void drawFG(final int offsetX, final int offsetY, final int mouseX, final int mouseY) {
-        String type = this.isExport ? "push" : "pull";
+        String type = this.isImport ? "pull" : "push";
         String title = I18n.format("item.cells." + type + "_card.name");
         this.fontRenderer.drawString(title, 8, 6, 0x404040);
 

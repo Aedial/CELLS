@@ -1,12 +1,13 @@
 package com.cells.core;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemStack;
 import net.minecraft.init.Items;
 
 import com.cells.ItemRegistry;
 
-import javax.annotation.Nonnull;
 
 /**
  * Creative tab for the C.E.L.L.S. mod.

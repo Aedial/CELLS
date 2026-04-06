@@ -146,19 +146,6 @@ public final class CellDisassemblyHelper {
         return true;
     }
 
-    /**
-     * Simplified disassembly for cells without components.
-     * Returns upgrades and optionally housing.
-     */
-    public static <T extends IAEStack<T>> boolean disassembleCell(
-            @Nonnull ItemStack stack,
-            @Nonnull EntityPlayer player,
-            @Nonnull IStorageChannel<T> channel,
-            @Nonnull ICellWorkbenchItem cellWorkbenchItem,
-            boolean returnHousing) {
-        return disassembleCell(stack, player, channel, cellWorkbenchItem, returnHousing, null);
-    }
-
     // =====================
     // Helper methods
     // =====================

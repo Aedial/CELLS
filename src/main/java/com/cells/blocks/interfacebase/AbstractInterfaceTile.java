@@ -145,20 +145,13 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
         return this.logic;
     }
 
-    public AppEngInternalInventory getUpgradeInventory() {
-        return this.logic.getUpgradeInventory();
-    }
-
     public void refreshFilterMap() {
         this.logic.refreshFilterMap();
     }
 
-    public void refreshUpgrades() {
-        this.logic.refreshUpgrades();
-    }
-
-    public boolean isValidUpgrade(ItemStack stack) {
-        return this.logic.isValidUpgrade(stack);
+    @Override
+    public long validateMaxSlotSize(long size) {
+        return this.logic.validateMaxSlotSize(size);
     }
 
     @Override
@@ -167,8 +160,8 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
     }
 
     @Override
-    public void setMaxSlotSize(long size) {
-        this.logic.setMaxSlotSize(size);
+    public long setMaxSlotSize(long size) {
+        return this.logic.setMaxSlotSize(size);
     }
 
     @Override
@@ -177,16 +170,12 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
     }
 
     @Override
-    public void setPollingRate(int ticks) {
-        this.logic.setPollingRate(ticks);
+    public int setPollingRate(int ticks) {
+        return this.logic.setPollingRate(ticks);
     }
 
-    public void setPollingRate(int ticks, EntityPlayer player) {
-        this.logic.setPollingRate(ticks, player);
-    }
-
-    public int getInstalledCapacityUpgrades() {
-        return this.logic.getInstalledCapacityUpgrades();
+    public int setPollingRate(int ticks, EntityPlayer player) {
+        return this.logic.setPollingRate(ticks, player);
     }
 
     public int getTotalPages() {
@@ -199,18 +188,6 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
 
     public void setCurrentPage(int page) {
         this.logic.setCurrentPage(page);
-    }
-
-    public int getCurrentPageStartSlot() {
-        return this.logic.getCurrentPageStartSlot();
-    }
-
-    public boolean hasOverflowUpgrade() {
-        return this.logic.hasOverflowUpgrade();
-    }
-
-    public boolean hasTrashUnselectedUpgrade() {
-        return this.logic.hasTrashUnselectedUpgrade();
     }
 
     // ============================== IInterfaceHost implementation ==============================
@@ -310,8 +287,8 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
      */
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
-        if (inv == this.logic.getUpgradeInventory()) this.logic.onUpgradeChanged();
-        this.markDirty();
+        this.logic.onChangeInventory(inv, slot, removed, added);
+        this.markDirtyAndSave();
     }
 
     @Override

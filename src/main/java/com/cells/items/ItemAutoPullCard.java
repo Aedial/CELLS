@@ -8,15 +8,12 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumHand;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-
-import appeng.util.ReadableNumberConverter;
 
 import com.cells.Cells;
 import com.cells.gui.CellsGuiHandler;
@@ -151,9 +148,6 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
             tooltip.add("");
             tooltip.add(I18n.format("tooltip.cells.push_pull_card.interval_warning"));
         }
-
-        tooltip.add("");
-        tooltip.add(I18n.format("tooltip.cells.useatyourownrisk"));
 
         addCompatibilityTooltip(tooltip, "import_interface");
     }

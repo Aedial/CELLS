@@ -21,6 +21,7 @@ import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
 
 import com.cells.cells.configurable.ComponentHelper;
 import com.cells.commands.FillCellCommand;
+import com.cells.commands.InspectSlotCommand;
 import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
@@ -99,5 +100,6 @@ public class Cells {
     @EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
         event.registerServerCommand(new FillCellCommand());
+        event.registerServerCommand(new InspectSlotCommand());
     }
 }

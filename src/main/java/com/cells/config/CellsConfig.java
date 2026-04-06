@@ -109,6 +109,9 @@ public class CellsConfig {
     /** Minimum polling rate for interfaces (0 = allow adaptive) */
     public static int interfaceMinPollingRate = 0;
 
+    /** Essentia Creative Cell fix */
+    public static boolean enableEssentiaCreativeCellFix = true;
+
     /**
      * Initializes the configuration from the given file.
      *
@@ -317,6 +320,17 @@ public class CellsConfig {
         );
         p.setLanguageKey(Tags.MODID + ".config.enableNbtSizeTooltip");
         enableNbtSizeTooltip = p.getBoolean();
+
+        // Cells category
+        config.getCategory(CATEGORY_CELLS).setLanguageKey(Tags.MODID + ".config.category.cells");
+        config.addCustomCategoryComment(CATEGORY_CELLS, "Misc settings for cells.");
+
+        p = config.get(CATEGORY_CELLS,
+            "enableEssentiaCreativeCellFix", true,
+            "Enable the fix for the Essentia Creative Cell that makes it report only Max Int instead of Max Long / 2. This prevents deltas from overflowing and not reporting the right amounts. Disable Thaumic Energistics support long in your version."
+        );
+        p.setLanguageKey(Tags.MODID + ".config.enableEssentiaCreativeCellFix");
+        enableEssentiaCreativeCellFix = p.getBoolean();
 
         // Interfaces category
         config.getCategory(CATEGORY_INTERFACES).setLanguageKey(Tags.MODID + ".config.category.interfaces");

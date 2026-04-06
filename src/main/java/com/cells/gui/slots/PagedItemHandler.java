@@ -1,7 +1,8 @@
 package com.cells.gui.slots;
 
-import javax.annotation.Nonnull;
 import java.util.function.IntSupplier;
+
+import javax.annotation.Nonnull;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
@@ -109,12 +110,5 @@ public class PagedItemHandler implements IItemHandlerModifiable {
         if (actualSlot >= delegate.getSlots()) return false;
 
         return delegate.isItemValid(actualSlot, stack);
-    }
-
-    /**
-     * Get the actual slot index in the underlying inventory for a displayed slot.
-     */
-    public int getActualSlotIndex(int displaySlot) {
-        return getActualSlot(displaySlot);
     }
 }

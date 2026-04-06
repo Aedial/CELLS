@@ -6,7 +6,6 @@ import javax.annotation.Nullable;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 
-import thaumcraft.api.aspects.Aspect;
 import thaumicenergistics.api.EssentiaStack;
 
 import com.cells.cells.creative.AbstractCreativeCellFilterHandler;
@@ -84,16 +83,5 @@ public class CreativeEssentiaCellFilterHandler extends AbstractCreativeCellFilte
      */
     public boolean isInFilter(@Nullable EssentiaStack stack) {
         return isStackInFilter(stack);
-    }
-
-    /**
-     * Check if an aspect is in the filter.
-     * Convenience method for checking by Aspect directly.
-     */
-    public boolean isInFilter(@Nullable Aspect aspect) {
-        if (aspect == null) return false;
-
-        EssentiaStackKey key = EssentiaStackKey.of(aspect);
-        return isInFilter(key);
     }
 }

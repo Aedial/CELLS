@@ -1,7 +1,10 @@
 package com.cells.integration.mekanismenergistics;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -88,17 +91,9 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         this.host.markDirtyAndSave();
     }
 
-    public int insertGasIntoTank(int slot, GasStack gas) {
-        return insertIntoSlot(slot, gas);
-    }
-
     @Nullable
     public GasStack drainGasFromTank(int slot, int maxDrain, boolean doDrain) {
         return drainFromSlot(slot, maxDrain, doDrain);
-    }
-
-    public int insertGasIntoNetwork(GasStack gas) {
-        return insertIntoNetwork(gas);
     }
 
     // ============================== Abstract method implementations ==============================
@@ -177,16 +172,7 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
 
     @Override
     public boolean readStorageFromStream(ByteBuf data) {
-        boolean changed = false;
-
-        // Clear all storage first
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null || this.amounts[i] != 0) {
-                this.storage[i] = null;
-                this.amounts[i] = 0;
-                changed = true;
-            }
-        }
+        boolean changed = this.inventoryManager.clearAllStorageForDeserialization();
 
         int count = data.readShort();
         for (int idx = 0; idx < count; idx++) {
@@ -194,13 +180,9 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
             int gasId = data.readShort();
             long amount = data.readLong();
 
-            if (slot < 0 || slot >= STORAGE_SLOTS) continue;
-
             Gas gas = GasRegistry.getGas(gasId);
-            if (gas != null) {
-                this.setResourceInSlotWithAmount(slot, new GasStack(gas, 1), amount);
-                changed = true;
-            }
+            this.setResourceInSlotWithAmount(slot, new GasStack(gas, 1), amount);
+            changed = true;
         }
 
         return changed;
@@ -208,49 +190,29 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
 
     @Override
     public void writeStorageToStream(ByteBuf data) {
-        // Count non-empty storage slots first
-        int count = 0;
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            if (this.storage[i] != null && this.amounts[i] > 0) count++;
-        }
+        // Gather non-empty storage slots
+        List<Integer> slots = this.inventoryManager.getNonEmptyStorageSlots();
+        data.writeShort(slots.size());
 
-        data.writeShort(count);
-
-        for (int i = 0; i < STORAGE_SLOTS; i++) {
-            GasStack identity = this.storage[i];
-            long amount = this.amounts[i];
-            if (identity == null || amount <= 0) continue;
-
-            data.writeShort(i);
-            data.writeShort(identity.getGas().getID());
-            data.writeLong(amount);
+        for (int slot : slots) {
+            data.writeShort(slot);
+            data.writeShort(getStorageIdentity(slot).getGas().getID());
+            data.writeLong(getSlotAmount(slot));
         }
     }
 
     @Override
     public boolean readFiltersFromStream(ByteBuf data) {
-        boolean changed = false;
-
-        // Clear all filters first
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (this.filters[i] != null) {
-                this.filters[i] = null;
-                changed = true;
-            }
-        }
+        boolean changed = this.inventoryManager.clearAllFiltersForDeserialization();
 
         int count = data.readShort();
         for (int idx = 0; idx < count; idx++) {
             int slot = data.readShort();
             int gasId = data.readShort();
 
-            if (slot < 0 || slot >= FILTER_SLOTS) continue;
-
             Gas gas = GasRegistry.getGas(gasId);
-            if (gas != null) {
-                this.filters[slot] = new GasStack(gas, 1);
-                changed = true;
-            }
+            this.inventoryManager.setFilterDirect(slot, new GasStack(gas, 1));
+            changed = true;
         }
 
         if (changed) this.refreshFilterMap();
@@ -261,19 +223,12 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
     @Override
     public void writeFiltersToStream(ByteBuf data) {
         // Count non-empty filters first
-        int count = 0;
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            if (this.filters[i] != null) count++;
-        }
+        List<Integer> slots = this.inventoryManager.getFilterSlotList();
+        data.writeShort(slots.size());
 
-        data.writeShort(count);
-
-        for (int i = 0; i < FILTER_SLOTS; i++) {
-            GasStack gas = this.filters[i];
-            if (gas == null) continue;
-
-            data.writeShort(i);
-            data.writeShort(gas.getGas().getID());
+        for (int slot : slots) {
+            data.writeShort(slot);
+            data.writeShort(getRawFilter(slot).getGas().getID());
         }
     }
 
@@ -297,9 +252,8 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
     // ============================== Auto-Pull/Push capability methods ==============================
 
     @Override
-    @Nullable
-    protected Capability<?> getAdjacentCapability() {
-        return Capabilities.GAS_HANDLER_CAPABILITY;
+    protected List<Capability<?>> getAdjacentCapabilities() {
+        return Collections.singletonList(Capabilities.GAS_HANDLER_CAPABILITY);
     }
 
     @Override
@@ -313,6 +267,23 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
             if (contents != null && contents.getGas() == targetGas) total += contents.amount;
         }
         return total;
+    }
+
+    @Override
+    @Nullable
+    protected Map<GasStackKey, Long> buildResourceCountMap(Object handler, EnumFacing facing) {
+        if (!(handler instanceof IGasHandler)) return null;
+
+        Map<GasStackKey, Long> map = new HashMap<>();
+        for (GasTankInfo tank : ((IGasHandler) handler).getTankInfo()) {
+            GasStack contents = tank.getGas();
+            if (contents == null || contents.amount <= 0) continue;
+
+            GasStackKey key = GasStackKey.of(contents);
+            if (key != null) map.merge(key, (long) contents.amount, Long::sum);
+        }
+
+        return map;
     }
 
     /**
@@ -371,19 +342,19 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         public GasTankInfo[] getTankInfo() {
             List<GasTankInfo> infos = new ArrayList<>();
 
-            for (int slot : logic.filterSlotList) {
+            final int capacity = logic.inventoryManager.getMaxSlotSizeInt();
+
+            for (int slot : logic.getFilterSlotList()) {
                 final int s = slot;
-                // Clamp to int for IGasHandler API
-                final int capacity = (int) Math.min(logic.maxSlotSize, Integer.MAX_VALUE);
 
                 infos.add(new GasTankInfo() {
                     @Override
                     public GasStack getGas() {
                         // Create stack with actual amount from parallel array
-                        GasStack identity = logic.storage[s];
+                        GasStack identity = logic.getStorageIdentity(s);
                         if (identity == null) return null;
 
-                        long amount = logic.amounts[s];
+                        long amount = logic.getSlotAmount(s);
                         if (amount <= 0) return null;
 
                         // Clamp to int for external API
@@ -393,7 +364,7 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
                     @Override
                     public int getStored() {
                         // Clamp to int for external API
-                        return (int) Math.min(logic.amounts[s], Integer.MAX_VALUE);
+                        return (int) Math.min(logic.getSlotAmount(s), Integer.MAX_VALUE);
                     }
 
                     @Override
@@ -452,19 +423,19 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         public GasTankInfo[] getTankInfo() {
             List<GasTankInfo> infos = new ArrayList<>();
 
-            for (int slot : logic.filterSlotList) {
+            final int capacity = logic.inventoryManager.getMaxSlotSizeInt();
+
+            for (int slot : logic.getFilterSlotList()) {
                 final int s = slot;
-                // Clamp to int for IGasHandler API
-                final int capacity = (int) Math.min(logic.maxSlotSize, Integer.MAX_VALUE);
 
                 infos.add(new GasTankInfo() {
                     @Override
                     public GasStack getGas() {
                         // Create stack with actual amount from parallel array
-                        GasStack identity = logic.storage[s];
+                        GasStack identity = logic.getStorageIdentity(s);
                         if (identity == null) return null;
 
-                        long amount = logic.amounts[s];
+                        long amount = logic.getSlotAmount(s);
                         if (amount <= 0) return null;
 
                         // Clamp to int for external API
@@ -474,7 +445,7 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
                     @Override
                     public int getStored() {
                         // Clamp to int for external API
-                        return (int) Math.min(logic.amounts[s], Integer.MAX_VALUE);
+                        return (int) Math.min(logic.getSlotAmount(s), Integer.MAX_VALUE);
                     }
 
                     @Override

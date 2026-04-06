@@ -121,7 +121,10 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
      * Get the memory card translation key for this part type.
      * E.g., "tile.cells.import_interface" or "tile.cells.export_interface"
      */
-    protected abstract String getMemoryCardName();
+    protected String getMemoryCardName() {
+        String dirKey = this.isExport() ? "export" : "import";
+        return "tile.cells." + dirKey + "_interface." + this.logic.getTypeName();
+    }
 
     // ============================== IInterfaceHost.Host callbacks ==============================
 
@@ -194,9 +197,7 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
 
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
-        if (inv == this.logic.getUpgradeInventory()) {
-            this.logic.onUpgradeChanged();
-        }
+        this.logic.onChangeInventory(inv, slot, removed, added);
         this.getHost().markForUpdate();
     }
 
@@ -225,16 +226,13 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
         return this.logic.getUpgradeInventory();
     }
 
-    public void refreshFilterMap() {
-        this.logic.refreshFilterMap();
-    }
-
     public void refreshUpgrades() {
         this.logic.refreshUpgrades();
     }
 
-    public boolean isValidUpgrade(ItemStack stack) {
-        return this.logic.isValidUpgrade(stack);
+    @Override
+    public long validateMaxSlotSize(long size) {
+        return this.logic.validateMaxSlotSize(size);
     }
 
     @Override
@@ -243,8 +241,8 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     }
 
     @Override
-    public void setMaxSlotSize(long size) {
-        this.logic.setMaxSlotSize(size);
+    public long setMaxSlotSize(long size) {
+        return this.logic.setMaxSlotSize(size);
     }
 
     @Override
@@ -253,16 +251,8 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     }
 
     @Override
-    public void setPollingRate(int ticks) {
-        this.logic.setPollingRate(ticks);
-    }
-
-    public void setPollingRate(int ticks, EntityPlayer player) {
-        this.logic.setPollingRate(ticks, player);
-    }
-
-    public int getInstalledCapacityUpgrades() {
-        return this.logic.getInstalledCapacityUpgrades();
+    public int setPollingRate(int ticks) {
+        return this.logic.setPollingRate(ticks);
     }
 
     public int getTotalPages() {
@@ -275,18 +265,6 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
 
     public void setCurrentPage(int page) {
         this.logic.setCurrentPage(page);
-    }
-
-    public int getCurrentPageStartSlot() {
-        return this.logic.getCurrentPageStartSlot();
-    }
-
-    public boolean hasOverflowUpgrade() {
-        return this.logic.hasOverflowUpgrade();
-    }
-
-    public boolean hasTrashUnselectedUpgrade() {
-        return this.logic.hasTrashUnselectedUpgrade();
     }
 
     @Override
@@ -438,7 +416,7 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
 
         if (player.isSneaking()) {
             final NBTTagCompound data = this.downloadSettings(SettingsFrom.MEMORY_CARD);
-            if (data != null && !data.isEmpty()) {
+            if (!data.isEmpty()) {
                 memoryCard.setMemoryCardContents(memCardIS, name, data);
                 memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_SAVED);
             }

@@ -264,26 +264,6 @@ public final class CellMathHelper {
     }
 
     /**
-     * Extracts the ME Grid from either the action source or the container.
-     * <p>
-     * Tries the action source first (preferred), then falls back to the container.
-     * This ensures grid notifications work even when the action source doesn't
-     * have a valid machine reference (e.g., certain crafting scenarios).
-     * </p>
-     *
-     * @param src       The action source (may be null or missing machine)
-     * @param container The save provider (typically TileDrive or TileChest)
-     * @return The grid, or null if unavailable from both sources
-     */
-    @Nullable
-    public static IGrid getGridFromSourceOrContainer(@Nullable IActionSource src, @Nullable ISaveProvider container) {
-        IGrid grid = getGridFromSource(src);
-        if (grid != null) return grid;
-
-        return getGridFromContainer(container);
-    }
-
-    /**
      * Extracts the World from an ISaveProvider (typically a drive or chest).
      * <p>
      * Used when no action source is available (e.g., during getAvailableItems).

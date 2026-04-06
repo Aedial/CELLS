@@ -54,7 +54,6 @@ public class GuiMaxSlotSize extends AEBaseGui {
     public GuiMaxSlotSize(final InventoryPlayer inventoryPlayer, final IInterfaceHost host) {
         super(new ContainerMaxSlotSize(inventoryPlayer, host));
         this.host = host;
-        this.currentMaxSlotSize = host.getMaxSlotSize();
         this.xSize = 200; // Widened to accommodate long values
     }
 
@@ -103,6 +102,10 @@ public class GuiMaxSlotSize extends AEBaseGui {
     @Override
     public void drawFG(final int offsetX, final int offsetY, final int mouseX, final int mouseY) {
         this.fontRenderer.drawString(I18n.format("cells.max_slot_size.title"), 8, 6, 0x404040);
+
+        // Read from the container's synced field (kept up-to-date by @GuiSync)
+        long syncedSize = ((ContainerMaxSlotSize) this.inventorySlots).maxSlotSize;
+        if (syncedSize >= 0) this.currentMaxSlotSize = syncedSize;
 
         // After the text field: 17 + 135 + 3px padding => x=155
         String shortNumber = ReadableNumberConverter.INSTANCE.toWideReadableForm(this.currentMaxSlotSize);
@@ -154,9 +157,7 @@ public class GuiMaxSlotSize extends AEBaseGui {
     }
 
     private void onQtyChanged(long newValue) {
-        long maxLimit = AbstractResourceInterfaceLogic.getMaxMaxSlotSize();
-        long value = Math.max(AbstractResourceInterfaceLogic.MIN_MAX_SLOT_SIZE, newValue);
-        value = Math.min(value, maxLimit);
+        long value = this.host.validateMaxSlotSize(newValue);
         this.currentMaxSlotSize = value;
 
         // Text with , as thousand separator for better readability
@@ -177,11 +178,10 @@ public class GuiMaxSlotSize extends AEBaseGui {
 
     private void addQty(final int delta) {
         // Add delta to current max slot size, ensuring it doesn't overflow
-        long maxLimit = AbstractResourceInterfaceLogic.getMaxMaxSlotSize();
-        long space = maxLimit - this.currentMaxSlotSize;
-        long newValue = this.currentMaxSlotSize + Math.min(delta, space);
+        long maxLimit = Long.MAX_VALUE - delta;
+        long newValue = this.currentMaxSlotSize + Math.min(delta, maxLimit);
 
-        this.onQtyChanged(newValue);
+        this.onQtyChanged(this.host.validateMaxSlotSize(newValue));
     }
 
     @Override

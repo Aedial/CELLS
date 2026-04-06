@@ -1,11 +1,14 @@
 package com.cells.util;
 
-import appeng.api.networking.security.IActionHost;
-import appeng.api.networking.security.IActionSource;
-import net.minecraft.entity.player.EntityPlayer;
+import java.util.Optional;
 
 import javax.annotation.Nonnull;
-import java.util.Optional;
+
+import net.minecraft.entity.player.EntityPlayer;
+
+import appeng.api.networking.security.IActionHost;
+import appeng.api.networking.security.IActionSource;
+
 
 /**
  * A custom IActionSource that wraps a machine but ensures it's never

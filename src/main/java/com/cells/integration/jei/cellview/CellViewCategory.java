@@ -244,6 +244,15 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
             tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
                 format.format(info.bytesUsed)));
+
+            long overhead = recipeRef.getBytesPerType();
+            long storage = info.bytesUsed - overhead;
+
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.overhead",
+                format.format(overhead)));
+
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.storage",
+                format.format(storage)));
         });
     }
 
@@ -296,6 +305,15 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
             tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
                 format.format(info.bytesUsed)));
+
+            long overhead = recipeRef.getBytesPerType();
+            long storage = info.bytesUsed - overhead;
+
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.overhead",
+                format.format(overhead)));
+
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.storage",
+                format.format(storage)));
         });
     }
 
@@ -338,6 +356,15 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
             tooltip.add(I18n.format("jei.cells.cellview.tooltip.bytes_used",
                 format.format(info.bytesUsed)));
+
+            long overhead = recipeRef.getBytesPerType();
+            long storage = info.bytesUsed - overhead;
+
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.overhead",
+                format.format(overhead)));
+
+            tooltip.add(I18n.format("jei.cells.cellview.tooltip.storage",
+                format.format(storage)));
         });
     }
 

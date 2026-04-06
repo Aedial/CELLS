@@ -84,11 +84,12 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
             ICellInventory<IAEItemStack> cellInv = cellHandler.getCellInv();
 
             if (cellInv instanceof HyperDensityCellInventory) {
-                long bytes = cellInv.getTotalBytes() * BYTE_MULTIPLIER;
-                long capacity = CellMathHelper.multiplyWithOverflowProtection(bytes, 8);
-                int maxTypes = CellsConfig.hdItemMaxTypes;
+                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
+            }
 
-                CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip, capacity, maxTypes);
+            if (CellUpgradeHelper.hasEqualDistributionUpgrade(getUpgradesInventory(stack))) {
+                long per_type = this.getBytesPerType(stack);
+                tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.per_type", per_type));
             }
 
             // Add NBT size information (if enabled in config)

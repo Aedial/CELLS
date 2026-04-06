@@ -8,6 +8,26 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.5.12-beta] - 2026-04-03
+### Fixed
+- Fix Fluid (Hyper-Density/Configurable), Gas (Configurable), and Essentia (Configurable) partitions using Item config, which allowed items to be encoded even if they were not valid for this specific cell type. Items are now correctly validated at encoding time. Re-encoding should not be required for cells that already have a valid partition, but it's always good to do it in order to remove invalid items.
+
+### Added
+- Optimize some Push/Pull Card logic.
+- Optimize getAvailableItems (protoStack caching and NBT bypass) for all cell types.
+- Mention Push/Pull Cards in the controls help widget and the README.
+- Add the /inspectSlots command, to show details about the slots of the block the player is looking at.
+
+### Changed
+- Move the Controls Help from bottom of the GUI to centered vertically.
+
+### Technical
+- Adaptive Mode is set to 1s (20 ticks) when a Push/Pull Card is present, to prevent excessive ticking and network I/O. The card can tick faster (e.g., every tick), but network I/O is throttled to a set minimum to prevent lag. Considering normal Adaptive mode can 
+- External Capacilities' slots for Keep Quantity are now queried once instead of once per item in filter.
+- IItemRepository is now queried instead of IItemHandler when the TE supports it.
+- Slots' content and space is now cached between IItemHandler calls (in the same tick), to avoid redundant queries.
+
+
 ## [0.5.12-alpha2] - 2026-04-02
 ### Changed
 - Clean tooltips to better convey intents and behaviors.

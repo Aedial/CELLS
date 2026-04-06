@@ -424,8 +424,9 @@ cells.configurable_cell.types_capacity_exceeded=Types limit would exceed per-typ
 
 # Interface Controls Help
 cells.controls.use_settings=For best performance, set the §bSlot Size§r and §bPolling Rate§r to a high enough value.
-cells.controls.use_cards=The §6Overflow Voiding Card§r and §6Trash Unselected Card§r should be prefered to other solutions like Trash Cans.
+cells.controls.use_cards=The §6Overflow Voiding Card§r and §6Trash Unselected Card§r should be prefered over other solutions, like Trash Cans.
 cells.controls.capacity_cards=Use §6Capacity Cards§r to add more filter pages.
+cells.controls.push_pull_cards=Use §6Push/Pull Cards§r to automate transfers. Set the interface's polling rate as a multiple of the card's interval for best results.
 cells.controls.memory_card_sneak=Sneak + right-click: Save settings.
 cells.controls.memory_card_filter=Sneak + §b%s§r + right-click: Save with filters.
 cells.controls.disassemble=Disassembling (with a wrench) will remember settings with filters.
@@ -454,6 +455,8 @@ jei.cells.cellview.tiers=tiers
 jei.cells.cellview.tooltip.stored_units=Stored: %s %s
 jei.cells.cellview.tooltip.bytes_used=Bytes: %s
 jei.cells.cellview.tooltip.virtual_form=Compressed/Decompressed form (virtual)
+jei.cells.cellview.tooltip.overhead=  - Overhead: %s
+jei.cells.cellview.tooltip.storage=  - Storage: %s
 
 # JEI Cell View - Size Row Tooltips
 jei.cells.cellview.tooltip.size_full=Size: %s / %s bytes
@@ -505,3 +508,32 @@ cells.push_pull_card.quantity.title=Transfer Quantity:
 cells.push_pull_card.quantity.tooltip=How many items/mB/etc. to transfer per operation.
 cells.push_pull_card.limit.title=To keep in adjacent inventory:
 cells.push_pull_card.limit.tooltip=How many items/mB/etc. of each type to maintain in the adjacent inventory (no more, no less).
+
+# /inspectSlot Command
+commands.cells.inspect_slots.usage=/inspectSlots [--handler] [resource1] [resource2] ...
+commands.cells.inspect_slots.not_player=This command must be run by a player.
+commands.cells.inspect_slots.no_block=No block in sight.
+commands.cells.inspect_slots.no_tile=No tile entity at [%d, %d, %d].
+commands.cells.inspect_slots.no_capability=Block has no supported inventory capability.
+commands.cells.inspect_slots.header=§6Inspecting block at [%d, %d, %d]:
+commands.cells.inspect_slots.type.item_repository=§eCapability: §bItem Repository §7(slotless)
+commands.cells.inspect_slots.type.item_handler=§eCapability: §bItem Handler §7(slot-based)
+commands.cells.inspect_slots.type.fluid_handler=§eCapability: §bFluid Handler §7(tank-based)
+commands.cells.inspect_slots.type.gas_handler=§eCapability: §bGas Handler §7(tank-based)
+commands.cells.inspect_slots.type.essentia_container=§eCapability: §bEssentia Container §7(aspect-based)
+commands.cells.inspect_slots.empty_inventory=§7  (empty)
+commands.cells.inspect_slots.slot_empty=§7  Slot %d: §8Empty §7- 0/%d
+commands.cells.inspect_slots.slot_empty_can_insert=§7  Slot %d: §8Empty §7- 0/%d §a(can insert %s)
+commands.cells.inspect_slots.slot_content=§7  Slot %d: §f%s §7- %d/%d
+commands.cells.inspect_slots.slot_content_can_insert=§7  Slot %d: §f%s §7- %d/%d §a(can insert %s)
+commands.cells.inspect_slots.tank_empty=§7  Tank %d: §8Empty §7- 0/%d mB
+commands.cells.inspect_slots.tank_empty_can_insert=§7  Tank %d: §8Empty §7- 0/%d mB §a(can insert %s)
+commands.cells.inspect_slots.tank_content=§7  Tank %d: §b%s §7- %d/%d mB
+commands.cells.inspect_slots.tank_content_can_insert=§7  Tank %d: §b%s §7- %d/%d mB §a(can insert %s)
+commands.cells.inspect_slots.essentia_content=§7  Aspect %d: §d%s §7- %d
+commands.cells.inspect_slots.can_insert_global=§a  Can insert: §f%s %s
+commands.cells.inspect_slots.cannot_insert_global=§c  Cannot insert: §f%s
+commands.cells.inspect_slots.unknown_item=§cUnknown item: %s
+commands.cells.inspect_slots.unknown_fluid=§cUnknown fluid: %s
+commands.cells.inspect_slots.unknown_gas=§cUnknown gas: %s
+commands.cells.inspect_slots.unknown_aspect=§cUnknown aspect: %s

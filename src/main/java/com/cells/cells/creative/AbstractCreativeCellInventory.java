@@ -63,13 +63,6 @@ public abstract class AbstractCreativeCellInventory<T extends IAEStack<T>, S, K,
         return filterHandler.getFilterCount() > 0;
     }
 
-    /**
-     * Get the filter handler for external access.
-     */
-    public H getFilterHandler() {
-        return filterHandler;
-    }
-
     // =====================
     // Abstract methods to be implemented by subclasses
     // =====================
@@ -109,6 +102,26 @@ public abstract class AbstractCreativeCellInventory<T extends IAEStack<T>, S, K,
      */
     protected IItemHandler getConfigInventoryImpl() {
         return EmptyItemHandler.INSTANCE;
+    }
+
+    /**
+     * Get the maximum allowed count for a single item type.
+     * This is used to cap the reported amount for each partitioned item,
+     * as well as the delta notifications to avoid overflowing AE2's internal counters
+     * and causing incorrect behavior in the terminal and drive watcher.
+     * @return The maximum allowed count
+     */
+    protected long getMaxAllowed() {
+        return Long.MAX_VALUE;
+    }
+
+    /**
+     * Get the amount to report for each partitioned item in getAvailableItems.
+     * This can be overridden to return a different value than REPORTED_AMOUNT if needed.
+     * @return The amount to report for each partitioned item
+     */
+    protected long getReportedAmount() {
+        return REPORTED_AMOUNT;
     }
 
     // =====================
@@ -173,7 +186,7 @@ public abstract class AbstractCreativeCellInventory<T extends IAEStack<T>, S, K,
     @Override
     public long getStoredItemCount() {
         // Amount is irrelevant for this cell, report *something* for visual indication
-        return filterHandler.getFilterCount() > 0 ? REPORTED_AMOUNT : 0;
+        return filterHandler.getFilterCount() > 0 ? this.getReportedAmount() : 0;
     }
 
     @Override
@@ -225,8 +238,14 @@ public abstract class AbstractCreativeCellInventory<T extends IAEStack<T>, S, K,
 
         // Cancel the deltas (see extractItems for explanation)
         if (mode == Actionable.MODULATE) {
+            // Overflows in positive deltas are lost, so we take this overflow into account.
+            // We should never count more than the non-overflowing part.
+            long counterSizeMax = this.getMaxAllowed() - this.getReportedAmount();
+            if (counterSizeMax <= 0) return null;
+
             T counterDelta = input.copy();
-            counterDelta.setStackSize(-counterDelta.getStackSize());
+            counterDelta.setStackSize(-Math.min(counterDelta.getStackSize(), counterSizeMax));
+
             // Negative delta to cancel the negative delta from DriveWatcher
             DeferredCellOperations.queueCrossTierNotification(
                 this, saveProvider, channel,
@@ -250,7 +269,7 @@ public abstract class AbstractCreativeCellInventory<T extends IAEStack<T>, S, K,
 
         // Found in filters - return the requested amount (creative source)
         T result = request.copy();
-        result.setStackSize(Math.min(request.getStackSize(), REPORTED_AMOUNT));
+        result.setStackSize(Math.min(request.getStackSize(), this.getReportedAmount()));
 
         // Cancel out the negative delta that DriveWatcher will post.
         // Since the creative cell has infinite items, the count should never change.
@@ -276,7 +295,7 @@ public abstract class AbstractCreativeCellInventory<T extends IAEStack<T>, S, K,
             if (!isNativeStackEmpty(filterStack)) {
                 T aeStack = createAEStack(filterStack);
                 if (aeStack != null) {
-                    aeStack.setStackSize(REPORTED_AMOUNT);
+                    aeStack.setStackSize(this.getReportedAmount());
                     out.add(aeStack);
                 }
             }

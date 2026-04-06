@@ -113,18 +113,4 @@ public class CellItemColors implements IItemColor {
         // Standard tiered cells use metadata directly as tier index
         return stack.getMetadata();
     }
-
-    /**
-     * Check if a given item should use this color handler.
-     *
-     * @param item The item to check
-     * @return true if this item uses the layered cell texture system
-     */
-    public static boolean isLayeredCell(Item item) {
-        return item instanceof ItemConfigurableCell
-            || item instanceof ItemCompactingCell
-            || item instanceof ItemHyperDensityCell
-            || item instanceof ItemHyperDensityCompactingCell
-            || item instanceof ItemFluidHyperDensityCell;
-    }
 }

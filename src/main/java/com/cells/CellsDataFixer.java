@@ -3,6 +3,8 @@ package com.cells;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.datafix.FixTypes;
 import net.minecraft.util.datafix.IFixableData;
@@ -13,7 +15,7 @@ import net.minecraftforge.fml.common.FMLCommonHandler;
 
 /**
  * Handles tile entity ID migration for worlds saved with older CELLS versions.
- *
+ * <p>
  * When a tile entity's NBT is loaded from disk, the DataFixer system runs before
  * TileEntity.create() looks up the ID in the registry. This lets us rewrite stale
  * IDs so the tile entity is found under its current registration name instead of
@@ -49,7 +51,8 @@ public class CellsDataFixer implements IFixableData {
     }
 
     @Override
-    public NBTTagCompound fixTagCompound(NBTTagCompound compound) {
+    @Nonnull
+    public NBTTagCompound fixTagCompound(@Nonnull NBTTagCompound compound) {
         String id = compound.getString("id");
 
         if (renames.containsKey(id)) compound.setString("id", renames.get(id));

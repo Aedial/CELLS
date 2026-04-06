@@ -26,11 +26,12 @@ public class ContainerPollingRate extends AEBaseContainer {
 
     /** Polling rate in ticks. 0 = adaptive (AE2 default), unless config requires higher. */
     @GuiSync(0)
-    public long pollingRate = AbstractResourceInterfaceLogic.getMinPollingRate();
+    public long pollingRate;
 
     public ContainerPollingRate(final InventoryPlayer ip, final IInterfaceHost host) {
         super(ip, host instanceof TileEntity ? (TileEntity) host : null, host instanceof IPart ? (IPart) host : null);
         this.host = host;
+        this.pollingRate = host.getPollingRate();
     }
 
     @SideOnly(Side.CLIENT)
@@ -40,10 +41,7 @@ public class ContainerPollingRate extends AEBaseContainer {
     }
 
     public void setPollingRate(final int newValue) {
-        int minRate = AbstractResourceInterfaceLogic.getMinPollingRate();
-        int clamped = Math.max(minRate, newValue);
-        this.host.setPollingRate(clamped);
-        this.pollingRate = clamped;
+        this.pollingRate = this.host.setPollingRate(newValue);
     }
 
     @Override
@@ -60,10 +58,6 @@ public class ContainerPollingRate extends AEBaseContainer {
         }
 
         super.onUpdate(field, oldValue, newValue);
-    }
-
-    public IInterfaceHost getHost() {
-        return this.host;
     }
 
     /**

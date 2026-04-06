@@ -56,13 +56,6 @@ public enum ChannelType {
     }
 
     /**
-     * The name used in the config file to identify this channel type.
-     */
-    public String getConfigName() {
-        return configName;
-    }
-
-    /**
      * Parse a channel type from a config string.
      *
      * @param name The channel name from config (case-insensitive)
@@ -77,16 +70,6 @@ public enum ChannelType {
         }
 
         return null;
-    }
-
-    /**
-     * Check if this channel type requires an optional mod.
-     * Item and Fluid are always available (AE2 core).
-     * Essentia requires Thaumic Energistics.
-     * Gas requires Mekanism Energistics.
-     */
-    public boolean requiresOptionalMod() {
-        return this == ESSENTIA || this == GAS;
     }
 
     /**

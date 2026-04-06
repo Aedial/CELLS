@@ -203,17 +203,6 @@ public final class ComponentHelper {
     // =====================
 
     /**
-     * Get tier names registered for a specific channel type.
-     *
-     * @param channelType The channel type to get tiers for
-     * @return Array of tier names for that channel (e.g., ["1k", "4k", "16k", ...])
-     */
-    public static String[] getRegisteredTierNames(ChannelType channelType) {
-        Set<String> tiers = REGISTERED_TIER_NAMES_BY_CHANNEL.get(channelType);
-        return tiers != null ? tiers.toArray(new String[0]) : new String[0];
-    }
-
-    /**
      * Get the map of all registered tier names by channel type.
      * This is useful for model registration where we need to iterate all channels.
      *

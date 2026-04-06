@@ -39,11 +39,6 @@ public class TileExportInterface extends AbstractInterfaceTile<ItemInterfaceLogi
     }
 
     @Override
-    public IItemHandlerModifiable getFilterInventory() {
-        return this.logic.getFilterInventory();
-    }
-
-    @Override
     public IItemHandlerModifiable getStorageInventory() {
         return this.logic.getStorageInventory();
     }

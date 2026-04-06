@@ -31,7 +31,7 @@ public abstract class AbstractCreativeCellFilterHandler<T, K> {
     protected final ItemStack cellStack;
 
     /** Cache of filter keys for quick matching */
-    protected Set<K> cachedFilterKeys = new HashSet<>();
+    protected final Set<K> cachedFilterKeys = new HashSet<>();
 
     protected AbstractCreativeCellFilterHandler(@Nonnull ItemStack cellStack) {
         this.cellStack = cellStack;

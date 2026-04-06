@@ -61,11 +61,6 @@ public class PartFluidImportInterface extends AbstractInterfacePart<FluidInterfa
     }
 
     @Override
-    protected String getMemoryCardName() {
-        return "tile.cells.import_interface.fluid";
-    }
-
-    @Override
     public boolean isExport() {
         return false;
     }

@@ -60,11 +60,6 @@ public class PartGasExportInterface extends AbstractInterfacePart<GasInterfaceLo
     }
 
     @Override
-    protected String getMemoryCardName() {
-        return "tile.cells.export_interface.gas";
-    }
-
-    @Override
     public boolean isExport() {
         return true;
     }

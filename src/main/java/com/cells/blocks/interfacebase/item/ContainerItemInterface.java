@@ -217,7 +217,7 @@ public class ContainerItemInterface
 
         if (stored.isEmpty()) {
             // Empty slot: insert held item
-            int maxInsert = (int) Math.min((long) insertAmount, this.host.getMaxSlotSize());
+            int maxInsert = (int) Math.min(insertAmount, this.host.getMaxSlotSize());
             ItemStack toInsert = held.copy();
             toInsert.setCount(maxInsert);
             storage.setStackInSlot(storageSlot, toInsert);

@@ -11,6 +11,7 @@ import thaumicenergistics.api.EssentiaStack;
 import thaumicenergistics.api.storage.IAEEssentiaStack;
 import thaumicenergistics.api.storage.IEssentiaStorageChannel;
 
+import com.cells.config.CellsConfig;
 import com.cells.cells.creative.AbstractCreativeCellInventory;
 import com.cells.integration.thaumicenergistics.EssentiaStackKey;
 
@@ -30,6 +31,25 @@ public class CreativeEssentiaCellInventory
         super(cellStack, saveProvider,
               new CreativeEssentiaCellFilterHandler(cellStack),
               AEApi.instance().storage().getStorageChannel(IEssentiaStorageChannel.class));
+    }
+
+    @Override
+    public long getMaxAllowed() {
+        if (CellsConfig.enableEssentiaCreativeCellFix) {
+            // Cap max allowed to int max to avoid overflow issues with the creative cell's infinite amount
+            return Integer.MAX_VALUE;
+        } else {
+            return super.getMaxAllowed();
+        }
+    }
+
+    @Override
+    public long getReportedAmount() {
+        if (CellsConfig.enableEssentiaCreativeCellFix) {
+            return Integer.MAX_VALUE;
+        } else {
+            return super.getReportedAmount();
+        }
     }
 
     @Override

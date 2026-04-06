@@ -35,6 +35,10 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
 
     // In-memory cache: ItemStackKey -> NBT index
     private final Map<ItemStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    // Cached AEItemStacks by NBT index, avoids expensive reconstruction in getAvailableItems
+    private final Map<Integer, IAEItemStack> nbtIndexToItemStack = new HashMap<>();
+    // Cached counts by NBT index, avoids NBT reads in getAvailableItems and getStoredCount
+    private final Map<Integer, Long> nbtIndexToCount = new HashMap<>();
     private final Map<ItemStackKey, Integer> itemNbtSizes = new HashMap<>();
     private int cachedNextIndex = 0;
 
@@ -50,6 +54,8 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
         storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        nbtIndexToItemStack.clear();
+        nbtIndexToCount.clear();
         itemNbtSizes.clear();
         totalNbtSize = 0;
         cachedNextIndex = 0;
@@ -67,6 +73,8 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
                     if (index >= cachedNextIndex) cachedNextIndex = index + 1;
 
                     keyToNbtIndex.put(key, index);
+                    nbtIndexToItemStack.put(index, channel.createStack(stack));
+                    nbtIndexToCount.put(index, count);
                     storedCount += count;
                     storedTypes++;
 
@@ -88,8 +96,7 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
         Integer index = keyToNbtIndex.get(key);
         if (index == null) return 0;
 
-        NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
-        return itemsTag.getCompoundTag(String.valueOf(index)).getLong(NBT_STORED_COUNT);
+        return nbtIndexToCount.getOrDefault(index, 0L);
     }
 
     private void setStoredCount(IAEItemStack item, long count) {
@@ -107,11 +114,14 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
 
                 itemsTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
+                nbtIndexToItemStack.remove(index);
+                nbtIndexToCount.remove(index);
             }
         } else if (index != null) {
             // Update count only - NBT size change is minimal
             NBTTagCompound itemTag = itemsTag.getCompoundTag(String.valueOf(index));
             itemTag.setLong(NBT_STORED_COUNT, count);
+            nbtIndexToCount.put(index, count);
         } else {
             // New item - serialize fully
             index = cachedNextIndex++;
@@ -120,6 +130,8 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
             itemTag.setLong(NBT_STORED_COUNT, count);
             itemsTag.setTag(String.valueOf(index), itemTag);
             keyToNbtIndex.put(key, index);
+            nbtIndexToItemStack.put(index, item.copy());
+            nbtIndexToCount.put(index, count);
 
             // Track NBT size for this new item (if enabled)
             if (CellsConfig.enableNbtSizeTooltip) {
@@ -208,21 +220,13 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
 
     @Override
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
-        NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
-
-        for (String key : itemsTag.getKeySet()) {
-            NBTTagCompound itemTag = itemsTag.getCompoundTag(key);
-            ItemStack stack = new ItemStack(itemTag);
-            if (stack.isEmpty()) continue;
-
-            long count = itemTag.getLong(NBT_STORED_COUNT);
+        for (Map.Entry<Integer, IAEItemStack> entry : nbtIndexToItemStack.entrySet()) {
+            long count = nbtIndexToCount.getOrDefault(entry.getKey(), 0L);
             if (count <= 0) continue;
 
-            IAEItemStack aeStack = channel.createStack(stack);
-            if (aeStack != null) {
-                aeStack.setStackSize(count);
-                out.add(aeStack);
-            }
+            IAEItemStack aeStack = entry.getValue();
+            aeStack.setStackSize(count);
+            out.add(aeStack);
         }
 
         return out;

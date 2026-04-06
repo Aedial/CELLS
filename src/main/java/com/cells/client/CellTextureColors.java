@@ -118,7 +118,7 @@ public final class CellTextureColors {
     // =====================
 
     /**
-     * Enumeration of cell types for shape coloring.
+     * Enumeration of cell types for shape/component coloring.
      * Each type has a base color and two brightness levels for inner/outer shapes.
      */
     public enum CellType {
@@ -134,8 +134,11 @@ public final class CellTextureColors {
         // Pre-computed colors for each brightness cycle (0=low, 1=medium, 2=high)
         private final int[] outerColors;  // outer shape (darker)
         private final int[] innerColors;  // inner shape (lighter)
+        private final int baseColor;
 
         CellType(int baseColor) {
+            this.baseColor = baseColor;
+
             // Brightness levels for each cycle
             // Cycle 0: outer=44%, inner=72%
             // Cycle 1: outer=72%, inner=100%
@@ -165,6 +168,10 @@ public final class CellTextureColors {
         public int getOuterColor(int tier) {
             return outerColors[getBrightnessCycle(tier)];
         }
+
+        public int getColor() {
+            return baseColor | 0xFF000000; // Ensure full alpha
+        }
     }
 
     // =====================
@@ -172,62 +179,13 @@ public final class CellTextureColors {
     // =====================
 
     /**
-     * Component wave base color for Hyper Density Item type.
-     * Pure cyan, used to tint the grayscale wave texture.
-     */
-    public static final int HYPER_DENSITY_ITEM_WAVE_COLOR = 0x00FFFF;
-
-    /**
-     * Component wave base color for Hyper Density Fluid type.
-     * Pure magenta, used to tint the grayscale wave texture.
-     */
-    public static final int HYPER_DENSITY_FLUID_WAVE_COLOR = 0xFF00FF;
-
-    /**
-     * Component wave base color for Hyper Density Compacting type.
-     * Purple-blue, used to tint the grayscale wave texture.
-     */
-    public static final int HYPER_DENSITY_COMPACTING_WAVE_COLOR = 0x5050FF;
-
-    /**
-     * Component wave base color for Compacting type.
-     * Purple-blue, used to tint the grayscale wave texture.
-     */
-    public static final int COMPACTING_WAVE_COLOR = 0x5050FF;
-
-    /**
-     * Enumeration of component types for wave layer coloring.
-     * Each type has a base color used to tint the grayscale wave texture.
-     */
-    public enum ComponentType {
-        HYPER_DENSITY_ITEM(HYPER_DENSITY_ITEM_WAVE_COLOR),
-        HYPER_DENSITY_FLUID(HYPER_DENSITY_FLUID_WAVE_COLOR),
-        HYPER_DENSITY_COMPACTING(HYPER_DENSITY_COMPACTING_WAVE_COLOR),
-        COMPACTING(COMPACTING_WAVE_COLOR);
-
-        private final int waveColor;
-
-        ComponentType(int waveColor) {
-            this.waveColor = waveColor;
-        }
-
-        /**
-         * Get the wave tint color for this component type.
-         * This color is applied to the grayscale wave layer.
-         */
-        public int getWaveColor() {
-            return waveColor | 0xFF000000;  // Ensure full alpha
-        }
-    }
-
-    /**
      * Get the component wave tint color for a component type.
      *
      * @param componentType The component type
      * @return Tint color for the component wave layer
      */
-    public static int getComponentWaveColor(ComponentType componentType) {
-        return componentType.getWaveColor();
+    public static int getComponentWaveColor(CellType componentType) {
+        return componentType.getColor();
     }
 
     // =====================
@@ -250,28 +208,6 @@ public final class CellTextureColors {
      */
     public static int getShapeIndex(int tier) {
         return tier % 6;
-    }
-
-    // =====================
-    // Frame Types
-    // =====================
-
-    /**
-     * Enumeration of frame types.
-     */
-    public enum FrameType {
-        NORMAL("frame_normal"),
-        HYPER_DENSITY("frame_hyper_density");
-
-        private final String textureName;
-
-        FrameType(String textureName) {
-            this.textureName = textureName;
-        }
-
-        public String getTextureName() {
-            return textureName;
-        }
     }
 
     // =====================

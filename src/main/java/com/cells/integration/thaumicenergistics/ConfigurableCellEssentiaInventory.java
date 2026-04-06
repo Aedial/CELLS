@@ -13,7 +13,6 @@ import appeng.api.storage.ISaveProvider;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.data.IItemList;
 
-import thaumcraft.api.aspects.Aspect;
 import thaumicenergistics.api.EssentiaStack;
 import thaumicenergistics.api.storage.IAEEssentiaStack;
 import thaumicenergistics.api.storage.IEssentiaStorageChannel;
@@ -40,6 +39,10 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
 
     // In-memory cache: EssentiaStackKey -> NBT index
     private final Map<EssentiaStackKey, Integer> keyToNbtIndex = new HashMap<>();
+    // Cached AEEssentiaStacks by NBT index, avoids reconstruction in getAvailableItems
+    private final Map<Integer, IAEEssentiaStack> nbtIndexToEssentiaStack = new HashMap<>();
+    // Cached counts by NBT index, avoids NBT reads in getAvailableItems and getStoredCount
+    private final Map<Integer, Long> nbtIndexToCount = new HashMap<>();
     // NBT size tracking per essentia type
     private final Map<EssentiaStackKey, Integer> essentiaEntryNbtSizes = new HashMap<>();
     private int cachedNextIndex = 0;
@@ -56,6 +59,8 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
         storedCount = 0;
         storedTypes = 0;
         keyToNbtIndex.clear();
+        nbtIndexToEssentiaStack.clear();
+        nbtIndexToCount.clear();
         essentiaEntryNbtSizes.clear();
         totalNbtSize = 0;
         cachedNextIndex = 0;
@@ -73,6 +78,9 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
                     if (index >= cachedNextIndex) cachedNextIndex = index + 1;
 
                     keyToNbtIndex.put(key, index);
+                    nbtIndexToEssentiaStack.put(index, AEEssentiaStack.fromEssentiaStack(
+                            new EssentiaStack(key.getAspect(), 1)));
+                    nbtIndexToCount.put(index, count);
                     storedCount += count;
                     storedTypes++;
 
@@ -94,8 +102,7 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
         Integer index = keyToNbtIndex.get(key);
         if (index == null) return 0;
 
-        NBTTagCompound essentiaTag = tagCompound.getCompoundTag(NBT_ESSENTIA_TYPE);
-        return essentiaTag.getCompoundTag(String.valueOf(index)).getLong(NBT_STORED_COUNT);
+        return nbtIndexToCount.getOrDefault(index, 0L);
     }
 
     private void setStoredCount(IAEEssentiaStack essentia, long count) {
@@ -113,11 +120,14 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
 
                 essentiaTag.removeTag(String.valueOf(index));
                 keyToNbtIndex.remove(key);
+                nbtIndexToEssentiaStack.remove(index);
+                nbtIndexToCount.remove(index);
             }
         } else if (index != null) {
             // Update count only - NBT size change is minimal
             NBTTagCompound entryTag = essentiaTag.getCompoundTag(String.valueOf(index));
             entryTag.setLong(NBT_STORED_COUNT, count);
+            nbtIndexToCount.put(index, count);
         } else {
             // New essentia - serialize fully
             index = cachedNextIndex++;
@@ -126,6 +136,8 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
             entryTag.setLong(NBT_STORED_COUNT, count);
             essentiaTag.setTag(String.valueOf(index), entryTag);
             keyToNbtIndex.put(key, index);
+            nbtIndexToEssentiaStack.put(index, essentia.copy());
+            nbtIndexToCount.put(index, count);
 
             // Track NBT size for this new essentia (if enabled)
             if (CellsConfig.enableNbtSizeTooltip) {
@@ -213,19 +225,11 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
 
     @Override
     public IItemList<IAEEssentiaStack> getAvailableItems(IItemList<IAEEssentiaStack> out) {
-        NBTTagCompound essentiaTag = tagCompound.getCompoundTag(NBT_ESSENTIA_TYPE);
-
-        for (String key : essentiaTag.getKeySet()) {
-            NBTTagCompound entryTag = essentiaTag.getCompoundTag(key);
-            String aspectTag = entryTag.getString("Aspect");
-            Aspect aspect = Aspect.getAspect(aspectTag);
-            if (aspect == null) continue;
-
-            long count = entryTag.getLong(NBT_STORED_COUNT);
+        for (Map.Entry<Integer, IAEEssentiaStack> entry : nbtIndexToEssentiaStack.entrySet()) {
+            long count = nbtIndexToCount.getOrDefault(entry.getKey(), 0L);
             if (count <= 0) continue;
 
-            EssentiaStack stack = new EssentiaStack(aspect, (int) Math.min(count, Integer.MAX_VALUE));
-            IAEEssentiaStack aeStack = AEEssentiaStack.fromEssentiaStack(stack);
+            IAEEssentiaStack aeStack = entry.getValue();
             aeStack.setStackSize(count);
             out.add(aeStack);
         }

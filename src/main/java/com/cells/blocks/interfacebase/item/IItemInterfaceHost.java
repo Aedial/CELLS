@@ -24,11 +24,6 @@ public interface IItemInterfaceHost
             ItemStorageSlot.IItemStorageHost {
 
     /**
-     * @return The filter inventory (ghost items, 1 stack size each)
-     */
-    IItemHandlerModifiable getFilterInventory();
-
-    /**
      * @return The storage inventory (actual items)
      */
     IItemHandlerModifiable getStorageInventory();

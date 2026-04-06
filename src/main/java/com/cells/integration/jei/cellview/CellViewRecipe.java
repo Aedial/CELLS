@@ -264,9 +264,8 @@ public class CellViewRecipe implements IRecipeWrapper {
 
                 // Calculate per-type limit for cells with equal distribution upgrade
                 // Formula: (totalBytes - eqDistLimit * bytesPerType) * unitsPerByte * multiplier / eqDistLimit
-                long displayBytes = totalBytes;
                 long overhead = (long) eqDistLimit * bytesPerType;
-                long availableBytes = displayBytes - overhead;
+                long availableBytes = totalBytes - overhead;
 
                 if (availableBytes > 0 && channel != null) {
                     int unitsPerByte = channel.getUnitsPerByte();
