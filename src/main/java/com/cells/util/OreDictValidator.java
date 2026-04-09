@@ -394,6 +394,9 @@ public final class OreDictValidator {
      * <p>
      * Returns all slots whose proto items share at least one valid ore ID with
      * the input item. Caller must still verify NBT equality on candidate slots.
+     * <p>
+     * Note: This method allocates a HashSet on every call. For hot paths, prefer
+     * {@link #findFirstMatchingSlot} which is zero-allocation.
      *
      * @param input The input item to match
      * @param oreIdToSlot Map from ore ID to slot (from {@link #getOreIdToSlotMapping})
@@ -410,6 +413,53 @@ public final class OreDictValidator {
         }
 
         return result;
+    }
+
+    /**
+     * Find the first slot that matches the input item via ore dictionary AND NBT equality.
+     * <p>
+     * Zero-allocation alternative to {@link #getMatchingSlots} for use on hot paths
+     * (injectItems, extractItems, isInCompressionChain). Instead of building a Set of
+     * candidate slots and then iterating, this method inlines both the ore ID lookup
+     * and the NBT comparison into a single pass.
+     * <p>
+     * The cost is: one {@code OreDictionary.getOreIDs(input)} call (which Forge may
+     * intern), then for each ore ID, a HashMap lookup + one NBT compare per candidate.
+     * No HashSet or any other collection is allocated.
+     *
+     * @param input The input item to match
+     * @param oreIdToSlot Map from ore ID to slot (from {@link #getOreIdToSlotMapping})
+     * @param protoStack The proto items array to compare NBT against
+     * @return The matching slot index, or -1 if no match
+     */
+    public static int findFirstMatchingSlot(ItemStack input, Map<Integer, Integer> oreIdToSlot, ItemStack[] protoStack) {
+        if (input.isEmpty() || oreIdToSlot.isEmpty()) return -1;
+        if (input.getMetadata() == OreDictionary.WILDCARD_VALUE) return -1;
+
+        for (int oreId : OreDictionary.getOreIDs(input)) {
+            Integer slot = oreIdToSlot.get(oreId);
+            if (slot == null) continue;
+
+            // Verify NBT equality between the input and the proto item at this slot
+            if (ItemStack.areItemStackTagsEqual(protoStack[slot], input)) return slot;
+        }
+
+        return -1;
+    }
+
+    /**
+     * Check if any slot matches the input item via ore dictionary AND NBT equality.
+     * <p>
+     * Zero-allocation boolean variant of {@link #findFirstMatchingSlot} for use
+     * in {@code isInCompressionChain} and {@code isAllowedByPartition}.
+     *
+     * @param input The input item to match
+     * @param oreIdToSlot Map from ore ID to slot (from {@link #getOreIdToSlotMapping})
+     * @param protoStack The proto items array to compare NBT against
+     * @return true if any slot matches via ore dict + NBT
+     */
+    public static boolean hasMatchingSlot(ItemStack input, Map<Integer, Integer> oreIdToSlot, ItemStack[] protoStack) {
+        return findFirstMatchingSlot(input, oreIdToSlot, protoStack) >= 0;
     }
 
     /**

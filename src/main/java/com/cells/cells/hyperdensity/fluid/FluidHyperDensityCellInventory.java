@@ -81,6 +81,15 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     private final Map<FluidStackKey, Integer> fluidNbtSizes = new HashMap<>();
     private int totalNbtSize = 0;
 
+    // Cached immutable capacity components — computed once at construction to avoid
+    // repeated virtual dispatch through cellType/channel on every inject/extract call.
+    private final long cachedDisplayBytes;
+    private final long cachedMultiplier;
+    private final int cachedUnitsPerByte;
+    private final long cachedDisplayBytesPerType;
+    private final long cachedPerTypeCapacity;
+    private final int cachedEffectiveMaxTypes;
+
     public FluidHyperDensityCellInventory(IItemFluidHyperDensityCell cellType, ItemStack cellStack, ISaveProvider container) {
         this.cellStack = cellStack;
         this.container = container;
@@ -93,14 +102,32 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         IItemHandler upgrades = cellType.getUpgradesInventory(cellStack);
         equalDistributionLimit = CellUpgradeHelper.getEqualDistributionLimit(upgrades);
         cachedHasOverflowCard = CellUpgradeHelper.hasOverflowCard(upgrades);
+
+        // Cache immutable capacity components, these depend only on cell type, cell stack,
+        // and upgrade cards, all of which are fixed for the lifetime of this inventory.
+        this.cachedDisplayBytes = cellType.getDisplayBytes(cellStack);
+        this.cachedMultiplier = cellType.getByteMultiplier();
+        this.cachedUnitsPerByte = channel.getUnitsPerByte();
+
+        long bytesPerType = cellType.getBytesPerType(cellStack);
+        this.cachedDisplayBytesPerType = (cachedMultiplier <= 0) ? bytesPerType : bytesPerType / cachedMultiplier;
+
+        int maxTypes = cellType.getMaxTypes();
+        this.cachedEffectiveMaxTypes = (equalDistributionLimit > 0) ? Math.min(equalDistributionLimit, maxTypes) : maxTypes;
+
+        if (equalDistributionLimit <= 0) {
+            this.cachedPerTypeCapacity = Long.MAX_VALUE;
+        } else {
+            int n = equalDistributionLimit;
+            long typeBytesDisplay = (long) n * cachedDisplayBytesPerType;
+            long availableDisplayBytes = cachedDisplayBytes - typeBytesDisplay;
+            this.cachedPerTypeCapacity = (availableDisplayBytes <= 0) ? 0
+                : CellMathHelper.multiplyThenDivide(availableDisplayBytes, cachedUnitsPerByte, cachedMultiplier, n);
+        }
     }
 
     private int getEffectiveMaxTypes() {
-        int maxTypes = cellType.getMaxTypes();
-
-        if (equalDistributionLimit > 0) return Math.min(equalDistributionLimit, maxTypes);
-
-        return maxTypes;
+        return cachedEffectiveMaxTypes;
     }
 
     /**
@@ -116,20 +143,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
      * division that handles the case where the numerator would overflow.
      */
     private long getPerTypeCapacity() {
-        if (equalDistributionLimit <= 0) return Long.MAX_VALUE;
-
-        int n = equalDistributionLimit;
-        long displayBytes = cellType.getDisplayBytes(cellStack);
-        long multiplier = cellType.getByteMultiplier();
-        int unitsPerByte = channel.getUnitsPerByte();
-
-        long typeBytesDisplay = (long) n * getDisplayBytesPerType();
-        long availableDisplayBytes = displayBytes - typeBytesDisplay;
-
-        if (availableDisplayBytes <= 0) return 0;
-
-        // Use overflow-safe division: (a * b * c) / n
-        return CellMathHelper.multiplyThenDivide(availableDisplayBytes, unitsPerByte, multiplier, n);
+        return cachedPerTypeCapacity;
     }
 
     private void loadFromNBT() {
@@ -269,45 +283,33 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     private long getTotalFluidCapacityForTypes(int typeCount) {
         // When Equal Distribution is active, derive total from per-type to ensure consistency
         if (equalDistributionLimit > 0) {
-            long perType = getPerTypeCapacity();
-            return CellMathHelper.multiplyWithOverflowProtection(perType, equalDistributionLimit);
+            return CellMathHelper.multiplyWithOverflowProtection(cachedPerTypeCapacity, equalDistributionLimit);
         }
 
-        long displayBytes = cellType.getDisplayBytes(cellStack);
-        long multiplier = cellType.getByteMultiplier();
-        int unitsPerByte = channel.getUnitsPerByte();
-
-        long typeBytesDisplay = (long) typeCount * getDisplayBytesPerType();
-        long availableDisplayBytes = displayBytes - typeBytesDisplay;
+        // Calculate type overhead in display bytes, then multiply
+        long typeBytesDisplay = (long) typeCount * cachedDisplayBytesPerType;
+        long availableDisplayBytes = cachedDisplayBytes - typeBytesDisplay;
 
         if (availableDisplayBytes <= 0) return 0;
 
-        long unitsAtDisplayScale = CellMathHelper.multiplyWithOverflowProtection(availableDisplayBytes, unitsPerByte);
+        long unitsAtDisplayScale = CellMathHelper.multiplyWithOverflowProtection(availableDisplayBytes, cachedUnitsPerByte);
         if (unitsAtDisplayScale == Long.MAX_VALUE) return Long.MAX_VALUE;
 
-        return CellMathHelper.multiplyWithOverflowProtection(unitsAtDisplayScale, multiplier);
+        return CellMathHelper.multiplyWithOverflowProtection(unitsAtDisplayScale, cachedMultiplier);
     }
 
     /**
      * Get bytes per type in display units (before multiplier).
      */
     private long getDisplayBytesPerType() {
-        long multipliedBytesPerType = cellType.getBytesPerType(cellStack);
-        long multiplier = cellType.getByteMultiplier();
-
-        if (multiplier <= 0) return multipliedBytesPerType;
-
-        return multipliedBytesPerType / multiplier;
+        return cachedDisplayBytesPerType;
     }
 
     /**
-     * Get the stored fluid count for a specific fluid.
-     * Uses in-memory caches for O(1) lookup with no NBT access.
+     * Get the stored fluid count using a pre-computed key.
+     * Avoids creating a new FluidStackKey (which deep-copies NBT) on every call.
      */
-    private long getStoredCount(IAEFluidStack fluid) {
-        FluidStackKey key = FluidStackKey.of(fluid.getFluidStack());
-        if (key == null) return 0;
-
+    private long getStoredCount(FluidStackKey key) {
         Integer index = keyToNbtIndex.get(key);
         if (index == null) return 0;
 
@@ -315,14 +317,15 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     }
 
     /**
-     * Set the stored count for a specific fluid in NBT.
+     * Set the stored count for a specific fluid in NBT using a pre-computed key.
      * Only serializes the full fluid on first insert; subsequent updates only change the count.
      * Also tracks NBT size for tooltip display.
+     *
+     * @param fluid The AE fluid stack (needed for serialization of new fluids)
+     * @param key   Pre-computed FluidStackKey to avoid duplicate NBT deep-copy
+     * @param count The new count to set
      */
-    private void setStoredCount(IAEFluidStack fluid, long count) {
-        FluidStackKey key = FluidStackKey.of(fluid.getFluidStack());
-        if (key == null) return;
-
+    private void setStoredCount(IAEFluidStack fluid, FluidStackKey key, long count) {
         NBTTagCompound fluidsTag = tagCompound.getCompoundTag(NBT_FLUID_TYPE);
         Integer index = keyToNbtIndex.get(key);
 
@@ -364,9 +367,12 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
                 fluidNbtSizes.put(key, fluidSize);
                 totalNbtSize += fluidSize;
             }
-        }
 
-        tagCompound.setTag(NBT_FLUID_TYPE, fluidsTag);
+            // Only set the parent tag reference when adding a new fluid — the compound may
+            // not be in the parent yet (first fluid ever). For updates/removals, the compound
+            // is already referenced from the parent and modifications are reflected automatically.
+            tagCompound.setTag(NBT_FLUID_TYPE, fluidsTag);
+        }
     }
 
     private boolean canAcceptFluid(IAEFluidStack fluid) {
@@ -388,7 +394,11 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         // Blacklisted fluids are always rejected
         if (!canAcceptFluid(input)) return input;
 
-        long existingCount = getStoredCount(input);
+        // Compute key once to avoid duplicate NBT deep-copy in getStoredCount + setStoredCount
+        FluidStackKey key = FluidStackKey.of(input.getFluidStack());
+        if (key == null) return input;
+
+        long existingCount = getStoredCount(key);
         boolean isNewType = existingCount == 0;
 
         // New types beyond limit are rejected
@@ -425,7 +435,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         if (mode == Actionable.MODULATE) {
             if (isNewType) storedTypes++;
 
-            setStoredCount(input, CellMathHelper.addWithOverflowProtection(existingCount, toInsert));
+            setStoredCount(input, key, CellMathHelper.addWithOverflowProtection(existingCount, toInsert));
             storedFluidCount = CellMathHelper.addWithOverflowProtection(storedFluidCount, toInsert);
             saveChangesDeferred();
         }
@@ -445,14 +455,18 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
     public IAEFluidStack extractItems(IAEFluidStack request, Actionable mode, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) return null;
 
-        long existingCount = getStoredCount(request);
+        // Compute key once to avoid duplicate NBT deep-copy in getStoredCount + setStoredCount
+        FluidStackKey key = FluidStackKey.of(request.getFluidStack());
+        if (key == null) return null;
+
+        long existingCount = getStoredCount(key);
         if (existingCount <= 0) return null;
 
         long toExtract = Math.min(request.getStackSize(), existingCount);
 
         if (mode == Actionable.MODULATE) {
             long newCount = existingCount - toExtract;
-            setStoredCount(request, newCount);
+            setStoredCount(request, key, newCount);
 
             if (newCount <= 0) storedTypes = Math.max(0, storedTypes - 1);
 
@@ -472,7 +486,8 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
             long count = nbtIndexToCount.getOrDefault(entry.getKey(), 0L);
             if (count <= 0) continue;
 
-            IAEFluidStack aeStack = entry.getValue();
+            // Copy the cached prototype to avoid mutating it, callers may hold references
+            IAEFluidStack aeStack = entry.getValue().copy();
             aeStack.setStackSize(count);
             out.add(aeStack);
         }
@@ -594,9 +609,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
             return CellMathHelper.addWithOverflowProtection(usedForFluids, usedForTypes);
         }
 
-        int unitsPerByte = channel.getUnitsPerByte();
-        long multiplier = cellType.getByteMultiplier();
-        long unitsPerDisplayByte = CellMathHelper.multiplyWithOverflowProtection(unitsPerByte, multiplier);
+        long unitsPerDisplayByte = CellMathHelper.multiplyWithOverflowProtection(cachedUnitsPerByte, cachedMultiplier);
         if (unitsPerDisplayByte == 0) unitsPerDisplayByte = 1;
 
         long usedForFluids = (storedFluidCount == 0) ? 0 : (storedFluidCount - 1) / unitsPerDisplayByte + 1;
@@ -613,9 +626,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
 
     @Override
     public int getUnusedItemCount() {
-        int unitsPerByte = channel.getUnitsPerByte();
-        long multiplier = cellType.getByteMultiplier();
-        long unitsPerDisplayByte = CellMathHelper.multiplyWithOverflowProtection(unitsPerByte, multiplier);
+        long unitsPerDisplayByte = CellMathHelper.multiplyWithOverflowProtection(cachedUnitsPerByte, cachedMultiplier);
 
         if (unitsPerDisplayByte == 0) return 0;
 

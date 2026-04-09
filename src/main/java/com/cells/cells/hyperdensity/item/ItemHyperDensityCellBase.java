@@ -20,6 +20,7 @@ import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.util.ReadableNumberConverter;
 
 import com.cells.cells.common.AbstractTieredCellItem;
 import com.cells.cells.common.INBTSizeProvider;
@@ -88,8 +89,9 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
             }
 
             if (CellUpgradeHelper.hasEqualDistributionUpgrade(getUpgradesInventory(stack))) {
-                long per_type = this.getBytesPerType(stack);
-                tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.per_type", per_type));
+                long perType = this.getBytesPerType(stack);
+                String perTypeShort = ReadableNumberConverter.INSTANCE.toWideReadableForm(perType);
+                tooltip.add("§b" + I18n.format("tooltip.cells.upgrade.per_type", perType, perTypeShort));
             }
 
             // Add NBT size information (if enabled in config)

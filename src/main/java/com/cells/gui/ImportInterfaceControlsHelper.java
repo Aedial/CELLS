@@ -1,5 +1,6 @@
 package com.cells.gui;
 
+import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -68,6 +69,54 @@ public class ImportInterfaceControlsHelper {
         lines.add(I18n.format("cells.controls.jei_drag"));
 
         return lines;
+    }
+
+    /**
+     * Get the bounding rectangle of the controls help widget in screen coordinates.
+     * Used for JEI exclusion areas so JEI doesn't render items on top of the panel.
+     *
+     * @param fontRenderer Font renderer (needed for text wrapping calculations)
+     * @param guiLeft Left position of the main GUI
+     * @param guiTop Top position of the main GUI
+     * @param guiHeight Height of the main GUI
+     * @param cardsHelp Whether upgrade card help lines are included
+     * @return The bounding rectangle in screen coordinates, or a zero-size rectangle if empty
+     */
+    public static Rectangle getBounds(
+            FontRenderer fontRenderer,
+            int guiLeft,
+            int guiTop,
+            int guiHeight,
+            boolean cardsHelp) {
+
+        List<String> lines = getHelpLines(cardsHelp);
+        if (lines.isEmpty()) return new Rectangle(0, 0, 0, 0);
+
+        int panelWidth = guiLeft - RIGHT_MARGIN - LEFT_MARGIN;
+        if (panelWidth < 60) panelWidth = 60;
+
+        int textWidth = panelWidth - (PADDING * 2);
+
+        // Wrap all lines (must match drawControlsHelpWidget logic)
+        List<String> wrappedLines = new ArrayList<>();
+        for (String line : lines) {
+            if (line.isEmpty()) {
+                wrappedLines.add("");
+            } else {
+                wrappedLines.addAll(fontRenderer.listFormattedStringToWidth(line, textWidth));
+            }
+        }
+
+        // mirrors drawControlsHelpWidget (TODO: refactor to avoid duplication)
+        int contentHeight = wrappedLines.size() * LINE_HEIGHT;
+        int panelHeight = contentHeight + (PADDING * 2);
+        int panelTop = (guiHeight - panelHeight) / 2;
+
+        // Convert to screen coordinates
+        int screenX = LEFT_MARGIN;
+        int screenY = guiTop + panelTop;
+
+        return new Rectangle(screenX, screenY, panelWidth, panelHeight);
     }
 
     /**

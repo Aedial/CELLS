@@ -228,7 +228,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         Integer slot = this.inventoryManager.getFilterSlot(key);
         if (slot == null) return 0;
 
-        if (key != this.inventoryManager.getStorageKey(slot)) return 0;
+        if (!key.equals(this.inventoryManager.getStorageKey(slot))) return 0;
 
         long amount = getSlotAmount(slot);
         return (int) Math.min(amount, Integer.MAX_VALUE);

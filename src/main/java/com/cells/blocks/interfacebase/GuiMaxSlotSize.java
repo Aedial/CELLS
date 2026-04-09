@@ -177,9 +177,16 @@ public class GuiMaxSlotSize extends AEBaseGui {
     }
 
     private void addQty(final int delta) {
-        // Add delta to current max slot size, ensuring it doesn't overflow
-        long maxLimit = Long.MAX_VALUE - delta;
-        long newValue = this.currentMaxSlotSize + Math.min(delta, maxLimit);
+        long newValue;
+
+        if (delta > 0) {
+            // Clamp so currentMaxSlotSize + delta doesn't overflow Long.MAX_VALUE
+            long headroom = Long.MAX_VALUE - this.currentMaxSlotSize;
+            newValue = this.currentMaxSlotSize + Math.min(delta, headroom);
+        } else {
+            // Negative delta: just add directly, validateMaxSlotSize handles clamping to minimum
+            newValue = this.currentMaxSlotSize + delta;
+        }
 
         this.onQtyChanged(this.host.validateMaxSlotSize(newValue));
     }

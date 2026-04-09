@@ -36,6 +36,7 @@ import com.cells.blocks.interfacebase.managers.InterfaceAdjacentHandler;
 import com.cells.blocks.interfacebase.managers.InterfaceInventoryManager;
 import com.cells.blocks.interfacebase.managers.InterfaceTickScheduler;
 import com.cells.blocks.interfacebase.managers.InterfaceUpgradeManager;
+import com.cells.util.TickManagerHelper;
 
 
 
@@ -386,11 +387,34 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /**
      * Called when a neighbor block changes. Determines which facing was affected
      * and invalidates the corresponding cache entry.
+     * <p>
+     * When a card is installed and the adjacent capability state changes (gained or lost
+     * a target), the tick rate is re-registered so the scheduler switches between
+     * card-mode (fast ticking, IO throttled) and normal-mode (adaptive, can sleep).
+     * This prevents the card from disabling network IO when it has no adjacent target.
      *
      * @param neighborPos The position of the block that changed
      */
     public void onNeighborChanged(BlockPos neighborPos) {
+        boolean hadAdjacentBefore = this.adjacentHandler.hasAnyCachedCapability();
+
         this.adjacentHandler.onNeighborChanged(neighborPos, this.upgradeManager.hasAutoPullPushUpgrade());
+
+        // If the card is installed and the effective "card active" state changed,
+        // re-register the tick rate so the scheduler uses the right bounds/mode.
+        if (!this.upgradeManager.hasAutoPullPushUpgrade()) return;
+
+        boolean hasAdjacentNow = this.adjacentHandler.hasAnyCachedCapability();
+        if (hadAdjacentBefore == hasAdjacentNow) return;
+
+        AENetworkProxy proxy = this.host.getGridProxy();
+        if (!proxy.isReady()) return;
+
+        TickManagerHelper.reRegisterTickable(proxy.getNode(), this.host.getTickable());
+
+        // If we just gained an adjacent target, wake up the interface immediately
+        // so the card can start working without waiting for the next slow tick.
+        if (hasAdjacentNow) this.wakeUpIfAdaptive();
     }
 
     // ============================== Auto-Pull/Push execution ==============================
@@ -1096,20 +1120,23 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /**
      * Create a TickingRequest based on current configuration.
      * <p>
-     * When an auto-pull/push card is installed, the tick rate must accommodate
-     * both the card interval and the network I/O polling rate. We use the minimum
-     * of the two as the tick rate, and time-gate each operation independently.
+     * When an auto-pull/push card is installed <b>and has adjacent targets</b>,
+     * the tick rate must accommodate both the card interval and the network I/O
+     * polling rate. We use the minimum of the two as the tick rate, and time-gate
+     * each operation independently.
      * <p>
-     * Special case: Adaptive polling + card installed:
+     * When the card is installed but has <b>no adjacent targets</b>, we fall back to
+     * normal (no-card) tick scheduling so network IO continues unimpeded.
+     * The tick rate will be re-registered via {@link #onNeighborChanged} when an
+     * adjacent target appears or disappears.
+     * <p>
+     * Special case: Adaptive polling + card with targets:
      * The node must never sleep, otherwise the card timer won't advance.
      * We cap the max wait to avoid waiting longer than the card interval, but allow going faster when there's work to do.
-     * <p>
-     * As we never sleep with the card installed, calling wakeUpIfAdaptive() is useless for any method the card calls,
-     * like performAutoPullPush(). Instead, we rely on the tick manager to call onTick at the configured rate.
      */
     public TickingRequest getTickingRequest() {
         return this.tickScheduler.getTickingRequest(
-            this.upgradeManager.hasAutoPullPushUpgrade(),
+            isCardEffective(),
             this.upgradeManager.getAutoPullPushInterval()
         );
     }
@@ -1117,12 +1144,16 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /**
      * Handle a tick with elapsed-time tracking for dual-timer dispatch.
      * <p>
-     * When a card is installed, two independent timers are maintained:
+     * When a card is installed <b>and has adjacent targets</b>, two independent
+     * timers are maintained:
      * <ul>
      *   <li><b>Card timer:</b> Fires at {@code autoPullPushInterval} ticks, runs {@link #performAutoPullPush()}</li>
      *   <li><b>Network I/O timer:</b> Fires at the polling rate, runs import/export resources</li>
      * </ul>
      * Both timers use {@code >=} threshold checks (not {@code ==}) to tolerate AE2's imprecise tick scheduling.
+     * <p>
+     * When the card has no adjacent targets, the tick behaves as if no card is installed:
+     * network IO runs every tick (adaptive) and the interface can sleep when idle.
      *
      * @param ticksSinceLastCall Number of ticks since this method was last called (from AE2 tick manager)
      * @return The appropriate tick rate modulation
@@ -1130,9 +1161,25 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public TickRateModulation onTick(int ticksSinceLastCall) {
         return this.tickScheduler.onTick(
             ticksSinceLastCall,
-            this.upgradeManager.hasAutoPullPushUpgrade(),
+            isCardEffective(),
             this.upgradeManager.getAutoPullPushInterval()
         );
+    }
+
+    /**
+     * Whether the auto-pull/push card is considered "effective" for tick scheduling.
+     * The card is only effective when it is installed AND has at least one adjacent
+     * capability target to work with. When the card has no targets, tick scheduling
+     * falls back to normal (no-card) behavior to avoid disrupting network IO.
+     * <p>
+     * This does NOT affect whether the card upgrade is "installed" — only whether
+     * it should influence the tick rate and IO throttling.
+     *
+     * @return true if the card is installed and has at least one adjacent target
+     */
+    private boolean isCardEffective() {
+        return this.upgradeManager.hasAutoPullPushUpgrade()
+                && this.adjacentHandler.hasAnyCachedCapability();
     }
 
     /**

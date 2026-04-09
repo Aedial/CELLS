@@ -203,6 +203,71 @@ public final class CellMathHelper {
     }
 
     /**
+     * Saves a long array to NBT as a compound tag with individual long entries.
+     * <p>
+     * Each element is stored as a named long ("v0", "v1", etc.) inside a compound tag,
+     * along with the array length. This is necessary because MC 1.12.2 NBT does not
+     * support native long arrays.
+     * </p>
+     *
+     * @param tag    The NBT compound to write to
+     * @param key    The key name for the compound tag
+     * @param values The long array to save
+     */
+    public static void saveLongArray(NBTTagCompound tag, String key, long[] values) {
+        NBTTagCompound arrayTag = new NBTTagCompound();
+        arrayTag.setInteger("length", values.length);
+
+        for (int i = 0; i < values.length; i++) {
+            arrayTag.setLong("v" + i, values[i]);
+        }
+
+        tag.setTag(key, arrayTag);
+    }
+
+    /**
+     * Loads a long array from NBT, supporting both the new compound format and
+     * the legacy int array format for backward compatibility.
+     * <p>
+     * New format (TAG_Compound): compound with "length" int and "v0", "v1", ... long entries.
+     * Legacy format (TAG_Int_Array): plain int array, each element promoted to long.
+     * </p>
+     *
+     * @param tag       The NBT compound to read from
+     * @param key       The key name
+     * @param maxLength The maximum array length (used to allocate result and clamp loaded data)
+     * @return A long array of size maxLength, populated from NBT (zeros where no data exists)
+     */
+    public static long[] loadLongArray(NBTTagCompound tag, String key, int maxLength) {
+        long[] result = new long[maxLength];
+
+        // Try new compound format first (TAG_Compound = type 10)
+        if (tag.hasKey(key, 10)) {
+            NBTTagCompound arrayTag = tag.getCompoundTag(key);
+            int len = Math.min(arrayTag.getInteger("length"), maxLength);
+
+            for (int i = 0; i < len; i++) {
+                if (arrayTag.hasKey("v" + i)) result[i] = arrayTag.getLong("v" + i);
+            }
+
+            return result;
+        }
+
+        // Fall back to legacy int array format (TAG_Int_Array = type 11)
+        if (tag.hasKey(key, 11)) {
+            int[] intArray = tag.getIntArray(key);
+
+            for (int i = 0; i < Math.min(intArray.length, maxLength); i++) {
+                result[i] = intArray[i];
+            }
+
+            return result;
+        }
+
+        return result;
+    }
+
+    /**
      * Extracts the World from an action source, used for recipe lookups.
      *
      * @param src The action source (player or machine)

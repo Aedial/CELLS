@@ -506,6 +506,17 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     public List<Rectangle> getJEIExclusionArea() {
         List<Rectangle> areas = new ArrayList<>(super.getJEIExclusionArea());
 
+        // Add controls help widget area on the left side
+        Rectangle controlsBounds = ImportInterfaceControlsHelper.getBounds(
+            this.fontRenderer,
+            this.guiLeft,
+            this.guiTop,
+            this.ySize,
+            !this.host.isExport()
+        );
+
+        if (controlsBounds.width > 0 && controlsBounds.height > 0) areas.add(controlsBounds);
+
         // Add toolbox extension area when present
         boolean hasToolbox = (this.container instanceof AbstractContainerInterface)
             && ((AbstractContainerInterface<?, ?, ?>) this.container).hasToolbox();

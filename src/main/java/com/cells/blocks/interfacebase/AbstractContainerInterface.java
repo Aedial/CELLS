@@ -617,8 +617,8 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
             this.detectAndSendChanges();
 
             // Return EMPTY to stop the vanilla loop from re-invoking this method.
-            // Without this, the loop sees remaining items and calls again — but now
-            // the upgrade slots are full, so the leftover falls through to the
+            // Without this, the loop sees remaining items and calls again, but now
+            // the upgrade slots are full so the leftover falls through to the
             // filter path, placing upgrade cards as filters.
             return ItemStack.EMPTY;
         }

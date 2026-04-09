@@ -134,17 +134,24 @@ public class InterfaceTickScheduler {
     /**
      * Create a TickingRequest based on current configuration.
      * <p>
-     * When an auto-pull/push card is installed, the tick rate must accommodate
-     * both the card interval and the network I/O polling rate. We use the minimum
-     * of the two as the tick rate, and time-gate each operation independently.
+     * When an auto-pull/push card is <b>effective</b> (installed AND has at least
+     * one adjacent target), the tick rate must accommodate both the card interval
+     * and the network I/O polling rate. We use the minimum of the two as the tick
+     * rate, and time-gate each operation independently.
      * <p>
-     * Special case: Adaptive polling + card installed:
+     * When the card is installed but has no adjacent targets, the caller should
+     * pass {@code false} for {@code hasAutoPullPushUpgrade} so normal (no-card)
+     * scheduling is used. This prevents the card from disrupting network IO when
+     * it has nothing to interact with.
+     * <p>
+     * Special case: Adaptive polling + effective card:
      * The node must never sleep, otherwise the card timer won't advance.
      * We cap the max wait to avoid waiting longer than the card interval,
      * but allow going faster when there's work to do.
      *
-     * @param hasAutoPullPushUpgrade Whether an auto-pull/push card is installed
-     * @param autoPullPushInterval The card's tick interval (only valid if card installed)
+     * @param hasAutoPullPushUpgrade Whether the auto-pull/push card is effective
+     *        (installed AND has at least one adjacent capability target)
+     * @param autoPullPushInterval The card's tick interval (only valid if card is effective)
      */
     public TickingRequest getTickingRequest(boolean hasAutoPullPushUpgrade, int autoPullPushInterval) {
         if (hasAutoPullPushUpgrade && autoPullPushInterval > 0) {
@@ -196,23 +203,38 @@ public class InterfaceTickScheduler {
     /**
      * Handle a tick with elapsed-time tracking for dual-timer dispatch.
      * <p>
-     * When a card is installed, two independent timers are maintained:
+     * When a card is effective (installed + has adjacent targets), two independent
+     * timers are maintained:
      * <ul>
      *   <li><b>Card timer:</b> Fires at autoPullPushInterval ticks, runs performAutoPullPush()</li>
      *   <li><b>Network I/O timer:</b> Fires at the polling rate, runs import/export resources</li>
      * </ul>
      * Both timers use >= threshold checks (not ==) to tolerate AE2's imprecise tick scheduling.
+     * <p>
+     * When the card has no adjacent targets, the caller passes {@code false} for
+     * {@code hasAutoPullPushUpgrade}, causing this method to use the normal (no-card)
+     * scheduling path where network IO runs every tick and the interface can sleep.
      *
      * @param ticksSinceLastCall Number of ticks since this method was last called (from AE2 tick manager)
-     * @param hasAutoPullPushUpgrade Whether an auto-pull/push card is installed
+     * @param hasAutoPullPushUpgrade Whether the auto-pull/push card is effective
+     *        (installed AND has at least one adjacent capability target)
      * @param autoPullPushInterval The card's tick interval
      * @return The appropriate tick rate modulation
      */
     public TickRateModulation onTick(int ticksSinceLastCall,
                                      boolean hasAutoPullPushUpgrade, int autoPullPushInterval) {
+        boolean canPullPush = hasAutoPullPushUpgrade && autoPullPushInterval > 0;
+
         if (!this.callbacks.getGridProxy().isActive()) {
-            this.isSleeping = true;
-            return TickRateModulation.SLEEP;
+            // If we're not in "pure" adaptive mode, we absolutely do NOT want to sleep,
+            // because there is nothing to wake us up.
+            // IDLE *should* call us when time is up.
+            if (this.pollingRate > 0 || canPullPush) {
+                return TickRateModulation.IDLE;
+            } else {
+                this.isSleeping = true;
+                return TickRateModulation.SLEEP;
+            }
         }
 
         this.totalElapsedTicks += ticksSinceLastCall;
@@ -220,7 +242,7 @@ public class InterfaceTickScheduler {
         boolean didNetworkWork = false;
 
         // === Card operation (auto-pull/push) ===
-        if (hasAutoPullPushUpgrade && autoPullPushInterval > 0) {
+        if (canPullPush) {
             long ticksSinceLastCard = this.totalElapsedTicks - this.lastCardOperationTick;
             if (ticksSinceLastCard >= autoPullPushInterval) {
                 this.callbacks.performAutoPullPush();
@@ -234,7 +256,7 @@ public class InterfaceTickScheduler {
             // Fixed polling rate: check elapsed time
             long ticksSinceLastIO = this.totalElapsedTicks - this.lastNetworkIOTick;
             shouldDoNetworkIO = ticksSinceLastIO >= this.pollingRate;
-        } else if (hasAutoPullPushUpgrade && autoPullPushInterval > 0) {
+        } else if (canPullPush) {
             // Adaptive mode with card: throttle network I/O to a set minimum
             // tick rate. The card can tick very fast (e.g., every 1-5 ticks), but network
             // I/O is more expensive and doesn't benefit from running at that frequency.
@@ -252,7 +274,7 @@ public class InterfaceTickScheduler {
         }
 
         // === Determine tick rate modulation ===
-        if (hasAutoPullPushUpgrade && autoPullPushInterval > 0) {
+        if (canPullPush) {
             // Both timers are fixed: maintain SAME rate
             if (this.pollingRate > 0) return TickRateModulation.SAME;
 

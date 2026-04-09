@@ -89,20 +89,26 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
         }
     }
 
-    private long getStoredCount(IAEItemStack item) {
-        ItemStackKey key = ItemStackKey.of(item.getDefinition());
-        if (key == null) return 0;
-
+    /**
+     * Get the stored item count using a pre-computed key.
+     * Avoids creating a new ItemStackKey (which deep-copies NBT) on every call.
+     */
+    private long getStoredCount(ItemStackKey key) {
         Integer index = keyToNbtIndex.get(key);
         if (index == null) return 0;
 
         return nbtIndexToCount.getOrDefault(index, 0L);
     }
 
-    private void setStoredCount(IAEItemStack item, long count) {
-        ItemStackKey key = ItemStackKey.of(item.getDefinition());
-        if (key == null) return;
-
+    /**
+     * Set the stored count for a specific item using a pre-computed key.
+     * Only serializes the full item on first insert; subsequent updates only change the count.
+     *
+     * @param item  The AE item stack (needed for serialization of new items)
+     * @param key   Pre-computed ItemStackKey to avoid duplicate NBT deep-copy
+     * @param count The new count to set
+     */
+    private void setStoredCount(IAEItemStack item, ItemStackKey key, long count) {
         NBTTagCompound itemsTag = tagCompound.getCompoundTag(NBT_ITEM_TYPE);
         Integer index = keyToNbtIndex.get(key);
 
@@ -139,9 +145,12 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
                 itemNbtSizes.put(key, itemSize);
                 totalNbtSize += itemSize;
             }
-        }
 
-        tagCompound.setTag(NBT_ITEM_TYPE, itemsTag);
+            // Only set the parent tag reference when adding a new item, the compound may
+            // not be in the parent yet (first item ever). For updates/removals, the compound
+            // is already referenced from the parent and modifications are reflected automatically.
+            tagCompound.setTag(NBT_ITEM_TYPE, itemsTag);
+        }
     }
 
     // =====================
@@ -157,7 +166,11 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
     public IAEItemStack injectItems(IAEItemStack input, Actionable mode, IActionSource src) {
         if (input == null || input.getStackSize() <= 0) return null;
 
-        long existingCount = getStoredCount(input);
+        // Compute key once to avoid duplicate NBT deep-copy in getStoredCount + setStoredCount
+        ItemStackKey key = ItemStackKey.of(input.getDefinition());
+        if (key == null) return input;
+
+        long existingCount = getStoredCount(key);
         boolean isNewType = existingCount == 0;
 
         // Reject new types beyond the limit
@@ -179,7 +192,7 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
         if (mode == Actionable.MODULATE) {
             if (isNewType) storedTypes++;
 
-            setStoredCount(input, existingCount + toInsert);
+            setStoredCount(input, key, existingCount + toInsert);
             storedCount += toInsert;
             saveChangesDeferred();
         }
@@ -197,14 +210,18 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
     public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) return null;
 
-        long existingCount = getStoredCount(request);
+        // Compute key once to avoid duplicate NBT deep-copy in getStoredCount + setStoredCount
+        ItemStackKey key = ItemStackKey.of(request.getDefinition());
+        if (key == null) return null;
+
+        long existingCount = getStoredCount(key);
         if (existingCount <= 0) return null;
 
         long toExtract = Math.min(request.getStackSize(), existingCount);
 
         if (mode == Actionable.MODULATE) {
             long newCount = existingCount - toExtract;
-            setStoredCount(request, newCount);
+            setStoredCount(request, key, newCount);
 
             if (newCount <= 0) storedTypes = Math.max(0, storedTypes - 1);
 
@@ -224,7 +241,8 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
             long count = nbtIndexToCount.getOrDefault(entry.getKey(), 0L);
             if (count <= 0) continue;
 
-            IAEItemStack aeStack = entry.getValue();
+            // Copy the cached prototype to avoid mutating it, callers may hold references
+            IAEItemStack aeStack = entry.getValue().copy();
             aeStack.setStackSize(count);
             out.add(aeStack);
         }

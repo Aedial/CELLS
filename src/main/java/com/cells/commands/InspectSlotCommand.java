@@ -147,17 +147,17 @@ public class InspectSlotCommand extends CommandBase {
             }
         }
 
-        // 3. IGasHandler (Mekanism — before IItemHandler for the same reason)
+        // 3. IGasHandler (Mekanism, before IItemHandler for the same reason)
         if (Platform.isModLoaded(MOD_MEKANISM)) {
             if (tryInspectGas(sender, te, hitFace, resourceArgs)) return;
         }
 
-        // 4. IAspectContainer (Thaumcraft essentia — not a Forge capability, uses instanceof)
+        // 4. IAspectContainer (Thaumcraft essentia, not a Forge capability, uses instanceof)
         if (Loader.isModLoaded(MOD_THAUMCRAFT)) {
             if (tryInspectEssentia(sender, te, resourceArgs)) return;
         }
 
-        // 5. IItemHandler (standard Forge item capability — checked last because
+        // 5. IItemHandler (standard Forge item capability, checked last because
         //    AEBaseInvTile exposes this for ALL tiles, even non-item ones)
         if (te.hasCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, hitFace)) {
             IItemHandler handler = te.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, hitFace);
@@ -424,7 +424,7 @@ public class InspectSlotCommand extends CommandBase {
 
     /**
      * Try to inspect IAspectContainer essentia. Returns true if the TE is an essentia container.
-     * Essentia does NOT use Forge capabilities — it's an instanceof check.
+     * Essentia does NOT use Forge capabilities, it's an instanceof check.
      */
     @Optional.Method(modid = MOD_THAUMCRAFT)
     private boolean tryInspectEssentia(ICommandSender sender, TileEntity te, String[] args) {

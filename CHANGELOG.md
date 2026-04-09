@@ -8,12 +8,40 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.5.12-beta2] - 2026-04-04
+## [0.5.14-beta] - 2026-04-12
+### Added
+- Universal Import/Export Interface, variants that combine all 4 types into 1.
+- Per-slot max capacity override.
+
+
+## [0.5.13-beta2] - 2026-04-09
+### Fixed
+- Fix Export Essentia Interface exposing 0 essentia when polled, resulting in no essentia being exported.
+- Fix negative buttons in Max Slot Size GUI resetting the value to 1 (instead of adding the negative delta).
+- Fix auto-pull/push card disabling network IO when no adjacent inventory is present (e.g., removing all chests adjacent to the interface would stop it from importing/exporting to the ME network altogether).
+- Fix Import/Export Interface's Controls Help not having a JEI exclusion area.
+
+### Added
+- Optimize the hot path for all cells.
+
+
+## [0.5.13-beta] - 2026-04-06
+### Fixed
+- Fix (long overdue) issues with the Compacting Cells :
+  - Fix possible overflows in compression chain with 10+ tiers.
+  - Fix possible race condition in compression chain handling.
+  - Fix some cases where adding/removing a Compression/Decompression card would not update the compression chain, while resizing the chain array (resulting in stale or incorrect chain being used).
+
+### Note
+- After removing a Compression/Decompression card, the compression chain may not automatically shrink until the cell is reinserted or another Compression/Decompression card is inserted. This should be harmless, as the next chunk load or force update should reload the cell. It may allow to use 1 card for multiple cells, but if you're that dedicated, I will not stop you...
+
+
+## [0.5.12-beta2] - 2026-04-06
 ### Added
 - Add in-interface GUI for Pull/Push Cards. This way, you can configure the card without removing it and inserting it back.
 
 
-## [0.5.12-beta] - 2026-04-03
+## [0.5.12-beta] - 2026-04-05
 ### Fixed
 - Fix Fluid (Hyper-Density/Configurable), Gas (Configurable), and Essentia (Configurable) partitions using Item config, which allowed items to be encoded even if they were not valid for this specific cell type. Items are now correctly validated at encoding time. Re-encoding should not be required for cells that already have a valid partition, but it's always good to do it in order to remove invalid items.
 
