@@ -150,6 +150,8 @@ cells.config.interfaceMinPollingRate=接口最小轮询率
 cells.config.interfaceMinPollingRate.tooltip=接口的最小轮询频率，以刻为单位。0为自适应模式（AE2自动管理轮询刻速率）。大于0则强制接口至少以此频率进行轮询。
 cells.config.useFixedInterfaceTextures=使用静态的接口纹理
 cells.config.useFixedInterfaceTextures.tooltip=为接口方块与部件使用静态纹理。修改后需重启游戏生效。
+cells.config.essentiaContainerBlacklist=源质容器黑名单
+cells.config.essentiaContainerBlacklist.tooltip=要忽略的源质容器方块实体ID列表（例如 "thaumcraft:thaumatorium"）。黑名单中的方块实体将不会被检测接口检测到，从而阻止推送与拉取（但玩家仍可与这些方块交互）。使用F3或WAILA/TOP查看方块实体ID。
 
 
 # Compacting Cells
@@ -550,6 +552,11 @@ cells.push_pull_card.quantity.title=传输数量
 cells.push_pull_card.quantity.tooltip=每次操作传输的物品/流体等的数量。
 cells.push_pull_card.limit.title=维持相邻容器内容数量：
 cells.push_pull_card.limit.tooltip=在相邻容器中为每种物品/流体等维持的数量（不多不少）。
+
+# Insertion Card (Subnet Proxy upgrade)
+item.cells.insertion_card.name=传入卡
+tooltip.cells.insertion_card.desc=§7允许通过子网络代理回传内容。填充过滤器以避免回传不需要的内容。
+tooltip.cells.type.subnet_proxy=子网络代理
 
 # Pull/Push Upgrade Button (interface GUI)
 cells.pull_push_button.disabled=放入%s进行交互
