@@ -66,6 +66,10 @@ tooltip.cells.clear_filters.import=清除所有过滤槽位。将跳过存有内
 tooltip.cells.clear_filters.export=清除所有过滤项，并将存储的内容发送回网络。
 tooltip.cells.clear_filters.all=清除所有过滤槽位
 
+# Controls help toggle button
+tooltip.cells.controls_help.show=显示控制帮助
+tooltip.cells.controls_help.hide=隐藏控制帮助
+
 # Messages
 message.cells.disassemble_fail_content=无法拆解存有内容的元件！请先清空元件。
 message.cells.memory_card.filters_saved=已将设置与过滤项保存至内存卡。
@@ -188,7 +192,7 @@ tooltip.cells.overflow_card.desc=在元件已满时销毁溢出的物品
 
 # Ore Dictionary Card
 item.cells.oredict_card.name=矿物词典卡
-tooltip.cells.oredict_card.desc=允许输入矿物词典等效的物品（例如：不同模组的铜）
+tooltip.cells.oredict_card.desc=允许输入矿物词典等效的物品（例如：不同模组的铜），并将其转换为分区设定的物品
 
 # Trash Unselected Card
 item.cells.trash_unselected_card.name=过滤销毁卡
