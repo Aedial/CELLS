@@ -560,7 +560,7 @@ cells.push_pull_card.limit.tooltip=How many items/mB/etc. of each type to mainta
 
 # Insertion Card (Subnet Proxy upgrade)
 item.cells.insertion_card.name=Insertion Card
-tooltip.cells.insertion_card.desc=§7Enables inserting content back through the Subnet Proxy. Populate the filter to avoid inserting unwanted content.
+tooltip.cells.insertion_card.desc=§7Enables inserting content back through the Subnet Proxy (opposite direction). Populate the proxy's filter to avoid inserting unwanted content.
 tooltip.cells.type.subnet_proxy=Subnet Proxy
 
 # Pull/Push Upgrade Button (interface GUI)

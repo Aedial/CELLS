@@ -66,6 +66,10 @@ import com.cells.parts.subnetproxy.PartSubnetProxyFront;
  */
 public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
 
+    private static final int TOOLBOX_X = 178;
+    private static final int TOOLBOX_Y = 183;
+    private static final int TOOLBOX_SIZE = 68;
+
     private final ContainerSubnetProxy container;
 
     private GuiImgButton clearBtn;
@@ -234,7 +238,8 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
 
         // Toolbox
         if (this.hasToolbox()) {
-            this.drawTexturedModalRect(offsetX + 178, offsetY + 183, 178, 183, 68, 68);
+            this.drawTexturedModalRect(offsetX + TOOLBOX_X, offsetY + TOOLBOX_Y,
+                                       TOOLBOX_X, TOOLBOX_Y, TOOLBOX_SIZE, TOOLBOX_SIZE);
         }
     }
 
@@ -363,7 +368,7 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
 
         // Toolbox (if present)
         if (this.hasToolbox()) {
-            areas.add(new Rectangle(guiLeft + 178, guiTop + 183, 68, 68));
+            areas.add(new Rectangle(guiLeft + TOOLBOX_X, guiTop + TOOLBOX_Y, TOOLBOX_SIZE, TOOLBOX_SIZE));
         }
 
         return areas;

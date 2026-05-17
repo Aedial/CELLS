@@ -31,6 +31,7 @@ import appeng.items.tools.ToolNetworkTool;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.Platform;
 
+import com.cells.gui.IToolboxContainer;
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketSyncSlotSizeOverride;
@@ -55,7 +56,8 @@ import com.cells.network.sync.ResourceType;
  */
 public abstract class AbstractContainerInterface<T, K, H extends IFilterableInterfaceHost<T, K>>
     extends AEBaseContainer
-    implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer {
+    implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
+        IToolboxContainer {
 
     protected final H host;
 

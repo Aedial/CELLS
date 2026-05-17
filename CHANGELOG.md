@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.6.1-alpha3] - 2026-05-17
+### Fixed
+- Fix IO/Universal Interface not handling the Network Tool's Toolbox properly.
+- Fix Subnet Proxy having the Network Tool's Toolbox's slots misaligned with the texture.
+
+
 ## [0.6.1-alpha2] - 2026-05-08
 ### Added
 - Add support for shift-clicking, quick-adding, dragging from JEI, and pouring into interface slots for Recovery Containers (instead of being treated as the orb item).

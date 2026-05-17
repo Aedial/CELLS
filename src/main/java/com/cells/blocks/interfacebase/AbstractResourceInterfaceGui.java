@@ -41,6 +41,7 @@ import com.cells.gui.GuiControlsHelpToggleButton;
 import com.cells.gui.GuiPageNavigation;
 import com.cells.gui.GuiPullPushUpgradeButton;
 import com.cells.gui.ImportInterfaceControlsHelper;
+import com.cells.gui.IToolboxContainer;
 import com.cells.gui.slots.AbstractResourceFilterSlot;
 import com.cells.gui.slots.AbstractResourceTankSlot;
 import com.cells.items.ItemAutoPullCard;
@@ -442,9 +443,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
     @Override
     public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        // Use texture with card slots if toolbox is present
-        boolean hasToolbox = (this.container instanceof AbstractContainerInterface)
-            && ((AbstractContainerInterface<?, ?, ?>) this.container).hasToolbox();
+        boolean hasToolbox = this.hasToolbox();
         ResourceLocation texture = hasToolbox ? BACKGROUND_TEXTURE_WITH_CARDS : BACKGROUND_TEXTURE;
 
         this.mc.getTextureManager().bindTexture(texture);
@@ -592,8 +591,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         }
 
         // Add toolbox extension area when present
-        boolean hasToolbox = (this.container instanceof AbstractContainerInterface)
-            && ((AbstractContainerInterface<?, ?, ?>) this.container).hasToolbox();
+        boolean hasToolbox = this.hasToolbox();
 
         if (hasToolbox) {
             // Toolbox extension: x=210-246 (36px width), y=149-216 (67px height)
@@ -693,5 +691,10 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
                 == IIOInterfaceHost.TAB_EXPORT;
         }
         return this.host.isExport();
+    }
+
+    private boolean hasToolbox() {
+        return this.container instanceof IToolboxContainer
+            && ((IToolboxContainer) this.container).hasToolbox();
     }
 }

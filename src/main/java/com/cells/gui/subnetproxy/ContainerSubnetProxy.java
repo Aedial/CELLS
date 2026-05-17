@@ -42,6 +42,7 @@ import appeng.util.item.AEItemStack;
 import com.cells.gui.overlay.ServerMessageHelper;
 
 import com.cells.config.CellsConfig;
+import com.cells.gui.IToolboxContainer;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.network.CellsNetworkHandler;
@@ -63,7 +64,8 @@ import com.cells.parts.subnetproxy.PartSubnetProxyFront;
  *   <li>Filter mode synced via @GuiSync</li>
  * </ul>
  */
-public class ContainerSubnetProxy extends AEBaseContainer implements IOptionalSlotHost, IQuickAddFilterContainer, IResourceSyncContainer {
+public class ContainerSubnetProxy extends AEBaseContainer
+    implements IOptionalSlotHost, IQuickAddFilterContainer, IResourceSyncContainer, IToolboxContainer {
 
     private final PartSubnetProxyFront part;
 
@@ -182,7 +184,7 @@ public class ContainerSubnetProxy extends AEBaseContainer implements IOptionalSl
                     SlotRestrictedInput slot = new SlotRestrictedInput(
                         SlotRestrictedInput.PlacableItemType.UPGRADES,
                         this.toolboxInventory.getInternalInventory(),
-                        u + v * 3, 186 + u * 18, 183 + v * 18,
+                        u + v * 3, 186 + u * 18, 191 + v * 18,
                         ip);
                     slot.setPlayerSide();
                     this.addSlotToContainer(slot);

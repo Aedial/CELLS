@@ -35,6 +35,7 @@ import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.interfacebase.IResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.ISizeOverrideContainer;
+import com.cells.gui.IToolboxContainer;
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketSyncSlotSizeOverride;
@@ -59,7 +60,8 @@ import com.cells.network.sync.ResourceType;
  * {@link IResourceInterfaceLogic} accessors.
  */
 public class ContainerCombinedInterface extends AEBaseContainer
-        implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer {
+    implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
+    IToolboxContainer {
 
     private final ICombinedInterfaceHost host;
 

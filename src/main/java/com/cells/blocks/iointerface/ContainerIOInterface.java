@@ -49,6 +49,7 @@ import com.cells.blocks.interfacebase.IResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.ISizeOverrideContainer;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
+import com.cells.gui.IToolboxContainer;
 import com.cells.gui.QuickAddHelper;
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.items.ItemRecoveryContainer;
@@ -73,7 +74,8 @@ import com.cells.network.sync.ResourceType;
  * max slot size, upgrades, per-slot overrides) are per-direction.
  */
 public class ContainerIOInterface extends AEBaseContainer
-        implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer {
+    implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
+    IToolboxContainer {
 
     private final IIOInterfaceHost host;
 
