@@ -13,14 +13,12 @@ import appeng.api.AEApi;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.IMEMonitorHandlerReceiver;
 import appeng.api.storage.IStorageChannel;
-import appeng.api.storage.data.IItemList;
 import appeng.tile.inventory.AppEngInternalInventory;
 
 import com.mekeng.github.common.item.ItemDummyGas;
@@ -41,11 +39,19 @@ import com.cells.integration.mekanismenergistics.GasStackKey;
  */
 final class SubnetProxyGasHelper {
 
+    static volatile IGasStorageChannel CACHED_GAS_CHANNEL = null;
+
     private SubnetProxyGasHelper() {}
 
     /** Get the gas storage channel from AE2. */
     static IStorageChannel<IAEGasStack> getChannel() {
-        return AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class);
+        IGasStorageChannel ch = CACHED_GAS_CHANNEL;
+        if (ch == null) {
+            ch = AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class);
+            CACHED_GAS_CHANNEL = ch;
+        }
+
+        return CACHED_GAS_CHANNEL;
     }
 
     /** Create a new SubnetProxyInventoryHandler for gas. */
@@ -175,7 +181,7 @@ final class SubnetProxyGasHelper {
         handler.setFilter(buildFilter(filterSet, hasInverter));
     }
 
-    // ========================= Delta Forwarding =========================
+    // ========================= Listener Registration =========================
 
     /** Register the raw listener on Grid A's gas monitor. */
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -186,78 +192,5 @@ final class SubnetProxyGasHelper {
             handler.setRegisteredMonitor(monitor);
             monitor.addListener((IMEMonitorHandlerReceiver) listener, token);
         }
-    }
-
-    /** Take a baseline snapshot for delta comparison. */
-    static void takeSnapshot(SubnetProxyInventoryHandler<IAEGasStack> handler) {
-        IItemList<IAEGasStack> snapshot = getChannel().createList();
-        handler.getAvailableItems(snapshot);
-        handler.setLastSnapshot(snapshot);
-    }
-
-    /** Reset the snapshot (Grid A unavailable). */
-    static void resetSnapshot(SubnetProxyInventoryHandler<IAEGasStack> handler) {
-        if (handler.getRegisteredMonitor() != null) {
-            handler.setRegisteredMonitor(null);
-        }
-        handler.setLastSnapshot(null);
-    }
-
-    /**
-     * Filter incoming gas deltas through the handler's predicate and forward
-     * matching entries to Grid B. Also updates the snapshot incrementally.
-     */
-    @SuppressWarnings("rawtypes")
-    static void forwardFilteredDeltas(Iterable changes,
-                                      SubnetProxyInventoryHandler<IAEGasStack> handler,
-                                      IStorageGrid gridB, IActionSource proxySource) {
-        Predicate<IAEGasStack> filter = handler.getFilter();
-        List<IAEGasStack> forwarded = new ArrayList<>();
-
-        for (Object raw : changes) {
-            IAEGasStack change = (IAEGasStack) raw;
-            if (filter == null || filter.test(change)) forwarded.add(change);
-        }
-
-        if (forwarded.isEmpty()) return;
-
-        gridB.postAlterationOfStoredItems(getChannel(), forwarded, proxySource);
-
-        // Update snapshot incrementally
-        IItemList<IAEGasStack> snapshot = handler.getLastSnapshot();
-        if (snapshot == null) {
-            snapshot = getChannel().createList();
-            handler.setLastSnapshot(snapshot);
-        }
-
-        for (IAEGasStack delta : forwarded) snapshot.add(delta);
-    }
-
-    /** Snapshot-based delta forwarding fallback for onListUpdate. */
-    static void snapshotDiffAndForward(SubnetProxyInventoryHandler<IAEGasStack> handler,
-                                       IStorageGrid gridB, IActionSource proxySource) {
-        IStorageChannel<IAEGasStack> channel = getChannel();
-        IItemList<IAEGasStack> previous = handler.getLastSnapshot();
-        IItemList<IAEGasStack> current = channel.createList();
-        handler.getAvailableItems(current);
-
-        if (previous == null) {
-            handler.setLastSnapshot(current);
-            return;
-        }
-
-        List<IAEGasStack> changes = new ArrayList<>();
-        for (IAEGasStack was : previous) was.setStackSize(-was.getStackSize());
-        for (IAEGasStack now : current) previous.add(now);
-
-        for (IAEGasStack entry : previous) {
-            if (entry.getStackSize() != 0) changes.add(entry);
-        }
-
-        if (!changes.isEmpty()) {
-            gridB.postAlterationOfStoredItems(channel, changes, proxySource);
-        }
-
-        handler.setLastSnapshot(current);
     }
 }

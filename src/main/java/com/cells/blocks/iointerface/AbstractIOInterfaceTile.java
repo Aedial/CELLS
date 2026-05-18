@@ -16,6 +16,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
 
+import appeng.api.implementations.IPowerChannelState;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.networking.events.MENetworkChannelsChanged;
@@ -35,8 +36,11 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
+import com.cells.api.IInterfaceProvider;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
+import com.cells.helpers.InterfaceApiHelper;
+import com.cells.util.PowerStateHelper;
 
 
 /**
@@ -59,7 +63,8 @@ import com.cells.blocks.interfacebase.IInterfaceLogic;
  * @param <L> The logic class type (ItemInterfaceLogic, FluidInterfaceLogic, etc.)
  */
 public abstract class AbstractIOInterfaceTile<L extends IInterfaceLogic>
-        extends AENetworkInvTile implements IGridTickable, IIOInterfaceHost {
+    extends AENetworkInvTile implements IGridTickable, IIOInterfaceHost, IInterfaceProvider,
+        IPowerChannelState {
 
     protected final IActionSource actionSource;
 
@@ -101,6 +106,16 @@ public abstract class AbstractIOInterfaceTile<L extends IInterfaceLogic>
         );
     }
 
+    @Override
+    public boolean isPowered() {
+        return PowerStateHelper.isPowered(this.getProxy());
+    }
+
+    @Override
+    public boolean isActive() {
+        return PowerStateHelper.hasChannel(this.getProxy());
+    }
+
     // ============================== Direction Host Wrapper ==============================
 
     /**
@@ -133,6 +148,16 @@ public abstract class AbstractIOInterfaceTile<L extends IInterfaceLogic>
         @Override
         public boolean isExport() {
             return this.export;
+        }
+
+        /**
+         * Namespace this direction's NBT keys so import and export logics (which share
+         * a single resource type and a single NBT compound) do not collide on filters,
+         * storage, max slot size, polling rate, upgrades, or per-slot overrides.
+         */
+        @Override
+        public String getNBTKeyPrefix() {
+            return this.export ? "export_" : "import_";
         }
 
         @Override
@@ -192,6 +217,12 @@ public abstract class AbstractIOInterfaceTile<L extends IInterfaceLogic>
     @Override
     public List<IInterfaceLogic> getAllLogics() {
         return this.allLogicsList;
+    }
+
+    @Override
+    @Nonnull
+    public List<com.cells.api.IInterfaceHost> getInterfaceHosts() {
+        return InterfaceApiHelper.createInterfaceHosts(this, EnumSet.allOf(EnumFacing.class));
     }
 
     @Override
@@ -311,8 +342,8 @@ public abstract class AbstractIOInterfaceTile<L extends IInterfaceLogic>
      * Read both logics from NBT. Override in subclasses if needed (e.g., isTile flag).
      */
     protected void readLogicsFromNBT(final NBTTagCompound data) {
-        // Each logic uses direction-prefixed keys (e.g., "importFilters", "exportMaxSlotSize")
-        // to avoid collisions when sharing the same compound.
+        // Each logic uses direction-prefixed keys (e.g., "import_itemFilters", "export_itemMaxSlotSize",
+        // "import_upgrades") via Host#getNBTKeyPrefix(), so import and export state never collide.
         this.importLogic.readFromNBT(data, true);
         this.exportLogic.readFromNBT(data, true);
     }
@@ -439,7 +470,7 @@ public abstract class AbstractIOInterfaceTile<L extends IInterfaceLogic>
             Math.min(importReq.minTickRate, exportReq.minTickRate),
             Math.min(importReq.maxTickRate, exportReq.maxTickRate),
             importReq.isSleeping && exportReq.isSleeping,
-            false
+            true
         );
     }
 

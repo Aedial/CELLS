@@ -21,6 +21,7 @@ import mekanism.common.capabilities.Capabilities;
 
 import com.cells.blocks.interfacebase.AbstractContainerInterface;
 import com.cells.gui.QuickAddHelper;
+import com.cells.items.ItemRecoveryContainer;
 import com.cells.network.sync.ResourceType;
 
 
@@ -139,6 +140,10 @@ public class ContainerGasInterface
         ItemStack held = player.inventory.getItemStack();
         if (held.isEmpty()) return false;
 
+        if (ItemRecoveryContainer.isType(held, ItemRecoveryContainer.TYPE_GAS)) {
+            return handleRecoveryContainerPouring(player, tankSlot, held);
+        }
+
         // Check for IGasItem (Mekanism gas tanks)
         if (held.getItem() instanceof IGasItem) {
             return handleIGasItemPouring(player, tankSlot, held);
@@ -151,6 +156,37 @@ public class ContainerGasInterface
         }
 
         return false;
+    }
+
+    private boolean handleRecoveryContainerPouring(EntityPlayerMP player, int tankSlot, ItemStack held) {
+        GasStack contained = QuickAddHelper.getGasFromItemStack(held);
+        if (contained == null || contained.amount <= 0 || contained.getGas() == null) return false;
+
+        IAEGasStack filterGas = this.host.getFilter(tankSlot);
+        if (filterGas != null && !filterGas.getGasStack().isGasEqual(contained)) return false;
+
+        GasStack currentTankGas = this.host.getGasInTank(tankSlot);
+        if (currentTankGas != null && !currentTankGas.isGasEqual(contained)) return false;
+
+        long toTransfer = Math.min(
+            ItemRecoveryContainer.getAmount(held),
+            this.host.getEffectiveMaxSlotSize(tankSlot) - this.host.getStoredAmount(tankSlot)
+        );
+        if (toTransfer <= 0) return false;
+
+        long transferred = ((GasInterfaceLogic) this.host.getInterfaceLogic()).insertGasIntoTankLong(
+            tankSlot,
+            contained,
+            toTransfer
+        );
+
+        if (transferred <= 0) return false;
+
+        ItemRecoveryContainer.consumeHeldTransfer(player, held, transferred);
+
+        this.updateHeld(player);
+        this.detectAndSendChanges();
+        return true;
     }
 
     /**

@@ -13,6 +13,7 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 
 import com.cells.cells.creative.AbstractCreativeCellSyncContainer;
+import com.cells.gui.QuickAddHelper;
 import com.cells.network.sync.ResourceType;
 
 
@@ -87,9 +88,10 @@ public class ContainerCreativeCell extends AbstractCreativeCellSyncContainer<Cre
     @Override
     @Nullable
     protected IAEItemStack extractResourceFromItemStack(@Nonnull ItemStack container) {
-        // For items, the container IS the resource - convert to IAEItemStack
-        if (container.isEmpty()) return null;
-        return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(container);
+        ItemStack filterStack = QuickAddHelper.getItemFromItemStack(container);
+        if (filterStack.isEmpty()) return null;
+
+        return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(filterStack);
     }
 
     // ================================= GUI Support =================================

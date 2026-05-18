@@ -157,6 +157,10 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         this.host.markDirtyAndSave();
     }
 
+    public long insertEssentiaIntoSlotLong(int slot, EssentiaStack essentia, long amount) {
+        return insertIntoSlotLong(slot, essentia, amount);
+    }
+
     /**
      * Insert essentia into a specific slot.
      * @return Amount actually inserted

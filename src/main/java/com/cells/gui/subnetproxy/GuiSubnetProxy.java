@@ -45,6 +45,7 @@ import com.cells.network.packets.PacketChangePage;
 import com.cells.network.packets.PacketChangeFilterMode;
 import com.cells.network.packets.PacketClearFilters;
 import com.cells.network.packets.PacketOpenProxyPriority;
+import com.cells.network.packets.PacketToggleProxyChannel;
 import com.cells.network.sync.PacketQuickAddFilter;
 import com.cells.network.sync.ResourceType;
 import com.cells.parts.subnetproxy.PartSubnetProxyFront;
@@ -65,12 +66,19 @@ import com.cells.parts.subnetproxy.PartSubnetProxyFront;
  */
 public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
 
+    private static final int TOOLBOX_X = 178;
+    private static final int TOOLBOX_Y = 183;
+    private static final int TOOLBOX_SIZE = 68;
+
     private final ContainerSubnetProxy container;
 
     private GuiImgButton clearBtn;
     private GuiTabButton filterModeBtn;
     private GuiTabButton priorityBtn;
     private GuiPageNavigation pageNavigation;
+
+    /** One toggle button per available channel, stacked vertically below {@link #clearBtn}. */
+    private final List<GuiChannelToggleButton> channelButtons = new ArrayList<>();
 
     /** Tracks the last rendered filter mode ordinal for icon refresh */
     private int lastFilterMode = -1;
@@ -110,6 +118,27 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
         // Clear filters button (left side buttons)
         this.clearBtn = new GuiImgButton(this.guiLeft - 18, this.guiTop + 8, Settings.ACTIONS, ActionItems.CLOSE);
         this.buttonList.add(this.clearBtn);
+
+        // Channel toggle buttons stacked vertically directly under the clear button.
+        // We render one per AVAILABLE ResourceType (skipping mods that aren't loaded);
+        // the part still tracks state for unavailable channels in NBT, in case the
+        // mod is added later. Default state is everything off.
+        this.channelButtons.clear();
+        ResourceType[] available = ResourceType.getAvailableTypes();
+        // Place the first toggle one row below the clear button, with a 1px gap to
+        // visually separate the toggle group from the clear action above.
+        int channelY = this.guiTop + 8 + 18 + 1;
+        for (ResourceType type : available) {
+            GuiChannelToggleButton btn = new GuiChannelToggleButton(
+                100 + type.ordinal(),
+                this.guiLeft - GuiChannelToggleButton.SIZE - 1, channelY,
+                type,
+                () -> this.container.isChannelEnabled(type)
+            );
+            this.channelButtons.add(btn);
+            this.buttonList.add(btn);
+            channelY += GuiChannelToggleButton.SIZE + 2;
+        }
 
         // Type cycling button: positioned top-right of the title
         // Uses GuiTabButton which renders an item icon with a tooltip
@@ -161,6 +190,15 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
         this.fontRenderer.drawString(I18n.format("container.inventory"), 8, this.ySize - 96 + 3, 0x404040);
     }
 
+    /**
+     * Used by {@link NoChannelsWarningRenderer} to decide whether to paint
+     * the warning. Exposed as a public accessor so the post-render hook can
+     * query the container without grabbing protected fields.
+     */
+    public boolean shouldShowNoChannelsWarning() {
+        return this.container.hasNoChannelsEnabled();
+    }
+
     @Override
     public void drawBG(final int offsetX, final int offsetY, final int mouseX, final int mouseY) {
         // Update filter mode button icon when the synced mode changes
@@ -200,7 +238,8 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
 
         // Toolbox
         if (this.hasToolbox()) {
-            this.drawTexturedModalRect(offsetX + 178, offsetY + 183, 178, 183, 68, 68);
+            this.drawTexturedModalRect(offsetX + TOOLBOX_X, offsetY + TOOLBOX_Y,
+                                       TOOLBOX_X, TOOLBOX_Y, TOOLBOX_SIZE, TOOLBOX_SIZE);
         }
     }
 
@@ -214,17 +253,17 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
      */
     private void drawUpgradeColumns(int offsetX, int offsetY, int upgradeCount) {
         // Y offset for the column start (after the navigation header)
-        final int colY = 19;
+        final int colY = 18;
         // Bottom cap texture Y position in subnet_proxy.png
-        final int capTexY = 170;
+        final int capTexY = 169;
 
         // TODO: refactor and make more flexible
 
         if (upgradeCount <= 8) {
             // Single column
             int rows = Math.min(upgradeCount, 8);
-            this.drawTexturedModalRect(offsetX + 177, offsetY + colY, 177, colY, 35, 7 + rows * 18);
-            this.drawTexturedModalRect(offsetX + 177, offsetY + colY + 7 + rows * 18, 177, capTexY, 35, 7);
+            this.drawTexturedModalRect(offsetX + 177, offsetY + colY, 177, colY, 35, 7 + rows * 18 - 1);
+            this.drawTexturedModalRect(offsetX + 177, offsetY + colY + 7 + rows * 18 - 1, 177, capTexY, 35, 7);
         } else if (upgradeCount <= 16) {
             // First column (full 8 slots)
             this.drawTexturedModalRect(offsetX + 177, offsetY + colY, 177, colY, 35, 7 + 8 * 18);
@@ -232,8 +271,8 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
 
             // Second column (narrower, texture origin 186)
             int secondRows = upgradeCount - 8;
-            this.drawTexturedModalRect(offsetX + 177 + 27, offsetY + colY, 186, colY, 27, 7 + secondRows * 18);
-            this.drawTexturedModalRect(offsetX + 177 + 27, offsetY + colY + 7 + secondRows * 18, 186, capTexY, 27, 7);
+            this.drawTexturedModalRect(offsetX + 177 + 27, offsetY + colY, 186, colY, 27, 7 + secondRows * 18 - 1);
+            this.drawTexturedModalRect(offsetX + 177 + 27, offsetY + colY + 7 + secondRows * 18 - 1, 186, capTexY, 27, 7);
         } else {
             // First column (full 8 slots)
             this.drawTexturedModalRect(offsetX + 177, offsetY + colY, 177, colY, 35, 7 + 8 * 18);
@@ -245,8 +284,8 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
 
             // Third column
             int thirdRows = upgradeCount - 16;
-            this.drawTexturedModalRect(offsetX + 177 + 27 + 18, offsetY + colY, 186, colY, 27, 7 + thirdRows * 18);
-            this.drawTexturedModalRect(offsetX + 177 + 27 + 18, offsetY + colY + 7 + thirdRows * 18, 186, capTexY, 27, 7);
+            this.drawTexturedModalRect(offsetX + 177 + 27 + 18, offsetY + colY, 186, colY, 27, 7 + thirdRows * 18 - 1);
+            this.drawTexturedModalRect(offsetX + 177 + 27 + 18, offsetY + colY + 7 + thirdRows * 18 - 1, 186, capTexY, 27, 7);
         }
     }
 
@@ -293,6 +332,11 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
         } else if (btn == this.priorityBtn) {
             // Switch to AE2's priority GUI for this proxy
             CellsNetworkHandler.INSTANCE.sendToServer(new PacketOpenProxyPriority());
+        } else if (btn instanceof GuiChannelToggleButton) {
+            // Toggle the channel; the new state will arrive back via @GuiSync,
+            // so we don't need to optimistically update the local supplier.
+            CellsNetworkHandler.INSTANCE.sendToServer(
+                new PacketToggleProxyChannel(((GuiChannelToggleButton) btn).getType()));
         }
     }
 
@@ -302,7 +346,7 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
     public List<Rectangle> getJEIExclusionArea() {
         List<Rectangle> areas = new ArrayList<>();
 
-        // Left-side buttons (clear button and any future buttons)
+        // Left-side buttons (clear button and any other buttons)
         int visibleButtons = (int) this.buttonList.stream()
             .filter(v -> v.enabled && v.x < guiLeft).count();
         if (visibleButtons > 0) {
@@ -324,7 +368,7 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
 
         // Toolbox (if present)
         if (this.hasToolbox()) {
-            areas.add(new Rectangle(guiLeft + 178, guiTop + 183, 68, 68));
+            areas.add(new Rectangle(guiLeft + TOOLBOX_X, guiTop + TOOLBOX_Y, TOOLBOX_SIZE, TOOLBOX_SIZE));
         }
 
         return areas;

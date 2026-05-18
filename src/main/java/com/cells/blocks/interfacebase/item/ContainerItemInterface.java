@@ -19,6 +19,8 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 
 import com.cells.blocks.interfacebase.AbstractContainerInterface;
+import com.cells.gui.QuickAddHelper;
+import com.cells.items.ItemRecoveryContainer;
 import com.cells.gui.slots.PagedItemHandler;
 import com.cells.network.sync.ResourceType;
 import com.cells.util.ItemStackKey;
@@ -115,10 +117,9 @@ public class ContainerItemInterface
     @Override
     @Nullable
     protected IAEItemStack extractFilterFromContainer(ItemStack container) {
-        // For items, the container IS the filter (return single-count AE stack)
-        if (container.isEmpty()) return null;
-        ItemStack filter = container.copy();
-        filter.setCount(1);
+        ItemStack filter = QuickAddHelper.getItemFromItemStack(container);
+        if (filter.isEmpty()) return null;
+
         return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(filter);
     }
 
@@ -198,6 +199,7 @@ public class ContainerItemInterface
                 player.inventory.setItemStack(toExtract);
                 this.updateHeld(player);
                 this.host.refreshFilterMap();
+                this.host.getInterfaceLogic().wakeUpIfAdaptive();
             }
             // Import mode: can't extract, do nothing
             return true;
@@ -206,22 +208,28 @@ public class ContainerItemInterface
         // Item in cursor: insert to storage
         if (isExport) return true; // Export mode: can't insert
 
-        // Validate against filter
-        if (!this.host.isItemValidForSlot(storageSlot, held)) return true;
+        ItemStack transferStack = ItemRecoveryContainer.getHeldItemTransferStack(held);
+        if (transferStack == null || transferStack.isEmpty()) return true;
 
-        // Calculate insertion amount:
-        // - Left-click: insert all
-        // - Right-click: insert single item
-        int insertAmount = halfStack ? 1 : held.getCount();
+        if (!this.host.isItemValidForSlot(storageSlot, transferStack)) return true;
+
+        long requestedAmount = ItemRecoveryContainer.getHeldItemTransferAmount(held, halfStack);
+        if (requestedAmount <= 0) return true;
 
         if (stored.isEmpty()) {
             // Empty slot: insert held item
-            int maxInsert = (int) Math.min(insertAmount, this.host.getEffectiveMaxSlotSize(storageSlot));
-            ItemStack toInsert = held.copy();
-            toInsert.setCount(maxInsert);
+            long toTransfer = Math.min(requestedAmount, this.host.getEffectiveMaxSlotSize(storageSlot));
+            if (toTransfer <= 0) return true;
+
+            int initialAmount = (int) Math.min(toTransfer, Integer.MAX_VALUE);
+            ItemStack toInsert = transferStack.copy();
+            toInsert.setCount(initialAmount);
             storage.setStackInSlot(storageSlot, toInsert);
-            held.shrink(maxInsert);
-            if (held.isEmpty()) player.inventory.setItemStack(ItemStack.EMPTY);
+
+            long remainingToInsert = toTransfer - initialAmount;
+            if (remainingToInsert > 0) this.host.adjustStoredAmount(storageSlot, remainingToInsert);
+
+            ItemRecoveryContainer.consumeHeldTransfer(player, held, toTransfer);
             this.updateHeld(player);
             this.host.refreshFilterMap();
 
@@ -229,7 +237,7 @@ public class ContainerItemInterface
         }
 
         // Non-empty slot: only merge if same item (no swap allowed)
-        if (!ItemStack.areItemsEqual(held, stored) || !ItemStack.areItemStackTagsEqual(held, stored)) {
+        if (!ItemStack.areItemsEqual(transferStack, stored) || !ItemStack.areItemStackTagsEqual(transferStack, stored)) {
             return true; // Different item = no action (swap disabled)
         }
 
@@ -237,12 +245,11 @@ public class ContainerItemInterface
         // Use host.getStoredAmount() for accurate long-based space calculation
         long currentAmount = this.host.getStoredAmount(storageSlot);
         long space = this.host.getEffectiveMaxSlotSize(storageSlot) - currentAmount;
-        int toTransfer = (int) Math.min(insertAmount, Math.min(space, Integer.MAX_VALUE));
+        long toTransfer = Math.min(requestedAmount, space);
         if (toTransfer > 0) {
             // Use adjustStoredAmount for proper long handling
             this.host.adjustStoredAmount(storageSlot, toTransfer);
-            held.shrink(toTransfer);
-            if (held.isEmpty()) player.inventory.setItemStack(ItemStack.EMPTY);
+            ItemRecoveryContainer.consumeHeldTransfer(player, held, toTransfer);
             this.updateHeld(player);
             this.host.refreshFilterMap();
         }
@@ -303,6 +310,7 @@ public class ContainerItemInterface
         // Update storage using adjustStoredAmount for proper long handling
         if (totalTransferred > 0) {
             this.host.adjustStoredAmount(storageSlot, -totalTransferred);
+            this.host.getInterfaceLogic().wakeUpIfAdaptive();
         }
 
         this.host.refreshFilterMap();

@@ -27,6 +27,7 @@ import appeng.api.AEApi;
 
 import com.cells.blocks.interfacebase.AbstractContainerInterface;
 import com.cells.gui.QuickAddHelper;
+import com.cells.items.ItemRecoveryContainer;
 import com.cells.network.sync.ResourceType;
 
 
@@ -150,6 +151,10 @@ public class ContainerEssentiaInterface
         ItemStack held = player.inventory.getItemStack();
         if (held.isEmpty()) return false;
 
+        if (ItemRecoveryContainer.isType(held, ItemRecoveryContainer.TYPE_ESSENTIA)) {
+            return handleRecoveryContainerPouring(player, slotIndex, held);
+        }
+
         // Block vis crystals - they have IEssentiaContainerItem but require burning in a smeltery,
         // they cannot be poured directly into essentia interfaces
         if (held.getItem() == ItemsTC.crystalEssence) return false;
@@ -161,6 +166,37 @@ public class ContainerEssentiaInterface
         }
 
         return false;
+    }
+
+    private boolean handleRecoveryContainerPouring(EntityPlayerMP player, int slotIndex, ItemStack held) {
+        EssentiaStack contained = QuickAddHelper.getEssentiaFromItemStack(held);
+        if (contained == null || contained.getAmount() <= 0 || contained.getAspect() == null) return false;
+
+        IAEEssentiaStack filterEssentia = this.host.getFilter(slotIndex);
+        if (filterEssentia != null && filterEssentia.getStack().getAspect() != contained.getAspect()) return false;
+
+        EssentiaStack currentSlotEssentia = this.host.getEssentiaInSlot(slotIndex);
+        if (currentSlotEssentia != null && currentSlotEssentia.getAspect() != contained.getAspect()) return false;
+
+        long toTransfer = Math.min(
+            ItemRecoveryContainer.getAmount(held),
+            this.host.getEffectiveMaxSlotSize(slotIndex) - this.host.getStoredAmount(slotIndex)
+        );
+        if (toTransfer <= 0) return false;
+
+        long transferred = ((EssentiaInterfaceLogic) this.host.getInterfaceLogic()).insertEssentiaIntoSlotLong(
+            slotIndex,
+            contained,
+            toTransfer
+        );
+
+        if (transferred <= 0) return false;
+
+        ItemRecoveryContainer.consumeHeldTransfer(player, held, transferred);
+
+        this.updateHeld(player);
+        this.detectAndSendChanges();
+        return true;
     }
 
     /**

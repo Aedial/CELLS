@@ -40,14 +40,18 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.PartBasicState;
 import appeng.parts.PartModel;
+import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 
+import com.cells.api.IInterfaceProvider;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.iointerface.IIOInterfaceHost;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.helpers.InterfaceMemoryCardHelper;
+import com.cells.helpers.InterfaceApiHelper;
 
 
 /**
@@ -71,7 +75,7 @@ import com.cells.gui.CellsGuiHandler;
  * @param <L> The logic class type (ItemInterfaceLogic, FluidInterfaceLogic, etc.)
  */
 public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends PartBasicState
-        implements IGridTickable, IIOInterfaceHost, IAEAppEngInventory {
+    implements IGridTickable, IIOInterfaceHost, IAEAppEngInventory, IInterfaceProvider {
 
     protected final IActionSource actionSource;
 
@@ -142,6 +146,16 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
             return this.export;
         }
 
+        /**
+         * Namespace this direction's NBT keys so import and export logics (which share
+         * a single resource type and a single NBT compound) do not collide on filters,
+         * storage, max slot size, polling rate, upgrades, or per-slot overrides.
+         */
+        @Override
+        public String getNBTKeyPrefix() {
+            return this.export ? "export_" : "import_";
+        }
+
         @Override
         public void markDirtyAndSave() {
             AbstractIOInterfacePart.this.doMarkDirtyAndSave();
@@ -181,6 +195,19 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
                                       ItemStack removed, ItemStack added) {
             AbstractIOInterfacePart.this.onChangeInventory(inv, slot, mc, removed, added);
         }
+    }
+
+    // ============================== IInterfaceProvider ==============================
+
+    /**
+     * Expose this IO part's two logical directions (import + export) to the CELLS
+     * public API so the Disk Terminal can scan and display them.
+     * The part's single cable-bus facing is used as the target facing for both hosts.
+     */
+    @Nonnull
+    @Override
+    public List<com.cells.api.IInterfaceHost> getInterfaceHosts() {
+        return InterfaceApiHelper.createInterfaceHosts(this, EnumSet.of(this.getSide().getFacing()));
     }
 
     // ============================== IIOInterfaceHost ==============================
@@ -444,9 +471,13 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
                 memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_SAVED);
             }
         } else {
-            final String storedName = memoryCard.getSettingsName(memCardIS);
-            final NBTTagCompound data = memoryCard.getData(memCardIS);
-            if (name.equals(storedName)) {
+            final NBTTagCompound data = InterfaceMemoryCardHelper.prepareUploadData(
+                memoryCard.getSettingsName(memCardIS),
+                memoryCard.getData(memCardIS),
+                InterfaceMemoryCardHelper.io(this.getTypeName())
+            );
+
+            if (data != null) {
                 this.uploadSettings(SettingsFrom.MEMORY_CARD, data, player);
                 memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_LOADED);
             } else {
@@ -523,7 +554,7 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
             Math.min(importReq.minTickRate, exportReq.minTickRate),
             Math.min(importReq.maxTickRate, exportReq.maxTickRate),
             importReq.isSleeping && exportReq.isSleeping,
-            false
+            true
         );
     }
 

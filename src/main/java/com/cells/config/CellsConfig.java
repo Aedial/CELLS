@@ -130,7 +130,7 @@ public class CellsConfig {
     public static boolean useFixedInterfaceTextures = true;
 
     /** Whether the controls help panel is visible in Interface GUIs. Persisted as a hidden config. */
-    public static boolean showControlsHelp = true;
+    public static boolean showControlsHelp = false;
 
     /** Number of upgrade slots for the Subnet Proxy (1-24) */
     public static int subnetProxyUpgradeSlots = 5;
@@ -459,7 +459,7 @@ public class CellsConfig {
         subnetProxyMaxTickRate = p.getInt();
 
         // Hidden category: GUI preferences (not shown in config GUI)
-        p = config.get(CATEGORY_HIDDEN, "showControlsHelp", true,
+        p = config.get(CATEGORY_HIDDEN, "showControlsHelp", false,
             "Whether the controls help panel is visible in Interface GUIs.");
         showControlsHelp = p.getBoolean();
 
@@ -475,7 +475,7 @@ public class CellsConfig {
      */
     public static void setShowControlsHelp(boolean value) {
         showControlsHelp = value;
-        config.get(CATEGORY_HIDDEN, "showControlsHelp", true).set(value);
+        config.get(CATEGORY_HIDDEN, "showControlsHelp", false).set(value);
         config.save();
     }
 

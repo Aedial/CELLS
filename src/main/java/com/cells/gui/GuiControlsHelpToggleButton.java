@@ -41,11 +41,11 @@ import com.cells.config.CellsConfig;
 public class GuiControlsHelpToggleButton extends GuiButton implements ITooltip {
 
     private static final ResourceLocation TEXTURE =
-        new ResourceLocation(Tags.MODID, "textures/guis/arrows.png");
+        new ResourceLocation(Tags.MODID, "textures/guis/info.png");
 
-    // Each sprite in arrows.png is 16x16 within the 32x32 texture.
+    // Each sprite in info.png is 16x16 within the 32x32 texture.
     // The button hitbox is 8x8, so we scale the sprite down by 0.5 via the GL matrix.
-    private static final int ARROW_SIZE = 8;
+    private static final int INFO_SIZE = 8;
     private static final int SPRITE_SIZE = 16;
 
     private final Supplier<String> tooltipSupplier;
@@ -59,7 +59,7 @@ public class GuiControlsHelpToggleButton extends GuiButton implements ITooltip {
      * @param tooltipSupplier Supplier for the tooltip text (may include newlines)
      */
     public GuiControlsHelpToggleButton(int buttonId, int x, int y, Supplier<String> tooltipSupplier) {
-        super(buttonId, x, y, ARROW_SIZE, ARROW_SIZE, "");
+        super(buttonId, x, y, INFO_SIZE, INFO_SIZE, "");
         this.tooltipSupplier = tooltipSupplier;
     }
 
@@ -78,15 +78,14 @@ public class GuiControlsHelpToggleButton extends GuiButton implements ITooltip {
         mc.getTextureManager().bindTexture(TEXTURE);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 
-        // Scale the 16x16 sprite down to the 8x8 button hitbox using a 0.5x GL matrix transform
-        GlStateManager.pushMatrix();
-        GlStateManager.translate(this.x, this.y, 0);
-        GlStateManager.scale(0.5f, 0.5f, 1.0f);
-        Gui.drawModalRectWithCustomSizedTexture(
-            0, 1, (float) u, (float) v,
+        // Draw the SPRITE_SIZE x SPRITE_SIZE source region from the SPRITE_SIZE*2 x
+        // SPRITE_SIZE*2 atlas, scaled down to the INFO_SIZE x INFO_SIZE button hitbox.
+        Gui.drawScaledCustomSizeModalRect(
+            this.x, this.y,
+            (float) u, (float) v,
             SPRITE_SIZE, SPRITE_SIZE,
+            INFO_SIZE, INFO_SIZE,
             SPRITE_SIZE * 2, SPRITE_SIZE * 2);
-        GlStateManager.popMatrix();
     }
 
     @Override

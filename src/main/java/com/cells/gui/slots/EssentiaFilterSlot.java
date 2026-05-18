@@ -2,6 +2,7 @@ package com.cells.gui.slots;
 
 import java.util.function.IntSupplier;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.Minecraft;
@@ -145,6 +146,18 @@ public class EssentiaFilterSlot extends AbstractResourceFilterSlot<IAEEssentiaSt
         IAEEssentiaStack resource = getResource();
         if (resource == null) return null;
 
+        EssentiaStack raw = resource.getStack();
+        return raw != null ? raw.getAspect() : null;
+    }
+
+    /**
+     * Hand the underlying {@link Aspect} to the base class so it can
+     * build a full JEI-style essentia tooltip (matching what Thaumic JEI
+     * shows on hover, including any lines added by other addons).
+     */
+    @Override
+    @Nullable
+    protected Object getTooltipIngredient(@Nonnull IAEEssentiaStack resource) {
         EssentiaStack raw = resource.getStack();
         return raw != null ? raw.getAspect() : null;
     }

@@ -98,6 +98,10 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
         return insertIntoSlot(slot, fluid);
     }
 
+    public long insertFluidIntoTankLong(int slot, FluidStack fluid, long amount) {
+        return insertIntoSlotLong(slot, fluid, amount);
+    }
+
     @Nullable
     public FluidStack drainFluidFromTank(int slot, int maxDrain, boolean doDrain) {
         return drainFromSlot(slot, maxDrain, doDrain);

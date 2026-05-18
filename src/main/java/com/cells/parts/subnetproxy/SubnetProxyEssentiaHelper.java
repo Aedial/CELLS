@@ -11,14 +11,12 @@ import appeng.api.AEApi;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridHost;
 import appeng.api.networking.IGridNode;
-import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
 import appeng.api.storage.IMEInventoryHandler;
 import appeng.api.storage.IMEMonitor;
 import appeng.api.storage.IMEMonitorHandlerReceiver;
 import appeng.api.storage.IStorageChannel;
-import appeng.api.storage.data.IItemList;
 import appeng.tile.inventory.AppEngInternalInventory;
 
 import thaumicenergistics.api.storage.IAEEssentiaStack;
@@ -41,11 +39,19 @@ import net.minecraft.item.ItemStack;
  */
 final class SubnetProxyEssentiaHelper {
 
+    static volatile IEssentiaStorageChannel CACHED_ESSENTIA_CHANNEL = null;
+
     private SubnetProxyEssentiaHelper() {}
 
     /** Get the essentia storage channel from AE2. */
     static IStorageChannel<IAEEssentiaStack> getChannel() {
-        return AEApi.instance().storage().getStorageChannel(IEssentiaStorageChannel.class);
+        IEssentiaStorageChannel ch = CACHED_ESSENTIA_CHANNEL;
+        if (ch == null) {
+            ch = AEApi.instance().storage().getStorageChannel(IEssentiaStorageChannel.class);
+            CACHED_ESSENTIA_CHANNEL = ch;
+        }
+
+        return CACHED_ESSENTIA_CHANNEL;
     }
 
     /** Create a new SubnetProxyInventoryHandler for essentia. */
@@ -176,7 +182,7 @@ final class SubnetProxyEssentiaHelper {
         handler.setFilter(buildFilter(filterSet, hasInverter));
     }
 
-    // ========================= Delta Forwarding =========================
+    // ========================= Listener Registration =========================
 
     /** Register the raw listener on Grid A's essentia monitor. */
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -187,79 +193,5 @@ final class SubnetProxyEssentiaHelper {
             handler.setRegisteredMonitor(monitor);
             monitor.addListener((IMEMonitorHandlerReceiver) listener, token);
         }
-    }
-
-    /** Take a baseline snapshot for delta comparison. */
-    static void takeSnapshot(SubnetProxyInventoryHandler<IAEEssentiaStack> handler) {
-        IItemList<IAEEssentiaStack> snapshot = getChannel().createList();
-        handler.getAvailableItems(snapshot);
-        handler.setLastSnapshot(snapshot);
-    }
-
-    /** Reset the snapshot (Grid A unavailable). */
-    static void resetSnapshot(SubnetProxyInventoryHandler<IAEEssentiaStack> handler) {
-        if (handler.getRegisteredMonitor() != null) handler.setRegisteredMonitor(null);
-        handler.setLastSnapshot(null);
-    }
-
-    /**
-     * Filter incoming essentia deltas through the handler's predicate and forward
-     * matching entries to Grid B. Also updates the snapshot incrementally.
-     */
-    @SuppressWarnings("rawtypes")
-    static void forwardFilteredDeltas(Iterable changes,
-                                      SubnetProxyInventoryHandler<IAEEssentiaStack> handler,
-                                      IStorageGrid gridB, IActionSource proxySource) {
-        Predicate<IAEEssentiaStack> filter = handler.getFilter();
-        List<IAEEssentiaStack> forwarded = new ArrayList<>();
-
-        for (Object raw : changes) {
-            IAEEssentiaStack change = (IAEEssentiaStack) raw;
-            if (filter == null || filter.test(change)) {
-                forwarded.add(change);
-            }
-        }
-
-        if (forwarded.isEmpty()) return;
-
-        gridB.postAlterationOfStoredItems(getChannel(), forwarded, proxySource);
-
-        // Update snapshot incrementally
-        IItemList<IAEEssentiaStack> snapshot = handler.getLastSnapshot();
-        if (snapshot == null) {
-            snapshot = getChannel().createList();
-            handler.setLastSnapshot(snapshot);
-        }
-        for (IAEEssentiaStack delta : forwarded) {
-            snapshot.add(delta);
-        }
-    }
-
-    /** Snapshot-based delta forwarding fallback for onListUpdate. */
-    static void snapshotDiffAndForward(SubnetProxyInventoryHandler<IAEEssentiaStack> handler,
-                                       IStorageGrid gridB, IActionSource proxySource) {
-        IStorageChannel<IAEEssentiaStack> channel = getChannel();
-        IItemList<IAEEssentiaStack> previous = handler.getLastSnapshot();
-        IItemList<IAEEssentiaStack> current = channel.createList();
-        handler.getAvailableItems(current);
-
-        if (previous == null) {
-            handler.setLastSnapshot(current);
-            return;
-        }
-
-        List<IAEEssentiaStack> changes = new ArrayList<>();
-        for (IAEEssentiaStack was : previous) was.setStackSize(-was.getStackSize());
-        for (IAEEssentiaStack now : current) previous.add(now);
-
-        for (IAEEssentiaStack entry : previous) {
-            if (entry.getStackSize() != 0) changes.add(entry);
-        }
-
-        if (!changes.isEmpty()) {
-            gridB.postAlterationOfStoredItems(channel, changes, proxySource);
-        }
-
-        handler.setLastSnapshot(current);
     }
 }

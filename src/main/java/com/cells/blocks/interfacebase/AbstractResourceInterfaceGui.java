@@ -19,6 +19,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 
 import net.minecraftforge.fml.common.Optional;
+import net.minecraftforge.items.IItemHandler;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiCustomSlot;
@@ -30,6 +31,8 @@ import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
 import com.cells.Tags;
 import com.cells.blocks.combinedinterface.ICombinedInterfaceHost;
+import com.cells.blocks.iointerface.ContainerIOInterface;
+import com.cells.blocks.iointerface.IIOInterfaceHost;
 import com.cells.client.KeyBindings;
 import com.cells.config.CellsConfig;
 import com.cells.gui.DynamicTooltipTabButton;
@@ -38,6 +41,7 @@ import com.cells.gui.GuiControlsHelpToggleButton;
 import com.cells.gui.GuiPageNavigation;
 import com.cells.gui.GuiPullPushUpgradeButton;
 import com.cells.gui.ImportInterfaceControlsHelper;
+import com.cells.gui.IToolboxContainer;
 import com.cells.gui.slots.AbstractResourceFilterSlot;
 import com.cells.gui.slots.AbstractResourceTankSlot;
 import com.cells.items.ItemAutoPullCard;
@@ -386,7 +390,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             () -> {
                 ItemStack card = this.findPullPushCard();
                 if (card.isEmpty()) {
-                    String cardName = this.host.isExport()
+                    String cardName = this.isActiveTabExport()
                         ? I18n.format("item.cells.push_card.name")
                         : I18n.format("item.cells.pull_card.name");
                     return I18n.format("cells.pull_push_button.disabled", cardName);
@@ -439,9 +443,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
     @Override
     public void drawBG(int offsetX, int offsetY, int mouseX, int mouseY) {
-        // Use texture with card slots if toolbox is present
-        boolean hasToolbox = (this.container instanceof AbstractContainerInterface)
-            && ((AbstractContainerInterface<?, ?, ?>) this.container).hasToolbox();
+        boolean hasToolbox = this.hasToolbox();
         ResourceLocation texture = hasToolbox ? BACKGROUND_TEXTURE_WITH_CARDS : BACKGROUND_TEXTURE;
 
         this.mc.getTextureManager().bindTexture(texture);
@@ -589,8 +591,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         }
 
         // Add toolbox extension area when present
-        boolean hasToolbox = (this.container instanceof AbstractContainerInterface)
-            && ((AbstractContainerInterface<?, ?, ?>) this.container).hasToolbox();
+        boolean hasToolbox = this.hasToolbox();
 
         if (hasToolbox) {
             // Toolbox extension: x=210-246 (36px width), y=149-216 (67px height)
@@ -615,15 +616,36 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     // ============================== Pull/Push card helpers ==============================
 
     /**
-     * Scans the host's upgrade inventory for an installed Pull/Push card.
-     * Handles both single-type hosts (IFilterableInterfaceHost) and combined hosts
-     * (ICombinedInterfaceHost), which cannot implement IFilterableInterfaceHost due
-     * to Java's type erasure on its generic parameters.
+     * Find an installed Pull/Push card in the upgrade slots, if any.
+     * <p>
+     * Handles three host shapes:
+     * <ul>
+     *   <li>{@link IFilterableInterfaceHost}: single-direction host with a single
+     *       upgrade inventory.</li>
+     *   <li>{@link ICombinedInterfaceHost}: shares one upgrade inventory across
+     *       all logics, accessible via any logic.</li>
+     *   <li>{@link IIOInterfaceHost}: has TWO upgrade inventories (one per
+     *       direction). For these, we read from the container's switchable
+     *       upgrade inventory view rather than going through {@code host.getActiveLogic()}:
+     *       the host's active tab can be out of sync between client and server
+     *       (especially in singleplayer where the host instance is shared), but
+     *       the container's view always reflects the visible slot contents.</li>
+     * </ul>
      *
      * @return The card ItemStack, or {@link ItemStack#EMPTY} if none is installed.
      */
     @SuppressWarnings("rawtypes")
     private ItemStack findPullPushCard() {
+        // IO interfaces: read from the container's switchable upgrade inventory
+        // (which mirrors what the user sees in the upgrade slots, regardless of
+        // any client/server desync of host.getActiveLogic()).
+        if (this.host instanceof IIOInterfaceHost
+            && this.container instanceof ContainerIOInterface) {
+            IItemHandler upgradeView =
+                ((ContainerIOInterface) this.container).getUpgradeInventoryView();
+            return findCardIn(upgradeView);
+        }
+
         AppEngInternalInventory upgradeInv = null;
 
         if (this.host instanceof IFilterableInterfaceHost) {
@@ -635,8 +657,15 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
         if (upgradeInv == null) return ItemStack.EMPTY;
 
-        for (int i = 0; i < upgradeInv.getSlots(); i++) {
-            ItemStack stack = upgradeInv.getStackInSlot(i);
+        return findCardIn(upgradeInv);
+    }
+
+    /**
+     * Scans an item handler for an Auto-Pull or Auto-Push card.
+     */
+    private static ItemStack findCardIn(IItemHandler inv) {
+        for (int i = 0; i < inv.getSlots(); i++) {
+            ItemStack stack = inv.getStackInSlot(i);
 
             if (stack.getItem() instanceof ItemAutoPullCard
                 || stack.getItem() instanceof ItemAutoPushCard) {
@@ -645,5 +674,27 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         }
 
         return ItemStack.EMPTY;
+    }
+
+    /**
+     * Returns whether the currently-active tab is the export direction.
+     * <p>
+     * For {@link IIOInterfaceHost} we trust the container's @GuiSync tab field
+     * (kept in sync with the server and updated optimistically on client-side
+     * tab clicks) rather than {@code host.isExport()}, which goes through
+     * {@code host.getActiveDirectionTab()} and may be stale on the client.
+     */
+    private boolean isActiveTabExport() {
+        if (this.host instanceof IIOInterfaceHost
+            && this.container instanceof ContainerIOInterface) {
+            return ((ContainerIOInterface) this.container).activeDirectionTab
+                == IIOInterfaceHost.TAB_EXPORT;
+        }
+        return this.host.isExport();
+    }
+
+    private boolean hasToolbox() {
+        return this.container instanceof IToolboxContainer
+            && ((IToolboxContainer) this.container).hasToolbox();
     }
 }

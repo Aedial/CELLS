@@ -17,7 +17,9 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.util.AEPartLocation;
 
+import com.cells.blocks.combinedinterface.ICombinedInterfaceHost;
 import com.cells.blocks.interfacebase.IInterfaceHost;
+import com.cells.blocks.iointerface.IIOInterfaceHost;
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.network.MemoryCardSaveTracker;
 
@@ -99,19 +101,8 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
                     // (upgrades stay in the source interface, we're just copying settings)
                     data = interfaceHost.downloadSettingsWithFilter();
 
-                    // Determine the memory card name based on host type
-                    // For blocks: use block's getTranslationKey()
-                    // For parts: Item parts use no suffix (tile.cells.export_interface)
-                    //            Fluid/Gas parts use type suffix (tile.cells.export_interface.fluid)
                     if (message.isPart) {
-                        String typeName = interfaceHost.getTypeName();
-                        String ioType = interfaceHost.isExport() ? "export" : "import";
-                        // Item parts don't use type suffix to match Item blocks
-                        if ("item".equals(typeName)) {
-                            name = String.format("tile.cells.%s_interface", ioType);
-                        } else {
-                            name = String.format("tile.cells.%s_interface.%s", ioType, typeName);
-                        }
+                        name = getPartMemoryCardName(interfaceHost);
                     } else {
                         // For blocks, get the translation key from the actual block
                         name = player.world.getBlockState(message.pos).getBlock().getTranslationKey();
@@ -125,6 +116,23 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
             });
 
             return null;
+        }
+
+        private static String getPartMemoryCardName(IInterfaceHost interfaceHost) {
+            if (interfaceHost instanceof IIOInterfaceHost) {
+                return "tile.cells.io_interface." + interfaceHost.getTypeName();
+            }
+
+            if (interfaceHost instanceof ICombinedInterfaceHost) {
+                return "tile.cells." + (interfaceHost.isExport() ? "export" : "import")
+                    + "_interface.combined";
+            }
+
+            String direction = interfaceHost.isExport() ? "export" : "import";
+            String typeName = interfaceHost.getTypeName();
+            if ("item".equals(typeName)) return "tile.cells." + direction + "_interface";
+
+            return "tile.cells." + direction + "_interface." + typeName;
         }
     }
 }

@@ -212,6 +212,14 @@ public class ItemRecoveryContainer extends Item {
         }
     }
 
+    public static boolean isRecoveryContainer(@Nullable ItemStack stack) {
+        return stack != null && !stack.isEmpty() && stack.getItem() instanceof ItemRecoveryContainer;
+    }
+
+    public static boolean isType(@Nullable ItemStack stack, int type) {
+        return isRecoveryContainer(stack) && getType(stack) == type;
+    }
+
     /**
      * Get the stored amount as long.
      */
@@ -312,6 +320,64 @@ public class ItemRecoveryContainer extends Item {
         int amount = (int) Math.min(getAmount(stack), contained.getMaxStackSize());
         contained.setCount(amount);
         return contained;
+    }
+
+    @Nullable
+    public static ItemStack getContainedItemIdentity(ItemStack stack) {
+        ItemStack contained = getContainedItem(stack);
+        if (contained == null || contained.isEmpty()) return null;
+
+        ItemStack identity = contained.copy();
+        identity.setCount(1);
+        return identity;
+    }
+
+    /**
+     * Bind a held item insert to either the real held stack or the Recovery Container payload.
+     * Non-item Recovery Containers cannot participate in item insertion and return null.
+     */
+    @Nullable
+    public static ItemStack getHeldItemTransferStack(@Nullable ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return null;
+        if (!isRecoveryContainer(stack)) return stack;
+        if (!isType(stack, TYPE_ITEM)) return null;
+
+        return getContainedItemIdentity(stack);
+    }
+
+    public static long getHeldItemTransferAmount(@Nullable ItemStack stack, boolean singleItem) {
+        if (stack == null || stack.isEmpty()) return 0;
+        if (!isRecoveryContainer(stack)) return singleItem ? 1 : stack.getCount();
+        if (!isType(stack, TYPE_ITEM)) return 0;
+
+        return singleItem ? 1 : getAmount(stack);
+    }
+
+    public static void consumeStoredAmount(ItemStack stack, long amount) {
+        if (!isRecoveryContainer(stack) || amount <= 0) return;
+
+        long remaining = getAmount(stack) - amount;
+        if (remaining > 0) {
+            setAmount(stack, remaining);
+            return;
+        }
+
+        stack.setCount(0);
+    }
+
+    /**
+     * Consume the source behind a held transfer, clearing the held slot when it is exhausted.
+     */
+    public static void consumeHeldTransfer(EntityPlayer player, ItemStack stack, long amount) {
+        if (stack.isEmpty() || amount <= 0) return;
+
+        if (isRecoveryContainer(stack)) {
+            consumeStoredAmount(stack, amount);
+        } else {
+            stack.shrink((int) Math.min(amount, Integer.MAX_VALUE));
+        }
+
+        if (stack.isEmpty()) player.inventory.setItemStack(ItemStack.EMPTY);
     }
 
     // ============================== Display ==============================

@@ -20,26 +20,13 @@ import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.SelectedPart;
 
-import com.cells.blocks.combinedinterface.TileCombinedImportInterface;
-import com.cells.blocks.combinedinterface.TileCombinedExportInterface;
-import com.cells.blocks.exportinterface.TileExportInterface;
-import com.cells.blocks.fluidexportinterface.TileFluidExportInterface;
-import com.cells.blocks.fluidimportinterface.TileFluidImportInterface;
-import com.cells.blocks.importinterface.TileImportInterface;
-import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
-import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
+import com.cells.blocks.interfacebase.IInterfaceHost;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketSaveMemoryCardWithFilters;
-import com.cells.parts.PartCombinedImportInterface;
-import com.cells.parts.PartCombinedExportInterface;
-import com.cells.parts.PartExportInterface;
-import com.cells.parts.PartFluidExportInterface;
-import com.cells.parts.PartFluidImportInterface;
-import com.cells.parts.PartImportInterface;
 
 
 /**
- * Client-side event handler for memory card interaction with Import/Export Interfaces.
+ * Client-side event handler for memory card interaction with CELLS interfaces.
  * When the player sneak+right-clicks with a memory card while holding the
  * "include filters" keybind, sends a packet to save settings WITH filters.
  * <p>
@@ -71,18 +58,11 @@ public class MemoryCardInteractionHandler {
         if (te == null) return;
 
         EnumFacing partSide = null;
-        boolean isImportExportInterface = false;
+        boolean isInterfaceTarget = false;
 
-        // Check if it's a direct Import/Export Interface tile (Item, Fluid, Gas, or Essentia)
-        if (te instanceof TileImportInterface || te instanceof TileFluidImportInterface
-            || te instanceof TileExportInterface || te instanceof TileFluidExportInterface
-            || te instanceof TileCombinedImportInterface || te instanceof TileCombinedExportInterface
-            || MekanismEnergisticsIntegration.isTileGasInterface(te)
-            || ThaumicEnergisticsIntegration.isTileEssentiaInterface(te)) {
-            isImportExportInterface = true;
-        }
-        // Check if it's a part host containing an Import Interface part
-        else if (te instanceof IPartHost) {
+        if (te instanceof IInterfaceHost) {
+            isInterfaceTarget = true;
+        } else if (te instanceof IPartHost) {
             IPartHost host = (IPartHost) te;
 
             // Use raytrace to find which part is being targeted
@@ -90,22 +70,15 @@ public class MemoryCardInteractionHandler {
             RayTraceResult rayTrace = mc.objectMouseOver;
             if (rayTrace != null && rayTrace.typeOfHit == RayTraceResult.Type.BLOCK && rayTrace.getBlockPos().equals(pos)) {
                 SelectedPart selectedPart = host.selectPart(rayTrace.hitVec.subtract(pos.getX(), pos.getY(), pos.getZ()));
-                if (selectedPart.part != null) {
+                if (selectedPart.part instanceof IInterfaceHost) {
                     IPart part = selectedPart.part;
-                    // Check if the part is an Import/Export Interface (Item, Fluid, Gas, or Essentia)
-                    if (part instanceof PartImportInterface || part instanceof PartFluidImportInterface
-                        || part instanceof PartExportInterface || part instanceof PartFluidExportInterface
-                        || part instanceof PartCombinedImportInterface || part instanceof PartCombinedExportInterface
-                        || MekanismEnergisticsIntegration.isPartGasInterface(part)
-                        || ThaumicEnergisticsIntegration.isPartEssentiaInterface(part)) {
-                        isImportExportInterface = true;
-                        partSide = selectedPart.side.getFacing();
-                    }
+                    isInterfaceTarget = true;
+                    partSide = selectedPart.side == null ? null : selectedPart.side.getFacing();
                 }
             }
         }
 
-        if (!isImportExportInterface) return;
+        if (!isInterfaceTarget) return;
 
         // Prevent both the item (memory card) and block from handling this interaction.
         // This stops AE2's memory card from clearing/saving while we handle it ourselves.

@@ -12,6 +12,8 @@ import com.mekeng.github.common.me.data.IAEGasStack;
 
 import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.iointerface.IIOInterfaceHost;
+import com.cells.gui.QuickAddHelper;
+import com.cells.items.ItemRecoveryContainer;
 
 
 /**
@@ -45,6 +47,10 @@ public final class IOContainerGasHelper {
 
         ItemStack held = player.inventory.getItemStack();
         if (held.isEmpty()) return false;
+
+        if (ItemRecoveryContainer.isType(held, ItemRecoveryContainer.TYPE_GAS)) {
+            return handleRecoveryContainerPouring(player, tankSlot, held, gasLogic, updateHeld, detectChanges);
+        }
 
         // Check for IGasItem (Mekanism gas tanks)
         if (held.getItem() instanceof IGasItem) {
@@ -101,6 +107,37 @@ public final class IOContainerGasHelper {
                 }
             }
         }
+
+        updateHeld.run();
+        detectChanges.run();
+        return true;
+    }
+
+    private static boolean handleRecoveryContainerPouring(
+            EntityPlayerMP player, int tankSlot, ItemStack held,
+            GasInterfaceLogic gasLogic,
+            Runnable updateHeld, Runnable detectChanges) {
+
+        GasStack contained = QuickAddHelper.getGasFromItemStack(held);
+        if (contained == null || contained.amount <= 0 || contained.getGas() == null) return false;
+
+        IAEGasStack filterGas = gasLogic.getFilter(tankSlot);
+        if (filterGas != null && !filterGas.getGasStack().isGasEqual(contained)) return false;
+
+        GasStack currentTankGas = gasLogic.getGasInTank(tankSlot);
+        if (currentTankGas != null && !currentTankGas.isGasEqual(contained)) return false;
+
+        long toTransfer = Math.min(
+            ItemRecoveryContainer.getAmount(held),
+            gasLogic.getEffectiveMaxSlotSize(tankSlot) - gasLogic.getSlotAmount(tankSlot)
+        );
+        if (toTransfer <= 0) return false;
+
+        long transferred = gasLogic.insertGasIntoTankLong(tankSlot, contained, toTransfer);
+
+        if (transferred <= 0) return false;
+
+        ItemRecoveryContainer.consumeHeldTransfer(player, held, transferred);
 
         updateHeld.run();
         detectChanges.run();

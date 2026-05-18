@@ -12,6 +12,7 @@ import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
@@ -21,11 +22,17 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
 import appeng.block.AEBaseTileBlock;
+import appeng.api.implementations.items.IMemoryCard;
+import appeng.api.implementations.items.MemoryCardMessages;
 import appeng.tile.AEBaseTile;
+import appeng.util.SettingsFrom;
 
 import com.cells.Cells;
 import com.cells.Tags;
+import com.cells.blocks.combinedinterface.AbstractCombinedInterfaceTile;
+import com.cells.blocks.iointerface.AbstractIOInterfaceTile;
 import com.cells.core.CellsCreativeTab;
+import com.cells.helpers.InterfaceMemoryCardHelper;
 
 
 /**
@@ -90,6 +97,51 @@ public abstract class AbstractResourceInterfaceBlock<T extends AEBaseTile> exten
     }
 
     @Override
+    public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player,
+                                    EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
+        ItemStack heldItem = player.getHeldItem(hand);
+        if (heldItem.isEmpty() || !(heldItem.getItem() instanceof IMemoryCard)) {
+            return super.onBlockActivated(world, pos, state, player, hand, facing, hitX, hitY, hitZ);
+        }
+
+        T tile = this.getTileEntity(world, pos);
+        if (tile == null) return false;
+
+        IMemoryCard memoryCard = (IMemoryCard) heldItem.getItem();
+        String name = this.getTranslationKey();
+
+        if (player.isSneaking()) {
+            NBTTagCompound data = tile.downloadSettings(SettingsFrom.MEMORY_CARD);
+            if (data != null) {
+                memoryCard.setMemoryCardContents(heldItem, name, data);
+                memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_SAVED);
+            }
+
+            return true;
+        }
+
+        InterfaceMemoryCardHelper.TargetProfile target = this.createMemoryCardTarget(tile);
+        if (target == null) {
+            return super.onBlockActivated(world, pos, state, player, hand, facing, hitX, hitY, hitZ);
+        }
+
+        NBTTagCompound data = InterfaceMemoryCardHelper.prepareUploadData(
+            memoryCard.getSettingsName(heldItem),
+            memoryCard.getData(heldItem),
+            target
+        );
+
+        if (data != null) {
+            tile.uploadSettings(SettingsFrom.MEMORY_CARD, data, player);
+            memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_LOADED);
+        } else {
+            memoryCard.notifyUser(player, MemoryCardMessages.INVALID_MACHINE);
+        }
+
+        return true;
+    }
+
+    @Override
     public boolean onActivated(final World w, final BlockPos pos, final EntityPlayer p,
                                final EnumHand hand, final @Nullable ItemStack heldItem,
                                final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
@@ -122,5 +174,25 @@ public abstract class AbstractResourceInterfaceBlock<T extends AEBaseTile> exten
                 ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).onNeighborChanged(fromPos);
             }
         }
+    }
+
+    @Nullable
+    private InterfaceMemoryCardHelper.TargetProfile createMemoryCardTarget(T tile) {
+        if (tile instanceof AbstractIOInterfaceTile) {
+            return InterfaceMemoryCardHelper.io(((AbstractIOInterfaceTile<?>) tile).getTypeName());
+        }
+
+        if (tile instanceof AbstractCombinedInterfaceTile) {
+            return InterfaceMemoryCardHelper.combined(((AbstractCombinedInterfaceTile) tile).isExport());
+        }
+
+        if (tile instanceof AbstractInterfaceTile) {
+            return InterfaceMemoryCardHelper.simple(
+                ((AbstractInterfaceTile<?>) tile).isExport(),
+                ((AbstractInterfaceTile<?>) tile).getTypeName()
+            );
+        }
+
+        return null;
     }
 }

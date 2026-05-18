@@ -2,6 +2,7 @@ package com.cells.gui.subnetproxy;
 
 import java.util.function.IntSupplier;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.Minecraft;
@@ -178,6 +179,50 @@ public class SubnetProxyFilterWidget extends AbstractResourceFilterSlot<IAEItemS
         return a.equals(b);
     }
 
+    // ==================== Tooltip ====================
+
+    /**
+     * Resolve the underlying real ingredient for the current filter content.
+     * <p>
+     * Filter contents are stored as {@link IAEItemStack}, but for non-item
+     * types the {@link ItemStack#getDefinition} is a dummy item (FluidDummyItem,
+     * ItemDummyGas, ItemDummyAspect) standing in for a fluid / gas / aspect.
+     * To get a JEI-style tooltip matching what JEI itself shows on hover, we
+     * unwrap the dummy here and hand the real ingredient (FluidStack /
+     * GasStack / Aspect) to the base class, which then calls JEI for us.
+     * <p>
+     * For real items, we return the {@link ItemStack} directly so the base
+     * class uses the vanilla tooltip path (firing {@code ItemTooltipEvent},
+     * which mods like JEI hook to add their own lines).
+     */
+    @Override
+    @Nullable
+    protected Object getTooltipIngredient(@Nonnull IAEItemStack resource) {
+        ItemStack stack = resource.getDefinition();
+        if (stack.isEmpty()) return null;
+
+        // Fluid dummy: hand JEI the real FluidStack
+        if (stack.getItem() instanceof FluidDummyItem) {
+            FluidStack fluid = ((FluidDummyItem) stack.getItem()).getFluidStack(stack);
+            if (fluid != null) return fluid;
+        }
+
+        // Gas dummy: hand JEI the real GasStack
+        if (Loader.isModLoaded("mekeng") && SubnetProxyGasHelper.isGasDummy(stack)) {
+            Object gas = SubnetProxyGasHelper.getGasIngredient(stack);
+            if (gas != null) return gas;
+        }
+
+        // Essentia dummy: hand JEI the real Aspect
+        if (Loader.isModLoaded("thaumicenergistics") && SubnetProxyEssentiaHelper.isEssentiaDummy(stack)) {
+            Object aspect = SubnetProxyEssentiaHelper.getEssentiaIngredient(stack);
+            if (aspect != null) return aspect;
+        }
+
+        // Regular item: vanilla tooltip path in the base class.
+        return stack;
+    }
+
     // ==================== JEI conversion ====================
 
     /**
@@ -265,37 +310,41 @@ public class SubnetProxyFilterWidget extends AbstractResourceFilterSlot<IAEItemS
     /**
      * Convert a JEI ingredient to an IAEItemStack.
      * <p>
-     * For JEI's '+' button, the ingredient already represents the correct type
-     * (ItemStack = item, FluidStack = fluid), so we convert directly without
-     * going through the filter mode.
+     * Even though JEI already knows the ingredient's native type, we still
+     * gate the conversion by the current filter mode. Otherwise dragging a
+     * GasStack onto a slot in FLUID mode (or a FluidStack in GAS mode) would
+     * silently create a filter for the wrong channel: fluids and gases are
+     * stored as different dummy items but JEI hands us the raw type without
+     * any mode hint, so they would otherwise be considered interchangeable.
      */
     @Override
     @Nullable
     public IAEItemStack convertToResource(Object ingredient) {
-        // Direct IAEItemStack passthrough
+        // Direct IAEItemStack passthrough (rare; comes from internal AE2 paths)
         if (ingredient instanceof IAEItemStack) return (IAEItemStack) ingredient;
 
-        // ItemStack: convert through filter mode
+        ResourceType mode = this.container.getFilterMode();
+
+        // ItemStack: convert through filter mode (handles bucket->fluid in FLUID mode etc.)
         if (ingredient instanceof ItemStack) {
             return extractResourceFromStack((ItemStack) ingredient);
         }
 
-        // FluidStack from JEI: convert to FluidDummyItem directly
-        // (JEI's '+' already knows it's a fluid, bypass filter mode)
+        // FluidStack from JEI: only accept in FLUID mode. In any other mode,
+        // dragging a fluid is a no-op so we don't leak it into the wrong channel.
         if (ingredient instanceof FluidStack) {
-            IAEItemStack result = SubnetProxyContainerHelper.fluidToFilterAEStack((FluidStack) ingredient);
-            if (result != null) return result;
+            if (mode != ResourceType.FLUID) return null;
+            return SubnetProxyContainerHelper.fluidToFilterAEStack((FluidStack) ingredient);
         }
 
-        // Gas from JEI: convert GasStack to ItemDummyGas directly
-        // (JEI already knows it's a gas, bypass filter mode)
-        if (Loader.isModLoaded("mekeng")) {
+        // Gas from JEI: only accept in GAS mode.
+        if (mode == ResourceType.GAS && Loader.isModLoaded("mekeng")) {
             IAEItemStack gasResult = SubnetProxyGasHelper.gasToFilterAEStack(ingredient);
             if (gasResult != null) return gasResult;
         }
 
-        // Essentia from JEI: convert Aspect/EssentiaStack to ItemDummyAspect directly
-        if (Loader.isModLoaded("thaumicenergistics")) {
+        // Essentia from JEI: only accept in ESSENTIA mode.
+        if (mode == ResourceType.ESSENTIA && Loader.isModLoaded("thaumicenergistics")) {
             IAEItemStack essentiaResult = SubnetProxyEssentiaHelper.essentiaToFilterAEStack(ingredient);
             if (essentiaResult != null) return essentiaResult;
         }

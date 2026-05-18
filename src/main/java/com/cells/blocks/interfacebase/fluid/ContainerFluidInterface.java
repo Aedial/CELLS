@@ -24,6 +24,8 @@ import appeng.api.storage.data.IAEFluidStack;
 
 import com.cells.Cells;
 import com.cells.blocks.interfacebase.AbstractContainerInterface;
+import com.cells.gui.QuickAddHelper;
+import com.cells.items.ItemRecoveryContainer;
 import com.cells.network.sync.ResourceType;
 import com.cells.util.FluidStackKey;
 
@@ -96,7 +98,7 @@ public class ContainerFluidInterface
     @Override
     @Nullable
     protected IAEFluidStack extractFilterFromContainer(ItemStack container) {
-        FluidStack fluid = FluidUtil.getFluidContained(container);
+        FluidStack fluid = QuickAddHelper.getFluidFromItemStack(container);
         if (fluid == null || fluid.amount <= 0) return null;
         return AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class).createStack(fluid);
     }
@@ -145,6 +147,10 @@ public class ContainerFluidInterface
         // Get the player's held item
         final ItemStack held = player.inventory.getItemStack();
         if (held.isEmpty()) return false;
+
+        if (ItemRecoveryContainer.isType(held, ItemRecoveryContainer.TYPE_FLUID)) {
+            return handleRecoveryContainerPouring(player, slot, held);
+        }
 
         // Make a copy with count 1 to get the fluid handler
         ItemStack heldCopy = held.copy();
@@ -218,6 +224,35 @@ public class ContainerFluidInterface
             }
         }
 
+        this.updateHeld(player);
+        return true;
+    }
+
+    private boolean handleRecoveryContainerPouring(EntityPlayerMP player, int slot, ItemStack held) {
+        FluidStack recoveryFluid = ItemRecoveryContainer.getFluidStack(held);
+        if (recoveryFluid == null || recoveryFluid.getFluid() == null) return false;
+
+        IAEFluidStack filterFluid = this.host.getFilter(slot);
+        if (filterFluid != null && !filterFluid.getFluidStack().isFluidEqual(recoveryFluid)) return false;
+
+        FluidStack currentTankFluid = this.host.getFluidInTank(slot);
+        if (currentTankFluid != null && !currentTankFluid.isFluidEqual(recoveryFluid)) return false;
+
+        long remainingToInsert = Math.min(
+            ItemRecoveryContainer.getAmount(held),
+            this.host.getEffectiveMaxSlotSize(slot) - this.host.getStoredAmount(slot)
+        );
+        if (remainingToInsert <= 0) return false;
+
+        long transferred = ((FluidInterfaceLogic) this.host.getInterfaceLogic()).insertFluidIntoTankLong(
+            slot,
+            recoveryFluid,
+            remainingToInsert
+        );
+
+        if (transferred <= 0) return false;
+
+        ItemRecoveryContainer.consumeHeldTransfer(player, held, transferred);
         this.updateHeld(player);
         return true;
     }

@@ -8,12 +8,12 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
 
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.fluids.util.AEFluidStack;
 
 import com.cells.cells.creative.AbstractCreativeCellSyncContainer;
+import com.cells.gui.QuickAddHelper;
 import com.cells.network.sync.ResourceType;
 
 
@@ -81,7 +81,7 @@ public class ContainerCreativeFluidCell extends AbstractCreativeCellSyncContaine
     @Override
     @Nullable
     protected IAEFluidStack extractResourceFromItemStack(@Nonnull ItemStack container) {
-        FluidStack fluid = FluidUtil.getFluidContained(container);
+        FluidStack fluid = QuickAddHelper.getFluidFromItemStack(container);
         return fluid != null ? AEFluidStack.fromFluidStack(fluid) : null;
     }
 

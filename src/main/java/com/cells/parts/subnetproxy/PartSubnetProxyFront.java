@@ -3,6 +3,7 @@ package com.cells.parts.subnetproxy;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -38,6 +39,8 @@ import appeng.api.config.FuzzyMode;
 import appeng.api.config.Upgrades;
 import appeng.api.config.Actionable;
 import appeng.api.implementations.IPowerChannelState;
+import appeng.api.implementations.items.IMemoryCard;
+import appeng.api.implementations.items.MemoryCardMessages;
 import appeng.api.implementations.items.IUpgradeModule;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
@@ -58,6 +61,7 @@ import appeng.api.parts.IPartCollisionHelper;
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.IPartModel;
 import appeng.api.parts.IPart;
+import appeng.api.parts.PartItemStack;
 import appeng.api.storage.ICellContainer;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellProvider;
@@ -85,11 +89,15 @@ import appeng.parts.AEBasePart;
 import appeng.parts.PartModel;
 import appeng.parts.automation.UpgradeInventory;
 import appeng.tile.inventory.AppEngInternalInventory;
+import appeng.util.SettingsFrom;
 import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 import appeng.util.inv.filter.IAEItemFilter;
 import appeng.util.item.AEItemStack;
 
+import com.cells.api.FilterHostUtil;
+import com.cells.api.ISubnetProxy;
+import com.cells.helpers.SubnetProxyMemoryCardHelper;
 import com.cells.Tags;
 import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
@@ -99,6 +107,7 @@ import com.cells.items.ItemInsertionCard;
 import com.cells.network.sync.ResourceType;
 import com.cells.parts.CellsPartType;
 import com.cells.parts.ItemCellsPart;
+import com.cells.util.PowerStateHelper;
 
 
 /**
@@ -115,12 +124,41 @@ import com.cells.parts.ItemCellsPart;
  * managed here and persisted in NBT.
  */
 public class PartSubnetProxyFront extends AEBasePart
-        implements IPowerChannelState, ICellContainer, IAEAppEngInventory, IGridTickable, IPriorityHost {
+    implements IPowerChannelState, ICellContainer, IAEAppEngInventory, IGridTickable, IPriorityHost,
+           ISubnetProxy {
 
     // LED state flags
     protected static final int POWERED_FLAG = 1;
     protected static final int CHANNEL_FLAG = 2;
     protected static final int BOTH_PARTS_FLAG = 4;
+
+    /**
+     * Cached storage channel singletons for the two always-present channels.
+     * Resolved lazily on first access (AEApi may not be ready at class load).
+     * Used to avoid repeated {@code AEApi.instance().storage()
+     * .getStorageChannel(...)} lookups per call. Channel instances are
+     * registry singletons, so caching them is safe.
+     */
+    private static volatile IItemStorageChannel CACHED_ITEM_CHANNEL;
+    private static volatile IFluidStorageChannel CACHED_FLUID_CHANNEL;
+
+    private static IItemStorageChannel itemChannel() {
+        IItemStorageChannel ch = CACHED_ITEM_CHANNEL;
+        if (ch == null) {
+            ch = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+            CACHED_ITEM_CHANNEL = ch;
+        }
+        return ch;
+    }
+
+    private static IFluidStorageChannel fluidChannel() {
+        IFluidStorageChannel ch = CACHED_FLUID_CHANNEL;
+        if (ch == null) {
+            ch = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            CACHED_FLUID_CHANNEL = ch;
+        }
+        return ch;
+    }
 
     @PartModels
     public static final ResourceLocation MODEL_BASE = new ResourceLocation(Tags.MODID, "part/subnet_proxy_front/base");
@@ -166,6 +204,18 @@ public class PartSubnetProxyFront extends AEBasePart
      * Persisted in NBT, synced to GUI.
      */
     private FuzzyMode fuzzyMode = FuzzyMode.IGNORE_ALL;
+
+    /**
+     * Set of storage channels currently exposed by this proxy. Disabled channels
+     * are entirely hidden from the front-grid: {@link #getCellArray} returns an
+     * empty list for them, and {@link GridAListener#postChange} drops their deltas
+     * before forwarding. The default is empty (everything off) so newly placed
+     * proxies don't accidentally expose anything until the user opts in.
+     * <p>
+     * Persisted in NBT as a bitmask over {@link ResourceType#ordinal()}, synced
+     * to the GUI via the container's {@code @GuiSync} field.
+     */
+    private EnumSet<ResourceType> enabledChannels = EnumSet.noneOf(ResourceType.class);
 
     /** Client-side LED state */
     private int clientFlags = 0;
@@ -244,10 +294,11 @@ public class PartSubnetProxyFront extends AEBasePart
      * guard in NetworkMonitor from confusing proxy-forwarded deltas with
      * deltas from other machines.
      * <p>
-     * Used only for non-event paths (e.g. legacy gas/essentia helpers).
-     * Cross-hub delta forwarding wraps each event individually with
-     * {@link SubnetProxyEventSource} so origin-grid and event-UUID metadata
-     * survive the chain.
+     * Used only as a last-resort fallback in {@link #snapshotDiffChannel}
+     * when {@code gridA} is null (no back-grid bound). All normal forwarding
+     * paths wrap each event with {@link SubnetProxyEventSource} so the
+     * origin-grid and event-UUID metadata survive an arbitrary chain of hops
+     * (and dedup correctly across diamond topologies).
      */
     private final IActionSource proxySource = new MachineSource(this);
 
@@ -501,6 +552,41 @@ public class PartSubnetProxyFront extends AEBasePart
         this.markHostDirty();
     }
 
+    // ========================= Channel Exposure =========================
+
+    /**
+     * @return true if the given storage channel is currently exposed on the front-grid.
+     *         When false, {@link #getCellArray} returns empty and incoming deltas
+     *         are dropped (the proxy acts as if it didn't exist for that channel).
+     */
+    public boolean isChannelEnabled(ResourceType type) {
+        return this.enabledChannels.contains(type);
+    }
+
+    /** Pack the enabled-channels set into a bitmask over {@link ResourceType#ordinal()}. */
+    public int getEnabledChannelsBitmask() {
+        int mask = 0;
+        for (ResourceType t : this.enabledChannels) mask |= (1 << t.ordinal());
+        return mask;
+    }
+
+    /**
+     * Toggle whether a channel is exposed on the front-grid. Notifies the
+     * front-grid that our cell array changed so it re-discovers (or drops)
+     * the channel's contents immediately.
+     */
+    public void setChannelEnabled(ResourceType type, boolean enabled) {
+        boolean was = this.enabledChannels.contains(type);
+        if (was == enabled) return;
+
+        if (enabled) this.enabledChannels.add(type);
+        else this.enabledChannels.remove(type);
+
+        this.markHostDirty();
+        // Cell array on front-grid changed: this channel just appeared/disappeared.
+        this.notifyGridOfChange();
+    }
+
     // ========================= Config & Upgrade Access =========================
 
     public AppEngInternalInventory getConfigInventory() {
@@ -509,6 +595,40 @@ public class PartSubnetProxyFront extends AEBasePart
 
     public UpgradeInventory getUpgradeInventory() {
         return this.upgrades;
+    }
+
+    @Override
+    public int getFilterSlots() {
+        return Math.min(this.config.getSlots(), getTotalPages() * SLOTS_PER_PAGE);
+    }
+
+    @Override
+    @Nonnull
+    public ItemStack getFilter(int slot) {
+        if (slot < 0 || slot >= getFilterSlots()) return ItemStack.EMPTY;
+
+        return FilterHostUtil.normalizeFilter(this.config.getStackInSlot(slot));
+    }
+
+    @Override
+    public void setFilter(int slot, @Nonnull ItemStack stack) {
+        if (slot < 0 || slot >= getFilterSlots()) return;
+
+        this.config.setStackInSlot(slot, FilterHostUtil.normalizeFilter(stack));
+    }
+
+    @Override
+    public void clearFilters() {
+        int slotCount = getFilterSlots();
+        for (int slot = 0; slot < slotCount; slot++) {
+            this.config.setStackInSlot(slot, ItemStack.EMPTY);
+        }
+    }
+
+    @Override
+    @Nonnull
+    public EnumFacing getPrimaryFacing() {
+        return this.getSide().getFacing();
     }
 
     public int getInstalledUpgrades(Upgrades u) {
@@ -603,10 +723,25 @@ public class PartSubnetProxyFront extends AEBasePart
     @Override
     public void onPlacement(EntityPlayer player, EnumHand hand, ItemStack held, AEPartLocation side) {
         super.onPlacement(player, hand, held, side);
+        if (held.hasTagCompound()) {
+            this.uploadSettings(SettingsFrom.DISMANTLE_ITEM, held.getTagCompound(), player);
+        }
+
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
         if (te != null && te.getWorld() != null) {
             this.placedTick = te.getWorld().getTotalWorldTime();
         }
+    }
+
+    @Override
+    public ItemStack getItemStack(PartItemStack type) {
+        ItemStack stack = super.getItemStack(type);
+        if (type == PartItemStack.WRENCH) {
+            NBTTagCompound tag = this.downloadSettings(SettingsFrom.DISMANTLE_ITEM, new NBTTagCompound());
+            if (!tag.isEmpty()) stack.setTagCompound(tag);
+        }
+
+        return stack;
     }
 
     @Override
@@ -647,6 +782,16 @@ public class PartSubnetProxyFront extends AEBasePart
         this.fuzzyMode = FuzzyMode.values()[Math.max(0, Math.min(
             data.getInteger("fuzzyMode"), FuzzyMode.values().length - 1))];
         this.priority = data.getInteger("priority");
+
+        // Channel exposure bitmask. Missing key = empty set (default-off), which
+        // matches the field's default for fresh parts placed before this NBT key existed.
+        this.enabledChannels = EnumSet.noneOf(ResourceType.class);
+        if (data.hasKey("enabledChannels")) {
+            int mask = data.getInteger("enabledChannels");
+            for (ResourceType t : ResourceType.values()) {
+                if ((mask & (1 << t.ordinal())) != 0) this.enabledChannels.add(t);
+            }
+        }
         this.filtersDirty = true;
     }
 
@@ -659,10 +804,12 @@ public class PartSubnetProxyFront extends AEBasePart
         writeSparseConfig(data);
 
         this.upgrades.writeToNBT(data, "upgrades");
+        // FIXME: should we persist the current page? It's only client-side state for the GUI.
         data.setInteger("currentPage", this.currentPage);
         data.setInteger("filterMode", this.filterMode.ordinal());
         data.setInteger("fuzzyMode", this.fuzzyMode.ordinal());
         data.setInteger("priority", this.priority);
+        data.setInteger("enabledChannels", getEnabledChannelsBitmask());
     }
 
     /**
@@ -682,6 +829,86 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         data.setTag("config", sparse);
+    }
+
+    protected NBTTagCompound downloadSettings(final SettingsFrom from, final NBTTagCompound output) {
+        output.setInteger("priority", this.priority);
+        output.setInteger("filterMode", this.filterMode.ordinal());
+        output.setInteger("fuzzyMode", this.fuzzyMode.ordinal());
+
+        if (from != SettingsFrom.MEMORY_CARD) {
+            output.setInteger("enabledChannels", getEnabledChannelsBitmask());
+        }
+
+        // Memory cards should only capture the pages that are currently usable,
+        // not hidden overflow filters from removed capacity upgrades.
+        int filterSlots = this.getFilterSlots();
+        AppEngInternalInventory exportedConfig = new AppEngInternalInventory(null, filterSlots, 1);
+        for (int slot = 0; slot < filterSlots; slot++) {
+            ItemStack stack = this.config.getStackInSlot(slot);
+            if (stack.isEmpty()) continue;
+
+            exportedConfig.setStackInSlot(slot, stack.copy());
+        }
+
+        output.setTag("config", exportedConfig.serializeNBT());
+        return output;
+    }
+
+    @Override
+    public void uploadSettings(final SettingsFrom from, final NBTTagCompound compound, final EntityPlayer player) {
+        if (compound == null) return;
+
+        if (compound.hasKey("priority")) this.setPriority(compound.getInteger("priority"));
+
+        if (compound.hasKey("filterMode")) {
+            this.filterMode = ResourceType.fromOrdinal(compound.getInteger("filterMode"));
+        }
+
+        if (compound.hasKey("fuzzyMode")) {
+            int fuzzyOrdinal = Math.max(0, Math.min(compound.getInteger("fuzzyMode"), FuzzyMode.values().length - 1));
+            this.fuzzyMode = FuzzyMode.values()[fuzzyOrdinal];
+        }
+
+        if (from != SettingsFrom.MEMORY_CARD && compound.hasKey("enabledChannels")) {
+            int mask = compound.getInteger("enabledChannels");
+            EnumSet<ResourceType> importedChannels = EnumSet.noneOf(ResourceType.class);
+            for (ResourceType type : ResourceType.values()) {
+                if ((mask & (1 << type.ordinal())) != 0) importedChannels.add(type);
+            }
+
+            this.enabledChannels = importedChannels;
+        }
+
+        AppEngInternalInventory importedConfig = new AppEngInternalInventory(null, this.config.getSlots(), 1);
+        importedConfig.readFromNBT(compound, "config");
+
+        IAEAppEngInventory configOwner = this.config.getTileEntity();
+        this.config.setTileEntity(null);
+
+        if (from == SettingsFrom.MEMORY_CARD) {
+            // Add new filters into the empty slots without clearing the existing config
+            for (int slot = 0; slot < importedConfig.getSlots(); slot++) {
+                ItemStack stack = importedConfig.getStackInSlot(slot);
+                if (stack.isEmpty()) continue;
+
+                FilterHostUtil.addFilter(this, stack);
+            }
+        } else {
+            for (int slot = 0; slot < this.config.getSlots(); slot++) {
+                ItemStack stack = slot < importedConfig.getSlots() ? importedConfig.getStackInSlot(slot) : ItemStack.EMPTY;
+                this.config.setStackInSlot(slot, stack.isEmpty() ? ItemStack.EMPTY : stack.copy());
+            }
+        }
+
+        this.config.setTileEntity(configOwner);
+
+        this.setCurrentPage(this.currentPage);
+        this.filtersDirty = true;
+        this.notifyGridOfChange();
+        this.markHostDirty();
+
+        if (this.getHost() != null) this.getHost().markForUpdate();
     }
 
     /**
@@ -746,22 +973,69 @@ public class PartSubnetProxyFront extends AEBasePart
 
     // ========================= LED State from Outer Proxy =========================
 
-    @Override
-    public void writeToStream(final ByteBuf data) throws IOException {
+    private int computeStateFlags() {
         int flags = 0;
-        try {
-            if (this.getProxy().getEnergy().isNetworkPowered()) {
-                flags |= POWERED_FLAG;
+        if (PowerStateHelper.isPowered(this.getProxy())) flags |= POWERED_FLAG;
+        if (PowerStateHelper.hasChannel(this.getProxy())) flags |= CHANNEL_FLAG;
+        if (this.cachedHasBack) flags |= BOTH_PARTS_FLAG;
+
+        return flags;
+    }
+
+    /**
+     * WAILA/TOP may query power state on the logical server, so the display
+     * status must not rely solely on the client-side stream cache.
+     */
+    private int getStateFlags() {
+        TileEntity hostTile = this.getHost() != null ? this.getHost().getTile() : null;
+        World hostWorld = hostTile != null ? hostTile.getWorld() : null;
+        if (hostWorld != null && !hostWorld.isRemote) return this.computeStateFlags();
+
+        return this.clientFlags;
+    }
+
+    // ========================= Memory card handling =========================
+
+    @Override
+    public boolean useStandardMemoryCard() {
+        return false;
+    }
+
+    protected boolean useMemoryCard(final EntityPlayer player) {
+        final ItemStack memCardIS = player.inventory.getCurrentItem();
+        if (memCardIS.isEmpty()) return false;
+        if (!(memCardIS.getItem() instanceof IMemoryCard)) return false;
+
+        final IMemoryCard memoryCard = (IMemoryCard) memCardIS.getItem();
+        final String name = SubnetProxyMemoryCardHelper.getMemoryCardName();
+
+        if (player.isSneaking()) {
+            final NBTTagCompound data = this.downloadSettings(SettingsFrom.MEMORY_CARD, new NBTTagCompound());
+            if (!data.isEmpty()) {
+                memoryCard.setMemoryCardContents(memCardIS, name, data);
+                memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_SAVED);
             }
-            if (this.getProxy().getNode() != null && this.getProxy().getNode().meetsChannelRequirements()) {
-                flags |= CHANNEL_FLAG;
+        } else {
+            final NBTTagCompound data = SubnetProxyMemoryCardHelper.prepareUploadData(
+                memoryCard.getSettingsName(memCardIS),
+                memoryCard.getData(memCardIS)
+            );
+
+            if (data != null) {
+                this.uploadSettings(SettingsFrom.MEMORY_CARD, data, player);
+                memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_LOADED);
+            } else {
+                memoryCard.notifyUser(player, MemoryCardMessages.INVALID_MACHINE);
             }
-        } catch (final GridAccessException e) {
-            // No grid yet
         }
 
-        // Use cached counterpart presence (updated on neighbor changes)
-        if (this.cachedHasBack) flags |= BOTH_PARTS_FLAG;
+        return true;
+    }
+
+    @Override
+    public void writeToStream(final ByteBuf data) throws IOException {
+        int flags = this.computeStateFlags();
+        this.clientFlags = flags;
 
         data.writeByte((byte) flags);
     }
@@ -775,14 +1049,15 @@ public class PartSubnetProxyFront extends AEBasePart
 
     @Override
     public boolean isPowered() {
-        return (this.clientFlags & POWERED_FLAG) == POWERED_FLAG;
+        return (this.getStateFlags() & POWERED_FLAG) == POWERED_FLAG;
     }
 
     @Override
     public boolean isActive() {
-        // Active only if we have a channel AND the back counterpart is present
-        return (this.clientFlags & CHANNEL_FLAG) == CHANNEL_FLAG
-            && (this.clientFlags & BOTH_PARTS_FLAG) == BOTH_PARTS_FLAG;
+        int flags = this.getStateFlags();
+
+        return (flags & CHANNEL_FLAG) == CHANNEL_FLAG
+            && (flags & BOTH_PARTS_FLAG) == BOTH_PARTS_FLAG;
     }
 
     // ========================= ICellContainer =========================
@@ -794,8 +1069,17 @@ public class PartSubnetProxyFront extends AEBasePart
         if (this.sourcesDirty) this.updatePassthroughSources();
         if (this.filtersDirty) this.rebuildFilters();
 
-        IItemStorageChannel itemCh = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-        IFluidStorageChannel fluidCh = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+        IItemStorageChannel itemCh = itemChannel();
+        IFluidStorageChannel fluidCh = fluidChannel();
+
+        // Channel-exposure gate: disabled channels are entirely hidden from the
+        // front-grid (no read view, no insertion). The proxy effectively does
+        // not exist on that channel until the user toggles it on. Listener-side
+        // gating in GridAListener.postChange suppresses delta forwarding too.
+        ResourceType requestedType = channelToResourceType(channel, itemCh, fluidCh);
+        if (requestedType != null && !this.enabledChannels.contains(requestedType)) {
+            return Collections.emptyList();
+        }
 
         if (channel == itemCh) {
             // Combine read-side handler with insertion handler when active.
@@ -927,23 +1211,56 @@ public class PartSubnetProxyFront extends AEBasePart
 
     /**
      * Called by the back part when Grid A fires {@link MENetworkCellArrayUpdate}.
-     * Invalidates the cached passthrough sources so the next getCellArray() call
-     * will rebuild them.
+     * Refreshes the passthrough sources (local cell handlers, peer set,
+     * Grid A listener subscriptions) and the insertion-handler wiring.
      * <p>
-     * Guarded against recursion: notifyGridOfChange posts MENetworkCellArrayUpdate
-     * on Grid B, which may synchronously cascade back to Grid A (via storage bus
-     * on an ME Interface) and re-trigger cellUpdate on the back part.
+     * <b>Performance note (steady state):</b> Grid A's cell-array updates are
+     * frequent (storage bus rebuilds, drive ejections, etc.). We must NOT
+     * unconditionally post {@link MENetworkCellArrayUpdate} on Grid B in
+     * response, because that forces AE2 to call {@code getAvailableItems()}
+     * on every cell handler on Grid B, which the front-part chain then
+     * cascades downward via {@code snapshotDiffAndForward()}. The cascade
+     * dominates the server tick (see spark profile UyNgCh4lFT).
+     * <p>
+     * Content changes on Grid A reach Grid B via the {@link GridAListener}
+     * postChange path directly (filtered + forwarded as deltas), so a Grid B
+     * cell-array refresh would be redundant. The set of handlers we publish
+     * via {@link #getCellArray} is structurally invariant w.r.t. Grid A
+     * contents; the only thing that can flip during this call is
+     * {@link #insertionActive} (when the back part connects/disconnects),
+     * and ONLY that flip warrants a Grid B notify.
+     * <p>
+     * Sources are refreshed eagerly (not deferred via the {@code sourcesDirty}
+     * flag) precisely because we no longer rely on a Grid B cell-array
+     * refresh to drive a {@link #getCellArray()} call back into
+     * {@link #updatePassthroughSources}; without that pull, Grid A listener
+     * subscriptions would go stale.
+     * <p>
+     * Guarded against recursion: even though we no longer notify on every
+     * call, {@link #updatePassthroughSources} touches grid caches and the
+     * insertion-active flip path may still fan out.
      */
     public void markSourcesDirty() {
         if (this.inMarkSourcesDirty) return;
 
         this.inMarkSourcesDirty = true;
         try {
+            boolean wasInsertionActive = this.insertionActive;
+
+            // Eagerly rebuild local cells / peers / Grid A listeners. Without
+            // a Grid B notify (see javadoc), there is no later getCellArray()
+            // pull that would lazily rebuild via the sourcesDirty flag.
             this.sourcesDirty = true;
+            updatePassthroughSources();
             // Back-grid topology may have changed; re-check insertion wiring
             // (handles back part appearing/disappearing or its grid changing).
             updateInsertionHandlers();
-            this.notifyGridOfChange();
+
+            // Only notify Grid B when the structural cell-array we publish
+            // actually changed. Today that is exclusively the insertion
+            // handler appearing/disappearing (read handlers are always
+            // exposed when the front part is wired).
+            if (this.insertionActive != wasInsertionActive) this.notifyGridOfChange();
         } finally {
             this.inMarkSourcesDirty = false;
         }
@@ -1001,12 +1318,8 @@ public class PartSubnetProxyFront extends AEBasePart
             // Reset snapshots so next connection starts clean
             this.itemHandler.setLastSnapshot(null);
             this.fluidHandler.setLastSnapshot(null);
-            if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-                SubnetProxyGasHelper.resetSnapshot(this.gasHandler);
-            }
-            if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-                SubnetProxyEssentiaHelper.resetSnapshot(this.essentiaHandler);
-            }
+            if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
+            if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
 
             // No back: drop peers/origins/coord. Election on whichever
             // front-grid we previously belonged to must drop us so other
@@ -1108,10 +1421,10 @@ public class PartSubnetProxyFront extends AEBasePart
             takeSnapshot(this.fluidHandler, fluidChannel);
 
             if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-                SubnetProxyGasHelper.takeSnapshot(this.gasHandler);
+                takeSnapshotRaw(this.gasHandler, SubnetProxyGasHelper.getChannel());
             }
             if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-                SubnetProxyEssentiaHelper.takeSnapshot(this.essentiaHandler);
+                takeSnapshotRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel());
             }
         } catch (final GridAccessException e) {
             this.itemHandler.clearSources();
@@ -1121,6 +1434,8 @@ public class PartSubnetProxyFront extends AEBasePart
 
             this.itemHandler.setLastSnapshot(null);
             this.fluidHandler.setLastSnapshot(null);
+            if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
+            if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
 
             // Back-grid unavailable: also drop peer/origin set & coord
             this.peerFronts = new ArrayList<>();
@@ -1136,6 +1451,17 @@ public class PartSubnetProxyFront extends AEBasePart
         IItemList<T> snapshot = channel.createList();
         handler.getAvailableItems(snapshot);
         handler.setLastSnapshot(snapshot);
+    }
+
+    /**
+     * Raw-typed bridge to {@link #takeSnapshot} for gas/essentia handlers
+     * (kept raw at the field decl to avoid loading mod-gated classes).
+     * Cast safety: each handler is built with its matching channel by the
+     * corresponding helper.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void takeSnapshotRaw(SubnetProxyInventoryHandler handler, IStorageChannel channel) {
+        takeSnapshot(handler, channel);
     }
 
     /**
@@ -1447,6 +1773,34 @@ public class PartSubnetProxyFront extends AEBasePart
             this.essentiaInsertionHandler, this.essentiaHandler, backStorage, this.priority);
     }
 
+    /**
+     * Map an AE2 storage channel to the {@link ResourceType} we use for the
+     * channel-exposure gate. Returns null for channels we don't manage (then
+     * the gate is bypassed and {@link #getCellArray} falls through to its
+     * default empty-list behavior at the bottom).
+     * <p>
+     * Gas/essentia checks are guarded by their integration loaders so this is
+     * safe to call when the optional mods are absent.
+     */
+    private static ResourceType channelToResourceType(
+            IStorageChannel<?> channel,
+            IItemStorageChannel itemCh,
+            IFluidStorageChannel fluidCh) {
+        if (channel == itemCh) return ResourceType.ITEM;
+        if (channel == fluidCh) return ResourceType.FLUID;
+
+        if (MekanismEnergisticsIntegration.isModLoaded()
+                && SubnetProxyGasHelper.matchesChannel(channel)) {
+            return ResourceType.GAS;
+        }
+        if (ThaumicEnergisticsIntegration.isModLoaded()
+                && SubnetProxyEssentiaHelper.matchesChannel(channel)) {
+            return ResourceType.ESSENTIA;
+        }
+
+        return null;
+    }
+
     /** Notify Grid B that our cell array has changed */
     private void notifyGridOfChange() {
         IGridNode node = this.getProxy().getNode();
@@ -1536,22 +1890,21 @@ public class PartSubnetProxyFront extends AEBasePart
                     PartSubnetProxyFront.this, eventId, origin);
 
                 if (monitor == registeredItemMonitor) {
-                    IStorageChannel<IAEItemStack> ch = AEApi.instance().storage()
-                        .getStorageChannel(IItemStorageChannel.class);
+                    if (!enabledChannels.contains(ResourceType.ITEM)) return;
+                    IStorageChannel<IAEItemStack> ch = itemChannel();
                     forwardFilteredDeltas(change, itemHandler, ch, gridB, wrapped);
                 } else if (monitor == registeredFluidMonitor) {
-                    IStorageChannel<IAEFluidStack> ch = AEApi.instance().storage()
-                        .getStorageChannel(IFluidStorageChannel.class);
+                    if (!enabledChannels.contains(ResourceType.FLUID)) return;
+                    IStorageChannel<IAEFluidStack> ch = fluidChannel();
                     forwardFilteredDeltas(change, fluidHandler, ch, gridB, wrapped);
                 } else if (gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()
                            && monitor == gasHandler.getRegisteredMonitor()) {
-                    // TODO: gas/essentia helpers still use the legacy
-                    // proxySource and don't participate in cross-hub UUID
-                    // dedup. Migrate them to take a wrapped source param.
-                    SubnetProxyGasHelper.forwardFilteredDeltas(change, gasHandler, gridB, wrapped);
+                    if (!enabledChannels.contains(ResourceType.GAS)) return;
+                    forwardFilteredDeltas(change, gasHandler, SubnetProxyGasHelper.getChannel(), gridB, wrapped);
                 } else if (essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()
                            && monitor == essentiaHandler.getRegisteredMonitor()) {
-                    SubnetProxyEssentiaHelper.forwardFilteredDeltas(change, essentiaHandler, gridB, wrapped);
+                    if (!enabledChannels.contains(ResourceType.ESSENTIA)) return;
+                    forwardFilteredDeltas(change, essentiaHandler, SubnetProxyEssentiaHelper.getChannel(), gridB, wrapped);
                 }
             } catch (final GridAccessException e) {
                 // Grid B not available
@@ -1690,11 +2043,13 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         // Gas/essentia listeners are registered via their respective helpers
-        // (see updatePassthroughSources)
+        // (see updatePassthroughSources). Their monitor reference is tracked
+        // on the handler itself (getRegisteredMonitor) so unregisterGridAListeners
+        // can tear them down symmetrically.
     }
 
     /** Unregister from all Grid A monitors we're currently listening on. */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void unregisterGridAListeners() {
         if (this.registeredItemMonitor != null) {
             this.registeredItemMonitor.removeListener(this.gridAListener);
@@ -1704,6 +2059,21 @@ public class PartSubnetProxyFront extends AEBasePart
         if (this.registeredFluidMonitor != null) {
             this.registeredFluidMonitor.removeListener(this.gridAListener);
             this.registeredFluidMonitor = null;
+        }
+
+        if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
+            IMEMonitor gm = this.gasHandler.getRegisteredMonitor();
+            if (gm != null) {
+                gm.removeListener(this.gridAListener);
+                this.gasHandler.setRegisteredMonitor(null);
+            }
+        }
+        if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
+            IMEMonitor em = this.essentiaHandler.getRegisteredMonitor();
+            if (em != null) {
+                em.removeListener(this.gridAListener);
+                this.essentiaHandler.setRegisteredMonitor(null);
+            }
         }
 
         this.gridA = null;
@@ -1755,7 +2125,6 @@ public class PartSubnetProxyFront extends AEBasePart
      * (local cells + filter only), diffs against the incrementally maintained
      * snapshot, and forwards non-zero changes to Grid B.
      */
-    @SuppressWarnings("unchecked")
     private void snapshotDiffAndForward() {
         // Ensure sources and filters are up to date before snapshotting
         if (this.sourcesDirty) this.updatePassthroughSources();
@@ -1768,26 +2137,36 @@ public class PartSubnetProxyFront extends AEBasePart
             return;
         }
 
-        IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-        IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
-
         // Item channel delta
-        snapshotDiffChannel(this.itemHandler, itemChannel, gridB);
+        snapshotDiffChannel(this.itemHandler, itemChannel(), gridB);
 
         // Fluid channel delta
-        snapshotDiffChannel(this.fluidHandler, fluidChannel, gridB);
+        snapshotDiffChannel(this.fluidHandler, fluidChannel(), gridB);
 
         // Gas channel (MekanismEnergistics)
         if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-            SubnetProxyGasHelper.snapshotDiffAndForward(
-                this.gasHandler, gridB, this.proxySource);
+            snapshotDiffChannelRaw(this.gasHandler, SubnetProxyGasHelper.getChannel(), gridB);
         }
 
         // Essentia channel (ThaumicEnergistics)
         if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-            SubnetProxyEssentiaHelper.snapshotDiffAndForward(
-                this.essentiaHandler, gridB, this.proxySource);
+            snapshotDiffChannelRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel(), gridB);
         }
+    }
+
+    /**
+     * Raw-typed bridge to {@link #snapshotDiffChannel} for use with handlers
+     * declared as raw types (gas/essentia, where the typed channel classes
+     * are gated by mod presence and we cannot mention them at field-decl time).
+     * <p>
+     * The cast is safe because each handler is constructed with the matching
+     * channel by its corresponding helper.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void snapshotDiffChannelRaw(SubnetProxyInventoryHandler handler,
+                                        IStorageChannel channel,
+                                        IStorageGrid gridB) {
+        snapshotDiffChannel(handler, channel, gridB);
     }
 
     /**
@@ -1816,14 +2195,33 @@ public class PartSubnetProxyFront extends AEBasePart
             return;
         }
 
-        // Diff: negate previous, merge current, collect non-zero entries
+        // Diff via key-lookup: for each item in current, compute (now - was)
+        // using IItemContainer.findPrecise; for items missing from current,
+        // emit them as negative.
+        //
+        // This method runs every time Grid A's monitor issues a  full reset
+        // (power flicker, cell array shuffle).
         List<T> changes = new ArrayList<>();
-        for (T was : previous) was.setStackSize(-was.getStackSize());
 
-        for (T now : current) previous.add(now);
+        for (T now : current) {
+            T was = previous.findPrecise(now);
+            long delta = (was == null) ? now.getStackSize()
+                                       : now.getStackSize() - was.getStackSize();
+            if (delta == 0) continue;
 
-        for (T entry : previous) {
-            if (entry.getStackSize() != 0) changes.add(entry);
+            T entry = now.copy();
+            entry.setStackSize(delta);
+            changes.add(entry);
+        }
+
+        for (T was : previous) {
+            // Items present in previous but NOT in current: full removal.
+            if (current.findPrecise(was) != null) continue;
+            if (was.getStackSize() == 0) continue;
+
+            T entry = was.copy();
+            entry.setStackSize(-was.getStackSize());
+            changes.add(entry);
         }
 
         if (!changes.isEmpty()) {
@@ -1905,6 +2303,24 @@ public class PartSubnetProxyFront extends AEBasePart
         return this.gridA;
     }
 
+    @Override
+    public boolean isOutboundConnection() {
+        return true;
+    }
+
+    @Override
+    @Nullable
+    public IGrid getTargetGrid() {
+        return this.getBackGrid();
+    }
+
+    @Override
+    @Nonnull
+    public ItemStack getRemoteDisplayStack() {
+        PartSubnetProxyBack back = findBackPart();
+        return back != null ? back.getItemStack(PartItemStack.PICK) : ItemStack.EMPTY;
+    }
+
     /**
      * @return the current exposed-origins set (own back-grid + each peer's
      *         back-grid). Read-only; do not mutate. Used by the coordinator
@@ -1912,6 +2328,41 @@ public class PartSubnetProxyFront extends AEBasePart
      */
     public Set<IGrid> getExposedOrigins() {
         return this.exposedOrigins;
+    }
+
+    /**
+     * Whether this front is currently allowed to publish its OWN back-grid on
+     * its front-grid. The election gate must apply to local listing/extract as
+     * well as peer aggregation, otherwise duplicate same-origin fronts can both
+     * expose the same inventory surface.
+     */
+    boolean shouldExposeOwnOrigin() {
+        IGrid origin = this.getBackGrid();
+        if (origin == null) return false;
+
+        IGrid frontGrid = getFrontGridLive();
+        if (frontGrid != null && origin == frontGrid) return false;
+
+        SubnetProxyGridCoordinator coord = this.currentFrontGridCoord;
+        return coord == null || coord.isElected(this, origin);
+    }
+
+    /**
+     * Election changes are structural visibility changes already handled by
+     * AE2's front-grid force-update path. Clear our snapshots so a later
+     * back-grid onListUpdate does not replay those structural changes as data
+     * deltas.
+     */
+    void onCoordinatorElectionChanged() {
+        clearPassthroughSnapshots();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void clearPassthroughSnapshots() {
+        this.itemHandler.setLastSnapshot(null);
+        this.fluidHandler.setLastSnapshot(null);
+        if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
+        if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
     }
 
     /**
@@ -1949,10 +2400,10 @@ public class PartSubnetProxyFront extends AEBasePart
         if (coord == null) return;
 
         // Resolve channel identity once per call to avoid per-peer lookups.
-        IItemStorageChannel itemCh = AEApi.instance().storage()
-            .getStorageChannel(IItemStorageChannel.class);
-        IFluidStorageChannel fluidCh = AEApi.instance().storage()
-            .getStorageChannel(IFluidStorageChannel.class);
+        // These come from a static cache so repeated calls, don't re-traverse
+        // the AEApi registry.
+        IItemStorageChannel itemCh = itemChannel();
+        IFluidStorageChannel fluidCh = fluidChannel();
 
         for (PartSubnetProxyFront peer : this.peerFronts) {
             IGrid peerOrigin = peer.getBackGrid();
@@ -2034,10 +2485,8 @@ public class PartSubnetProxyFront extends AEBasePart
         SubnetProxyGridCoordinator coord = SubnetProxyGridCoordinator.getOrNull(frontGrid);
         if (coord == null) return null;
 
-        IItemStorageChannel itemCh = AEApi.instance().storage()
-            .getStorageChannel(IItemStorageChannel.class);
-        IFluidStorageChannel fluidCh = AEApi.instance().storage()
-            .getStorageChannel(IFluidStorageChannel.class);
+        IItemStorageChannel itemCh = itemChannel();
+        IFluidStorageChannel fluidCh = fluidChannel();
 
         long remaining = request.getStackSize();
         T extracted = null;
@@ -2122,6 +2571,9 @@ public class PartSubnetProxyFront extends AEBasePart
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
         if (te != null && te.getWorld() != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
 
+        if (!player.isSneaking() && this.useMemoryCard(player)) return true;
+        if (player.isSneaking()) return false;
+
         if (player.world.isRemote) return true;
 
         // Check that the back part is present
@@ -2135,6 +2587,11 @@ public class PartSubnetProxyFront extends AEBasePart
         CellsGuiHandler.openPartGui(player, guiTe, this.getSide(), CellsGuiHandler.GUI_PART_SUBNET_PROXY);
 
         return true;
+    }
+
+    @Override
+    public boolean onPartShiftActivate(final EntityPlayer player, final EnumHand hand, final Vec3d pos) {
+        return this.useMemoryCard(player);
     }
 
     /**

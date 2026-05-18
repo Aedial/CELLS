@@ -78,7 +78,7 @@ public class GuiIOInterface
     private static final int ARROW_U_IMPORT = 0;
     private static final int ARROW_U_EXPORT = 32;
     private static final int ARROW_V = 0;
-    /** Each arrow occupies a 32×32 region in the texture; rendered at 16×16 on screen via 0.5× GL scale. */
+    /** Each arrow occupies a 32x32 region in the texture; rendered at 16x16 on screen via drawScaledCustomSizeModalRect. */
     private static final int ARROW_TEX_SIZE = 32;
 
     /** Track the last known activeDirectionTab to detect @GuiSync changes. */
@@ -426,15 +426,14 @@ public class GuiIOInterface
             // The texture is 64x32, each arrow is 16x16, centered in its 32x16 half
             int arrowU = (i == IIOInterfaceHost.TAB_IMPORT) ? ARROW_U_IMPORT : ARROW_U_EXPORT;
 
-            // Draw the 32×32 texture arrow downscaled to 16×16 by translating to the draw
-            // position and applying a 0.5× scale before sampling the full 32×32 region.
+            // Draw the 32x32 source arrow region scaled down to 16x16 on screen.
             GlStateManager.pushMatrix();
-            GlStateManager.translate(iconX, iconY, 400);
-            GlStateManager.scale(0.5f, 0.5f, 1.0f);
-            drawModalRectWithCustomSizedTexture(
-                0, 0,
+            GlStateManager.translate(0, 0, 400);
+            drawScaledCustomSizeModalRect(
+                iconX, iconY,
                 arrowU, ARROW_V,
                 ARROW_TEX_SIZE, ARROW_TEX_SIZE,
+                ARROW_TEX_SIZE / 2, ARROW_TEX_SIZE / 2,
                 64, 32
             );
             GlStateManager.popMatrix();
@@ -467,8 +466,7 @@ public class GuiIOInterface
                 CellsNetworkHandler.INSTANCE.sendToServer(new PacketSwitchTab(i));
 
                 // Optimistic client-side update
-                this.host.setActiveDirectionTab(i);
-                this.container.activeDirectionTab = i;
+                this.container.onClientTabSwitch(i);
                 this.lastActiveDirectionTab = i;
 
                 // Rebuild resource slots for the new tab

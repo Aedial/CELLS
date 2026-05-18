@@ -17,6 +17,7 @@ import mekanism.api.gas.IGasItem;
 import mekanism.common.capabilities.Capabilities;
 
 import com.cells.gui.overlay.MessageHelper;
+import com.cells.items.ItemRecoveryContainer;
 
 
 /**
@@ -40,7 +41,7 @@ public class QuickAddHelper {
     public static ItemStack getItemUnderCursor(@Nullable Slot hoveredSlot) {
         // Check hovered inventory slot first
         if (hoveredSlot != null && hoveredSlot.getHasStack()) {
-            return hoveredSlot.getStack().copy();
+            return getItemFromItemStack(hoveredSlot.getStack());
         }
 
         // Check JEI if available
@@ -60,7 +61,7 @@ public class QuickAddHelper {
     public static FluidStack getFluidUnderCursor(@Nullable Slot hoveredSlot) {
         // Check hovered inventory slot first
         if (hoveredSlot != null && hoveredSlot.getHasStack()) {
-            FluidStack fluid = FluidUtil.getFluidContained(hoveredSlot.getStack());
+            FluidStack fluid = getFluidFromItemStack(hoveredSlot.getStack());
             if (fluid != null) return fluid;
         }
 
@@ -94,6 +95,35 @@ public class QuickAddHelper {
      */
     public static void sendNoValidError(String type) {
         MessageHelper.error("message.cells.not_valid_content", I18n.format("cells.type." + type));
+    }
+
+    /**
+     * Resolve the item identity to encode for item filters.
+     * Recovery Containers unwrap to their stored item content; other variants are rejected.
+     */
+    public static ItemStack getItemFromItemStack(ItemStack stack) {
+        if (stack.isEmpty()) return ItemStack.EMPTY;
+
+        if (!ItemRecoveryContainer.isRecoveryContainer(stack)) return stack.copy();
+        if (!ItemRecoveryContainer.isType(stack, ItemRecoveryContainer.TYPE_ITEM)) return ItemStack.EMPTY;
+
+        ItemStack contained = ItemRecoveryContainer.getContainedItemIdentity(stack);
+        return contained != null ? contained : ItemStack.EMPTY;
+    }
+
+    /**
+     * Resolve the fluid to encode for fluid filters.
+     * Recovery Containers unwrap to their stored fluid content.
+     */
+    @Nullable
+    public static FluidStack getFluidFromItemStack(ItemStack stack) {
+        if (stack.isEmpty()) return null;
+
+        if (ItemRecoveryContainer.isType(stack, ItemRecoveryContainer.TYPE_FLUID)) {
+            return ItemRecoveryContainer.getFluidStack(stack);
+        }
+
+        return FluidUtil.getFluidContained(stack);
     }
 
     // ==================== Gas extraction methods (MekanismEnergistics integration) ====================
@@ -148,6 +178,17 @@ public class QuickAddHelper {
     @Optional.Method(modid = MEKENG_MODID)
     @Nullable
     private static GasStack getGasFromItemStackInternal(ItemStack stack) {
+        if (ItemRecoveryContainer.isType(stack, ItemRecoveryContainer.TYPE_GAS)) {
+            String gasName = ItemRecoveryContainer.getGasName(stack);
+            if (gasName == null || gasName.isEmpty()) return null;
+
+            mekanism.api.gas.Gas gas = mekanism.api.gas.GasRegistry.getGas(gasName);
+            if (gas == null) return null;
+
+            int amount = (int) Math.min(ItemRecoveryContainer.getAmount(stack), Integer.MAX_VALUE);
+            return amount > 0 ? new GasStack(gas, amount) : null;
+        }
+
         // Try IGasItem interface first (Mekanism gas tanks, creative tanks, etc.)
         if (stack.getItem() instanceof IGasItem) {
             IGasItem gasItem = (IGasItem) stack.getItem();
@@ -202,13 +243,17 @@ public class QuickAddHelper {
     @Optional.Method(modid = "jei")
     private static ItemStack getJeiItemIngredient() {
         ItemStack result = com.cells.integration.jei.CellsJEIPlugin.getItemIngredientUnderMouse();
-        return result != null ? result : ItemStack.EMPTY;
+        if (result == null) return ItemStack.EMPTY;
+
+        ItemStack converted = getItemFromItemStack(result);
+        return converted.isEmpty() ? ItemStack.EMPTY : converted;
     }
 
     @Optional.Method(modid = "jei")
     @Nullable
     private static FluidStack getJeiFluidIngredient() {
-        return com.cells.integration.jei.CellsJEIPlugin.getFluidIngredientUnderMouse();
+        Object ingredient = com.cells.integration.jei.CellsJEIPlugin.getIngredientUnderMouse();
+        return toFluidStack(ingredient);
     }
 
     // ==================== Essentia extraction methods (ThaumicEnergistics integration) ====================
@@ -262,6 +307,17 @@ public class QuickAddHelper {
     @Optional.Method(modid = THAUMICENERGISTICS_MODID)
     @Nullable
     private static thaumicenergistics.api.EssentiaStack getEssentiaFromItemStackInternal(ItemStack stack) {
+        if (ItemRecoveryContainer.isType(stack, ItemRecoveryContainer.TYPE_ESSENTIA)) {
+            String aspectTag = ItemRecoveryContainer.getEssentiaTag(stack);
+            if (aspectTag == null || aspectTag.isEmpty()) return null;
+
+            thaumcraft.api.aspects.Aspect aspect = thaumcraft.api.aspects.Aspect.getAspect(aspectTag);
+            if (aspect == null) return null;
+
+            int amount = (int) Math.min(ItemRecoveryContainer.getAmount(stack), Integer.MAX_VALUE);
+            return amount > 0 ? new thaumicenergistics.api.EssentiaStack(aspect, amount) : null;
+        }
+
         // Check for DummyAspect item from Thaumic Energistics
         if (stack.getItem() instanceof thaumicenergistics.item.ItemDummyAspect) {
             thaumicenergistics.item.ItemDummyAspect dummyItem =
@@ -347,7 +403,7 @@ public class QuickAddHelper {
         if (ingredient instanceof FluidStack) return (FluidStack) ingredient;
 
         if (ingredient instanceof ItemStack) {
-            return FluidUtil.getFluidContained((ItemStack) ingredient);
+            return getFluidFromItemStack((ItemStack) ingredient);
         }
 
         return null;

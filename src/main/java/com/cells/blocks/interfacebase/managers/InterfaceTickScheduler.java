@@ -6,7 +6,9 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 
+import appeng.api.networking.IGridNode;
 import appeng.api.networking.ticking.IGridTickable;
+import appeng.api.networking.ticking.ITickManager;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
 import appeng.core.settings.TickRates;
@@ -305,13 +307,20 @@ public class InterfaceTickScheduler {
     /**
      * Wake up the tick manager if sleeping and using adaptive polling.
      * Only calls alertDevice() when actually sleeping - tick modulation handles the rest.
+     * <p>
+     * Falls back to wakeDevice() if alertDevice() returns false. This can happen when the
+     * node's TickingRequest was registered with canBeAlerted=false: such nodes live in
+     * AE2's sleeping map but not in the alertable map, so alertDevice silently no-ops
+     * and the tile would never wake up from a filter edit.
      */
     public void wakeUpIfAdaptive() {
         if (this.pollingRate > 0) return;
         if (!this.isSleeping) return;
 
         try {
-            this.callbacks.getGridProxy().getTick().alertDevice(this.callbacks.getGridProxy().getNode());
+            IGridNode node = this.callbacks.getGridProxy().getNode();
+            ITickManager tick = this.callbacks.getGridProxy().getTick();
+            if (!tick.alertDevice(node)) tick.wakeDevice(node);
             this.isSleeping = false;
         } catch (GridAccessException e) {
             // Not connected to grid

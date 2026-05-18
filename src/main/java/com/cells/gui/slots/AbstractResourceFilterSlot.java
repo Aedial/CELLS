@@ -1,6 +1,9 @@
 package com.cells.gui.slots;
 
 import java.awt.Rectangle;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.IntSupplier;
 
 import javax.annotation.Nonnull;
@@ -8,9 +11,11 @@ import javax.annotation.Nullable;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
 
 import appeng.client.gui.widgets.GuiCustomSlot;
@@ -176,16 +181,144 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
         R resource = getResource();
         if (resource == null) return null;
 
-        String name = getResourceDisplayName(resource);
+        // Build the full tooltip: subclass-provided resource lines first
+        // then our own click hints at the bottom.
+        List<String> lines = new ArrayList<>(getResourceTooltipLines(resource));
 
-        // Add click hints
-        name += "\n\n§7" + I18n.format("cells.filter_slot.hint.left_click");
+        lines.add("");
+        lines.add("§7" + I18n.format("cells.filter_slot.hint.left_click_1"));
+        lines.add("§7" + I18n.format("cells.filter_slot.hint.left_click_2"));
 
         if (this.rightClickHandler != null) {
-            name += "\n§7" + I18n.format("cells.filter_slot.hint.right_click");
+            lines.add("§7" + I18n.format("cells.filter_slot.hint.right_click"));
         }
 
-        return name;
+        return String.join("\n", lines);
+    }
+
+    /**
+     * Build the resource-specific tooltip lines (without click hints).
+     * <p>
+     * Default implementation produces a JEI-style tooltip:
+     * <ol>
+     *   <li>Resolve a JEI-friendly ingredient via {@link #getTooltipIngredient(Object)}
+     *       (which defaults to {@link #getIngredient()}, already overridden by
+     *       all standard filter slots).</li>
+     *   <li>If it is an {@link ItemStack}, use the vanilla
+     *       {@link ItemStack#getTooltip} which fires {@code ItemTooltipEvent}
+     *       (so lines added by other mods are included).</li>
+     *   <li>Otherwise, ask JEI's ingredient renderer for the tooltip (this
+     *       mirrors what JEI shows on hover, including lines added by other
+     *       mods through their JEI plugins).</li>
+     *   <li>Fall back to {@link #getResourceDisplayName(Object)} if neither
+     *       path produced anything.</li>
+     * </ol>
+     * The first line is rendered white by AE2's tooltip renderer; subsequent
+     * lines are gray (unless they contain their own color codes).
+     * <p>
+     * Subclasses should only need to override {@link #getTooltipIngredient(Object)}.
+     */
+    @Nonnull
+    protected List<String> getResourceTooltipLines(@Nonnull R resource) {
+        Object ingredient = getTooltipIngredient(resource);
+
+        // Path 1: ItemStack (uses vanilla tooltip, fires ItemTooltipEvent)
+        if (ingredient instanceof ItemStack) {
+            ItemStack stack = (ItemStack) ingredient;
+            if (!stack.isEmpty()) {
+                List<String> vanilla = getItemStackTooltip(stack);
+                if (vanilla != null && !vanilla.isEmpty()) return vanilla;
+            }
+        }
+
+        // Path 2: ask JEI for any other ingredient type (FluidStack, GasStack,
+        // Aspect, ...) registered with its ingredient registry.
+        if (ingredient != null) {
+            List<String> jei = jeiTooltipOrNull(ingredient);
+            if (jei != null && !jei.isEmpty()) return jei;
+        }
+
+        // Path 3: fallback to the display name.
+        String name = getResourceDisplayName(resource);
+        if (name == null) return Collections.emptyList();
+
+        List<String> lines = new ArrayList<>(1);
+        lines.add(name);
+        return lines;
+    }
+
+    /**
+     * Resolve the JEI-friendly ingredient for the given resource (the actual
+     * {@link ItemStack}, {@link net.minecraftforge.fluids.FluidStack},
+     * {@code GasStack}, {@code Aspect}, etc.).
+     * <p>
+     * Default returns {@code null}, which makes
+     * {@link #getResourceTooltipLines(Object)} fall back to the display name.
+     * Subclasses should override this to return the underlying JEI ingredient
+     * so they get the full vanilla/JEI-style tooltip (including any lines
+     * added by other mods).
+     * <p>
+     * Subclasses with non-trivial mappings (for example, when {@code R} is a
+     * generic wrapper that may contain a dummy item standing in for a fluid
+     * or gas) should override this to return the real underlying ingredient
+     * so that JEI can produce the proper tooltip.
+     */
+    @Nullable
+    protected Object getTooltipIngredient(@Nonnull R resource) {
+        return null;
+    }
+
+    /**
+     * Get the vanilla item tooltip for the given stack, which fires
+     * {@code ItemTooltipEvent} and thus includes lines added by other mods
+     * (JEI, Waila, etc.).
+     * <p>
+     * Wrapped defensively: a misbehaving mod can throw inside the tooltip
+     * event handler, and we never want a hover to crash the GUI.
+     */
+    @Nonnull
+    protected static List<String> getItemStackTooltip(@Nonnull ItemStack stack) {
+        try {
+            Minecraft mc = Minecraft.getMinecraft();
+            return stack.getTooltip(mc.player, currentTooltipFlag());
+        } catch (Throwable t) {
+            // Fallback: just the display name
+            return Collections.singletonList(stack.getDisplayName());
+        }
+    }
+
+    /**
+     * Get the JEI-rendered tooltip for an arbitrary ingredient (FluidStack,
+     * GasStack, Aspect, etc.), or {@code null} if JEI is unavailable or the
+     * ingredient type is not registered with JEI.
+     * <p>
+     * Resolution is performed by JEI itself, so the returned lines match
+     * exactly what JEI shows on hover (including any lines other mods add
+     * through their JEI plugins).
+     */
+    @Nullable
+    protected static List<String> jeiTooltipOrNull(@Nullable Object ingredient) {
+        if (ingredient == null) return null;
+        if (!Loader.isModLoaded("jei")) return null;
+
+        return jeiTooltipOrNullInternal(ingredient, currentTooltipFlag());
+    }
+
+    @Optional.Method(modid = "jei")
+    @Nullable
+    private static List<String> jeiTooltipOrNullInternal(@Nonnull Object ingredient, @Nonnull ITooltipFlag flag) {
+        return com.cells.integration.jei.CellsJEIPlugin.getIngredientTooltip(ingredient, flag);
+    }
+
+    /**
+     * Get the current tooltip flag based on the player's advanced-tooltips
+     * setting (toggled by F3+H).
+     */
+    @Nonnull
+    protected static ITooltipFlag currentTooltipFlag() {
+        return Minecraft.getMinecraft().gameSettings.advancedItemTooltips
+            ? ITooltipFlag.TooltipFlags.ADVANCED
+            : ITooltipFlag.TooltipFlags.NORMAL;
     }
 
     @Override

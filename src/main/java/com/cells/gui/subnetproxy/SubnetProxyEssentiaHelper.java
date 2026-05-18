@@ -159,6 +159,35 @@ final class SubnetProxyEssentiaHelper {
         return stack.getDisplayName();
     }
 
+    // ==================== JEI Ingredient (for tooltip lookup) ====================
+
+    /**
+     * Extract the underlying essentia ingredient ({@link Aspect}) from an
+     * essentia dummy ItemStack, to be passed to JEI's ingredient registry
+     * for full tooltip lookup (Thaumic JEI registers {@link Aspect} as an
+     * ingredient type).
+     *
+     * @return The contained {@link Aspect} (as {@link Object} to avoid
+     *         leaking Thaumcraft types into the call site), or {@code null}
+     *         if the stack is not an essentia dummy or the mod is not loaded.
+     */
+    @Nullable
+    static Object getEssentiaIngredient(ItemStack stack) {
+        try {
+            return getEssentiaIngredientInternal(stack);
+        } catch (NoClassDefFoundError e) {
+            return null;
+        }
+    }
+
+    @Optional.Method(modid = "thaumicenergistics")
+    @Nullable
+    private static Object getEssentiaIngredientInternal(ItemStack stack) {
+        if (!(stack.getItem() instanceof ItemDummyAspect)) return null;
+
+        return ((ItemDummyAspect) stack.getItem()).getAspect(stack);
+    }
+
     // ==================== Duplicate Detection (for isResourceInFilter) ====================
 
     /**

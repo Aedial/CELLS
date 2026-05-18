@@ -1,8 +1,8 @@
 {
     "parent": "cells:part/part_item_base",
     "textures": {
-        "sides": "cells:parts/import_interface/essentia/sides",
-        "back": "cells:parts/import_interface/essentia/back",
-        "front": "cells:blocks/import_interface/essentia/front_fixed"
+        "sides": "cells:parts/io_interface/essentia/sides",
+        "back": "cells:parts/io_interface/essentia/back",
+        "front": "cells:blocks/io_interface/essentia/front_fixed"
     }
 }

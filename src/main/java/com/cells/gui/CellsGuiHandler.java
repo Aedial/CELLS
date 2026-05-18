@@ -283,6 +283,9 @@ public class CellsGuiHandler implements IGuiHandler {
                     if (part instanceof ICombinedInterfaceHost) {
                         return new ContainerPullPushCard(player.inventory, (ICombinedInterfaceHost) part);
                     }
+                    if (part instanceof IIOInterfaceHost) {
+                        return new ContainerPullPushCard(player.inventory, (IIOInterfaceHost) part);
+                    }
                     break;
 
                 case GUI_PART_COMBINED_IMPORT_INTERFACE:
@@ -362,6 +365,9 @@ public class CellsGuiHandler implements IGuiHandler {
                 }
                 if (tile instanceof ICombinedInterfaceHost) {
                     return new ContainerPullPushCard(player.inventory, (ICombinedInterfaceHost) tile);
+                }
+                if (tile instanceof IIOInterfaceHost) {
+                    return new ContainerPullPushCard(player.inventory, (IIOInterfaceHost) tile);
                 }
                 break;
 
@@ -480,6 +486,9 @@ public class CellsGuiHandler implements IGuiHandler {
                     if (part instanceof ICombinedInterfaceHost) {
                         return new GuiPullPushCard(player.inventory, (ICombinedInterfaceHost) part);
                     }
+                    if (part instanceof IIOInterfaceHost) {
+                        return new GuiPullPushCard(player.inventory, (IIOInterfaceHost) part);
+                    }
                     break;
 
                 case GUI_PART_COMBINED_IMPORT_INTERFACE:
@@ -560,6 +569,9 @@ public class CellsGuiHandler implements IGuiHandler {
                 }
                 if (tile instanceof ICombinedInterfaceHost) {
                     return new GuiPullPushCard(player.inventory, (ICombinedInterfaceHost) tile);
+                }
+                if (tile instanceof IIOInterfaceHost) {
+                    return new GuiPullPushCard(player.inventory, (IIOInterfaceHost) tile);
                 }
                 break;
 

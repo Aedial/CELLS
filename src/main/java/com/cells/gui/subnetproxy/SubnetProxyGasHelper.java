@@ -149,6 +149,33 @@ final class SubnetProxyGasHelper {
         return gasStack != null ? gasStack.getGas().getLocalizedName() : null;
     }
 
+    // ==================== JEI Ingredient (for tooltip lookup) ====================
+
+    /**
+     * Extract the underlying {@link GasStack} from a gas dummy ItemStack,
+     * to be passed to JEI's ingredient registry for full tooltip lookup.
+     *
+     * @return The contained {@link GasStack} (as {@link Object} to avoid
+     *         leaking Mekanism types into the call site), or {@code null} if
+     *         the stack is not a gas dummy or the mod is not loaded.
+     */
+    @Nullable
+    static Object getGasIngredient(ItemStack stack) {
+        try {
+            return getGasIngredientInternal(stack);
+        } catch (NoClassDefFoundError e) {
+            return null;
+        }
+    }
+
+    @Optional.Method(modid = "mekeng")
+    @Nullable
+    private static Object getGasIngredientInternal(ItemStack stack) {
+        if (!(stack.getItem() instanceof ItemDummyGas)) return null;
+
+        return ((ItemDummyGas) stack.getItem()).getGasStack(stack);
+    }
+
     // ==================== Duplicate Detection (for isResourceInFilter) ====================
 
     /**

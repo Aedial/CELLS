@@ -15,6 +15,8 @@ import thaumicenergistics.api.storage.IAEEssentiaStack;
 
 import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.iointerface.IIOInterfaceHost;
+import com.cells.gui.QuickAddHelper;
+import com.cells.items.ItemRecoveryContainer;
 
 
 /**
@@ -48,6 +50,10 @@ public final class IOContainerEssentiaHelper {
 
         ItemStack held = player.inventory.getItemStack();
         if (held.isEmpty()) return false;
+
+        if (ItemRecoveryContainer.isType(held, ItemRecoveryContainer.TYPE_ESSENTIA)) {
+            return handleRecoveryContainerPouring(player, slotIndex, held, essentiaLogic, updateHeld, detectChanges);
+        }
 
         // Block vis crystals - they require burning in a smeltery
         if (held.getItem() == ItemsTC.crystalEssence) return false;
@@ -136,6 +142,37 @@ public final class IOContainerEssentiaHelper {
             containerItem.setAspects(held, new AspectList().add(aspect, drained.getAmount()));
             if (isPhial) held.setItemDamage(1);
         }
+
+        updateHeld.run();
+        detectChanges.run();
+        return true;
+    }
+
+    private static boolean handleRecoveryContainerPouring(
+            EntityPlayerMP player, int slotIndex, ItemStack held,
+            EssentiaInterfaceLogic essentiaLogic,
+            Runnable updateHeld, Runnable detectChanges) {
+
+        EssentiaStack contained = QuickAddHelper.getEssentiaFromItemStack(held);
+        if (contained == null || contained.getAmount() <= 0 || contained.getAspect() == null) return false;
+
+        IAEEssentiaStack filterEssentia = essentiaLogic.getFilter(slotIndex);
+        if (filterEssentia != null && filterEssentia.getStack().getAspect() != contained.getAspect()) return false;
+
+        EssentiaStack currentSlotEssentia = essentiaLogic.getEssentiaInSlot(slotIndex);
+        if (currentSlotEssentia != null && currentSlotEssentia.getAspect() != contained.getAspect()) return false;
+
+        long toTransfer = Math.min(
+            ItemRecoveryContainer.getAmount(held),
+            essentiaLogic.getEffectiveMaxSlotSize(slotIndex) - essentiaLogic.getSlotAmount(slotIndex)
+        );
+        if (toTransfer <= 0) return false;
+
+        long transferred = essentiaLogic.insertEssentiaIntoSlotLong(slotIndex, contained, toTransfer);
+
+        if (transferred <= 0) return false;
+
+        ItemRecoveryContainer.consumeHeldTransfer(player, held, transferred);
 
         updateHeld.run();
         detectChanges.run();

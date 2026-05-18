@@ -49,7 +49,8 @@ cells.max_slot_size.tooltip=Maximum %s to keep in the slots.
 cells.slot_size_override.title=Max Slot Size (slot %d)
 cells.slot_size_override.clear_hint=Clear the field to reset override
 cells.slot_size_override.using_global=global
-cells.filter_slot.hint.left_click=Left-click to set/clear
+cells.filter_slot.hint.left_click_1=Left-click with an item to set
+cells.filter_slot.hint.left_click_2=Left-click with empty hand to clear
 cells.filter_slot.hint.right_click=Right-click to override max slot size
 cells.polling_rate.title=Polling Rate
 cells.polling_rate.adaptive=Polling Rate: Adaptive
@@ -559,7 +560,7 @@ cells.push_pull_card.limit.tooltip=How many items/mB/etc. of each type to mainta
 
 # Insertion Card (Subnet Proxy upgrade)
 item.cells.insertion_card.name=Insertion Card
-tooltip.cells.insertion_card.desc=§7Enables inserting content back through the Subnet Proxy. Populate the filter to avoid inserting unwanted content.
+tooltip.cells.insertion_card.desc=§7Enables inserting content back through the Subnet Proxy (opposite direction). Populate the proxy's filter to avoid inserting unwanted content.
 tooltip.cells.type.subnet_proxy=Subnet Proxy
 
 # Pull/Push Upgrade Button (interface GUI)
@@ -605,6 +606,11 @@ item.cells.part.subnet_proxy_direction.tooltip=Content flows from the back part 
 gui.cells.subnet_proxy.title=Subnet Proxy
 gui.cells.subnet_proxy.filter_mode=Filter Mode: %s
 gui.cells.subnet_proxy.filter_mode.description=When adding a filter, it will be converted to this type.
+gui.cells.subnet_proxy.channel_toggle.enabled=%s channel: §aEnabled
+gui.cells.subnet_proxy.channel_toggle.disabled=%s channel: §cDisabled
+gui.cells.subnet_proxy.channel_toggle.description=Click to toggle. Disabled channels are not exposed to the front network at all (no extraction, no insertion, no events).
+gui.cells.subnet_proxy.no_channels_warning.line1=No channels enabled!
+gui.cells.subnet_proxy.no_channels_warning.line2=Enable at least one channel on the left to expose contents. The Subnet Proxy does not do anything without at least one channel enabled.
 chat.cells.subnet_proxy.need_front=The back part needs to be placed on a front part.
 chat.cells.subnet_proxy.need_back=The front part needs to be placed on a back part.
 cells.config.subnetProxyUpgradeSlots=Subnet Proxy Upgrade Slots

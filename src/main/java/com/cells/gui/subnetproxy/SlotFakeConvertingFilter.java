@@ -5,12 +5,12 @@ import javax.annotation.Nullable;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fml.common.Loader;
 
 import appeng.core.Api;
 import appeng.fluids.items.FluidDummyItem;
 
+import com.cells.gui.QuickAddHelper;
 import com.cells.network.sync.ResourceType;
 
 
@@ -21,7 +21,8 @@ import com.cells.network.sync.ResourceType;
  * it converts to a FluidDummyItem representing water.
  * Gas and Essentia modes similarly convert to their respective dummy items.
  * <p>
- * In ITEM mode, no conversion is performed: the raw ItemStack is stored as-is.
+ * In ITEM mode, normal items pass through unchanged while Recovery Containers
+ * unwrap to their stored item content instead of encoding the orb item itself.
  */
 public final class SlotFakeConvertingFilter {
 
@@ -54,9 +55,7 @@ public final class SlotFakeConvertingFilter {
     private static ItemStack convertForMode(ItemStack stack, ResourceType mode) {
         switch (mode) {
             case ITEM:
-                // In ITEM mode, pass through anything. This also prevents
-                // re-converting buckets that were already placed as items.
-                return stack;
+                return QuickAddHelper.getItemFromItemStack(stack);
 
             case FLUID:
                 // If already a FluidDummyItem, pass through without re-conversion.
@@ -92,7 +91,7 @@ public final class SlotFakeConvertingFilter {
         if (stack.getItem() instanceof FluidDummyItem) return stack;
 
         // Try to extract fluid from the item (buckets, tanks, etc.)
-        FluidStack fluid = FluidUtil.getFluidContained(stack);
+        FluidStack fluid = QuickAddHelper.getFluidFromItemStack(stack);
         if (fluid == null) return null;
 
         // Create a FluidDummyItem with this fluid

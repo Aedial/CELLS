@@ -48,12 +48,17 @@ import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
+import com.cells.api.IInterfaceHost;
+import com.cells.api.IInterfaceProvider;
+import com.cells.api.IUpgradeable;
 import com.cells.blocks.combinedinterface.ICombinedInterfaceHost;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.helpers.InterfaceMemoryCardHelper;
+import com.cells.helpers.InterfaceApiHelper;
 import com.cells.integration.mekanismenergistics.CombinedInterfaceGasHelper;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.CombinedInterfaceEssentiaHelper;
@@ -70,7 +75,8 @@ import com.cells.network.sync.ResourceType;
  */
 public abstract class AbstractCombinedInterfacePart extends PartBasicState
         implements IGridTickable, ICombinedInterfaceHost,
-                   ItemInterfaceLogic.Host, FluidInterfaceLogic.Host {
+           ItemInterfaceLogic.Host, FluidInterfaceLogic.Host,
+           IInterfaceProvider, IUpgradeable {
 
     protected final IActionSource actionSource;
 
@@ -137,6 +143,18 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
     @Override @Nullable public IInterfaceLogic getGasLogic() { return this.gasLogic; }
     @Override @Nullable public IInterfaceLogic getEssentiaLogic() { return this.essentiaLogic; }
     @Override public List<IInterfaceLogic> getAllLogics() { return this.allLogics; }
+
+    @Override
+    @Nonnull
+    public List<IInterfaceHost> getInterfaceHosts() {
+        return InterfaceApiHelper.createInterfaceHosts(this, getTargetFacings());
+    }
+
+    @Override
+    @Nonnull
+    public AppEngInternalInventory getUpgradeInventory() {
+        return this.itemLogic.getUpgradeInventory();
+    }
 
     @Override
     @Nullable
@@ -393,9 +411,13 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
                 memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_SAVED);
             }
         } else {
-            final String storedName = memoryCard.getSettingsName(memCardIS);
-            final NBTTagCompound data = memoryCard.getData(memCardIS);
-            if (name.equals(storedName)) {
+            final NBTTagCompound data = InterfaceMemoryCardHelper.prepareUploadData(
+                memoryCard.getSettingsName(memCardIS),
+                memoryCard.getData(memCardIS),
+                InterfaceMemoryCardHelper.combined(this.isExport())
+            );
+
+            if (data != null) {
                 this.uploadSettings(SettingsFrom.MEMORY_CARD, data, player);
                 memoryCard.notifyUser(player, MemoryCardMessages.SETTINGS_LOADED);
             } else {
@@ -472,7 +494,7 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
             maxTick = Math.min(maxTick, req.maxTickRate);
         }
 
-        return new TickingRequest(minTick, maxTick, primary.isSleeping, false);
+        return new TickingRequest(minTick, maxTick, primary.isSleeping, true);
     }
 
     @Override @Nonnull

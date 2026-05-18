@@ -25,6 +25,7 @@ import com.cells.network.packets.PacketChangeFilterMode;
 import com.cells.network.packets.PacketJEISubnetProxyFilter;
 import com.cells.network.packets.PacketSetProxyPriority;
 import com.cells.network.packets.PacketOpenProxyPriority;
+import com.cells.network.packets.PacketToggleProxyChannel;
 import com.cells.network.sync.PacketQuickAddFilter;
 import com.cells.network.sync.PacketResourceSlot;
 import com.cells.network.sync.PacketStorageSync;
@@ -89,5 +90,8 @@ public class CellsNetworkHandler {
 
         // Subnet Proxy: open AE2 priority GUI
         INSTANCE.registerMessage(PacketOpenProxyPriority.Handler.class, PacketOpenProxyPriority.class, packetId++, Side.SERVER);
+
+        // Subnet Proxy: toggle a single channel's exposure on the front-grid
+        INSTANCE.registerMessage(PacketToggleProxyChannel.Handler.class, PacketToggleProxyChannel.class, packetId++, Side.SERVER);
     }
 }

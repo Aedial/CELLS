@@ -1599,8 +1599,9 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         // Fast path: if chain is fully initialized and hasn't been replaced externally,
         // skip all the validation checks. The hasChainVersionChanged() check detects when
         // another handler (e.g., Cell Terminal API) has replaced the chain since we loaded it.
+        // Also check if partition has changed - workbench may update partition externally.
         int slot;
-        if (chainFullyInitialized && !hasChainVersionChanged()) {
+        if (chainFullyInitialized && !hasChainVersionChanged() && !hasPartitionChanged()) {
             slot = getSlotForItem(input);
         } else {
             // Slow path: need to initialize or validate the chain
@@ -1692,7 +1693,7 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     public IAEItemStack extractItems(IAEItemStack request, Actionable mode, IActionSource src) {
         if (request == null || request.getStackSize() <= 0) return null;
 
-        if (!chainFullyInitialized || hasChainVersionChanged()) {
+        if (!chainFullyInitialized || hasChainVersionChanged() || hasPartitionChanged()) {
             // Slow path: need to initialize or validate the chain
             chainFullyInitialized = false;
             reloadFromNBTIfNeeded();
@@ -1742,7 +1743,8 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
     @Override
     public IItemList<IAEItemStack> getAvailableItems(IItemList<IAEItemStack> out) {
         // Reload from NBT if needed, check for tier card changes, or detect external chain replacement
-        if (!chainFullyInitialized || hasChainVersionChanged()) {
+        // Also check for partition changes - workbench may update partition externally.
+        if (!chainFullyInitialized || hasChainVersionChanged() || hasPartitionChanged()) {
             reloadFromNBTIfNeeded();
 
             // If mainTier == -1, the chain needs rebuilding (tier card changed)

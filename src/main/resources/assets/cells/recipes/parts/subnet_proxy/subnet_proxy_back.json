@@ -1,0 +1,29 @@
+{
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "afa",
+        "bib",
+        "afa"
+    ],
+    "key": {
+        "a": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        },
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 12
+        },
+        "b": {
+            "item": "appliedenergistics2:material",
+            "data": 44
+        },
+        "i": {
+            "item": "appliedenergistics2:interface"
+        }
+    },
+    "result": {
+        "item": "cells:part",
+        "data": 8
+    }
+}

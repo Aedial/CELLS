@@ -105,6 +105,10 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         this.host.markDirtyAndSave();
     }
 
+    public long insertGasIntoTankLong(int slot, GasStack gas, long amount) {
+        return insertIntoSlotLong(slot, gas, amount);
+    }
+
     @Nullable
     public GasStack drainGasFromTank(int slot, int maxDrain, boolean doDrain) {
         return drainFromSlot(slot, maxDrain, doDrain);

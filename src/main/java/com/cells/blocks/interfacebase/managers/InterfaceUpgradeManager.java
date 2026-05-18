@@ -300,12 +300,12 @@ public class InterfaceUpgradeManager {
      * the destination doesn't already contain one of that type (for unique
      * upgrades like overflow, auto-pull/push, trash) and there is an empty slot.
      */
-    public void readFromNBT(NBTTagCompound data) {
-        if (!data.hasKey("upgrades")) return;
+    public void readFromNBT(NBTTagCompound data, String key) {
+        if (!data.hasKey(key)) return;
 
         // Read source upgrades from NBT into a temporary inventory
         AppEngInternalInventory temp = new AppEngInternalInventory(null, UPGRADE_SLOTS, 1);
-        temp.readFromNBT(data, "upgrades");
+        temp.readFromNBT(data, key);
 
         for (int i = 0; i < temp.getSlots(); i++) {
             ItemStack sourceStack = temp.getStackInSlot(i);
@@ -326,10 +326,24 @@ public class InterfaceUpgradeManager {
     }
 
     /**
-     * Write upgrade inventory to NBT.
+     * Read upgrades using the default "upgrades" key.
+     */
+    public void readFromNBT(NBTTagCompound data) {
+        readFromNBT(data, "upgrades");
+    }
+
+    /**
+     * Write upgrade inventory to NBT under the given key.
+     */
+    public void writeToNBT(NBTTagCompound data, String key) {
+        this.upgradeInventory.writeToNBT(data, key);
+    }
+
+    /**
+     * Write upgrade inventory to NBT using the default "upgrades" key.
      */
     public void writeToNBT(NBTTagCompound data) {
-        this.upgradeInventory.writeToNBT(data, "upgrades");
+        writeToNBT(data, "upgrades");
     }
 
     /**

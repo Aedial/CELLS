@@ -10,6 +10,8 @@ import appeng.api.AEApi;
 import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.data.IAEItemStack;
 
+import com.cells.gui.QuickAddHelper;
+import com.cells.items.ItemRecoveryContainer;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 
 
@@ -62,6 +64,7 @@ final class CombinedContainerItemHelper {
                 player.inventory.setItemStack(toExtract);
                 container.sendHeldItemUpdate(player);
                 itemLogic.refreshFilterMap();
+                itemLogic.wakeUpIfAdaptive();
             }
 
             return true;
@@ -70,17 +73,27 @@ final class CombinedContainerItemHelper {
         // Item in cursor: import only inserts
         if (isExport) return true;
 
-        if (!itemLogic.isItemValidForSlot(storageSlot, held)) return true;
+        ItemStack transferStack = ItemRecoveryContainer.getHeldItemTransferStack(held);
+        if (transferStack == null || transferStack.isEmpty()) return true;
 
-        int insertAmount = halfStack ? 1 : held.getCount();
+        if (!itemLogic.isItemValidForSlot(storageSlot, transferStack)) return true;
+
+        long requestedAmount = ItemRecoveryContainer.getHeldItemTransferAmount(held, halfStack);
+        if (requestedAmount <= 0) return true;
 
         if (stored.isEmpty()) {
-            int maxInsert = (int) Math.min(insertAmount, itemLogic.getEffectiveMaxSlotSize(storageSlot));
-            ItemStack toInsert = held.copy();
-            toInsert.setCount(maxInsert);
+            long toTransfer = Math.min(requestedAmount, itemLogic.getEffectiveMaxSlotSize(storageSlot));
+            if (toTransfer <= 0) return true;
+
+            int initialAmount = (int) Math.min(toTransfer, Integer.MAX_VALUE);
+            ItemStack toInsert = transferStack.copy();
+            toInsert.setCount(initialAmount);
             storage.setStackInSlot(storageSlot, toInsert);
-            held.shrink(maxInsert);
-            if (held.isEmpty()) player.inventory.setItemStack(ItemStack.EMPTY);
+
+            long remainingToInsert = toTransfer - initialAmount;
+            if (remainingToInsert > 0) itemLogic.adjustSlotAmount(storageSlot, remainingToInsert);
+
+            ItemRecoveryContainer.consumeHeldTransfer(player, held, toTransfer);
             container.sendHeldItemUpdate(player);
             itemLogic.refreshFilterMap();
 
@@ -88,17 +101,16 @@ final class CombinedContainerItemHelper {
         }
 
         // Non-empty: merge only if same item
-        if (!ItemStack.areItemsEqual(held, stored) || !ItemStack.areItemStackTagsEqual(held, stored)) {
+        if (!ItemStack.areItemsEqual(transferStack, stored) || !ItemStack.areItemStackTagsEqual(transferStack, stored)) {
             return true;
         }
 
         long currentAmount = itemLogic.getSlotAmount(storageSlot);
         long space = itemLogic.getEffectiveMaxSlotSize(storageSlot) - currentAmount;
-        int toTransfer = (int) Math.min(insertAmount, Math.min(space, Integer.MAX_VALUE));
+        long toTransfer = Math.min(requestedAmount, space);
         if (toTransfer > 0) {
             itemLogic.adjustSlotAmount(storageSlot, toTransfer);
-            held.shrink(toTransfer);
-            if (held.isEmpty()) player.inventory.setItemStack(ItemStack.EMPTY);
+            ItemRecoveryContainer.consumeHeldTransfer(player, held, toTransfer);
             container.sendHeldItemUpdate(player);
             itemLogic.refreshFilterMap();
         }
@@ -153,6 +165,7 @@ final class CombinedContainerItemHelper {
 
         if (totalTransferred > 0) {
             itemLogic.adjustSlotAmount(storageSlot, -totalTransferred);
+            itemLogic.wakeUpIfAdaptive();
         }
 
         itemLogic.refreshFilterMap();
@@ -170,9 +183,9 @@ final class CombinedContainerItemHelper {
             ItemStack clickedStack,
             EntityPlayer player
     ) {
-        if (clickedStack.isEmpty()) return;
+        ItemStack filterCopy = QuickAddHelper.getItemFromItemStack(clickedStack);
+        if (filterCopy.isEmpty()) return;
 
-        ItemStack filterCopy = clickedStack.copy();
         filterCopy.setCount(1);
         IAEItemStack aeStack = AEApi.instance().storage()
             .getStorageChannel(IItemStorageChannel.class)

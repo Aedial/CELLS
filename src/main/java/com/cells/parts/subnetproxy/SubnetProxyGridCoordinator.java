@@ -180,6 +180,14 @@ public final class SubnetProxyGridCoordinator {
                 originElection.putIfAbsent(origin, f);
             }
         }
+
+        // Election flips change which structural inventory surface each front
+        // publishes. AE2 handles that via front-grid force updates; clearing the
+        // proxy snapshots here prevents a later back-grid full-reset diff from
+        // replaying those already-applied structural changes as item deltas.
+        for (PartSubnetProxyFront front : registeredFronts) {
+            front.onCoordinatorElectionChanged();
+        }
     }
 
     // ========================= Event dedup =========================

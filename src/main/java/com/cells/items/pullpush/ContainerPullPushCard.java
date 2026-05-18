@@ -17,8 +17,10 @@ import appeng.tile.inventory.AppEngInternalInventory;
 
 import com.cells.ItemRegistry;
 import com.cells.blocks.combinedinterface.ICombinedInterfaceHost;
+import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
+import com.cells.blocks.iointerface.IIOInterfaceHost;
 import com.cells.items.ItemAutoPullCard;
 import com.cells.items.ItemAutoPushCard;
 
@@ -67,6 +69,19 @@ public class ContainerPullPushCard extends AEBaseContainer {
      */
     private final ICombinedInterfaceHost combinedHost;
 
+    /**
+     * Reference to the I/O interface host when the card is being edited from
+     * within an I/O Interface GUI (Item I/O, Fluid I/O, ...). Null otherwise.
+     * <p>
+     * I/O hosts switch direction (Import/Export) and keep an independent logic
+     * per direction; the card lives in the active logic's upgrade inventory.
+     * Like {@link ICombinedInterfaceHost} they cannot implement
+     * {@link IFilterableInterfaceHost} due to type erasure on its generics, so
+     * they need their own field. {@code refreshUpgrades()} only needs to be
+     * called on the active logic (the one whose upgrade inventory was edited).
+     */
+    private final IIOInterfaceHost ioHost;
+
     @SideOnly(Side.CLIENT)
     private IValuesListener listener;
 
@@ -103,6 +118,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
         this.hand = hand;
         this.interfaceHost = null;
         this.combinedHost = null;
+        this.ioHost = null;
         this.cardStack = playerInv.player.getHeldItem(hand);
 
         // Determine card type
@@ -126,6 +142,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
         this.hand = null;
         this.interfaceHost = host;
         this.combinedHost = null;
+        this.ioHost = null;
 
         // Find the pull/push card in the upgrade inventory
         AppEngInternalInventory upgradeInv = host.getUpgradeInventory();
@@ -161,6 +178,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
         this.hand = null;
         this.interfaceHost = null;
         this.combinedHost = host;
+        this.ioHost = null;
 
         // Find the pull/push card in the shared upgrade inventory
         AppEngInternalInventory upgradeInv = host.getItemLogic().getUpgradeInventory();
@@ -171,6 +189,48 @@ public class ContainerPullPushCard extends AEBaseContainer {
             if (stack.getItem() instanceof ItemAutoPullCard || stack.getItem() instanceof ItemAutoPushCard) {
                 found = stack;
                 break;
+            }
+        }
+
+        this.cardStack = found;
+        this.isPullCard = found.getItem() instanceof ItemAutoPullCard;
+
+        this.initVars();
+    }
+
+    /**
+     * I/O Interface mode (Item I/O, Fluid I/O, Gas I/O, Essentia I/O).
+     * <p>
+     * See {@link ioHost} for all the details.
+     */
+    public ContainerPullPushCard(InventoryPlayer playerInv, IIOInterfaceHost host) {
+        super(playerInv,
+            host instanceof TileEntity ? (TileEntity) host : null,
+            host instanceof IPart ? (IPart) host : null);
+
+        this.hand = null;
+        this.interfaceHost = null;
+        this.combinedHost = null;
+        this.ioHost = host;
+
+        // Resolve the active direction's upgrade inventory; if the active logic
+        // is not a resource interface logic (which shouldn't happen in practice
+        // since all I/O logics extend AbstractResourceInterfaceLogic), fall back
+        // to an empty card so the GUI degrades gracefully instead of NPEing.
+        AppEngInternalInventory upgradeInv = null;
+        IInterfaceLogic active = host.getActiveLogic();
+        if (active instanceof AbstractResourceInterfaceLogic) {
+            upgradeInv = ((AbstractResourceInterfaceLogic<?, ?, ?>) active).getUpgradeInventory();
+        }
+
+        ItemStack found = ItemStack.EMPTY;
+        if (upgradeInv != null) {
+            for (int i = 0; i < upgradeInv.getSlots(); i++) {
+                ItemStack stack = upgradeInv.getStackInSlot(i);
+                if (stack.getItem() instanceof ItemAutoPullCard || stack.getItem() instanceof ItemAutoPushCard) {
+                    found = stack;
+                    break;
+                }
             }
         }
 
@@ -200,6 +260,10 @@ public class ContainerPullPushCard extends AEBaseContainer {
             for (IInterfaceLogic logic : this.combinedHost.getAllLogics()) {
                 logic.refreshUpgrades();
             }
+        } else if (this.ioHost != null) {
+            // Only the active direction's logic owns the edited card; the other
+            // direction's upgrades are unaffected by changes here.
+            this.ioHost.getActiveLogic().refreshUpgrades();
         }
     }
 

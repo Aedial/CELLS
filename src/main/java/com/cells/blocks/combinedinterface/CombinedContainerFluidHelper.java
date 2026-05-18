@@ -7,8 +7,8 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
 
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.FluidActionResult;
+import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import net.minecraftforge.fluids.capability.IFluidTankProperties;
@@ -20,6 +20,8 @@ import appeng.api.storage.data.IAEFluidStack;
 
 import com.cells.Cells;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
+import com.cells.gui.QuickAddHelper;
+import com.cells.items.ItemRecoveryContainer;
 
 
 /**
@@ -47,6 +49,10 @@ final class CombinedContainerFluidHelper {
 
         final ItemStack held = player.inventory.getItemStack();
         if (held.isEmpty()) return false;
+
+        if (ItemRecoveryContainer.isType(held, ItemRecoveryContainer.TYPE_FLUID)) {
+            return handleRecoveryContainerPouring(container, host, player, slot, held, fluidLogic);
+        }
 
         ItemStack heldCopy = held.copy();
         heldCopy.setCount(1);
@@ -104,6 +110,38 @@ final class CombinedContainerFluidHelper {
             }
         }
 
+        container.sendHeldItemUpdate(player);
+        return true;
+    }
+
+    private static boolean handleRecoveryContainerPouring(
+            ContainerCombinedInterface container,
+            ICombinedInterfaceHost host,
+            EntityPlayerMP player,
+            int slot,
+            ItemStack held,
+            FluidInterfaceLogic fluidLogic
+    ) {
+        FluidStack recoveryFluid = ItemRecoveryContainer.getFluidStack(held);
+        if (recoveryFluid == null || recoveryFluid.getFluid() == null) return false;
+
+        IAEFluidStack filterFluid = fluidLogic.getFilter(slot);
+        if (filterFluid != null && !filterFluid.getFluidStack().isFluidEqual(recoveryFluid)) return false;
+
+        FluidStack currentTankFluid = fluidLogic.getFluidInTank(slot);
+        if (currentTankFluid != null && !currentTankFluid.isFluidEqual(recoveryFluid)) return false;
+
+        long remainingToInsert = Math.min(
+            ItemRecoveryContainer.getAmount(held),
+            fluidLogic.getEffectiveMaxSlotSize(slot) - fluidLogic.getSlotAmount(slot)
+        );
+        if (remainingToInsert <= 0) return false;
+
+        long transferred = fluidLogic.insertFluidIntoTankLong(slot, recoveryFluid, remainingToInsert);
+
+        if (transferred <= 0) return false;
+
+        ItemRecoveryContainer.consumeHeldTransfer(player, held, transferred);
         container.sendHeldItemUpdate(player);
         return true;
     }
@@ -168,7 +206,7 @@ final class CombinedContainerFluidHelper {
             ItemStack clickedStack,
             EntityPlayer player
     ) {
-        FluidStack fluid = FluidUtil.getFluidContained(clickedStack);
+        FluidStack fluid = QuickAddHelper.getFluidFromItemStack(clickedStack);
         if (fluid == null || fluid.amount <= 0) return;
 
         IAEFluidStack aeFluid = AEApi.instance().storage()

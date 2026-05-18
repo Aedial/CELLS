@@ -49,7 +49,10 @@ import com.cells.blocks.interfacebase.IResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.ISizeOverrideContainer;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
+import com.cells.gui.IToolboxContainer;
+import com.cells.gui.QuickAddHelper;
 import com.cells.gui.overlay.ServerMessageHelper;
+import com.cells.items.ItemRecoveryContainer;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketSyncSlotSizeOverride;
 import com.cells.network.sync.IQuickAddFilterContainer;
@@ -71,7 +74,8 @@ import com.cells.network.sync.ResourceType;
  * max slot size, upgrades, per-slot overrides) are per-direction.
  */
 public class ContainerIOInterface extends AEBaseContainer
-        implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer {
+    implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
+    IToolboxContainer {
 
     private final IIOInterfaceHost host;
 
@@ -223,12 +227,17 @@ public class ContainerIOInterface extends AEBaseContainer
     // ================================= Tab Management =================================
 
     /**
-     * Switch to a different direction tab.
+     * Switch to a different direction tab (server-side).
      * Called by {@link com.cells.network.packets.PacketSwitchTab} on the server.
+     * <p>
+     * The early-return check uses the container's @GuiSync field (which is
+     * per-side, independent between client and server) rather than the host's
+     * field, so two separate container instances on the same logical side cannot
+     * race each other.
      */
     public void switchTab(int newTab) {
         if (newTab != IIOInterfaceHost.TAB_IMPORT && newTab != IIOInterfaceHost.TAB_EXPORT) return;
-        if (this.host.getActiveDirectionTab() == newTab) return;
+        if (this.activeDirectionTab == newTab) return;
 
         this.host.setActiveDirectionTab(newTab);
 
@@ -248,6 +257,41 @@ public class ContainerIOInterface extends AEBaseContainer
         this.serverStorageCache.clear();
         this.serverSizeOverrideCache.clear();
         this.maxSlotSizeOverrides.clear();
+    }
+
+    /**
+     * Client-side optimistic tab switch.
+     * <p>
+     * Updates the container's tab field, switches the upgrade inventory delegate,
+     * and ALSO updates the client-side host's {@code activeDirectionTab}. The host
+     * mutation is essential: many GUI/container paths dispatch via
+     * {@code host.getActiveLogic()} / {@code host.isExport()} (slot rendering,
+     * filter/storage sync receivers, title, controls help, polling-rate strings,
+     * etc.).
+     * <p>
+     * This is safe even in singleplayer: the integrated server's TileEntity/IPart
+     * is a distinct instance from the client's (each side has its own world), so
+     * mutating the client host does not affect the server. The server still
+     * processes its own {@link #switchTab(int)} when {@code PacketSwitchTab} arrives.
+     */
+    public void onClientTabSwitch(int newTab) {
+        if (newTab != IIOInterfaceHost.TAB_IMPORT && newTab != IIOInterfaceHost.TAB_EXPORT) return;
+        if (this.activeDirectionTab == newTab) return;
+
+        this.activeDirectionTab = newTab;
+        // Update host first so getActiveLogicUpgradeInv()/getActiveLogic() return the new tab.
+        this.host.setActiveDirectionTab(newTab);
+        this.switchableUpgradeInv.switchTo(getActiveLogicUpgradeInv());
+    }
+
+    /**
+     * @return The IItemHandler backing the upgrade slots. Reflects the
+     *         currently-active tab's upgrade inventory contents (since the
+     *         delegate is switched on tab change).
+     */
+    @Nonnull
+    public IItemHandler getUpgradeInventoryView() {
+        return this.switchableUpgradeInv;
     }
 
     // ================================= Accessors =================================
@@ -723,33 +767,42 @@ public class ContainerIOInterface extends AEBaseContainer
 
         if (isExport) return true;
 
-        if (!itemLogic.isItemValidForSlot(storageSlot, held)) return true;
+        ItemStack transferStack = ItemRecoveryContainer.getHeldItemTransferStack(held);
+        if (transferStack == null || transferStack.isEmpty()) return true;
 
-        int insertAmount = halfStack ? 1 : held.getCount();
+        if (!itemLogic.isItemValidForSlot(storageSlot, transferStack)) return true;
+
+        long requestedAmount = ItemRecoveryContainer.getHeldItemTransferAmount(held, halfStack);
+        if (requestedAmount <= 0) return true;
 
         if (stored.isEmpty()) {
-            int maxInsert = (int) Math.min(insertAmount, itemLogic.getEffectiveMaxSlotSize(storageSlot));
-            ItemStack toInsert = held.copy();
-            toInsert.setCount(maxInsert);
+            long toTransfer = Math.min(requestedAmount, itemLogic.getEffectiveMaxSlotSize(storageSlot));
+            if (toTransfer <= 0) return true;
+
+            int initialAmount = (int) Math.min(toTransfer, Integer.MAX_VALUE);
+            ItemStack toInsert = transferStack.copy();
+            toInsert.setCount(initialAmount);
             storage.setStackInSlot(storageSlot, toInsert);
-            held.shrink(maxInsert);
-            if (held.isEmpty()) player.inventory.setItemStack(ItemStack.EMPTY);
+
+            long remainingToInsert = toTransfer - initialAmount;
+            if (remainingToInsert > 0) itemLogic.adjustSlotAmount(storageSlot, remainingToInsert);
+
+            ItemRecoveryContainer.consumeHeldTransfer(player, held, toTransfer);
             this.updateHeld(player);
             itemLogic.refreshFilterMap();
             return true;
         }
 
-        if (!ItemStack.areItemsEqual(held, stored) || !ItemStack.areItemStackTagsEqual(held, stored)) {
+        if (!ItemStack.areItemsEqual(transferStack, stored) || !ItemStack.areItemStackTagsEqual(transferStack, stored)) {
             return true;
         }
 
         long currentAmount = itemLogic.getSlotAmount(storageSlot);
         long space = itemLogic.getEffectiveMaxSlotSize(storageSlot) - currentAmount;
-        int toTransfer = (int) Math.min(insertAmount, Math.min(space, Integer.MAX_VALUE));
+        long toTransfer = Math.min(requestedAmount, space);
         if (toTransfer > 0) {
             itemLogic.adjustSlotAmount(storageSlot, toTransfer);
-            held.shrink(toTransfer);
-            if (held.isEmpty()) player.inventory.setItemStack(ItemStack.EMPTY);
+            ItemRecoveryContainer.consumeHeldTransfer(player, held, toTransfer);
             this.updateHeld(player);
             itemLogic.refreshFilterMap();
         }
@@ -821,6 +874,10 @@ public class ContainerIOInterface extends AEBaseContainer
         final ItemStack held = player.inventory.getItemStack();
         if (held.isEmpty()) return false;
 
+        if (ItemRecoveryContainer.isType(held, ItemRecoveryContainer.TYPE_FLUID)) {
+            return handleRecoveryContainerFluidPouring(player, slot, held, fluidLogic);
+        }
+
         ItemStack heldCopy = held.copy();
         heldCopy.setCount(1);
         IFluidHandlerItem fh = FluidUtil.getFluidHandler(heldCopy);
@@ -872,6 +929,32 @@ public class ContainerIOInterface extends AEBaseContainer
             }
         }
 
+        this.updateHeld(player);
+        return true;
+    }
+
+    private boolean handleRecoveryContainerFluidPouring(EntityPlayerMP player, int slot, ItemStack held,
+                                                        FluidInterfaceLogic fluidLogic) {
+        FluidStack recoveryFluid = ItemRecoveryContainer.getFluidStack(held);
+        if (recoveryFluid == null || recoveryFluid.getFluid() == null) return false;
+
+        IAEFluidStack filterFluid = fluidLogic.getFilter(slot);
+        if (filterFluid != null && !filterFluid.getFluidStack().isFluidEqual(recoveryFluid)) return false;
+
+        FluidStack currentTankFluid = fluidLogic.getFluidInTank(slot);
+        if (currentTankFluid != null && !currentTankFluid.isFluidEqual(recoveryFluid)) return false;
+
+        long remainingToInsert = Math.min(
+            ItemRecoveryContainer.getAmount(held),
+            fluidLogic.getEffectiveMaxSlotSize(slot) - fluidLogic.getSlotAmount(slot)
+        );
+        if (remainingToInsert <= 0) return false;
+
+        long transferred = fluidLogic.insertFluidIntoTankLong(slot, recoveryFluid, remainingToInsert);
+
+        if (transferred <= 0) return false;
+
+        ItemRecoveryContainer.consumeHeldTransfer(player, held, transferred);
         this.updateHeld(player);
         return true;
     }
@@ -1073,14 +1156,16 @@ public class ContainerIOInterface extends AEBaseContainer
         // Try to add as filter for the active tab
         ResourceType resType = this.host.getResourceType();
         if (resType == ResourceType.ITEM) {
-            ItemStack filterCopy = clickedStack.copy();
+            ItemStack filterCopy = QuickAddHelper.getItemFromItemStack(clickedStack);
+            if (filterCopy.isEmpty()) return ItemStack.EMPTY;
+
             filterCopy.setCount(1);
             IAEItemStack aeStack = AEApi.instance().storage()
                 .getStorageChannel(IItemStorageChannel.class).createStack(filterCopy);
             if (aeStack != null) this.quickAddToFilter(aeStack, player);
         } else if (resType == ResourceType.FLUID) {
             // Extract fluid from item and add as filter
-            FluidStack fluid = FluidUtil.getFluidContained(clickedStack);
+            FluidStack fluid = QuickAddHelper.getFluidFromItemStack(clickedStack);
             if (fluid != null) {
                 AEFluidStack aeFluid = AEFluidStack.fromFluidStack(fluid);
                 if (aeFluid != null) this.quickAddToFilter(aeFluid, player);

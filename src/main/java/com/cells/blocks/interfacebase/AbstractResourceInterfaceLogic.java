@@ -94,6 +94,19 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         default EnumSet<EnumFacing> getTargetFacings() {
             return EnumSet.allOf(EnumFacing.class);
         }
+
+        /**
+         * Optional prefix prepended to every NBT key written/read by this logic.
+         * Used by IO interfaces to namespace the import vs export logics that share a single
+         * NBT compound and resource type (and therefore would otherwise collide on every key:
+         * filters, storage, max slot size, polling rate, upgrades, per-slot overrides).
+         * <p>
+         * Default is empty (no prefix), preserving the existing format for all
+         * non-IO interfaces.
+         */
+        default String getNBTKeyPrefix() {
+            return "";
+        }
     }
 
     public static final int SLOTS_PER_PAGE = 36;
@@ -993,18 +1006,18 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
     /**
      * Get the NBT key for filters (e.g., "fluidFilters", "gasFilters").
-     * Default: getTypeName() + "Filters".
+     * Default: getTypeName() + "Filters", with the host's optional prefix prepended.
      */
     protected String getFiltersNBTKey() {
-        return getTypeName() + "Filters";
+        return host.getNBTKeyPrefix() + getTypeName() + "Filters";
     }
 
     /**
      * Get the NBT key for storage (e.g., "fluidStorage", "gasStorage", "itemStorage").
-     * Default: getTypeName() + "Storage".
+     * Default: getTypeName() + "Storage", with the host's optional prefix prepended.
      */
     protected String getStorageNBTKey() {
-        return getTypeName() + "Storage";
+        return host.getNBTKeyPrefix() + getTypeName() + "Storage";
     }
 
     /**
@@ -1014,7 +1027,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * unprefixed "maxSlotSize" key if the new key is absent.
      */
     protected String getMaxSlotSizeNBTKey() {
-        return getTypeName() + "MaxSlotSize";
+        return host.getNBTKeyPrefix() + getTypeName() + "MaxSlotSize";
     }
 
     /**
@@ -1024,7 +1037,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * unprefixed "pollingRate" key if the new key is absent.
      */
     protected String getPollingRateNBTKey() {
-        return getTypeName() + "PollingRate";
+        return host.getNBTKeyPrefix() + getTypeName() + "PollingRate";
+    }
+
+    /**
+     * Get the NBT key for the upgrade inventory. Default is the host prefix + "upgrades".
+     */
+    protected String getUpgradesNBTKey() {
+        return host.getNBTKeyPrefix() + "upgrades";
     }
 
     protected void readFiltersFromNBT(NBTTagCompound data, String name) {
@@ -1038,7 +1058,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         readFiltersFromNBT(data, getFiltersNBTKey());
         readStorageFromNBT(data);
 
-        this.upgradeManager.readFromNBT(data);
+        this.upgradeManager.readFromNBT(data, getUpgradesNBTKey());
 
         // Use type-prefixed keys, with fallback to legacy unprefixed keys for
         // backwards compatibility with existing worlds saved before the prefix fix.
@@ -1074,7 +1094,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public void writeToNBT(NBTTagCompound data) {
         this.inventoryManager.writeFiltersToNBT(data, getFiltersNBTKey());
         this.inventoryManager.writeStorageToNBT(data, getStorageNBTKey());
-        this.upgradeManager.writeToNBT(data);
+        this.upgradeManager.writeToNBT(data, getUpgradesNBTKey());
         this.inventoryManager.writeToNBT(data, getMaxSlotSizeNBTKey());
         this.tickScheduler.writeToNBT(data, getPollingRateNBTKey());
     }
@@ -1143,7 +1163,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     public NBTTagCompound downloadSettingsForDismantle() {
         NBTTagCompound output = downloadSettingsWithFilter();
-        this.upgradeManager.writeToNBT(output);
+        this.upgradeManager.writeToNBT(output, getUpgradesNBTKey());
 
         return output;
     }
@@ -1172,7 +1192,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         }
 
         // Merge upgrades FIRST (capacity cards enable extra pages for filters)
-        this.upgradeManager.readFromNBT(compound);
+        this.upgradeManager.readFromNBT(compound, getUpgradesNBTKey());
 
         // Merge filter inventory from memory card instead of replacing
         if (compound.hasKey(getFiltersNBTKey())) {

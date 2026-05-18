@@ -2,6 +2,7 @@ package com.cells.gui.slots;
 
 import java.util.function.IntSupplier;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.Minecraft;
@@ -138,5 +139,16 @@ public class GasFilterSlot extends AbstractResourceFilterSlot<IAEGasStack> {
     public Object getIngredient() {
         IAEGasStack gs = getResource();
         return gs == null ? null : gs.getGasStack();
+    }
+
+    /**
+     * Hand the underlying {@link GasStack} to the base class so it can
+     * build a full JEI-style gas tooltip (matching what JEI shows on
+     * hover, including any lines added by other mods like Mekanism).
+     */
+    @Override
+    @Nullable
+    protected Object getTooltipIngredient(@Nonnull IAEGasStack resource) {
+        return resource.getGasStack();
     }
 }
