@@ -8,6 +8,20 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.6.2-alpha] - 2026-05-22
+### Added
+- Add a storage-cell component swap recipe that converts one CELLS cell into another CELLS cell family while returning the replaced component, and rejects swaps that would lose contents or leave incompatible upgrades installed.
+- Add the Compacting Pattern Exposer, a block that turns ghost-filtered compacting conversions into instant AE2 processing patterns.
+
+
+## [0.6.1-alpha4] - 2026-05-18
+### Fixed
+- Fix Compacting Cells not properly updating the compacting chain when partitioned again in a Cell Workbench. This is a regression from a previous fix (probably 0.5.13-beta).
+
+### Changed
+- Change the Subnet Proxy's front texture to use the arrow on all sides, instead of just top.
+
+
 ## [0.6.1-alpha3] - 2026-05-17
 ### Fixed
 - Fix IO/Universal Interface not handling the Network Tool's Toolbox properly.

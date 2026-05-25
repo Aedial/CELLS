@@ -8,9 +8,14 @@ import javax.annotation.Nonnull;
 
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.crafting.Ingredient;
 import net.minecraft.item.crafting.CraftingManager;
 import net.minecraft.item.crafting.IRecipe;
+import net.minecraft.util.NonNullList;
 import net.minecraft.world.World;
+
+import net.minecraftforge.common.crafting.IShapedRecipe;
+import net.minecraftforge.oredict.OreIngredient;
 
 import com.cells.util.CellMathHelper;
 
@@ -371,17 +376,71 @@ public class CompactingHelper {
         for (int i = 0; i < size; i++) lookup.setInventorySlotContents(i, template.copy());
     }
 
-    private List<ItemStack> findAllMatchingRecipes(InventoryCrafting crafting) {
+    public List<ItemStack> findAllMatchingRecipes(InventoryCrafting crafting) {
         List<ItemStack> candidates = new ArrayList<>();
+        if (this.world == null) return candidates;
+
+        ItemStack input = this.getUniformCraftingInput(crafting);
+        if (input.isEmpty()) return candidates;
 
         for (IRecipe recipe : CraftingManager.REGISTRY) {
-            if (recipe.matches(crafting, world)) {
-                ItemStack result = recipe.getCraftingResult(crafting);
-                if (!result.isEmpty()) candidates.add(result);
-            }
+            if (!this.matchesUniformCraftingRecipe(recipe, crafting, input)) continue;
+
+            ItemStack result = recipe.getCraftingResult(crafting);
+            if (!result.isEmpty()) candidates.add(result);
         }
 
         return candidates;
+    }
+
+    // Compacting only ever tests full 1x1, 2x2, or 3x3 grids filled with the same item.
+    // Matching those inputs directly avoids crashing on unrelated malformed ore recipes.
+    private boolean matchesUniformCraftingRecipe(IRecipe recipe, InventoryCrafting crafting, ItemStack input) {
+        if (recipe == null || !recipe.canFit(crafting.getWidth(), crafting.getHeight())) return false;
+
+        NonNullList<Ingredient> ingredients = recipe.getIngredients();
+        if (ingredients == null || ingredients.isEmpty()) return false;
+        if (ingredients.size() != crafting.getSizeInventory()) return false;
+
+        if (recipe instanceof IShapedRecipe) {
+            IShapedRecipe shapedRecipe = (IShapedRecipe) recipe;
+            if (shapedRecipe.getRecipeWidth() != crafting.getWidth()) return false;
+            if (shapedRecipe.getRecipeHeight() != crafting.getHeight()) return false;
+        }
+
+        for (Ingredient ingredient : ingredients) {
+            if (!this.matchesIngredient(ingredient, input)) return false;
+        }
+
+        return true;
+    }
+
+    private boolean matchesIngredient(Ingredient ingredient, ItemStack input) {
+        if (ingredient == null || ingredient == Ingredient.EMPTY) return false;
+
+        if (ingredient instanceof OreIngredient && ingredient.getMatchingStacks().length == 0) return false;
+
+        return ingredient.apply(input);
+    }
+
+    @Nonnull
+    private ItemStack getUniformCraftingInput(InventoryCrafting crafting) {
+        ItemStack input = ItemStack.EMPTY;
+
+        for (int slot = 0; slot < crafting.getSizeInventory(); slot++) {
+            ItemStack stack = crafting.getStackInSlot(slot);
+            if (stack.isEmpty()) return ItemStack.EMPTY;
+
+            if (input.isEmpty()) {
+                input = stack;
+                continue;
+            }
+
+            if (!areItemsEqual(input, stack)) return ItemStack.EMPTY;
+            if (!ItemStack.areItemStackTagsEqual(input, stack)) return ItemStack.EMPTY;
+        }
+
+        return input;
     }
 
     private static boolean areItemsEqual(ItemStack a, ItemStack b) {

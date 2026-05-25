@@ -27,6 +27,8 @@ import com.cells.network.packets.PacketSetProxyPriority;
 import com.cells.network.packets.PacketOpenProxyPriority;
 import com.cells.network.packets.PacketToggleProxyChannel;
 import com.cells.network.sync.PacketQuickAddFilter;
+import com.cells.network.sync.PacketCompactingPatternPreview;
+import com.cells.network.sync.PacketCompactingPatternMultiplier;
 import com.cells.network.sync.PacketResourceSlot;
 import com.cells.network.sync.PacketStorageSync;
 
@@ -62,6 +64,13 @@ public class CellsNetworkHandler {
 
         // Unified quick-add packet (handles quick-add for ALL resource types)
         INSTANCE.registerMessage(PacketQuickAddFilter.Handler.class, PacketQuickAddFilter.class, packetId++, Side.SERVER);
+
+        // Compacting Pattern Exposer multiplier sync (bidirectional)
+        INSTANCE.registerMessage(PacketCompactingPatternMultiplier.ServerHandler.class, PacketCompactingPatternMultiplier.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketCompactingPatternMultiplier.ClientHandler.class, PacketCompactingPatternMultiplier.class, packetId++, Side.CLIENT);
+
+        // Compacting Pattern Exposer preview sync (server->client)
+        INSTANCE.registerMessage(PacketCompactingPatternPreview.ClientHandler.class, PacketCompactingPatternPreview.class, packetId++, Side.CLIENT);
 
         // Storage sync packet (server→client: syncs storage identity + amount per slot)
         INSTANCE.registerMessage(PacketStorageSync.ClientHandler.class, PacketStorageSync.class, packetId++, Side.CLIENT);

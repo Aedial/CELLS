@@ -1,9 +1,8 @@
 {
-    "parent": "cells:part/subnet_proxy_item_base",
+    "parent": "cells:part/subnet_proxy_front_item_base",
     "textures": {
         "front": "cells:parts/subnet_proxy/proxy_side_face",
         "back": "cells:parts/subnet_proxy/proxy_side_cable_off",
-        "top": "cells:parts/subnet_proxy/proxy_front_top_off",
-        "side": "cells:parts/subnet_proxy/proxy_front_side_off"
+        "top": "cells:parts/subnet_proxy/proxy_front_top_off"
     }
 }

@@ -142,11 +142,12 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
         }
 
         tooltip.add("§e" + I18n.format("tooltip.cells.push_pull_card.polling_rate_warning"));
+        tooltip.add(I18n.format("tooltip.cells.push_pull_card.only_filtered_slots"));
         tooltip.add("§b" + I18n.format("tooltip.cells.click_to_configure"));
 
         if (interval < DEFAULT_INTERVAL) {
             tooltip.add("");
-            tooltip.add(I18n.format("tooltip.cells.push_pull_card.interval_warning"));
+            tooltip.add("§e" + I18n.format("tooltip.cells.push_pull_card.interval_warning"));
         }
 
         addCompatibilityTooltip(tooltip, "import_interface");

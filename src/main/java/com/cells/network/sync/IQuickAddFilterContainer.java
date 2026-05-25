@@ -41,4 +41,13 @@ public interface IQuickAddFilterContainer {
      * For example: "cells.type.fluid", "cells.type.gas".
      */
     String getTypeLocalizationKey();
+
+    /**
+     * Consume a custom failure message key for the last quick-add attempt.
+     * Returning null falls back to the generic "no filter space" message.
+     */
+    @Nullable
+    default String consumeQuickAddFailureMessageKey() {
+        return null;
+    }
 }

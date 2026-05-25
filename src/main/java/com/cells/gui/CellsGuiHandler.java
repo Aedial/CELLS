@@ -14,6 +14,9 @@ import net.minecraftforge.fml.common.network.IGuiHandler;
 import appeng.api.parts.IPart;
 import appeng.api.util.AEPartLocation;
 
+import com.cells.blocks.compactingpatternexposer.ContainerCompactingPatternExposer;
+import com.cells.blocks.compactingpatternexposer.GuiCompactingPatternExposer;
+import com.cells.blocks.compactingpatternexposer.TileCompactingPatternExposer;
 import com.cells.blocks.interfacebase.fluid.ContainerFluidInterface;
 import com.cells.blocks.interfacebase.item.ContainerItemInterface;
 import com.cells.blocks.interfacebase.fluid.GuiFluidInterface;
@@ -75,6 +78,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_COMBINED_EXPORT_INTERFACE = 14;
     public static final int GUI_ITEM_IO_INTERFACE = 15;
     public static final int GUI_FLUID_IO_INTERFACE = 16;
+    public static final int GUI_COMPACTING_PATTERN_EXPOSER = 17;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
@@ -396,6 +400,12 @@ public class CellsGuiHandler implements IGuiHandler {
                     return new ContainerIOInterface(player.inventory, tile);
                 }
                 break;
+
+            case GUI_COMPACTING_PATTERN_EXPOSER:
+                if (tile instanceof TileCompactingPatternExposer) {
+                    return new ContainerCompactingPatternExposer(player.inventory, (TileCompactingPatternExposer) tile);
+                }
+                break;
         }
 
         return null;
@@ -598,6 +608,12 @@ public class CellsGuiHandler implements IGuiHandler {
             case GUI_FLUID_IO_INTERFACE:
                 if (tile instanceof IIOInterfaceHost) {
                     return new GuiIOInterface(player.inventory, tile);
+                }
+                break;
+
+            case GUI_COMPACTING_PATTERN_EXPOSER:
+                if (tile instanceof TileCompactingPatternExposer) {
+                    return new GuiCompactingPatternExposer(player.inventory, tile);
                 }
                 break;
         }

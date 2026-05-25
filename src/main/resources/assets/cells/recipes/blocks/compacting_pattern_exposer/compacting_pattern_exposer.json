@@ -1,0 +1,41 @@
+{
+    "type": "forge:ore_shaped",
+    "pattern": [
+        "bgb",
+        "ice",
+        "fhf"
+    ],
+    "key": {
+        "b": {
+            "type": "forge:ore_dict",
+            "ore": "ingotIron"
+        },
+        "c": {
+            "item": "cells:hyper_density_compacting_component",
+            "data": 0
+        },
+        "e": {
+            "item": "appliedenergistics2:material",
+            "data": 44
+        },
+        "f": {
+            "item": "appliedenergistics2:material",
+            "data": 12
+        },
+        "g": {
+            "type": "forge:ore_dict",
+            "ore": "blockGlass"
+        },
+        "h": {
+            "item": "cells:hyper_density_component",
+            "data": 0
+        },
+        "i": {
+            "item": "appliedenergistics2:material",
+            "data": 43
+        }
+    },
+    "result": {
+        "item": "cells:compacting_pattern_exposer"
+    }
+}

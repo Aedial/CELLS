@@ -20,6 +20,8 @@ import appeng.core.features.ActivityState;
 import appeng.core.features.BlockStackSrc;
 import appeng.tile.AEBaseTile;
 
+import com.cells.blocks.compactingpatternexposer.BlockCompactingPatternExposer;
+import com.cells.blocks.compactingpatternexposer.TileCompactingPatternExposer;
 import com.cells.blocks.importinterface.BlockImportInterface;
 import com.cells.blocks.importinterface.TileImportInterface;
 import com.cells.blocks.fluidimportinterface.BlockFluidImportInterface;
@@ -53,6 +55,7 @@ public class BlockRegistry {
     public static BlockCombinedExportInterface COMBINED_EXPORT_INTERFACE;
     public static BlockItemIOInterface ITEM_IO_INTERFACE;
     public static BlockFluidIOInterface FLUID_IO_INTERFACE;
+    public static BlockCompactingPatternExposer COMPACTING_PATTERN_EXPOSER;
 
     public static void init() {
         // Block construction is deferred to registry events
@@ -71,6 +74,7 @@ public class BlockRegistry {
         COMBINED_EXPORT_INTERFACE = new BlockCombinedExportInterface();
         ITEM_IO_INTERFACE = new BlockItemIOInterface();
         FLUID_IO_INTERFACE = new BlockFluidIOInterface();
+        COMPACTING_PATTERN_EXPOSER = new BlockCompactingPatternExposer();
 
         event.getRegistry().register(IMPORT_INTERFACE);
         event.getRegistry().register(FLUID_IMPORT_INTERFACE);
@@ -80,6 +84,7 @@ public class BlockRegistry {
         event.getRegistry().register(COMBINED_EXPORT_INTERFACE);
         event.getRegistry().register(ITEM_IO_INTERFACE);
         event.getRegistry().register(FLUID_IO_INTERFACE);
+        event.getRegistry().register(COMPACTING_PATTERN_EXPOSER);
 
         // Register tile entities
         GameRegistry.registerTileEntity(TileImportInterface.class,
@@ -98,6 +103,8 @@ public class BlockRegistry {
             new ResourceLocation(Tags.MODID, "io_item_interface"));
         GameRegistry.registerTileEntity(TileFluidIOInterface.class,
             new ResourceLocation(Tags.MODID, "io_fluid_interface"));
+        GameRegistry.registerTileEntity(TileCompactingPatternExposer.class,
+            new ResourceLocation(Tags.MODID, "compacting_pattern_exposer"));
 
         // Register tile-to-item mappings for Network Tool display
         // Without this, tiles won't show up in the Network Tool GUI
@@ -117,6 +124,8 @@ public class BlockRegistry {
             new BlockStackSrc(ITEM_IO_INTERFACE, 0, ActivityState.Enabled));
         AEBaseTile.registerTileItem(TileFluidIOInterface.class,
             new BlockStackSrc(FLUID_IO_INTERFACE, 0, ActivityState.Enabled));
+        AEBaseTile.registerTileItem(TileCompactingPatternExposer.class,
+            new BlockStackSrc(COMPACTING_PATTERN_EXPOSER, 0, ActivityState.Enabled));
 
         // Register gas interface blocks if MekanismEnergistics is loaded
         if (MekanismEnergisticsIntegration.isModLoaded()) {
@@ -139,6 +148,7 @@ public class BlockRegistry {
         event.getRegistry().register(createItemBlock(COMBINED_EXPORT_INTERFACE));
         event.getRegistry().register(createItemBlock(ITEM_IO_INTERFACE));
         event.getRegistry().register(createItemBlock(FLUID_IO_INTERFACE));
+        event.getRegistry().register(createItemBlock(COMPACTING_PATTERN_EXPOSER));
 
         // Register gas interface items if MekanismEnergistics is loaded
         if (MekanismEnergisticsIntegration.isModLoaded()) {
@@ -169,6 +179,7 @@ public class BlockRegistry {
         registerBlockModel(COMBINED_EXPORT_INTERFACE);
         registerBlockModel(ITEM_IO_INTERFACE);
         registerBlockModel(FLUID_IO_INTERFACE);
+        registerBlockModel(COMPACTING_PATTERN_EXPOSER);
 
         // Register gas interface models if MekanismEnergistics is loaded
         if (MekanismEnergisticsIntegration.isModLoaded()) {

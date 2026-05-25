@@ -50,6 +50,7 @@ import com.cells.items.ItemTrashUnselectedCard;
 import com.cells.items.ItemAutoPullCard;
 import com.cells.items.ItemAutoPushCard;
 import com.cells.items.ItemInsertionCard;
+import com.cells.recipes.CellComponentSwapRecipe;
 import com.cells.recipes.ConfigurableCellAssemblyRecipe;
 
 
@@ -199,6 +200,10 @@ public class ItemRegistry {
 
     @SubscribeEvent
     public void registerRecipes(RegistryEvent.Register<IRecipe> event) {
+        event.getRegistry().register(
+            new CellComponentSwapRecipe()
+                .setRegistryName(Tags.MODID, "cell_component_swap"));
+
         // Register configurable cell assembly recipe only if the cell is enabled
         if (CONFIGURABLE_CELL != null) {
             event.getRegistry().register(

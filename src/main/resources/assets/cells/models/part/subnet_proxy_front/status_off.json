@@ -11,9 +11,9 @@
             "faces": {
                 "south": { "texture": "#cable" },
                 "up":    { "texture": "#top" },
-                "down":  { "texture": "#side", "uv": [0, 0, 5, 16], "rotation": 270 },
-                "east":  { "texture": "#side", "uv": [0, 0, 5, 16], "rotation": 180 },
-                "west":  { "texture": "#side" }
+                "down":  { "texture": "#top", "uv": [0, 0, 16, 5], "rotation": 180 },
+                "east":  { "texture": "#top", "uv": [0, 0, 16, 5], "rotation": 90 },
+                "west":  { "texture": "#top", "uv": [0, 0, 16, 5], "rotation": 270 }
             }
         }
     ]

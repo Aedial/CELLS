@@ -80,6 +80,7 @@ message.cells.filters_not_added=%d filter(s) could not be added (no empty slots)
 message.cells.storage_not_empty=Cannot change filter while the storage slot is not empty.
 message.cells.no_filter_space=No free filter slots available.
 message.cells.creative_cell.not_valid_content=Not a valid %s!
+message.cells.compacting_pattern_exposer.filter_conflict=This filter would create a conflicting compacting recipe chain.
 message.cells.polling_rate_delayed=§ePolling rate saved but will take effect after next grid connection.§r
 
 # Config (GUI)
@@ -408,6 +409,7 @@ tile.cells.io_interface.name=I/O Interface
 tile.cells.io_interface.fluid.name=Fluid I/O Interface
 tile.cells.io_interface.gas.name=Gas I/O Interface
 tile.cells.io_interface.essentia.name=Essentia I/O Interface
+tile.cells.compacting_pattern_exposer.name=Compacting Pattern Exposer
 
 item.cells.part.import_interface.name=Import Interface
 item.cells.part.import_fluid_interface.name=Fluid Import Interface
@@ -435,6 +437,12 @@ cells.export_interface.gas.title=Gas Export Interface
 cells.export_interface.essentia.title=Essentia Export Interface
 cells.import_interface.combined.title=Universal Import Interface
 cells.export_interface.combined.title=Universal Export Interface
+cells.compacting_pattern_exposer.title=Compacting Pattern Exposer
+cells.compacting_pattern_exposer.multiplier.title=Pattern Multiplier (slot %d)
+cells.compacting_pattern_exposer.multiplier.applies=Multplies both patterns
+cells.compacting_pattern_exposer.multiplier.max=Max: %s
+cells.compacting_pattern_exposer.multiplier.tooltip=Pattern multiplier: §2%s
+cells.compacting_pattern_exposer.filter.hint.right_click=Right-click to edit pattern multiplier
 
 # Info tooltips for block items
 ## Item interfaces (hardcoded in BlockImportInterface/BlockExportInterface)
@@ -455,6 +463,10 @@ tooltip.cells.io_interface.info=Imports/Exposes items to/from the ME network thr
 tooltip.cells.io_interface.fluid.info=Imports/Exposes fluids to/from the ME network through a single block. Automatic I/O is done though Push/Pull Cards.
 tooltip.cells.io_interface.gas.info=Imports/Exposes gas to/from the ME network through a single block. Automatic I/O is done though Push/Pull Cards.
 tooltip.cells.io_interface.essentia.info=Imports/Exposes essentia to/from the ME network through a single block. Automatic I/O is done though Push/Pull Cards.
+tooltip.cells.compacting_pattern_exposer.info=Expose compacting and decompacting conversions as instant AE2 processing patterns using ghost item filters.
+
+cells.compacting_pattern_exposer.result.up=Compresses §b%s§r input item(s) into §a%s§r output item(s).
+cells.compacting_pattern_exposer.result.down=Decompresses §b%s§r input item(s) into §a%s§r output item(s).
 
 # IO Interface direction tab labels
 cells.direction.import=Import
@@ -551,6 +563,7 @@ tooltip.cells.push_card.desc=§7Allows Export Interfaces to push §b%s§7 items/
 tooltip.cells.push_pull_card.limit.desc=§7Keeps §b%s§7 items/mB/etc. of each type in the adjacent inventory (no more, no less).
 tooltip.cells.push_pull_card.interval_warning=Interval lower than 1s may cause performance issues.
 tooltip.cells.push_pull_card.polling_rate_warning=Set the interface's polling rate as a multiple of interval for best results. Unaligned timings may cause delays in either.
+tooltip.cells.push_pull_card.only_filtered_slots=§eThis card §oonly§r§e works with filtered slots!
 cells.push_pull_card.interval.title=Time Interval:
 cells.push_pull_card.interval.tooltip=How often the card performs a transfer operation.
 cells.push_pull_card.quantity.title=Transfer Quantity:

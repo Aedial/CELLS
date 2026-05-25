@@ -47,6 +47,21 @@ public final class ItemStackKey {
     }
 
     /**
+     * Create a key from a transient ItemStack. Returns null for null stacks.
+     * @param stack The stack to create a key for. Must not be modified as long as the key is in use.
+     */
+    @Nullable
+    public static ItemStackKey ofTransient(@Nullable final ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return null;
+
+        final Item it = stack.getItem();
+        final int m = stack.getItemDamage();
+        final NBTTagCompound tag = (stack.hasTagCompound()) ? stack.getTagCompound() : null;
+
+        return new ItemStackKey(it, m, tag, false);
+    }
+
+    /**
      * Create a transient lookup key from an IAEItemStack <b>without copying NBT</b>.
      * <p>
      * The returned key borrows a reference to the definition stack's NBT tag.
@@ -60,7 +75,7 @@ public final class ItemStackKey {
         // getDefinition() returns a shared, unmodifiable stack: its NBT is safe
         // to reference for the duration of a single contains() call.
         final ItemStack def = aeStack.getDefinition();
-        return new ItemStackKey(def.getItem(), def.getItemDamage(), def.getTagCompound(), false);
+        return ofTransient(def);
     }
 
     /**

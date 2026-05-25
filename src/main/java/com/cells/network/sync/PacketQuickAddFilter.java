@@ -110,6 +110,12 @@ public class PacketQuickAddFilter implements IMessage {
 
                 // Attempt to add
                 if (!quickAddContainer.quickAddToFilter(message.resource, player)) {
+                    String failureMessageKey = quickAddContainer.consumeQuickAddFailureMessageKey();
+                    if (failureMessageKey != null) {
+                        ServerMessageHelper.error(player, failureMessageKey);
+                        return;
+                    }
+
                     ServerMessageHelper.error(player, "message.cells.no_filter_space");
                 }
             });
