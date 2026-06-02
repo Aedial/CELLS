@@ -106,6 +106,9 @@ Storage cells that automatically expose compressed and decompressed forms of ite
 4. **Single Item Type**: Each compacting cell stores only one item type (with its compression variants).
 5. **Storage Counting**: Storage capacity is measured in main tier (partitioned item) units, so no need to worry about conversion factors when checking capacity.
 
+#### Migration from CraftTweaker's Compacting Drawers integration
+- If you are using CraftTweaker's mods.storagedrawers.Compaction.add, you can use [compaction_recipes.py](https://github.com/Aedial/CELLS/blob/main/tools/compaction_recipes.py) to add back-and-forth conversion recipes. The change will be in-place, unless you add the `--dry` flag, in which case the modifications will be printed to the console instead of applied, so you can review them before applying. Conversions will be skipped if they already exist, so you can just add recipes and re-run the script.
+
 #### Available Tiers
 - **1k - 2G Compacting Storage Cells** (normal sizes)
 - **1k - 1G Hyper-Density Compacting Storage Cells** (with ~2.1B multiplier per byte)
