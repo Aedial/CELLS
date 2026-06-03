@@ -70,6 +70,13 @@ tooltip.cells.clear_filters.all=清除所有过滤槽位
 # Controls help toggle button
 tooltip.cells.controls_help.show=显示控制帮助
 tooltip.cells.controls_help.hide=隐藏控制帮助
+tooltip.cells.recipe_transfer.title=JEI配方转移
+tooltip.cells.recipe_transfer.mapping1=输入接口 -> %s
+tooltip.cells.recipe_transfer.mapping2=输出接口 -> %s
+tooltip.cells.recipe_transfer.current= §a（你在这里）§r
+tooltip.cells.recipe_transfer.click_to_swap=决定在JEI中点击“+”按钮时，配方的哪一部分进入过滤项，具体取决于接口类型。点击切换接口路由。
+cells.recipe_component.inputs=JEI§b输入§r
+cells.recipe_component.outputs=JEI§b输出§r
 
 # Messages
 message.cells.disassemble_fail_content=无法拆解存有内容的元件！请先清空元件。
