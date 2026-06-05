@@ -9,6 +9,7 @@ tooltip.cells.type.hyperdensity=超高密度ME存储元件
 tooltip.cells.type.hyperdensity_compact=超高密度ME压缩元件
 tooltip.cells.type.import_interface=输入接口（所有类型）
 tooltip.cells.type.export_interface=输出接口（所有类型）
+tooltip.cells.type.emc=EMC元件
 tooltip.cells.nbt_size=NBT大小：%s
 tooltip.cells.nbt_size.warning=§c⚠ NBT大小超出安全上限！可能会导致卡顿或崩溃。将一些NBT过大的物品转移至其他区块和网络中，以避免崩溃。§r
 tooltip.cells.previous_page=上一页
@@ -75,6 +76,8 @@ tooltip.cells.recipe_transfer.mapping1=输入接口 -> %s
 tooltip.cells.recipe_transfer.mapping2=输出接口 -> %s
 tooltip.cells.recipe_transfer.current= §a（你在这里）§r
 tooltip.cells.recipe_transfer.click_to_swap=决定在JEI中点击“+”按钮时，配方的哪一部分进入过滤项，具体取决于接口类型。点击切换接口路由。
+tooltip.cells.recipe_transfer.creative_selection=在JEI中点击“+”按钮将%s§7添加到该过滤项中。
+tooltip.cells.recipe_transfer.creative_click_to_swap=点击在添加配方输入和配方输出之间切换。
 cells.recipe_component.inputs=JEI§b输入§r
 cells.recipe_component.outputs=JEI§b输出§r
 
@@ -127,6 +130,10 @@ cells.config.hdFluidCellUpgradeSlots=超高密度流体元件升级槽位
 cells.config.hdFluidCellUpgradeSlots.tooltip=超高密度流体元件的升级槽位数量（1-16）
 cells.config.configurableCellUpgradeSlots=可配置元件升级槽位
 cells.config.configurableCellUpgradeSlots.tooltip=可配置元件的升级槽位数量（1-16）
+cells.config.emcCellSyncIntervalTicks=EMC元件同步间隔
+cells.config.emcCellSyncIntervalTicks.tooltip=服务端的游戏刻间隔，用于将缓存的EMC刷新到绑定玩家/团队的EMC池中（1-72000）
+cells.config.emcCellPartitionSlots=EMC元件分区槽位
+cells.config.emcCellPartitionSlots.tooltip=各等级EMC元件解锁的分区槽位。索引0为未安装升级的基础元件。后续每个值依次应用于1级EMC升级、2级EMC升级等。
 
 ## Config: Misc
 cells.config.enableEssentiaCreativeCellFix=启用创造源质元件修复
@@ -235,6 +242,20 @@ item.cells.decompression_tier_card.9x.name=解压等级卡（9x）
 item.cells.decompression_tier_card.12x.name=解压等级卡（12x）
 item.cells.decompression_tier_card.15x.name=解压等级卡（15x）
 tooltip.cells.decompression_tier_card.desc=支持最多%d级解压。出于性能考量，尽可能使用较低的解压等级。
+
+# EMC Cell
+item.cells.emc_cell.name=EMC ME存储元件
+item.cells.emc_capacity_card.tier1.name=精致EMC升级
+item.cells.emc_capacity_card.tier2.name=压缩EMC升级
+tooltip.cells.emc_cell.info=已绑定的EMC存储元件。以固定数量展示已学习的分区物品，并将支持的输入物品转换为EMC。
+tooltip.cells.emc_cell.slots=分区槽位：%s
+tooltip.cells.emc_cell.owner=绑定至：%s
+tooltip.cells.emc_cell.unbound=未绑定：重新放入以绑定至玩家
+tooltip.cells.emc_cell.buffered=缓存的EMC：%s
+tooltip.cells.emc_cell.unlearned=未学习的分区过滤项：%s
+tooltip.cells.emc_cell.unlearned_hint=按住Shift列出被阻止的过滤项
+tooltip.cells.emc_capacity_card.desc=允许元件提供%s种不同的分区物品
+
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k超高密度ME存储元件
