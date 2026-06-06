@@ -13,6 +13,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix paged interface tank/storage clicks (pour/fill) using the wrong slot indices, which blocked interacting with page 2+ contents.
 - Fix standalone Essentia Interfaces hiding filters past the first page.
 - Fix some jank interactions with the Configurable Cell's component slots, resulting in voiding components or being able to insert invalid components, in some cases. All cases should be fixed, now.
+- Fix Configurable Cell's warnings/errors using the old translation keys.
 
 
 ## [0.6.2-alpha2] - 2026-05-26
