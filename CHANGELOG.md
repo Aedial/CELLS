@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.6.3-alpha] - 2077-05-01
+### Fixed
+- Fix Subnet Proxy occasionally keeping stale availability after back-grid topology changes by only rebuilding from AE2-active providers and forcing a front-grid refresh when the proxy's published source/election surface actually changes.
+
+
 ## [0.6.2-alpha3] - 2026-06-06
 ### Fixed
 - Fix paged interface tank/storage clicks (pour/fill) using the wrong slot indices, which blocked interacting with page 2+ contents.

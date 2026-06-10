@@ -109,6 +109,27 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         this.localCells = cells != null ? cells : Collections.emptyList();
     }
 
+    /**
+     * Stable identity hash of the current local-cell set, ignoring iteration order.
+     * Used by the front part to detect structural source changes without scanning
+     * full contents.
+     */
+    int getLocalCellIdentityHash() {
+        if (this.localCells.isEmpty()) return 0;
+
+        List<Integer> ids = new ArrayList<>(this.localCells.size());
+        for (IMEInventoryHandler<T> cell : this.localCells) {
+            ids.add(System.identityHashCode(cell));
+        }
+
+        Collections.sort(ids);
+
+        int hash = 1;
+        for (int id : ids) hash = 31 * hash + id;
+
+        return hash;
+    }
+
     /** Clear all sources (Grid A unavailable). */
     public void clearSources() {
         this.localCells = Collections.emptyList();
