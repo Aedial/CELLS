@@ -9,6 +9,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [0.6.3-alpha] - 2077-05-01
+### Added
+- Add targeted Subnet Proxy diagnostics: a rate-limited warning when the proxy still lists an item after a short extract, plus `/inspectSubnetProxy` to inspect the looked-at proxy's live state and last detected mismatch.
+
 ### Fixed
 - Fix Subnet Proxy occasionally keeping stale availability after back-grid topology changes by only rebuilding from AE2-active providers and forcing a front-grid refresh when the proxy's published source/election surface actually changes.
 

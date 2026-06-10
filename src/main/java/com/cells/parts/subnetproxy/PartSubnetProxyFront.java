@@ -95,6 +95,7 @@ import appeng.util.inv.InvOperation;
 import appeng.util.inv.filter.IAEItemFilter;
 import appeng.util.item.AEItemStack;
 
+import com.cells.Cells;
 import com.cells.api.FilterHostUtil;
 import com.cells.api.ISubnetProxy;
 import com.cells.helpers.SubnetProxyMemoryCardHelper;
@@ -299,6 +300,193 @@ public class PartSubnetProxyFront extends AEBasePart
      * not item contents. Content changes continue to flow through monitor deltas.
      */
     private int lastPublishedStructureHash = 0;
+
+    /**
+     * Runtime-only probe state for "listed but not extractable" mismatches.
+     * Kept on the front part so the warning log and the looked-at diagnostic
+     * command can both reference the same last-observed fault.
+     */
+    @Nullable
+    private FaultRecord lastFaultRecord;
+
+    private long lastFaultLogTick = Long.MIN_VALUE;
+    private int lastFaultLogFingerprint = 0;
+
+    private static final long FAULT_LOG_COOLDOWN_TICKS = 100L;
+
+    public static class FaultRecord {
+
+        public final long firstObservedTick;
+        public final long lastObservedTick;
+        public final int occurrenceCount;
+        public final String channelName;
+        public final String requestDescription;
+        public final long requestedAmount;
+        public final long extractedAmount;
+        public final long visibleAmount;
+        public final String actionName;
+        public final boolean ownOriginVisible;
+        public final int structureHash;
+        public final int localCellCount;
+        public final int visiblePeerCount;
+
+        private final int fingerprint;
+
+        private FaultRecord(
+                long firstObservedTick,
+                long lastObservedTick,
+                int occurrenceCount,
+                String channelName,
+                String requestDescription,
+                long requestedAmount,
+                long extractedAmount,
+                long visibleAmount,
+                String actionName,
+                boolean ownOriginVisible,
+                int structureHash,
+                int localCellCount,
+                int visiblePeerCount,
+                int fingerprint) {
+            this.firstObservedTick = firstObservedTick;
+            this.lastObservedTick = lastObservedTick;
+            this.occurrenceCount = occurrenceCount;
+            this.channelName = channelName;
+            this.requestDescription = requestDescription;
+            this.requestedAmount = requestedAmount;
+            this.extractedAmount = extractedAmount;
+            this.visibleAmount = visibleAmount;
+            this.actionName = actionName;
+            this.ownOriginVisible = ownOriginVisible;
+            this.structureHash = structureHash;
+            this.localCellCount = localCellCount;
+            this.visiblePeerCount = visiblePeerCount;
+            this.fingerprint = fingerprint;
+        }
+
+        private FaultRecord(FaultRecord other) {
+            this(
+                other.firstObservedTick,
+                other.lastObservedTick,
+                other.occurrenceCount,
+                other.channelName,
+                other.requestDescription,
+                other.requestedAmount,
+                other.extractedAmount,
+                other.visibleAmount,
+                other.actionName,
+                other.ownOriginVisible,
+                other.structureHash,
+                other.localCellCount,
+                other.visiblePeerCount,
+                other.fingerprint);
+        }
+
+        private FaultRecord withObservation(long observedTick, long extractedAmount, long visibleAmount) {
+            return new FaultRecord(
+                this.firstObservedTick,
+                observedTick,
+                this.occurrenceCount + 1,
+                this.channelName,
+                this.requestDescription,
+                this.requestedAmount,
+                extractedAmount,
+                visibleAmount,
+                this.actionName,
+                this.ownOriginVisible,
+                this.structureHash,
+                this.localCellCount,
+                this.visiblePeerCount,
+                this.fingerprint);
+        }
+    }
+
+    public static class ProxyDiagnosticSnapshot {
+
+        public final int dimensionId;
+        public final String dimensionName;
+        @Nullable
+        public final BlockPos pos;
+        @Nullable
+        public final EnumFacing side;
+        public final boolean powered;
+        public final boolean active;
+        public final boolean paired;
+        public final EnumSet<ResourceType> enabledChannels;
+        public final int priority;
+        public final boolean hasInsertionCard;
+        public final boolean insertionActive;
+        public final ResourceType filterMode;
+        public final boolean fuzzyEnabled;
+        public final boolean inverterEnabled;
+        public final boolean ownOriginVisible;
+        public final int structureHash;
+        public final int frontGridHash;
+        public final int backGridHash;
+        public final int exposedOriginCount;
+        public final int totalPeerCount;
+        public final int visiblePeerCount;
+        public final int itemLocalCells;
+        public final int fluidLocalCells;
+        public final int gasLocalCells;
+        public final int essentiaLocalCells;
+        @Nullable
+        public final FaultRecord lastFault;
+
+        private ProxyDiagnosticSnapshot(
+                int dimensionId,
+                String dimensionName,
+                @Nullable BlockPos pos,
+                @Nullable EnumFacing side,
+                boolean powered,
+                boolean active,
+                boolean paired,
+                EnumSet<ResourceType> enabledChannels,
+                int priority,
+                boolean hasInsertionCard,
+                boolean insertionActive,
+                ResourceType filterMode,
+                boolean fuzzyEnabled,
+                boolean inverterEnabled,
+                boolean ownOriginVisible,
+                int structureHash,
+                int frontGridHash,
+                int backGridHash,
+                int exposedOriginCount,
+                int totalPeerCount,
+                int visiblePeerCount,
+                int itemLocalCells,
+                int fluidLocalCells,
+                int gasLocalCells,
+                int essentiaLocalCells,
+                @Nullable FaultRecord lastFault) {
+            this.dimensionId = dimensionId;
+            this.dimensionName = dimensionName;
+            this.pos = pos;
+            this.side = side;
+            this.powered = powered;
+            this.active = active;
+            this.paired = paired;
+            this.enabledChannels = enabledChannels.clone();
+            this.priority = priority;
+            this.hasInsertionCard = hasInsertionCard;
+            this.insertionActive = insertionActive;
+            this.filterMode = filterMode;
+            this.fuzzyEnabled = fuzzyEnabled;
+            this.inverterEnabled = inverterEnabled;
+            this.ownOriginVisible = ownOriginVisible;
+            this.structureHash = structureHash;
+            this.frontGridHash = frontGridHash;
+            this.backGridHash = backGridHash;
+            this.exposedOriginCount = exposedOriginCount;
+            this.totalPeerCount = totalPeerCount;
+            this.visiblePeerCount = visiblePeerCount;
+            this.itemLocalCells = itemLocalCells;
+            this.fluidLocalCells = fluidLocalCells;
+            this.gasLocalCells = gasLocalCells;
+            this.essentiaLocalCells = essentiaLocalCells;
+            this.lastFault = lastFault == null ? null : new FaultRecord(lastFault);
+        }
+    }
 
     // ========================= Delta Forwarding State =========================
 
@@ -2504,6 +2692,194 @@ public class PartSubnetProxyFront extends AEBasePart
         this.fluidHandler.setLastSnapshot(null);
         if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
         if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+    }
+
+    // ========================= Diagnostics =========================
+
+    public void refreshDiagnosticsState() {
+        if (this.sourcesDirty) this.updatePassthroughSources();
+        if (this.filtersDirty) this.rebuildFilters();
+    }
+
+    public ProxyDiagnosticSnapshot getDiagnosticSnapshot() {
+        this.refreshDiagnosticsState();
+
+        World world = this.getHostWorld();
+        IGrid frontGrid = getFrontGridLive();
+        int dimensionId = world != null && world.provider != null ? world.provider.getDimension() : Integer.MIN_VALUE;
+        String dimensionName = world != null && world.provider != null && world.provider.getDimensionType() != null
+                ? world.provider.getDimensionType().getName()
+                : "unknown";
+
+        return new ProxyDiagnosticSnapshot(
+            dimensionId,
+            dimensionName,
+            this.getHostPos(),
+            this.getSide() != null ? this.getSide().getFacing() : null,
+            this.isPowered(),
+            this.isActive(),
+            this.findBackPart() != null,
+            this.enabledChannels,
+            this.getPriority(),
+            this.hasInsertionCard(),
+            this.insertionActive,
+            this.getFilterMode(),
+            this.cachedHasFuzzy,
+            this.cachedHasInverter,
+            this.shouldExposeOwnOrigin(),
+            this.computePublishedStructureHash(),
+            identityHash(frontGrid),
+            identityHash(this.getBackGrid()),
+            this.exposedOrigins.size(),
+            this.peerFronts.size(),
+            this.getPublishedPeerFronts().size(),
+            this.itemHandler.getLocalCellCount(),
+            this.fluidHandler.getLocalCellCount(),
+            this.gasHandler != null ? this.gasHandler.getLocalCellCount() : 0,
+            this.essentiaHandler != null ? this.essentiaHandler.getLocalCellCount() : 0,
+            this.lastFaultRecord);
+    }
+
+    void recordExtractionMismatch(
+            IStorageChannel<?> channel,
+            IAEStack<?> request,
+            @Nullable IAEStack<?> extracted,
+            long visibleAmount,
+            Actionable action) {
+        if (request == null || visibleAmount <= 0) return;
+
+        ResourceType type = channelToResourceType(channel, itemChannel(), fluidChannel());
+        String channelName = type != null ? type.name() : channel.getClass().getSimpleName();
+        int structureHash = this.computePublishedStructureHash();
+        boolean ownOriginVisible = this.shouldExposeOwnOrigin();
+        long observedTick = this.getObservedWorldTick();
+        long extractedAmount = extracted == null ? 0 : extracted.getStackSize();
+        int fingerprint = computeFaultFingerprint(channelName, request, structureHash, ownOriginVisible);
+
+        FaultRecord record = new FaultRecord(
+            observedTick,
+            observedTick,
+            1,
+            channelName,
+            describeAeStack(request),
+            request.getStackSize(),
+            extractedAmount,
+            visibleAmount,
+            action.name(),
+            ownOriginVisible,
+            structureHash,
+            this.getLocalCellCount(type),
+            this.getPublishedPeerFronts().size(),
+            fingerprint);
+
+        if (this.lastFaultRecord != null && this.lastFaultRecord.fingerprint == fingerprint) {
+            record = this.lastFaultRecord.withObservation(observedTick, extractedAmount, visibleAmount);
+        }
+
+        this.lastFaultRecord = record;
+
+        if (observedTick >= 0
+                && this.lastFaultLogFingerprint == fingerprint
+                && this.lastFaultLogTick >= 0
+                && observedTick - this.lastFaultLogTick < FAULT_LOG_COOLDOWN_TICKS) {
+            return;
+        }
+
+        this.lastFaultLogFingerprint = fingerprint;
+        this.lastFaultLogTick = observedTick;
+
+        World world = this.getHostWorld();
+        Cells.LOGGER.warn(
+            "Subnet Proxy visibility mismatch at dim={} ({}) pos={} side={} channel={} request={} requested={} extracted={} visible_now={} structure_hash={} own_origin_visible={} local_cells={} visible_peers={} action={} occurrences={}",
+            world != null && world.provider != null ? world.provider.getDimension() : "unknown",
+            world != null && world.provider != null && world.provider.getDimensionType() != null
+                    ? world.provider.getDimensionType().getName()
+                    : "unknown",
+            formatBlockPos(this.getHostPos()),
+            this.getSide() != null ? this.getSide().getFacing() : "unknown",
+            record.channelName,
+            record.requestDescription,
+            record.requestedAmount,
+            record.extractedAmount,
+            record.visibleAmount,
+            formatHash(record.structureHash),
+            record.ownOriginVisible,
+            record.localCellCount,
+            record.visiblePeerCount,
+            record.actionName,
+            record.occurrenceCount);
+    }
+
+    private int getLocalCellCount(@Nullable ResourceType type) {
+        if (type == null) return 0;
+
+        switch (type) {
+            case ITEM:
+                return this.itemHandler.getLocalCellCount();
+            case FLUID:
+                return this.fluidHandler.getLocalCellCount();
+            case GAS:
+                return this.gasHandler != null ? this.gasHandler.getLocalCellCount() : 0;
+            case ESSENTIA:
+                return this.essentiaHandler != null ? this.essentiaHandler.getLocalCellCount() : 0;
+            default:
+                return 0;
+        }
+    }
+
+    private long getObservedWorldTick() {
+        World world = this.getHostWorld();
+        return world != null ? world.getTotalWorldTime() : -1L;
+    }
+
+    private static int computeFaultFingerprint(
+            String channelName,
+            IAEStack<?> request,
+            int structureHash,
+            boolean ownOriginVisible) {
+        int hash = 1;
+        hash = 31 * hash + channelName.hashCode();
+        hash = 31 * hash + structureHash;
+        hash = 31 * hash + (ownOriginVisible ? 1 : 0);
+
+        ItemStack displayStack = request.asItemStackRepresentation();
+        if (!displayStack.isEmpty()) {
+            hash = 31 * hash + Item.getIdFromItem(displayStack.getItem());
+            hash = 31 * hash + displayStack.getMetadata();
+            hash = 31 * hash + (displayStack.hasTagCompound() ? displayStack.getTagCompound().hashCode() : 0);
+        }
+
+        return hash;
+    }
+
+    private static String describeAeStack(IAEStack<?> stack) {
+        ItemStack displayStack = stack.asItemStackRepresentation();
+        if (displayStack.isEmpty()) return stack.getClass().getSimpleName();
+
+        ResourceLocation registryName = displayStack.getItem().getRegistryName();
+        StringBuilder description = new StringBuilder(displayStack.getDisplayName());
+
+        if (registryName != null) {
+            description.append(" (")
+                .append(registryName)
+                .append(':')
+                .append(displayStack.getMetadata());
+
+            if (displayStack.hasTagCompound()) description.append(", nbt");
+
+            description.append(')');
+        }
+
+        return description.toString();
+    }
+
+    private static String formatBlockPos(@Nullable BlockPos pos) {
+        if (pos == null) return "[unknown]";
+        return "[" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + "]";
+    }
+
+    private static String formatHash(int hash) {
+        return String.format("%08X", hash);
     }
 
     /**

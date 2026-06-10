@@ -130,6 +130,10 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         return hash;
     }
 
+    int getLocalCellCount() {
+        return this.localCells.size();
+    }
+
     /** Clear all sources (Grid A unavailable). */
     public void clearSources() {
         this.localCells = Collections.emptyList();
@@ -249,6 +253,13 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
                 } else {
                     extracted.incStackSize(fromPeers.getStackSize());
                 }
+            }
+        }
+
+        if (type == Actionable.MODULATE && remaining > 0 && this.frontPart != null) {
+            long visibleAmount = this.getVisibleAmount(request);
+            if (visibleAmount > 0) {
+                this.frontPart.recordExtractionMismatch(this.channel, request, extracted, visibleAmount, type);
             }
         }
 
@@ -373,6 +384,14 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         List<IMEInventoryHandler<T>> sorted = new ArrayList<>(cells);
         sorted.sort(Comparator.comparingInt(IMEInventoryHandler<T>::getPriority).reversed());
         return sorted;
+    }
+
+    private long getVisibleAmount(T request) {
+        IItemList<T> visible = this.channel.createList();
+        this.getAvailableItems(visible);
+
+        T visibleStack = visible.findPrecise(request);
+        return visibleStack == null ? 0 : visibleStack.getStackSize();
     }
 
     // ========================= IMEInventoryHandler =========================
