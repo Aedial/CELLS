@@ -159,6 +159,9 @@ public class CellsConfig {
     /** Maximum tick rate for the Subnet Proxy (ticks between updates when idle) */
     public static int subnetProxyMaxTickRate = 60;
 
+    /** Enable Subnet Proxy extraction-fault reporting and warning logs */
+    public static boolean subnetProxyReportExtractionFaults = false;
+
     /** Essentia Creative Cell fix */
     public static boolean enableEssentiaCreativeCellFix = true;
 
@@ -503,6 +506,14 @@ public class CellsConfig {
         );
         p.setLanguageKey(Tags.MODID + ".config.subnetProxyMaxTickRate");
         subnetProxyMaxTickRate = p.getInt();
+
+        p = config.get(CATEGORY_GENERAL,
+            "subnetProxyReportExtractionFaults", false,
+            "Enable Subnet Proxy extraction-fault reporting and warning logs. " +
+            "A reported fault can originate from the proxy, a connected inventory, or the network itself."
+        );
+        p.setLanguageKey(Tags.MODID + ".config.subnetProxyReportExtractionFaults");
+        subnetProxyReportExtractionFaults = p.getBoolean();
 
         // Hidden category: GUI preferences (not shown in config GUI)
         p = config.get(CATEGORY_HIDDEN, "showControlsHelp", false,

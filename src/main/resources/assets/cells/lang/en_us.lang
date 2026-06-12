@@ -640,6 +640,19 @@ commands.cells.inspect_slots.unknown_fluid=§cUnknown fluid: %s
 commands.cells.inspect_slots.unknown_gas=§cUnknown gas: %s
 commands.cells.inspect_slots.unknown_aspect=§cUnknown aspect: %s
 
+# /inspectSubnetProxy Command
+commands.cells.inspect_subnet_proxy.usage=/inspectSubnetProxy
+commands.cells.inspect_subnet_proxy.no_proxy=Look at a Subnet Proxy front or back part.
+commands.cells.inspect_subnet_proxy.no_front=§cThe looked-at back proxy is not paired with a front part.
+commands.cells.inspect_subnet_proxy.front_header=§6Subnet Proxy Front at [%d, %d, %d] dim %d (%s) side %s
+commands.cells.inspect_subnet_proxy.back_header=§6Subnet Proxy Back at [%d, %d, %d] dim %d (%s) side %s
+commands.cells.inspect_subnet_proxy.linked_front=§7Linked front: [%d, %d, %d] side %s
+commands.cells.inspect_subnet_proxy.state=§7State: powered=%s active=%s paired=%s ownOriginVisible=%s structureHash=%s
+commands.cells.inspect_subnet_proxy.channels=§7Channels: enabled=%s priority=%d insertionCard=%s insertionExposed=%s filterMode=%s fuzzy=%s inverter=%s
+commands.cells.inspect_subnet_proxy.grids=§7Grids: front=%s back=%s exposedOrigins=%d visiblePeers=%d/%d localCells[item=%d fluid=%d gas=%d essentia=%d]
+commands.cells.inspect_subnet_proxy.last_fault.none=§7Last fault: none recorded.
+commands.cells.inspect_subnet_proxy.last_fault=§eLast fault: tick=%d occurrences=%d channel=%s request=%s requested=%d extracted=%d visibleNow=%d action=%s structureHash=%s
+
 # Subnet Proxy
 item.cells.part.subnet_proxy_back.name=ME Subnet Proxy (Back)
 item.cells.part.subnet_proxy_front.name=ME Subnet Proxy (Front)
@@ -662,3 +675,5 @@ cells.config.subnetProxyMinTickRate=Subnet Proxy Min Tick Rate
 cells.config.subnetProxyMinTickRate.tooltip=Minimum tick rate for the Subnet Proxy (lower = more responsive, 1-200)
 cells.config.subnetProxyMaxTickRate=Subnet Proxy Max Tick Rate
 cells.config.subnetProxyMaxTickRate.tooltip=Maximum tick rate for the Subnet Proxy when idle (1-1200)
+cells.config.subnetProxyReportExtractionFaults=Subnet Proxy Fault Reporting
+cells.config.subnetProxyReportExtractionFaults.tooltip=Enable Subnet Proxy extraction-fault reporting and warning logs. A reported fault may come from the proxy, a connected inventory, or the network itself, including ghost or unextractable items.
