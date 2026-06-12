@@ -25,7 +25,6 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.util.Platform;
 
-import com.latmod.mods.projectex.ProjectEXConfig;
 import com.latmod.mods.projectex.ProjectEXUtils;
 import com.latmod.mods.projectex.integration.PersonalEMC;
 
@@ -34,6 +33,7 @@ import moze_intel.projecte.api.capabilities.IKnowledgeProvider;
 import moze_intel.projecte.config.ProjectEConfig;
 import moze_intel.projecte.utils.Constants;
 
+import com.cells.config.CellsConfig;
 import com.cells.util.CellMathHelper;
 import com.cells.util.DeferredCellOperations;
 import com.cells.util.ItemStackKey;
@@ -50,7 +50,6 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
 
     public static final String NBT_STORED_EMC = "StoredEmc";
 
-    private static final long FALLBACK_REPORTED_AMOUNT = Integer.MAX_VALUE;
     private static final long MAX_EMC = Constants.TILE_MAX_EMC;
 
     private final ItemStack cellStack;
@@ -343,10 +342,7 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
     }
 
     private long getReportedAmount() {
-        long configured = ProjectEXConfig.general.emc_link_max_out;
-        if (configured > 0) return configured;
-
-        return FALLBACK_REPORTED_AMOUNT;
+        return CellsConfig.emcCellReportedAmount;
     }
 
     private long getAccessibleFilterCount() {

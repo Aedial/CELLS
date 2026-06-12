@@ -132,6 +132,8 @@ cells.config.configurableCellUpgradeSlots=Configurable Cells Upgrade Slots
 cells.config.configurableCellUpgradeSlots.tooltip=Number of upgrade slots for configurable cells (1-16)
 cells.config.emcCellSyncIntervalTicks=EMC Cell Sync Interval
 cells.config.emcCellSyncIntervalTicks.tooltip=Server tick interval between buffered EMC flushes to the bound player/team EMC pool (1-72000)
+cells.config.emcCellReportedAmount=EMC Cell Reported Amount
+cells.config.emcCellReportedAmount.tooltip=Reported stack size for learned EMC Cell filters. Uses a positive non-zero number up to 9.2 quintillion (Long.MAX_VALUE). Invalid values fall back to the default of 2147483647.
 cells.config.emcCellPartitionSlots=EMC Cell Partition Slots
 cells.config.emcCellPartitionSlots.tooltip=Unlocked partition slots for EMC cell tiers. Index 0 is the base cell with no upgrade. Each following value applies to EMC Upgrade 1, EMC Upgrade 2, and so on.
 

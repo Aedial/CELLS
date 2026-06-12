@@ -32,6 +32,7 @@ import com.cells.Tags;
 public class CellsConfig {
 
     private static final int[] DEFAULT_EMC_CELL_PARTITION_SLOTS = new int[] {1, 9, 54};
+    public static final long DEFAULT_EMC_CELL_REPORTED_AMOUNT = Integer.MAX_VALUE;
 
     public static final String CATEGORY_GENERAL = "general";
     public static final String CATEGORY_CELLS = "cells";
@@ -118,6 +119,9 @@ public class CellsConfig {
 
     /** Server tick interval between EMC cell buffer flushes */
     public static int emcCellSyncIntervalTicks = 20;
+
+    /** Reported stack size for learned EMC cell filters */
+    public static long emcCellReportedAmount = DEFAULT_EMC_CELL_REPORTED_AMOUNT;
 
     /** Base tier plus upgrade-defined unlocked partition slots for the EMC cell */
     public static int[] emcCellPartitionSlots = DEFAULT_EMC_CELL_PARTITION_SLOTS.clone();
@@ -308,6 +312,20 @@ public class CellsConfig {
         );
         p.setLanguageKey(Tags.MODID + ".config.emcCellSyncIntervalTicks");
         emcCellSyncIntervalTicks = p.getInt();
+
+        // Use String to preserve values above Integer.MAX_VALUE in the Forge config GUI.
+        p = config.get(CATEGORY_GENERAL,
+            "emcCellReportedAmount", String.valueOf(DEFAULT_EMC_CELL_REPORTED_AMOUNT),
+            "Reported stack size for learned EMC cell filters. Use a positive non-zero number up to Long.MAX_VALUE. Invalid values fall back to the default."
+        );
+        p.setLanguageKey(Tags.MODID + ".config.emcCellReportedAmount");
+        String reportedAmountStr = p.getString();
+        try {
+            long parsed = Long.parseLong(reportedAmountStr);
+            emcCellReportedAmount = parsed > 0 ? parsed : DEFAULT_EMC_CELL_REPORTED_AMOUNT;
+        } catch (NumberFormatException e) {
+            emcCellReportedAmount = DEFAULT_EMC_CELL_REPORTED_AMOUNT;
+        }
 
         p = config.get(CATEGORY_GENERAL,
             "emcCellPartitionSlots", DEFAULT_EMC_CELL_PARTITION_SLOTS,

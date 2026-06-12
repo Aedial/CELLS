@@ -16,6 +16,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [0.6.3-beta] - 2026-06-15
 ### Added
 - Add textures for IO Interfaces, Insertion Card, and EMC Cell.
+- Add an EMC Cell reported-amount config in CELLS so the visible stack size no longer depends on ProjectEX's external cap and can be set up to Long.MAX_VALUE.
 
 ### Fixed
 - Fix Subnet Proxy occasionally keeping stale availability after back-grid topology changes, by rebuilding from AE2-active providers and forcing a front-grid refresh when the proxy's published source/election surface actually changes.
