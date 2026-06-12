@@ -8,9 +8,18 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.6.3-alpha] - 2077-05-01
+## [0.6.9] - 2077-05-01
 ### Fixed
-- Fix Subnet Proxy occasionally keeping stale availability after back-grid topology changes by only rebuilding from AE2-active providers and forcing a front-grid refresh when the proxy's published source/election surface actually changes.
+- Fix all Subnet Proxy issues (as if)
+
+
+## [0.6.3-beta] - 2026-06-15
+### Added
+- Add textures for IO Interfaces, Insertion Card, and EMC Cell.
+
+### Fixed
+- Fix Subnet Proxy occasionally keeping stale availability after back-grid topology changes, by rebuilding from AE2-active providers and forcing a front-grid refresh when the proxy's published source/election surface actually changes.
+- Fix partially partitioned Configurable Cells refusing to extract stored items and fluids that were no longer listed in the partition filter.
 
 
 ## [0.6.2-alpha3] - 2026-06-06
