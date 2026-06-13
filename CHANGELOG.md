@@ -22,6 +22,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Fixed
 - Fix Subnet Proxy occasionally keeping stale availability after back-grid topology changes, by rebuilding from AE2-active providers and forcing a front-grid refresh when the proxy's published source/election surface actually changes.
 - Fix Subnet Proxy coordinator maybe not properly refreshing after a rebuild, causing diamond topologies to report the same deltas (ghost content). The coordinator is responsible for deciding which proxy should forward which events in a subnet.
+- Fix parallel Subnet Proxies between the same two grids collapsing to one front's channel/filter config; the elected representative now unions direct parallel fronts so visibility no longer depends on which one wins election.
 - Fix partially partitioned Configurable Cells refusing to extract stored items and fluids that were no longer listed in the partition filter.
 
 

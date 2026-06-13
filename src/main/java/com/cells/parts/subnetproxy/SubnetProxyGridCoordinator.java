@@ -12,7 +12,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
 
+import javax.annotation.Nullable;
+
 import appeng.api.networking.IGrid;
+
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
 
 
 /**
@@ -30,7 +35,8 @@ import appeng.api.networking.IGrid;
  *       destination grid expose the same origin-grid (diamond topology, e.g.
  *       {@code A→B→D + A→C→D} both expose {@code A}), exactly one is elected
  *       to publish that origin's items in BOTH listing and propagation paths.
- *       Election is deterministic across grids (smallest identity hash wins).</li>
+ *       Election is deterministic across grids: higher proxy priority wins,
+ *       then the lowest stable world position/side key breaks ties.</li>
  *   <li><b>Event UUID dedup</b>: a bounded LRU of recently-seen event UUIDs.
  *       Used as belt-and-suspenders against race conditions in election
  *       (e.g. mid-stream peer registration changes briefly allowing two
@@ -82,6 +88,13 @@ public final class SubnetProxyGridCoordinator {
 
     /** Fronts whose front-grid is THIS coordinator's grid. */
     private final Set<PartSubnetProxyFront> registeredFronts = new HashSet<>();
+
+    private static final Comparator<PartSubnetProxyFront> FRONT_ELECTION_ORDER =
+        Comparator.comparingInt(PartSubnetProxyFront::getPriority)
+            .reversed()
+            .thenComparingInt(SubnetProxyGridCoordinator::compareDimension)
+            .thenComparingLong(SubnetProxyGridCoordinator::comparePackedPos)
+            .thenComparingInt(SubnetProxyGridCoordinator::compareSideOrdinal);
 
     /**
      * origin-grid → elected front. Only the elected front for a given origin
@@ -156,11 +169,33 @@ public final class SubnetProxyGridCoordinator {
         return originElection.get(originGrid) == front;
     }
 
+    /**
+     * Return the fronts whose OWN back-grid is {@code originGrid}, sorted by
+     * the same stable order used for election.
+     * <p>
+     * The elected representative uses this to union direct parallel fronts for
+     * the same origin without double-publishing the origin itself.
+     */
+    public synchronized List<PartSubnetProxyFront> getOwnOriginFronts(IGrid originGrid) {
+        List<PartSubnetProxyFront> fronts = new ArrayList<>();
+        if (originGrid == null) return fronts;
+
+        for (PartSubnetProxyFront front : registeredFronts) {
+            if (front.getBackGrid() != originGrid) continue;
+
+            fronts.add(front);
+        }
+
+        fronts.sort(FRONT_ELECTION_ORDER);
+        return fronts;
+    }
+
     // ========================= Election =========================
 
     /**
-     * Deterministic election: sort fronts by identity hash, then for each,
-     * claim every exposed origin not yet claimed. First-claim wins per origin.
+     * Deterministic election: sort fronts by proxy priority, then by a stable
+     * world position/side key, then claim every exposed origin not yet claimed.
+     * First-claim wins per origin.
      * <p>
      * O(F × O) where F = fronts on this grid, O = avg exposed origins per
      * front. Both small in practice.
@@ -169,7 +204,7 @@ public final class SubnetProxyGridCoordinator {
         originElection.clear();
 
         List<PartSubnetProxyFront> sorted = new ArrayList<>(registeredFronts);
-        sorted.sort(Comparator.comparingInt(System::identityHashCode));
+          sorted.sort(FRONT_ELECTION_ORDER);
 
         for (PartSubnetProxyFront f : sorted) {
             Set<IGrid> exposed = f.getExposedOrigins();
@@ -188,6 +223,25 @@ public final class SubnetProxyGridCoordinator {
         for (PartSubnetProxyFront front : registeredFronts) {
             front.onCoordinatorElectionChanged();
         }
+    }
+
+    private static int compareDimension(PartSubnetProxyFront front) {
+        return front.getHostWorld() != null && front.getHostWorld().provider != null
+            ? front.getHostWorld().provider.getDimension()
+            : Integer.MAX_VALUE;
+    }
+
+    private static long comparePackedPos(PartSubnetProxyFront front) {
+        BlockPos pos = front.getHostPos();
+        return pos != null ? pos.toLong() : Long.MAX_VALUE;
+    }
+
+    private static int compareSideOrdinal(PartSubnetProxyFront front) {
+        return ordinalOrMax(front.getSide() != null ? front.getSide().getFacing() : null);
+    }
+
+    private static int ordinalOrMax(@Nullable EnumFacing facing) {
+        return facing != null ? facing.ordinal() : Integer.MAX_VALUE;
     }
 
     // ========================= Event dedup =========================

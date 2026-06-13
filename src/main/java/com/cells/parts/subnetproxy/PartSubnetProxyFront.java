@@ -774,6 +774,116 @@ public class PartSubnetProxyFront extends AEBasePart
         return this.enabledChannels.contains(type);
     }
 
+    void ensureFiltersCurrent() {
+        if (this.filtersDirty) this.rebuildFilters();
+    }
+
+    boolean isReadChannelExposed(IStorageChannel<?> channel) {
+        ResourceType type = channelToResourceType(channel, itemChannel(), fluidChannel());
+        return type == null || this.isReadChannelExposed(type);
+    }
+
+    boolean isReadChannelExposed(ResourceType type) {
+        if (!this.shouldExposeOwnOrigin()) return false;
+        if (this.enabledChannels.contains(type)) return true;
+
+        for (PartSubnetProxyFront sibling : this.getParallelOwnOriginFronts()) {
+            if (sibling == this) continue;
+            if (sibling.enabledChannels.contains(type)) return true;
+        }
+
+        return false;
+    }
+
+    private boolean hasAnyReadChannelExposed() {
+        if (this.isReadChannelExposed(ResourceType.ITEM)) return true;
+        if (this.isReadChannelExposed(ResourceType.FLUID)) return true;
+        if (this.gasHandler != null && this.isReadChannelExposed(ResourceType.GAS)) return true;
+        if (this.essentiaHandler != null && this.isReadChannelExposed(ResourceType.ESSENTIA)) return true;
+
+        return false;
+    }
+
+    private List<PartSubnetProxyFront> getParallelOwnOriginFronts() {
+        IGrid origin = this.getBackGrid();
+        if (origin == null) return Collections.singletonList(this);
+
+        IGrid frontGrid = getFrontGridLive();
+        if (frontGrid != null && origin == frontGrid) return Collections.singletonList(this);
+
+        SubnetProxyGridCoordinator coord = getFrontGridCoordinator(frontGrid);
+        if (coord == null) return Collections.singletonList(this);
+
+        List<PartSubnetProxyFront> siblings = coord.getOwnOriginFronts(origin);
+        return siblings.isEmpty() ? Collections.singletonList(this) : siblings;
+    }
+
+    /**
+     * Build the visible filter surface for this handler's channel.
+     * <p>
+     * The elected representative for an origin-grid must union direct parallel
+     * fronts that bridge the same origin into this front-grid, so visibility is
+     * no longer limited to whichever front won election.
+     */
+    @Nullable
+    public <T extends IAEStack<T>> Predicate<T> buildVisibleReadFilter(
+            IStorageChannel<T> channel,
+            @Nullable Predicate<T> ownFilter) {
+        ResourceType type = channelToResourceType(channel, itemChannel(), fluidChannel());
+        if (type == null) return ownFilter;
+        if (!this.shouldExposeOwnOrigin()) return stack -> false;
+
+        boolean ownEnabled = this.enabledChannels.contains(type);
+        List<Predicate<T>> siblingFilters = null;
+
+        for (PartSubnetProxyFront sibling : this.getParallelOwnOriginFronts()) {
+            if (sibling == this) continue;
+            if (!sibling.enabledChannels.contains(type)) continue;
+
+            sibling.ensureFiltersCurrent();
+
+            Predicate<T> siblingFilter = sibling.getReadChannelFilter(type);
+            if (siblingFilter == null) return null;
+
+            if (siblingFilters == null) siblingFilters = new ArrayList<>();
+
+            siblingFilters.add(siblingFilter);
+        }
+
+        if (ownEnabled && ownFilter == null) return null;
+        if (!ownEnabled && siblingFilters == null) return stack -> false;
+        if (siblingFilters == null) return ownFilter;
+
+        List<Predicate<T>> visibleSiblingFilters = siblingFilters;
+
+        return stack -> {
+            if (ownEnabled && (ownFilter == null || ownFilter.test(stack))) return true;
+
+            for (Predicate<T> siblingFilter : visibleSiblingFilters) {
+                if (siblingFilter.test(stack)) return true;
+            }
+
+            return false;
+        };
+    }
+
+    @Nullable
+    @SuppressWarnings("unchecked")
+    private <T extends IAEStack<T>> Predicate<T> getReadChannelFilter(ResourceType type) {
+        switch (type) {
+            case ITEM:
+                return (Predicate<T>) this.itemHandler.getFilter();
+            case FLUID:
+                return (Predicate<T>) this.fluidHandler.getFilter();
+            case GAS:
+                return this.gasHandler != null ? (Predicate<T>) this.gasHandler.getFilter() : null;
+            case ESSENTIA:
+                return this.essentiaHandler != null ? (Predicate<T>) this.essentiaHandler.getFilter() : null;
+            default:
+                return null;
+        }
+    }
+
     /** Pack the enabled-channels set into a bitmask over {@link ResourceType#ordinal()}. */
     public int getEnabledChannelsBitmask() {
         int mask = 0;
@@ -820,30 +930,33 @@ public class PartSubnetProxyFront extends AEBasePart
         boolean ownOriginVisible = this.shouldExposeOwnOrigin();
 
         if (ownOriginVisible) {
-            if (this.enabledChannels.contains(ResourceType.ITEM)) {
+            if (this.isReadChannelExposed(ResourceType.ITEM)) {
                 hash = 31 * hash + this.itemHandler.getLocalCellIdentityHash();
                 hash = 31 * hash + identityHash(this.registeredItemMonitor);
             }
 
-            if (this.enabledChannels.contains(ResourceType.FLUID)) {
+            if (this.isReadChannelExposed(ResourceType.FLUID)) {
                 hash = 31 * hash + this.fluidHandler.getLocalCellIdentityHash();
                 hash = 31 * hash + identityHash(this.registeredFluidMonitor);
             }
 
-            if (this.enabledChannels.contains(ResourceType.GAS) && this.gasHandler != null) {
+            if (this.gasHandler != null && this.isReadChannelExposed(ResourceType.GAS)) {
                 hash = 31 * hash + this.gasHandler.getLocalCellIdentityHash();
                 hash = 31 * hash + identityHash(this.gasHandler.getRegisteredMonitor());
             }
 
-            if (this.enabledChannels.contains(ResourceType.ESSENTIA) && this.essentiaHandler != null) {
+            if (this.essentiaHandler != null && this.isReadChannelExposed(ResourceType.ESSENTIA)) {
                 hash = 31 * hash + this.essentiaHandler.getLocalCellIdentityHash();
                 hash = 31 * hash + identityHash(this.essentiaHandler.getRegisteredMonitor());
             }
         }
 
-        if (!this.enabledChannels.isEmpty()) {
+        if (this.hasAnyReadChannelExposed()) {
             hash = 31 * hash + sortedIdentityHash(this.getPublishedPeerFronts());
-            hash = 31 * hash + (this.insertionActive ? 1 : 0);
+        }
+
+        if (this.insertionActive && !this.enabledChannels.isEmpty()) {
+            hash = 31 * hash + this.getEnabledChannelsBitmask();
         }
 
         hash = 31 * hash + identityHash(this.gridA);
@@ -1392,7 +1505,9 @@ public class PartSubnetProxyFront extends AEBasePart
         // not exist on that channel until the user toggles it on. Listener-side
         // gating in GridAListener.postChange suppresses delta forwarding too.
         ResourceType requestedType = channelToResourceType(channel, itemCh, fluidCh);
-        if (requestedType != null && !this.enabledChannels.contains(requestedType)) {
+        if (requestedType != null
+                && !this.enabledChannels.contains(requestedType)
+                && !this.isReadChannelExposed(requestedType)) {
             return Collections.emptyList();
         }
 
@@ -1401,8 +1516,10 @@ public class PartSubnetProxyFront extends AEBasePart
             // Both are exposed on the front-grid: the read handler shows back-grid
             // items (filtered) for extraction; the insertion handler accepts items
             // matching the same filter and forwards them to back-grid storage.
-            List<IMEInventoryHandler> read = this.itemHandler.asCellArray();
-            if (!this.insertionActive) return read;
+            List<IMEInventoryHandler> read = this.isReadChannelExposed(ResourceType.ITEM)
+                ? this.itemHandler.asCellArray()
+                : Collections.emptyList();
+            if (!this.insertionActive || !this.enabledChannels.contains(ResourceType.ITEM)) return read;
 
             List<IMEInventoryHandler> insert = this.itemInsertionHandler.asCellArray();
             if (insert.isEmpty()) return read;
@@ -1415,8 +1532,10 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         if (channel == fluidCh) {
-            List<IMEInventoryHandler> read = this.fluidHandler.asCellArray();
-            if (!this.insertionActive) return read;
+            List<IMEInventoryHandler> read = this.isReadChannelExposed(ResourceType.FLUID)
+                ? this.fluidHandler.asCellArray()
+                : Collections.emptyList();
+            if (!this.insertionActive || !this.enabledChannels.contains(ResourceType.FLUID)) return read;
 
             List<IMEInventoryHandler> insert = this.fluidInsertionHandler.asCellArray();
             if (insert.isEmpty()) return read;
@@ -1430,9 +1549,13 @@ public class PartSubnetProxyFront extends AEBasePart
 
         // Gas channel (MekanismEnergistics)
         if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-            List<IMEInventoryHandler> result = SubnetProxyGasHelper.asCellArray(this.gasHandler, channel);
+            List<IMEInventoryHandler> result = this.isReadChannelExposed(ResourceType.GAS)
+                ? SubnetProxyGasHelper.asCellArray(this.gasHandler, channel)
+                : Collections.emptyList();
             if (!result.isEmpty()) {
-                if (!this.insertionActive || this.gasInsertionHandler == null) return result;
+                if (!this.insertionActive
+                        || !this.enabledChannels.contains(ResourceType.GAS)
+                        || this.gasInsertionHandler == null) return result;
                 List<IMEInventoryHandler> insert = this.gasInsertionHandler.asCellArray();
                 if (insert.isEmpty()) return result;
                 List<IMEInventoryHandler> combined = new ArrayList<>(result.size() + insert.size());
@@ -1440,19 +1563,35 @@ public class PartSubnetProxyFront extends AEBasePart
                 combined.addAll(insert);
                 return combined;
             }
+
+            if (this.insertionActive
+                    && this.enabledChannels.contains(ResourceType.GAS)
+                    && this.gasInsertionHandler != null) {
+                return this.gasInsertionHandler.asCellArray();
+            }
         }
 
         // Essentia channel (ThaumicEnergistics)
         if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-            List<IMEInventoryHandler> result = SubnetProxyEssentiaHelper.asCellArray(this.essentiaHandler, channel);
+            List<IMEInventoryHandler> result = this.isReadChannelExposed(ResourceType.ESSENTIA)
+                ? SubnetProxyEssentiaHelper.asCellArray(this.essentiaHandler, channel)
+                : Collections.emptyList();
             if (!result.isEmpty()) {
-                if (!this.insertionActive || this.essentiaInsertionHandler == null) return result;
+                if (!this.insertionActive
+                        || !this.enabledChannels.contains(ResourceType.ESSENTIA)
+                        || this.essentiaInsertionHandler == null) return result;
                 List<IMEInventoryHandler> insert = this.essentiaInsertionHandler.asCellArray();
                 if (insert.isEmpty()) return result;
                 List<IMEInventoryHandler> combined = new ArrayList<>(result.size() + insert.size());
                 combined.addAll(result);
                 combined.addAll(insert);
                 return combined;
+            }
+
+            if (this.insertionActive
+                    && this.enabledChannels.contains(ResourceType.ESSENTIA)
+                    && this.essentiaInsertionHandler != null) {
+                return this.essentiaInsertionHandler.asCellArray();
             }
         }
 
@@ -2219,20 +2358,20 @@ public class PartSubnetProxyFront extends AEBasePart
                     PartSubnetProxyFront.this, eventId, origin);
 
                 if (monitor == registeredItemMonitor) {
-                    if (!enabledChannels.contains(ResourceType.ITEM)) return;
+                    if (!isReadChannelExposed(ResourceType.ITEM)) return;
                     IStorageChannel<IAEItemStack> ch = itemChannel();
                     forwardFilteredDeltas(change, itemHandler, ch, gridB, wrapped);
                 } else if (monitor == registeredFluidMonitor) {
-                    if (!enabledChannels.contains(ResourceType.FLUID)) return;
+                    if (!isReadChannelExposed(ResourceType.FLUID)) return;
                     IStorageChannel<IAEFluidStack> ch = fluidChannel();
                     forwardFilteredDeltas(change, fluidHandler, ch, gridB, wrapped);
                 } else if (gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()
                            && monitor == gasHandler.getRegisteredMonitor()) {
-                    if (!enabledChannels.contains(ResourceType.GAS)) return;
+                    if (!isReadChannelExposed(ResourceType.GAS)) return;
                     forwardFilteredDeltas(change, gasHandler, SubnetProxyGasHelper.getChannel(), gridB, wrapped);
                 } else if (essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()
                            && monitor == essentiaHandler.getRegisteredMonitor()) {
-                    if (!enabledChannels.contains(ResourceType.ESSENTIA)) return;
+                    if (!isReadChannelExposed(ResourceType.ESSENTIA)) return;
                     forwardFilteredDeltas(change, essentiaHandler, SubnetProxyEssentiaHelper.getChannel(), gridB, wrapped);
                 }
             } catch (final GridAccessException e) {
@@ -2301,12 +2440,10 @@ public class PartSubnetProxyFront extends AEBasePart
             IStorageChannel<T> channel,
             IStorageGrid gridB,
             IActionSource source) {
-
-        Predicate<T> filter = handler.getFilter();
         List<T> forwarded = new ArrayList<>();
 
         for (T change : changes) {
-            if (filter == null || filter.test(change)) forwarded.add(change);
+            if (handler.matchesVisibleStack(change)) forwarded.add(change);
         }
 
         if (forwarded.isEmpty()) return;
@@ -2936,13 +3073,13 @@ public class PartSubnetProxyFront extends AEBasePart
      *
      * @param out      output list to append into
      * @param channel  storage channel being queried
-     * @param myFilter our own filter (may be null = pass all)
+         * @param visibilityFilter the currently visible filter surface
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     public <T extends IAEStack<T>> void appendPeerItemsForListing(
             IItemList<T> out,
             IStorageChannel<T> channel,
-            Predicate<T> myFilter) {
+             Predicate<T> visibilityFilter) {
 
         if (this.peerFronts.isEmpty()) return;
 
@@ -2973,7 +3110,7 @@ public class PartSubnetProxyFront extends AEBasePart
             peerHandler.appendLocalAvailableItems(peerLocal);
 
             for (T s : peerLocal) {
-                if (myFilter == null || myFilter.test(s)) out.add(s);
+                if (visibilityFilter == null || visibilityFilter.test(s)) out.add(s);
             }
         }
     }
@@ -3016,8 +3153,9 @@ public class PartSubnetProxyFront extends AEBasePart
      *
      * @param request  remaining request (caller should pass a copy with the
      *                 outstanding amount, not the original).
-     * @param myFilter our own filter; peer's filter is applied independently
-     *                 by {@link SubnetProxyInventoryHandler#extractFromLocalCells}.
+     * @param visibilityFilter the currently visible filter surface; peer-local
+     *                         filtering is still applied independently by
+     *                         {@link SubnetProxyInventoryHandler#extractFromLocalCells}.
      * @return combined extracted stack, or null if nothing extracted.
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -3026,11 +3164,11 @@ public class PartSubnetProxyFront extends AEBasePart
             Actionable type,
             IActionSource src,
             IStorageChannel<T> channel,
-            Predicate<T> myFilter) {
+            Predicate<T> visibilityFilter) {
 
         if (this.peerFronts.isEmpty()) return null;
         if (request == null || request.getStackSize() <= 0) return null;
-        if (myFilter != null && !myFilter.test(request)) return null;
+        if (visibilityFilter != null && !visibilityFilter.test(request)) return null;
 
         IGrid frontGrid = getFrontGridLive();
         if (frontGrid == null) return null;

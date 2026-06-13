@@ -150,6 +150,29 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         return this.filter;
     }
 
+    private void ensureFiltersCurrent() {
+        if (this.frontPart != null) this.frontPart.ensureFiltersCurrent();
+    }
+
+    private boolean isReadChannelExposed() {
+        return this.frontPart == null || this.frontPart.isReadChannelExposed(this.channel);
+    }
+
+    private Predicate<T> getVisibleFilter() {
+        this.ensureFiltersCurrent();
+        if (this.frontPart == null) return this.filter;
+
+        return this.frontPart.buildVisibleReadFilter(this.channel, this.filter);
+    }
+
+    boolean matchesVisibleStack(T stack) {
+        if (stack == null) return false;
+        if (!this.isReadChannelExposed()) return false;
+
+        Predicate<T> visibleFilter = this.getVisibleFilter();
+        return visibleFilter == null || visibleFilter.test(stack);
+    }
+
     // ========================= Snapshot / Monitor for Delta Forwarding =========================
 
     public IItemList<T> getLastSnapshot() {
@@ -175,10 +198,10 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
      * @return true if at least one item in {@code changes} matches the filter (or no filter is set)
      */
     public boolean matchesAny(Iterable<T> changes) {
-        if (this.filter == null) return true;
+        if (!this.isReadChannelExposed()) return false;
 
         for (T change : changes) {
-            if (this.filter.test(change)) return true;
+            if (this.matchesVisibleStack(change)) return true;
         }
 
         return false;
@@ -208,7 +231,7 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         // 2+-hop passthrough item), we must not extract it either, otherwise
         // I/O becomes inconsistent with the reported inventory.
         if (request == null) return null;
-        if (this.filter != null && !this.filter.test(request)) return null;
+        if (!this.matchesVisibleStack(request)) return null;
 
         long remaining = request.getStackSize();
         if (remaining <= 0) return null;
@@ -246,7 +269,7 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
             T peerRequest = request.copy();
             peerRequest.setStackSize(remaining);
             T fromPeers = this.frontPart.extractFromPeerLocals(
-                peerRequest, type, src, this.channel, this.filter);
+                peerRequest, type, src, this.channel, this::matchesVisibleStack);
 
             if (fromPeers != null && fromPeers.getStackSize() > 0) {
                 remaining -= fromPeers.getStackSize();
@@ -277,6 +300,8 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
 
     @Override
     public IItemList<T> getAvailableItems(final IItemList<T> out) {
+        if (!this.isReadChannelExposed()) return out;
+
         // 1) Local back-grid items, but only when this front is the elected
         // publisher for its own origin on the current front-grid.
         appendLocalAvailableItems(out);
@@ -287,7 +312,7 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         // then by us). This gives chained visibility (B → A → C makes B's
         // items visible from C) while electing dedups diamond topologies.
         if (this.frontPart != null) {
-            this.frontPart.appendPeerItemsForListing(out, this.channel, this.filter);
+            this.frontPart.appendPeerItemsForListing(out, this.channel, this::matchesVisibleStack);
         }
 
         return out;
@@ -302,12 +327,15 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
      */
     public IItemList<T> appendLocalAvailableItems(final IItemList<T> out) {
         if (!shouldExposeLocalCells()) return out;
+        if (!this.isReadChannelExposed()) return out;
+
+        Predicate<T> visibleFilter = this.getVisibleFilter();
 
         // List from local cells only (not the full monitor) to prevent subnet
         // loop inflation. Items that Grid A sees through passthrough storage buses
         // (storage bus → ME Interface) are NOT listed here, which breaks feedback
         // loops like A→B→proxy→A.
-        if (this.filter == null) {
+        if (visibleFilter == null) {
             // No filter: write directly into output list, zero extra allocations
             for (IMEInventoryHandler<T> cell : this.localCells) {
                 cell.getAvailableItems(out);
@@ -329,7 +357,7 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
 
                 for (T item : scratch) {
                     if (item.getStackSize() <= 0) continue;
-                    if (this.filter.test(item)) out.add(item);
+                    if (visibleFilter.test(item)) out.add(item);
                 }
             }
         }
@@ -351,7 +379,10 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
     public T extractFromLocalCells(final T request, final Actionable type, final IActionSource src) {
         if (request == null) return null;
         if (!shouldExposeLocalCells()) return null;
-        if (this.filter != null && !this.filter.test(request)) return null;
+        if (!this.isReadChannelExposed()) return null;
+
+        Predicate<T> visibleFilter = this.getVisibleFilter();
+        if (visibleFilter != null && !visibleFilter.test(request)) return null;
 
         long remaining = request.getStackSize();
         if (remaining <= 0) return null;
