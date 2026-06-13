@@ -132,6 +132,8 @@ cells.config.configurableCellUpgradeSlots=可配置元件升级槽位
 cells.config.configurableCellUpgradeSlots.tooltip=可配置元件的升级槽位数量（1-16）
 cells.config.emcCellSyncIntervalTicks=EMC元件同步间隔
 cells.config.emcCellSyncIntervalTicks.tooltip=服务端的游戏刻间隔，用于将缓存的EMC刷新到绑定玩家/团队的EMC池中（1-72000）
+cells.config.emcCellReportedAmount=EMC元件报告数量
+cells.config.emcCellReportedAmount.tooltip=已学习的EMC元件过滤项的报告堆叠大小。使用正非零数字，最高为9.2百亿亿（Long.MAX_VALUE）。无效值将回退为默认值2147483647。
 cells.config.emcCellPartitionSlots=EMC元件分区槽位
 cells.config.emcCellPartitionSlots.tooltip=各等级EMC元件解锁的分区槽位。索引0为未安装升级的基础元件。后续每个值依次应用于1级EMC升级、2级EMC升级等。
 
@@ -638,6 +640,19 @@ commands.cells.inspect_slots.unknown_fluid=§c未知流体：%s
 commands.cells.inspect_slots.unknown_gas=§c未知气体：%s
 commands.cells.inspect_slots.unknown_aspect=§c未知要素：%s
 
+# /inspectSubnetProxy Command
+commands.cells.inspect_subnet_proxy.usage=/inspectSubnetProxy
+commands.cells.inspect_subnet_proxy.no_proxy=查看子网络代理的前端或后端。
+commands.cells.inspect_subnet_proxy.no_front=§c所查看的后端代理未与前端配对。
+commands.cells.inspect_subnet_proxy.front_header=§6子网络代理前端位于[%d, %d, %d]，维度：%d（%s），面：%s
+commands.cells.inspect_subnet_proxy.back_header=§6子网络代理后端位于[%d, %d, %d]，维度：%d（%s），面：%s
+commands.cells.inspect_subnet_proxy.linked_front=§7链接的前端：[%d, %d, %d]，面：%s
+commands.cells.inspect_subnet_proxy.state=§7状态：powered=%s active=%s paired=%s ownOriginVisible=%s structureHash=%s
+commands.cells.inspect_subnet_proxy.channels=§7频道：enabled=%s priority=%d insertionCard=%s insertionExposed=%s filterMode=%s fuzzy=%s inverter=%s
+commands.cells.inspect_subnet_proxy.grids=§7网络：front=%s back=%s exposedOrigins=%d visiblePeers=%d/%d localCells[item=%d fluid=%d gas=%d essentia=%d]
+commands.cells.inspect_subnet_proxy.last_fault.none=§7上次故障：无记录。
+commands.cells.inspect_subnet_proxy.last_fault=§e上次故障：tick=%d occurrences=%d channel=%s request=%s requested=%d extracted=%d visibleNow=%d action=%s structureHash=%s
+
 # Subnet Proxy
 item.cells.part.subnet_proxy_back.name=ME子网络代理（后端）
 item.cells.part.subnet_proxy_front.name=ME子网络代理（前端）
@@ -660,3 +675,5 @@ cells.config.subnetProxyMinTickRate=子网络代理最小刷新速率
 cells.config.subnetProxyMinTickRate.tooltip=子网络代理的最小刷新速率（数值越低响应越快，1-200）
 cells.config.subnetProxyMaxTickRate=子网络代理最大刷新速率
 cells.config.subnetProxyMaxTickRate.tooltip=子网络代理待机时的最大刷新速率（1-1200）
+cells.config.subnetProxyReportExtractionFaults=子网络代理故障报告
+cells.config.subnetProxyReportExtractionFaults.tooltip=启用子网络代理的提取故障报告与警告日志。报告的故障可能来源于代理、所连接的容器或网络本身，包括幽灵物品或无法提取的物品。
