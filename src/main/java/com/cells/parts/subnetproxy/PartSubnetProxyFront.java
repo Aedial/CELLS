@@ -1701,6 +1701,10 @@ public class PartSubnetProxyFront extends AEBasePart
         this.inMarkSourcesDirty = true;
         try {
             int previousStructureHash = this.lastPublishedStructureHash;
+            IItemList<IAEItemStack> previousItemSnapshot = this.itemHandler.getLastSnapshot();
+            IItemList<IAEFluidStack> previousFluidSnapshot = this.fluidHandler.getLastSnapshot();
+            IItemList<?> previousGasSnapshot = this.gasHandler != null ? this.gasHandler.getLastSnapshot() : null;
+            IItemList<?> previousEssentiaSnapshot = this.essentiaHandler != null ? this.essentiaHandler.getLastSnapshot() : null;
 
             // Eagerly rebuild local cells / peers / Grid A listeners. Without
             // a Grid B notify (see javadoc), there is no later getCellArray()
@@ -1716,9 +1720,48 @@ public class PartSubnetProxyFront extends AEBasePart
             // source, election, listener, and insertion-topology changes do not.
             int currentStructureHash = this.computePublishedStructureHash();
             this.lastPublishedStructureHash = currentStructureHash;
-            if (currentStructureHash != previousStructureHash) this.notifyGridOfChange();
+            if (currentStructureHash != previousStructureHash) {
+                this.notifyGridOfChange();
+                return;
+            }
+
+            // Storage-bus cache rebuilds can change the visible listing without
+            // changing handler identities. updatePassthroughSources() already
+            // replaced our snapshots with the new current state, so compare the
+            // old baseline to the new one and forward only the net delta.
+            this.forwardSourceRefreshDeltas(
+                previousItemSnapshot,
+                previousFluidSnapshot,
+                previousGasSnapshot,
+                previousEssentiaSnapshot);
         } finally {
             this.inMarkSourcesDirty = false;
+        }
+    }
+
+    private void forwardSourceRefreshDeltas(
+            @Nullable IItemList<IAEItemStack> previousItemSnapshot,
+            @Nullable IItemList<IAEFluidStack> previousFluidSnapshot,
+            @Nullable IItemList<?> previousGasSnapshot,
+            @Nullable IItemList<?> previousEssentiaSnapshot) {
+        IStorageGrid gridB;
+        try {
+            gridB = this.getProxy().getStorage();
+        } catch (final GridAccessException e) {
+            return;
+        }
+
+        this.postSnapshotDelta(previousItemSnapshot, this.itemHandler.getLastSnapshot(), itemChannel(), gridB);
+        this.postSnapshotDelta(previousFluidSnapshot, this.fluidHandler.getLastSnapshot(), fluidChannel(), gridB);
+
+        if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
+            this.postSnapshotDeltaRaw(previousGasSnapshot, this.gasHandler.getLastSnapshot(),
+                SubnetProxyGasHelper.getChannel(), gridB);
+        }
+
+        if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
+            this.postSnapshotDeltaRaw(previousEssentiaSnapshot, this.essentiaHandler.getLastSnapshot(),
+                SubnetProxyEssentiaHelper.getChannel(), gridB);
         }
     }
 
@@ -2661,6 +2704,18 @@ public class PartSubnetProxyFront extends AEBasePart
             return;
         }
 
+        this.postSnapshotDelta(previous, current, channel, gridB);
+
+        handler.setLastSnapshot(current);
+    }
+
+    private <T extends IAEStack<T>> void postSnapshotDelta(
+            @Nullable IItemList<T> previous,
+            @Nullable IItemList<T> current,
+            IStorageChannel<T> channel,
+            IStorageGrid gridB) {
+        if (previous == null || current == null) return;
+
         // Diff via key-lookup: for each item in current, compute (now - was)
         // using IItemContainer.findPrecise; for items missing from current,
         // emit them as negative.
@@ -2690,19 +2745,26 @@ public class PartSubnetProxyFront extends AEBasePart
             changes.add(entry);
         }
 
-        if (!changes.isEmpty()) {
-            // Wrap as a SubnetProxyEventSource so downstream proxies see the
-            // origin as our back-grid (gridA) and apply normal loop/election
-            // checks. Snapshot-diff is a fallback path (rare full resets), so
-            // generating a fresh UUID per call is fine; the per-grid LRU dedup
-            // is purely a safety net here.
-            IActionSource src = (this.gridA != null)
-                ? new SubnetProxyEventSource(this, UUID.randomUUID(), this.gridA)
-                : this.proxySource;
-            gridB.postAlterationOfStoredItems(channel, changes, src);
-        }
+        if (changes.isEmpty()) return;
 
-        handler.setLastSnapshot(current);
+        // Wrap as a SubnetProxyEventSource so downstream proxies see the
+        // origin as our back-grid (gridA) and apply normal loop/election
+        // checks. Snapshot-diff is a fallback path (rare full resets), so
+        // generating a fresh UUID per call is fine; the per-grid LRU dedup
+        // is purely a safety net here.
+        IActionSource src = (this.gridA != null)
+            ? new SubnetProxyEventSource(this, UUID.randomUUID(), this.gridA)
+            : this.proxySource;
+        gridB.postAlterationOfStoredItems(channel, changes, src);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void postSnapshotDeltaRaw(
+            @Nullable IItemList<?> previous,
+            @Nullable IItemList<?> current,
+            IStorageChannel<?> channel,
+            IStorageGrid gridB) {
+        this.postSnapshotDelta((IItemList) previous, (IItemList) current, (IStorageChannel) channel, gridB);
     }
 
     // ========================= Peer aggregation / coordinator helpers =========================
