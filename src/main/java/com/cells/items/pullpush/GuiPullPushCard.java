@@ -369,8 +369,6 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
 
     @Override
     protected void keyTyped(final char character, final int key) throws IOException {
-        if (this.checkHotbarKeys(key)) return;
-
         // Determine which text field is focused (if any)
         GuiTextField activeField = null;
         if (this.quantityField.isFocused()) {
@@ -390,12 +388,12 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
             if (this.quantityField.isFocused()) {
                 this.quantityField.setFocused(false);
                 this.keepsField.setFocused(true);
-            } else {
+                return;
+            } else if (this.keepsField.isFocused()) {
                 this.keepsField.setFocused(false);
                 this.quantityField.setFocused(true);
+                return;
             }
-
-            return;
         }
 
         // Commas are virtual (auto-formatted), so we need to skip over them when

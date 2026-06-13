@@ -131,4 +131,23 @@ public class AbstractCellInventoryHandler<T extends IAEStack<T>> extends MEInven
     public IncludeExclude getIncludeExcludeMode() {
         return this.myWhitelist;
     }
+
+    /**
+     * Match AE2 cell behavior: partition filters limit insertion priority,
+     * but already-stored content must remain extractable even if it is no
+     * longer present in the partition list.
+     */
+    @Override
+    protected boolean canExtract(T request) {
+        return this.hasReadAccess();
+    }
+
+    /**
+     * Match AE2 cell behavior so UIs can still show stored, unpartitioned
+     * content that remains extractable from the cell.
+     */
+    @Override
+    protected boolean shouldItemBeAvailable(T request) {
+        return this.hasReadAccess();
+    }
 }

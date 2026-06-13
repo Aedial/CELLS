@@ -121,7 +121,7 @@ public class ItemStorageSlot<H extends ItemStorageSlot.IItemStorageHost> extends
             ? InventoryAction.SPLIT_OR_PLACE_SINGLE
             : InventoryAction.PICKUP_OR_SET_DOWN;
 
-        NetworkHandler.instance().sendToServer(new PacketInventoryAction(action, getTankIndex(), 0));
+        NetworkHandler.instance().sendToServer(new PacketInventoryAction(action, getActionSlot(), 0));
         return true;
     }
 
@@ -135,7 +135,7 @@ public class ItemStorageSlot<H extends ItemStorageSlot.IItemStorageHost> extends
             ? InventoryAction.SPLIT_OR_PLACE_SINGLE
             : InventoryAction.PICKUP_OR_SET_DOWN;
 
-        NetworkHandler.instance().sendToServer(new PacketInventoryAction(action, getTankIndex(), 0));
+        NetworkHandler.instance().sendToServer(new PacketInventoryAction(action, getActionSlot(), 0));
         return true;
     }
 
@@ -158,7 +158,7 @@ public class ItemStorageSlot<H extends ItemStorageSlot.IItemStorageHost> extends
         // Shift-click to extract whole stack to player inventory
         NetworkHandler.instance().sendToServer(new PacketInventoryAction(
             InventoryAction.SHIFT_CLICK,
-            getTankIndex(),
+            getActionSlot(),
             0
         ));
         return true;

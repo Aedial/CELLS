@@ -86,6 +86,12 @@ Common use cases:
 - **Networks stay independent.** The two halves of the proxy do not merge their grids: channel budgets, P2P tunnels, security terminals, and crafting CPUs all stay scoped to their respective networks. Only the filtered storage view crosses the boundary.
 
 
+### Compacting Pattern Exposer
+A block that exposes compression/decompression recipes as processing patterns to the ME network, in the same way as the Compacting Cells (1 up, 1 down). It acts as an alternative to the Compacting Cell, when you need to store the content somewhere else but still want the convenience of automatic compression/decompression.
+Only the set of recipes defined in the GUI is exposed to the network, as to not bloat it or generate conflicting recipes. As AE2 gets confused when 2 recipes produce the same output, the GUI prevents you from adding conflicting recipes.
+By default, the exposed recipe only does 1 action of compression/decompression (e.g. 1 block → 9 ingots) per CPU operation (multiplied by co-processors), but you can change the multiplier on a slot, exposing the recipes as a bigger conversion (e.g. 100 blocks → 900 ingots) to save CPU time at the cost of flexibility.
+
+
 ### Creative Cell (Item, Fluid, Gas, Essentia)
 A cell that can only be set in creative mode, providing 4.6 quintillion of each set slot (up to 63 different items/fluids/gases/essentia per cell). It is the equivalent of a Drawer with the Vending upgrade.
 

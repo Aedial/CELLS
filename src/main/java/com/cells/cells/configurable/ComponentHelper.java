@@ -388,27 +388,27 @@ public final class ComponentHelper {
      * @return null if valid, or an error message key if invalid
      */
     public static String validateNewMaxTypes(ItemStack cellStack, int newMaxTypes) {
-        if (newMaxTypes < 1) return "message.cells.configurable_cell.types_min";
+        if (newMaxTypes < 1) return "cells.configurable_cell.types_min";
 
         ComponentInfo info = getComponentInfo(getInstalledComponent(cellStack));
         if (info == null) return null; // No component, no validation needed
 
         int configMax = info.getChannelType().getMaxTypes();
-        if (newMaxTypes > configMax) return "message.cells.configurable_cell.types_over_config";
+        if (newMaxTypes > configMax) return "cells.configurable_cell.types_over_config";
 
         long[] summary = getStoredContentSummary(cellStack);
         long storedTypes = summary[0];
         long maxCountPerType = summary[1];
 
         // Check 1: Must have enough types for stored content
-        if (newMaxTypes < storedTypes) return "message.cells.configurable_cell.types_below_stored";
+        if (newMaxTypes < storedTypes) return "cells.configurable_cell.types_below_stored";
 
         // Check 2: Per-type capacity must accommodate existing content
         long newPhysicalPerType = calculatePhysicalPerTypeCapacity(info, newMaxTypes);
         long userMaxPerType = getMaxPerType(cellStack);
         long effectivePerType = Math.min(userMaxPerType, newPhysicalPerType);
 
-        if (maxCountPerType > effectivePerType) return "message.cells.configurable_cell.types_capacity_exceeded";
+        if (maxCountPerType > effectivePerType) return "cells.configurable_cell.types_capacity_exceeded";
 
         return null; // Valid
     }

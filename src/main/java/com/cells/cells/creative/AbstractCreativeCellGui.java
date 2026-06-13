@@ -181,8 +181,6 @@ public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellCont
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (this.checkHotbarKeys(keyCode)) return;
-
         // Handle quick-add keybind
         if (KeyBindings.QUICK_ADD_TO_FILTER.isActiveAndMatches(keyCode)) {
             Slot hoveredSlot = this.getSlotUnderMouse();

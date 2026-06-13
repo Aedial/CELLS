@@ -116,7 +116,7 @@ public class EssentiaTankSlot<H extends EssentiaTankSlot.IEssentiaTankHost> exte
         // Works with phials, jars, and essentia containers
         NetworkHandler.instance().sendToServer(new PacketInventoryAction(
             InventoryAction.EMPTY_ITEM,
-            getTankIndex(),
+            getActionSlot(),
             0
         ));
         return true;
@@ -129,7 +129,7 @@ public class EssentiaTankSlot<H extends EssentiaTankSlot.IEssentiaTankHost> exte
         // Works with phials, jars, and essentia containers
         NetworkHandler.instance().sendToServer(new PacketInventoryAction(
             InventoryAction.FILL_ITEM,
-            getTankIndex(),
+            getActionSlot(),
             0
         ));
         return true;

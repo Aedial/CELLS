@@ -95,6 +95,7 @@ import appeng.util.inv.InvOperation;
 import appeng.util.inv.filter.IAEItemFilter;
 import appeng.util.item.AEItemStack;
 
+import com.cells.Cells;
 import com.cells.api.FilterHostUtil;
 import com.cells.api.ISubnetProxy;
 import com.cells.helpers.SubnetProxyMemoryCardHelper;
@@ -285,6 +286,207 @@ public class PartSubnetProxyFront extends AEBasePart
 
     /** Debounce for markDirtyAndSave */
     private long lastSaveTick = -1;
+
+    /**
+     * True while {@link #updatePassthroughSources()} is mutating handler/source state.
+     * Coordinator callbacks can fire during that refresh, so Grid B refreshes must
+     * be deferred until the rebuild has reached a consistent state.
+     */
+    private boolean rebuildingPassthroughSources = false;
+
+    /**
+     * Identity hash of the last structural surface published to Grid B.
+     * Tracks topology only (sources, listeners, elections, insertion presence),
+     * not item contents. Content changes continue to flow through monitor deltas.
+     */
+    private int lastPublishedStructureHash = 0;
+
+    /**
+     * Runtime-only probe state for "listed but not extractable" mismatches.
+     * Kept on the front part so the warning log and the looked-at diagnostic
+     * command can both reference the same last-observed fault.
+     */
+    @Nullable
+    private FaultRecord lastFaultRecord;
+
+    private long lastFaultLogTick = Long.MIN_VALUE;
+    private int lastFaultLogFingerprint = 0;
+
+    private static final long FAULT_LOG_COOLDOWN_TICKS = 100L;
+
+    public static class FaultRecord {
+
+        public final long firstObservedTick;
+        public final long lastObservedTick;
+        public final int occurrenceCount;
+        public final String channelName;
+        public final String requestDescription;
+        public final long requestedAmount;
+        public final long extractedAmount;
+        public final long visibleAmount;
+        public final String actionName;
+        public final boolean ownOriginVisible;
+        public final int structureHash;
+        public final int localCellCount;
+        public final int visiblePeerCount;
+
+        private final int fingerprint;
+
+        private FaultRecord(
+                long firstObservedTick,
+                long lastObservedTick,
+                int occurrenceCount,
+                String channelName,
+                String requestDescription,
+                long requestedAmount,
+                long extractedAmount,
+                long visibleAmount,
+                String actionName,
+                boolean ownOriginVisible,
+                int structureHash,
+                int localCellCount,
+                int visiblePeerCount,
+                int fingerprint) {
+            this.firstObservedTick = firstObservedTick;
+            this.lastObservedTick = lastObservedTick;
+            this.occurrenceCount = occurrenceCount;
+            this.channelName = channelName;
+            this.requestDescription = requestDescription;
+            this.requestedAmount = requestedAmount;
+            this.extractedAmount = extractedAmount;
+            this.visibleAmount = visibleAmount;
+            this.actionName = actionName;
+            this.ownOriginVisible = ownOriginVisible;
+            this.structureHash = structureHash;
+            this.localCellCount = localCellCount;
+            this.visiblePeerCount = visiblePeerCount;
+            this.fingerprint = fingerprint;
+        }
+
+        private FaultRecord(FaultRecord other) {
+            this(
+                other.firstObservedTick,
+                other.lastObservedTick,
+                other.occurrenceCount,
+                other.channelName,
+                other.requestDescription,
+                other.requestedAmount,
+                other.extractedAmount,
+                other.visibleAmount,
+                other.actionName,
+                other.ownOriginVisible,
+                other.structureHash,
+                other.localCellCount,
+                other.visiblePeerCount,
+                other.fingerprint);
+        }
+
+        private FaultRecord withObservation(long observedTick, long extractedAmount, long visibleAmount) {
+            return new FaultRecord(
+                this.firstObservedTick,
+                observedTick,
+                this.occurrenceCount + 1,
+                this.channelName,
+                this.requestDescription,
+                this.requestedAmount,
+                extractedAmount,
+                visibleAmount,
+                this.actionName,
+                this.ownOriginVisible,
+                this.structureHash,
+                this.localCellCount,
+                this.visiblePeerCount,
+                this.fingerprint);
+        }
+    }
+
+    public static class ProxyDiagnosticSnapshot {
+
+        public final int dimensionId;
+        public final String dimensionName;
+        @Nullable
+        public final BlockPos pos;
+        @Nullable
+        public final EnumFacing side;
+        public final boolean powered;
+        public final boolean active;
+        public final boolean paired;
+        public final EnumSet<ResourceType> enabledChannels;
+        public final int priority;
+        public final boolean hasInsertionCard;
+        public final boolean insertionActive;
+        public final ResourceType filterMode;
+        public final boolean fuzzyEnabled;
+        public final boolean inverterEnabled;
+        public final boolean ownOriginVisible;
+        public final int structureHash;
+        public final int frontGridHash;
+        public final int backGridHash;
+        public final int exposedOriginCount;
+        public final int totalPeerCount;
+        public final int visiblePeerCount;
+        public final int itemLocalCells;
+        public final int fluidLocalCells;
+        public final int gasLocalCells;
+        public final int essentiaLocalCells;
+        @Nullable
+        public final FaultRecord lastFault;
+
+        private ProxyDiagnosticSnapshot(
+                int dimensionId,
+                String dimensionName,
+                @Nullable BlockPos pos,
+                @Nullable EnumFacing side,
+                boolean powered,
+                boolean active,
+                boolean paired,
+                EnumSet<ResourceType> enabledChannels,
+                int priority,
+                boolean hasInsertionCard,
+                boolean insertionActive,
+                ResourceType filterMode,
+                boolean fuzzyEnabled,
+                boolean inverterEnabled,
+                boolean ownOriginVisible,
+                int structureHash,
+                int frontGridHash,
+                int backGridHash,
+                int exposedOriginCount,
+                int totalPeerCount,
+                int visiblePeerCount,
+                int itemLocalCells,
+                int fluidLocalCells,
+                int gasLocalCells,
+                int essentiaLocalCells,
+                @Nullable FaultRecord lastFault) {
+            this.dimensionId = dimensionId;
+            this.dimensionName = dimensionName;
+            this.pos = pos;
+            this.side = side;
+            this.powered = powered;
+            this.active = active;
+            this.paired = paired;
+            this.enabledChannels = enabledChannels.clone();
+            this.priority = priority;
+            this.hasInsertionCard = hasInsertionCard;
+            this.insertionActive = insertionActive;
+            this.filterMode = filterMode;
+            this.fuzzyEnabled = fuzzyEnabled;
+            this.inverterEnabled = inverterEnabled;
+            this.ownOriginVisible = ownOriginVisible;
+            this.structureHash = structureHash;
+            this.frontGridHash = frontGridHash;
+            this.backGridHash = backGridHash;
+            this.exposedOriginCount = exposedOriginCount;
+            this.totalPeerCount = totalPeerCount;
+            this.visiblePeerCount = visiblePeerCount;
+            this.itemLocalCells = itemLocalCells;
+            this.fluidLocalCells = fluidLocalCells;
+            this.gasLocalCells = gasLocalCells;
+            this.essentiaLocalCells = essentiaLocalCells;
+            this.lastFault = lastFault == null ? null : new FaultRecord(lastFault);
+        }
+    }
 
     // ========================= Delta Forwarding State =========================
 
@@ -491,6 +693,8 @@ public class PartSubnetProxyFront extends AEBasePart
             this.essentiaHandler.setFrontPart(this);
             this.essentiaInsertionHandler = SubnetProxyEssentiaHelper.createInsertionHandler();
         }
+
+        this.lastPublishedStructureHash = this.computePublishedStructureHash();
     }
 
     // ========================= Page Management =========================
@@ -585,6 +789,107 @@ public class PartSubnetProxyFront extends AEBasePart
         this.markHostDirty();
         // Cell array on front-grid changed: this channel just appeared/disappeared.
         this.notifyGridOfChange();
+    }
+
+    /**
+     * AE2's storage cache only exposes cell providers whose node is active.
+     * Mirror that here so the proxy does not publish providers that Grid A's
+     * own storage monitor has already dropped.
+     */
+    static boolean isActiveCellProviderNode(IGridNode node, IGridHost host) {
+        if (!(host instanceof IActionHost)) return true;
+
+        return node != null && node.isActive();
+    }
+
+    /**
+     * Structural hash of what Grid B can currently see through this proxy.
+     * The hash intentionally ignores item counts and only tracks topology:
+     * local handler sources, listener/monitor bindings, elected peer fronts,
+     * and whether insertion handlers are exposed.
+     */
+    private int computePublishedStructureHash() {
+        int hash = 1;
+        boolean ownOriginVisible = this.shouldExposeOwnOrigin();
+
+        if (ownOriginVisible) {
+            if (this.enabledChannels.contains(ResourceType.ITEM)) {
+                hash = 31 * hash + this.itemHandler.getLocalCellIdentityHash();
+                hash = 31 * hash + identityHash(this.registeredItemMonitor);
+            }
+
+            if (this.enabledChannels.contains(ResourceType.FLUID)) {
+                hash = 31 * hash + this.fluidHandler.getLocalCellIdentityHash();
+                hash = 31 * hash + identityHash(this.registeredFluidMonitor);
+            }
+
+            if (this.enabledChannels.contains(ResourceType.GAS) && this.gasHandler != null) {
+                hash = 31 * hash + this.gasHandler.getLocalCellIdentityHash();
+                hash = 31 * hash + identityHash(this.gasHandler.getRegisteredMonitor());
+            }
+
+            if (this.enabledChannels.contains(ResourceType.ESSENTIA) && this.essentiaHandler != null) {
+                hash = 31 * hash + this.essentiaHandler.getLocalCellIdentityHash();
+                hash = 31 * hash + identityHash(this.essentiaHandler.getRegisteredMonitor());
+            }
+        }
+
+        if (!this.enabledChannels.isEmpty()) {
+            hash = 31 * hash + sortedIdentityHash(this.getPublishedPeerFronts());
+            hash = 31 * hash + (this.insertionActive ? 1 : 0);
+        }
+
+        hash = 31 * hash + identityHash(this.gridA);
+
+        return hash;
+    }
+
+    /**
+     * Peer fronts whose items are actually visible on this front-grid right now.
+     * This mirrors the same front-grid + coordinator checks used by listing.
+     */
+    private List<PartSubnetProxyFront> getPublishedPeerFronts() {
+        if (this.peerFronts.isEmpty()) return Collections.emptyList();
+
+        IGrid frontGrid = getFrontGridLive();
+        if (frontGrid == null) return Collections.emptyList();
+
+        SubnetProxyGridCoordinator coord = SubnetProxyGridCoordinator.getOrNull(frontGrid);
+        if (coord == null) return Collections.emptyList();
+
+        List<PartSubnetProxyFront> visiblePeers = new ArrayList<>();
+        for (PartSubnetProxyFront peer : this.peerFronts) {
+            IGrid peerOrigin = peer.getBackGrid();
+            if (peerOrigin == null) continue;
+            if (peerOrigin == frontGrid) continue;
+            if (!coord.isElected(this, peerOrigin)) continue;
+
+            visiblePeers.add(peer);
+        }
+
+        return visiblePeers;
+    }
+
+    private static int identityHash(@Nullable Object value) {
+        return value == null ? 0 : System.identityHashCode(value);
+    }
+
+    private static int sortedIdentityHash(Iterable<?> values) {
+        List<Integer> ids = new ArrayList<>();
+        for (Object value : values) {
+            if (value == null) continue;
+
+            ids.add(System.identityHashCode(value));
+        }
+
+        if (ids.isEmpty()) return 0;
+
+        Collections.sort(ids);
+
+        int hash = 1;
+        for (int id : ids) hash = 31 * hash + id;
+
+        return hash;
     }
 
     // ========================= Config & Upgrade Access =========================
@@ -718,6 +1023,8 @@ public class PartSubnetProxyFront extends AEBasePart
         // Safe to call even if back-grid isn't ready yet; will be a no-op and
         // re-attempted via markSourcesDirty path when back becomes available.
         updateInsertionHandlers();
+
+        this.lastPublishedStructureHash = this.computePublishedStructureHash();
     }
 
     @Override
@@ -1225,10 +1532,11 @@ public class PartSubnetProxyFront extends AEBasePart
      * Content changes on Grid A reach Grid B via the {@link GridAListener}
      * postChange path directly (filtered + forwarded as deltas), so a Grid B
      * cell-array refresh would be redundant. The set of handlers we publish
-     * via {@link #getCellArray} is structurally invariant w.r.t. Grid A
-     * contents; the only thing that can flip during this call is
-     * {@link #insertionActive} (when the back part connects/disconnects),
-     * and ONLY that flip warrants a Grid B notify.
+    * via {@link #getCellArray} is structurally invariant w.r.t. normal Grid A
+    * content changes, but back-grid topology changes can still alter the
+    * published surface: local provider membership, listener bindings,
+    * coordinator election, and {@link #insertionActive}. Only those
+    * structural changes warrant a Grid B notify.
      * <p>
      * Sources are refreshed eagerly (not deferred via the {@code sourcesDirty}
      * flag) precisely because we no longer rely on a Grid B cell-array
@@ -1245,7 +1553,7 @@ public class PartSubnetProxyFront extends AEBasePart
 
         this.inMarkSourcesDirty = true;
         try {
-            boolean wasInsertionActive = this.insertionActive;
+            int previousStructureHash = this.lastPublishedStructureHash;
 
             // Eagerly rebuild local cells / peers / Grid A listeners. Without
             // a Grid B notify (see javadoc), there is no later getCellArray()
@@ -1256,11 +1564,12 @@ public class PartSubnetProxyFront extends AEBasePart
             // (handles back part appearing/disappearing or its grid changing).
             updateInsertionHandlers();
 
-            // Only notify Grid B when the structural cell-array we publish
-            // actually changed. Today that is exclusively the insertion
-            // handler appearing/disappearing (read handlers are always
-            // exposed when the front part is wired).
-            if (this.insertionActive != wasInsertionActive) this.notifyGridOfChange();
+            // Only notify Grid B when the structural surface it sees actually
+            // changed. Content changes still flow through monitor deltas, but
+            // source, election, listener, and insertion-topology changes do not.
+            int currentStructureHash = this.computePublishedStructureHash();
+            this.lastPublishedStructureHash = currentStructureHash;
+            if (currentStructureHash != previousStructureHash) this.notifyGridOfChange();
         } finally {
             this.inMarkSourcesDirty = false;
         }
@@ -1304,143 +1613,155 @@ public class PartSubnetProxyFront extends AEBasePart
     @SuppressWarnings("unchecked")
     private void updatePassthroughSources() {
         this.sourcesDirty = false;
-
-        // Unregister from previous Grid A monitors before potentially switching grids
-        unregisterGridAListeners();
-
-        PartSubnetProxyBack back = findBackPart();
-        if (back == null) {
-            this.itemHandler.clearSources();
-            this.fluidHandler.clearSources();
-            if (this.gasHandler != null) this.gasHandler.clearSources();
-            if (this.essentiaHandler != null) this.essentiaHandler.clearSources();
-
-            // Reset snapshots so next connection starts clean
-            this.itemHandler.setLastSnapshot(null);
-            this.fluidHandler.setLastSnapshot(null);
-            if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
-            if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
-
-            // No back: drop peers/origins/coord. Election on whichever
-            // front-grid we previously belonged to must drop us so other
-            // fronts can take over publication of any origins we held.
-            this.peerFronts = new ArrayList<>();
-            this.exposedOrigins = new HashSet<>();
-            refreshCoordinatorRegistration();
-
-            return;
-        }
+        this.rebuildingPassthroughSources = true;
 
         try {
-            IGrid gridA = back.getProxy().getGrid();
-            IStorageGrid sg = gridA.getCache(IStorageGrid.class);
+            // Unregister from previous Grid A monitors before potentially switching grids
+            unregisterGridAListeners();
 
-            IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
-            IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+            PartSubnetProxyBack back = findBackPart();
+            if (back == null) {
+                this.itemHandler.clearSources();
+                this.fluidHandler.clearSources();
+                if (this.gasHandler != null) this.gasHandler.clearSources();
+                if (this.essentiaHandler != null) this.essentiaHandler.clearSources();
 
-            // Collect cell handlers from non-passthrough providers only.
-            // Also collect peer subnet-proxy fronts on the back-grid: their
-            // back-grids become candidate origins we may publish on our
-            // front-grid (subject to election in the front-grid coordinator).
-            List<IMEInventoryHandler<IAEItemStack>> localItemCells = new ArrayList<>();
-            List<IMEInventoryHandler<IAEFluidStack>> localFluidCells = new ArrayList<>();
-            List<PartSubnetProxyFront> newPeers = new ArrayList<>();
+                // Reset snapshots so next connection starts clean
+                this.itemHandler.setLastSnapshot(null);
+                this.fluidHandler.setLastSnapshot(null);
+                if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
+                if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
 
-            for (IGridNode node : gridA.getNodes()) {
-                IGridHost host = node.getMachine();
-                if (!(host instanceof ICellProvider)) continue;
+                // No back: drop peers/origins/coord. Election on whichever
+                // front-grid we previously belonged to must drop us so other
+                // fronts can take over publication of any origins we held.
+                this.peerFronts = new ArrayList<>();
+                this.exposedOrigins = new HashSet<>();
+                refreshCoordinatorRegistration();
 
-                // Skip our own proxy to prevent proxy-to-proxy chains.
-                // Other PartSubnetProxyFront on this back-grid are PEERS:
-                // their back-grids become candidate origins for us to expose,
-                // but they MUST be excluded from local-cell collection (their
-                // ICellContainer would otherwise add their items here doubled).
-                if (host instanceof PartSubnetProxyFront) {
-                    PartSubnetProxyFront peer = (PartSubnetProxyFront) host;
-                    if (peer != this) newPeers.add(peer);
-                    continue;
+                return;
+            }
+
+            try {
+                IGrid gridA = back.getProxy().getGrid();
+                IStorageGrid sg = gridA.getCache(IStorageGrid.class);
+
+                IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
+                IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
+
+                // Collect cell handlers from non-passthrough providers only.
+                // Also collect peer subnet-proxy fronts on the back-grid: their
+                // back-grids become candidate origins we may publish on our
+                // front-grid (subject to election in the front-grid coordinator).
+                List<IMEInventoryHandler<IAEItemStack>> localItemCells = new ArrayList<>();
+                List<IMEInventoryHandler<IAEFluidStack>> localFluidCells = new ArrayList<>();
+                List<PartSubnetProxyFront> newPeers = new ArrayList<>();
+
+                for (IGridNode node : gridA.getNodes()) {
+                    IGridHost host = node.getMachine();
+                    if (!isActiveCellProviderNode(node, host)) continue;
+                    if (!(host instanceof ICellProvider)) continue;
+
+                    // Skip our own proxy to prevent proxy-to-proxy chains.
+                    // Other PartSubnetProxyFront on this back-grid are PEERS:
+                    // their back-grids become candidate origins for us to expose,
+                    // but they MUST be excluded from local-cell collection (their
+                    // ICellContainer would otherwise add their items here doubled).
+                    if (host instanceof PartSubnetProxyFront) {
+                        PartSubnetProxyFront peer = (PartSubnetProxyFront) host;
+                        if (peer != this) newPeers.add(peer);
+                        continue;
+                    }
+
+                    // Skip back parts: their insertion handlers are write-only wrappers
+                    // for Grid B's storage, not local storage on Grid A.
+                    if (host instanceof PartSubnetProxyBack) continue;
+
+                    // For cable-bus parts (storage buses and similar), check if their
+                    // target tile provides STORAGE_MONITORABLE_ACCESSOR. If so, the
+                    // part is bridging to another ME network (i.e. subnet passthrough)
+                    // and must be excluded to prevent loop inflation.
+                    if (isPassthroughBusStatic(host)) continue;
+
+                    ICellProvider provider = (ICellProvider) host;
+
+                    for (IMEInventoryHandler<?> h : provider.getCellArray(itemChannel)) {
+                        localItemCells.add((IMEInventoryHandler<IAEItemStack>) h);
+                    }
+
+                    for (IMEInventoryHandler<?> h : provider.getCellArray(fluidChannel)) {
+                        localFluidCells.add((IMEInventoryHandler<IAEFluidStack>) h);
+                    }
                 }
 
-                // Skip back parts: their insertion handlers are write-only wrappers
-                // for Grid B's storage, not local storage on Grid A.
-                if (host instanceof PartSubnetProxyBack) continue;
+                // Publish updated peer/origin sets BEFORE refreshing the coordinator
+                // so election sees the new exposed-origins set.
+                this.peerFronts = newPeers;
+                this.exposedOrigins = computeExposedOrigins(gridA, newPeers);
+                refreshCoordinatorRegistration();
 
-                // For cable-bus parts (storage buses and similar), check if their
-                // target tile provides STORAGE_MONITORABLE_ACCESSOR. If so, the
-                // part is bridging to another ME network (i.e. subnet passthrough)
-                // and must be excluded to prevent loop inflation.
-                if (isPassthroughBusStatic(host)) continue;
+                this.itemHandler.setLocalCells(localItemCells);
+                this.fluidHandler.setLocalCells(localFluidCells);
 
-                ICellProvider provider = (ICellProvider) host;
-
-                for (IMEInventoryHandler<?> h : provider.getCellArray(itemChannel)) {
-                    localItemCells.add((IMEInventoryHandler<IAEItemStack>) h);
+                // Gas channel (MekanismEnergistics)
+                if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
+                    SubnetProxyGasHelper.updateSources(this.gasHandler, gridA, sg);
                 }
 
-                for (IMEInventoryHandler<?> h : provider.getCellArray(fluidChannel)) {
-                    localFluidCells.add((IMEInventoryHandler<IAEFluidStack>) h);
+                // Essentia channel (ThaumicEnergistics)
+                if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
+                    SubnetProxyEssentiaHelper.updateSources(this.essentiaHandler, gridA, sg);
                 }
+
+                // Register on Grid A's monitors for immediate delta forwarding.
+                // The listener checks source grid membership and forwards local
+                // changes directly to Grid B (no deferred snapshot diff).
+                registerGridAListeners(gridA, sg.getInventory(itemChannel), sg.getInventory(fluidChannel));
+
+                // Gas/essentia listeners
+                if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
+                    SubnetProxyGasHelper.registerListener(this.gasHandler, sg, this.gridAListener, this.listenerToken);
+                }
+                if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
+                    SubnetProxyEssentiaHelper.registerListener(this.essentiaHandler, sg, this.gridAListener, this.listenerToken);
+                }
+
+                // Take baseline snapshots. Grid B will get the full listing via
+                // getCellArray → getAvailableItems (triggered by notifyGridOfChange),
+                // so the snapshot must match what the handlers return right now.
+                takeSnapshot(this.itemHandler, itemChannel);
+                takeSnapshot(this.fluidHandler, fluidChannel);
+
+                if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
+                    takeSnapshotRaw(this.gasHandler, SubnetProxyGasHelper.getChannel());
+                }
+                if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
+                    takeSnapshotRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel());
+                }
+            } catch (final GridAccessException e) {
+                this.itemHandler.clearSources();
+                this.fluidHandler.clearSources();
+                if (this.gasHandler != null) this.gasHandler.clearSources();
+                if (this.essentiaHandler != null) this.essentiaHandler.clearSources();
+
+                this.itemHandler.setLastSnapshot(null);
+                this.fluidHandler.setLastSnapshot(null);
+                if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
+                if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+
+                // Back-grid unavailable: also drop peer/origin set & coord
+                this.peerFronts = new ArrayList<>();
+                this.exposedOrigins = new HashSet<>();
+                refreshCoordinatorRegistration();
             }
+        } finally {
+            this.rebuildingPassthroughSources = false;
 
-            // Publish updated peer/origin sets BEFORE refreshing the coordinator
-            // so election sees the new exposed-origins set.
-            this.peerFronts = newPeers;
-            this.exposedOrigins = computeExposedOrigins(gridA, newPeers);
-            refreshCoordinatorRegistration();
-
-            this.itemHandler.setLocalCells(localItemCells);
-            this.fluidHandler.setLocalCells(localFluidCells);
-
-            // Gas channel (MekanismEnergistics)
-            if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-                SubnetProxyGasHelper.updateSources(this.gasHandler, gridA, sg);
+            // When this refresh happens as part of a Grid B rebuild pull,
+            // there will be no later structural notify from markSourcesDirty.
+            if (!this.inMarkSourcesDirty) {
+                this.lastPublishedStructureHash = this.computePublishedStructureHash();
             }
-
-            // Essentia channel (ThaumicEnergistics)
-            if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-                SubnetProxyEssentiaHelper.updateSources(this.essentiaHandler, gridA, sg);
-            }
-
-            // Register on Grid A's monitors for immediate delta forwarding.
-            // The listener checks source grid membership and forwards local
-            // changes directly to Grid B (no deferred snapshot diff).
-            registerGridAListeners(gridA, sg.getInventory(itemChannel), sg.getInventory(fluidChannel));
-
-            // Gas/essentia listeners
-            if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-                SubnetProxyGasHelper.registerListener(this.gasHandler, sg, this.gridAListener, this.listenerToken);
-            }
-            if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-                SubnetProxyEssentiaHelper.registerListener(this.essentiaHandler, sg, this.gridAListener, this.listenerToken);
-            }
-
-            // Take baseline snapshots. Grid B will get the full listing via
-            // getCellArray → getAvailableItems (triggered by notifyGridOfChange),
-            // so the snapshot must match what the handlers return right now.
-            takeSnapshot(this.itemHandler, itemChannel);
-            takeSnapshot(this.fluidHandler, fluidChannel);
-
-            if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-                takeSnapshotRaw(this.gasHandler, SubnetProxyGasHelper.getChannel());
-            }
-            if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-                takeSnapshotRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel());
-            }
-        } catch (final GridAccessException e) {
-            this.itemHandler.clearSources();
-            this.fluidHandler.clearSources();
-            if (this.gasHandler != null) this.gasHandler.clearSources();
-            if (this.essentiaHandler != null) this.essentiaHandler.clearSources();
-
-            this.itemHandler.setLastSnapshot(null);
-            this.fluidHandler.setLastSnapshot(null);
-            if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
-            if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
-
-            // Back-grid unavailable: also drop peer/origin set & coord
-            this.peerFronts = new ArrayList<>();
-            this.exposedOrigins = new HashSet<>();
-            refreshCoordinatorRegistration();
         }
     }
 
@@ -2348,13 +2669,21 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     /**
-     * Election changes are structural visibility changes already handled by
-     * AE2's front-grid force-update path. Clear our snapshots so a later
-     * back-grid onListUpdate does not replay those structural changes as data
-     * deltas.
+     * Election changes are structural visibility changes. Clear our snapshots
+     * so a later back-grid onListUpdate does not replay those structural
+     * changes as data deltas, then refresh Grid B if the published surface
+     * actually changed.
      */
     void onCoordinatorElectionChanged() {
         clearPassthroughSnapshots();
+
+        if (this.rebuildingPassthroughSources) return;
+
+        int currentStructureHash = this.computePublishedStructureHash();
+        if (currentStructureHash == this.lastPublishedStructureHash) return;
+
+        this.lastPublishedStructureHash = currentStructureHash;
+        this.notifyGridOfChange();
     }
 
     @SuppressWarnings("unchecked")
@@ -2363,6 +2692,194 @@ public class PartSubnetProxyFront extends AEBasePart
         this.fluidHandler.setLastSnapshot(null);
         if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
         if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+    }
+
+    // ========================= Diagnostics =========================
+
+    public void refreshDiagnosticsState() {
+        if (this.sourcesDirty) this.updatePassthroughSources();
+        if (this.filtersDirty) this.rebuildFilters();
+    }
+
+    public ProxyDiagnosticSnapshot getDiagnosticSnapshot() {
+        this.refreshDiagnosticsState();
+
+        World world = this.getHostWorld();
+        IGrid frontGrid = getFrontGridLive();
+        int dimensionId = world != null && world.provider != null ? world.provider.getDimension() : Integer.MIN_VALUE;
+        String dimensionName = world != null && world.provider != null && world.provider.getDimensionType() != null
+                ? world.provider.getDimensionType().getName()
+                : "unknown";
+
+        return new ProxyDiagnosticSnapshot(
+            dimensionId,
+            dimensionName,
+            this.getHostPos(),
+            this.getSide() != null ? this.getSide().getFacing() : null,
+            this.isPowered(),
+            this.isActive(),
+            this.findBackPart() != null,
+            this.enabledChannels,
+            this.getPriority(),
+            this.hasInsertionCard(),
+            this.insertionActive,
+            this.getFilterMode(),
+            this.cachedHasFuzzy,
+            this.cachedHasInverter,
+            this.shouldExposeOwnOrigin(),
+            this.computePublishedStructureHash(),
+            identityHash(frontGrid),
+            identityHash(this.getBackGrid()),
+            this.exposedOrigins.size(),
+            this.peerFronts.size(),
+            this.getPublishedPeerFronts().size(),
+            this.itemHandler.getLocalCellCount(),
+            this.fluidHandler.getLocalCellCount(),
+            this.gasHandler != null ? this.gasHandler.getLocalCellCount() : 0,
+            this.essentiaHandler != null ? this.essentiaHandler.getLocalCellCount() : 0,
+            this.lastFaultRecord);
+    }
+
+    void recordExtractionMismatch(
+            IStorageChannel<?> channel,
+            IAEStack<?> request,
+            @Nullable IAEStack<?> extracted,
+            long visibleAmount,
+            Actionable action) {
+        if (request == null || visibleAmount <= 0) return;
+
+        ResourceType type = channelToResourceType(channel, itemChannel(), fluidChannel());
+        String channelName = type != null ? type.name() : channel.getClass().getSimpleName();
+        int structureHash = this.computePublishedStructureHash();
+        boolean ownOriginVisible = this.shouldExposeOwnOrigin();
+        long observedTick = this.getObservedWorldTick();
+        long extractedAmount = extracted == null ? 0 : extracted.getStackSize();
+        int fingerprint = computeFaultFingerprint(channelName, request, structureHash, ownOriginVisible);
+
+        FaultRecord record = new FaultRecord(
+            observedTick,
+            observedTick,
+            1,
+            channelName,
+            describeAeStack(request),
+            request.getStackSize(),
+            extractedAmount,
+            visibleAmount,
+            action.name(),
+            ownOriginVisible,
+            structureHash,
+            this.getLocalCellCount(type),
+            this.getPublishedPeerFronts().size(),
+            fingerprint);
+
+        if (this.lastFaultRecord != null && this.lastFaultRecord.fingerprint == fingerprint) {
+            record = this.lastFaultRecord.withObservation(observedTick, extractedAmount, visibleAmount);
+        }
+
+        this.lastFaultRecord = record;
+
+        if (observedTick >= 0
+                && this.lastFaultLogFingerprint == fingerprint
+                && this.lastFaultLogTick >= 0
+                && observedTick - this.lastFaultLogTick < FAULT_LOG_COOLDOWN_TICKS) {
+            return;
+        }
+
+        this.lastFaultLogFingerprint = fingerprint;
+        this.lastFaultLogTick = observedTick;
+
+        World world = this.getHostWorld();
+        Cells.LOGGER.warn(
+            "Subnet Proxy visibility mismatch at dim={} ({}) pos={} side={} channel={} request={} requested={} extracted={} visible_now={} structure_hash={} own_origin_visible={} local_cells={} visible_peers={} action={} occurrences={}",
+            world != null && world.provider != null ? world.provider.getDimension() : "unknown",
+            world != null && world.provider != null && world.provider.getDimensionType() != null
+                    ? world.provider.getDimensionType().getName()
+                    : "unknown",
+            formatBlockPos(this.getHostPos()),
+            this.getSide() != null ? this.getSide().getFacing() : "unknown",
+            record.channelName,
+            record.requestDescription,
+            record.requestedAmount,
+            record.extractedAmount,
+            record.visibleAmount,
+            formatHash(record.structureHash),
+            record.ownOriginVisible,
+            record.localCellCount,
+            record.visiblePeerCount,
+            record.actionName,
+            record.occurrenceCount);
+    }
+
+    private int getLocalCellCount(@Nullable ResourceType type) {
+        if (type == null) return 0;
+
+        switch (type) {
+            case ITEM:
+                return this.itemHandler.getLocalCellCount();
+            case FLUID:
+                return this.fluidHandler.getLocalCellCount();
+            case GAS:
+                return this.gasHandler != null ? this.gasHandler.getLocalCellCount() : 0;
+            case ESSENTIA:
+                return this.essentiaHandler != null ? this.essentiaHandler.getLocalCellCount() : 0;
+            default:
+                return 0;
+        }
+    }
+
+    private long getObservedWorldTick() {
+        World world = this.getHostWorld();
+        return world != null ? world.getTotalWorldTime() : -1L;
+    }
+
+    private static int computeFaultFingerprint(
+            String channelName,
+            IAEStack<?> request,
+            int structureHash,
+            boolean ownOriginVisible) {
+        int hash = 1;
+        hash = 31 * hash + channelName.hashCode();
+        hash = 31 * hash + structureHash;
+        hash = 31 * hash + (ownOriginVisible ? 1 : 0);
+
+        ItemStack displayStack = request.asItemStackRepresentation();
+        if (!displayStack.isEmpty()) {
+            hash = 31 * hash + Item.getIdFromItem(displayStack.getItem());
+            hash = 31 * hash + displayStack.getMetadata();
+            hash = 31 * hash + (displayStack.hasTagCompound() ? displayStack.getTagCompound().hashCode() : 0);
+        }
+
+        return hash;
+    }
+
+    private static String describeAeStack(IAEStack<?> stack) {
+        ItemStack displayStack = stack.asItemStackRepresentation();
+        if (displayStack.isEmpty()) return stack.getClass().getSimpleName();
+
+        ResourceLocation registryName = displayStack.getItem().getRegistryName();
+        StringBuilder description = new StringBuilder(displayStack.getDisplayName());
+
+        if (registryName != null) {
+            description.append(" (")
+                .append(registryName)
+                .append(':')
+                .append(displayStack.getMetadata());
+
+            if (displayStack.hasTagCompound()) description.append(", nbt");
+
+            description.append(')');
+        }
+
+        return description.toString();
+    }
+
+    private static String formatBlockPos(@Nullable BlockPos pos) {
+        if (pos == null) return "[unknown]";
+        return "[" + pos.getX() + ", " + pos.getY() + ", " + pos.getZ() + "]";
+    }
+
+    private static String formatHash(int hash) {
+        return String.format("%08X", hash);
     }
 
     /**

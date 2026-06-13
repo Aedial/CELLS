@@ -13,7 +13,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
-import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandlerModifiable;
 
 import appeng.container.AEBaseContainer;
 import appeng.container.slot.AppEngSlot;
@@ -188,7 +188,6 @@ public class ContainerConfigurableCell extends AEBaseContainer {
 
     /**
      * Prevent moving the held cell via hotbar swap, shift-click, etc.
-     * Custom handling for the component slot (slot 0) to support swap.
      */
     @Override
     @Nonnull
@@ -202,142 +201,112 @@ public class ContainerConfigurableCell extends AEBaseContainer {
             }
         }
 
-        // Custom handling for component slot (slot 0) left/right clicks.
-        // SlotItemHandler cannot handle swaps for non-IItemHandlerModifiable handlers,
-        // so we manage the component slot interactions directly.
-        if (slotId == 0 && clickTypeIn == ClickType.PICKUP) return handleComponentSlotClick(player);
+        // Stacked cells represent one installed component per cell, so pickup
+        // interactions must consume or return the full stack size at once.
+        if (slotId == 0 && clickTypeIn == ClickType.PICKUP && cellStack.getCount() > 1) {
+            return handleStackedComponentClick(player);
+        }
 
         return super.slotClick(slotId, dragType, clickTypeIn, player);
     }
 
     /**
-     * Handle left/right click on the component slot (slot 0).
-     * Supports: extract, insert, and swap operations.
-     * <p>
-     * For stacked cells: extraction is allowed (removes component from all),
-     * but insertion and swap are blocked to prevent the duplication exploit.
-     * <p>
-     * If the cell has content, extraction is blocked. Swapping is only allowed
-     * if the new component uses the same storage channel and has enough capacity
-     * for the existing content.
+     * Handle pickup clicks for stacked configurable cells.
+     * The component slot represents one component per cell, so inserting or
+     * extracting must always operate on the entire cell stack at once.
      */
-    private ItemStack handleComponentSlotClick(EntityPlayer player) {
+    private ItemStack handleStackedComponentClick(EntityPlayer player) {
         ItemStack cursor = player.inventory.getItemStack();
         ItemStack installed = ComponentHelper.getInstalledComponent(cellStack);
-        boolean isStacked = cellStack.getCount() > 1;
+        ItemStack displayedInstalled = ItemStack.EMPTY;
+        int requiredComponents = cellStack.getCount();
+
+        if (!installed.isEmpty()) {
+            displayedInstalled = installed.copy();
+            displayedInstalled.setCount(requiredComponents);
+        }
 
         if (cursor.isEmpty()) {
-            // Empty cursor + non-empty slot: extract component to cursor
             if (installed.isEmpty()) return ItemStack.EMPTY;
+            if (ComponentHelper.hasContent(cellStack)) return displayedInstalled;
 
-            // Block extraction if the cell still has stored content
-            if (ComponentHelper.hasContent(cellStack)) return ItemStack.EMPTY;
-
-            // For stacked cells, extract one component per cell
-            ItemStack extracted = installed.copy();
-            extracted.setCount(cellStack.getCount());
-            player.inventory.setItemStack(extracted);
+            player.inventory.setItemStack(displayedInstalled);
             ComponentHelper.setInstalledComponent(cellStack, ItemStack.EMPTY);
-
-            // Sync cursor and slot contents to client
-            syncCursorAndSlot(player, 0);
-
-            return extracted;
+            refreshStackedComponentSlot(player);
+            return displayedInstalled;
         }
 
-        // Cursor has item: insertion or swap - blocked for stacked cells
-        // TODO: allow if we have enough components for all cells in the stack
-        //       Or the exact number for swap (e.g. swap 10 components into stack of 10 cells)
-        if (isStacked) {
-            if (!player.world.isRemote && player instanceof EntityPlayerMP) {
-                ServerMessageHelper.warning(
-                    (EntityPlayerMP) player, "message.cells.configurable_cell.split_stack");
-            }
-
-            // Return current cursor unchanged for transaction validation
-            return cursor;
-        }
-
-        // Cursor has item: must be a valid component
         ComponentInfo cursorInfo = ComponentHelper.getComponentInfo(cursor);
-        if (cursorInfo == null) return cursor;
+        if (cursorInfo == null) return displayedInstalled;
 
         if (installed.isEmpty()) {
-            // Empty slot: install one from cursor
+            if (cursor.getCount() < requiredComponents) {
+                if (!player.world.isRemote && player instanceof EntityPlayerMP) {
+                    ServerMessageHelper.warning(
+                        (EntityPlayerMP) player, "cells.configurable_cell.split_stack");
+                }
+                return ItemStack.EMPTY;
+            }
+
             ItemStack toInstall = cursor.copy();
             toInstall.setCount(1);
             ComponentHelper.setInstalledComponent(cellStack, toInstall);
-
-            // Calculate and set remaining cursor
-            ItemStack newCursor;
-            if (cursor.getCount() <= 1) {
-                newCursor = ItemStack.EMPTY;
-            } else {
-                newCursor = cursor.copy();
-                newCursor.shrink(1);
+            cursor.shrink(requiredComponents);
+            if (cursor.getCount() <= 0) {
+                player.inventory.setItemStack(ItemStack.EMPTY);
             }
-            player.inventory.setItemStack(newCursor);
 
-            // Sync cursor and slot contents to client
-            syncCursorAndSlot(player, 0);
-
-            return newCursor;
+            refreshStackedComponentSlot(player);
+            return ItemStack.EMPTY;
         }
 
-        // Both cursor and slot have components
-
-        // Idempotency check: if cursor and installed are the same item, treat as no-op
-        // This prevents spam-click issues when rapid clicks cause duplicate processing
         if (ItemStack.areItemStacksEqual(cursor, installed)
             && ItemStack.areItemStackTagsEqual(cursor, installed)) {
-            return cursor;
+            return displayedInstalled;
         }
 
-        // Swap only if cursor count is 1
-        if (cursor.getCount() != 1) return cursor;
+        if (cursor.getCount() != requiredComponents) {
+            if (!player.world.isRemote && player instanceof EntityPlayerMP) {
+                ServerMessageHelper.warning(
+                    (EntityPlayerMP) player, "cells.configurable_cell.split_stack");
+            }
+            return displayedInstalled;
+        }
 
-        // If the cell has content, only allow swapping to a compatible component
-        // with enough capacity for the existing data
         if (ComponentHelper.hasContent(cellStack)
-            && !ComponentHelper.canSwapComponent(cellStack, cursor)) return cursor;
+            && !ComponentHelper.canSwapComponent(cellStack, cursor)) {
+            return displayedInstalled;
+        }
 
-        ItemStack oldComponent = installed.copy();
-        ComponentHelper.setInstalledComponent(cellStack, cursor.copy());
+        ItemStack toInstall = cursor.copy();
+        toInstall.setCount(1);
+        ComponentHelper.setInstalledComponent(cellStack, toInstall);
+        player.inventory.setItemStack(displayedInstalled);
+        refreshStackedComponentSlot(player);
 
-        // Set cursor to the old component (swap)
-        player.inventory.setItemStack(oldComponent);
-
-        // Sync slot and cursor to client
-        syncCursorAndSlot(player, 0);
-
-        return oldComponent;
+        return displayedInstalled;
     }
 
     /**
-     * Sync the cursor item and a specific slot to the client.
-     * Must be called on server side after modifying cursor or slot contents directly.
+     * Force the component slot to resync after a handled stacked-cell click.
+     * The custom pickup path bypasses vanilla slot mutations, so swap updates
+     * need an explicit refresh to avoid leaving the old component rendered.
      */
-    private void syncCursorAndSlot(EntityPlayer player, int slotIndex) {
-        if (player.world.isRemote) return;
-
-        // Force full sync for this slot (bypass quantity-only optimization)
-        Slot slot = this.inventorySlots.get(slotIndex);
-        for (IContainerListener listener : this.listeners) {
-            listener.sendSlotContents(this, slotIndex, slot.getStack());
-            if (listener instanceof EntityPlayerMP) {
-                ((EntityPlayerMP) listener).isChangingQuantityOnly = false;
-            }
+    private void refreshStackedComponentSlot(EntityPlayer player) {
+        if (player.world.isRemote) {
+            this.detectAndSendChanges();
+            return;
         }
 
-        // Sync cursor to client
-        if (player instanceof EntityPlayerMP) ((EntityPlayerMP) player).updateHeldItem();
+        syncAllSlots(player);
 
-        this.detectAndSendChanges();
+        if (player instanceof EntityPlayerMP) ((EntityPlayerMP) player).updateHeldItem();
     }
 
     /**
      * Transfer stack click (shift-click) - handle component slot interactions.
-     * For stacked cells: extraction is allowed, insertion is blocked.
+     * For stacked cells: extraction is allowed, and insertion requires
+     * one component per cell in the held stack.
      */
     @Override
     @Nonnull
@@ -367,14 +336,31 @@ public class ContainerConfigurableCell extends AEBaseContainer {
         }
 
         // Shift-click from player inventory: try to install as component
-        // Blocked for stacked cells
-        // TODO: allow if we have enough components for all cells in the stack
         if (isStacked) {
-            if (!player.world.isRemote && player instanceof EntityPlayerMP) {
-                ServerMessageHelper.warning(
-                    (EntityPlayerMP) player, "message.cells.configurable_cell.split_stack");
+            Slot slot = this.inventorySlots.get(index);
+            if (slot == null || !slot.getHasStack()) return ItemStack.EMPTY;
+
+            ItemStack slotStack = slot.getStack();
+            if (ComponentHelper.getComponentInfo(slotStack) == null) return ItemStack.EMPTY;
+            if (!ComponentHelper.getInstalledComponent(cellStack).isEmpty()) return ItemStack.EMPTY;
+
+            int requiredComponents = cellStack.getCount();
+            if (slotStack.getCount() < requiredComponents) {
+                if (!player.world.isRemote && player instanceof EntityPlayerMP) {
+                    ServerMessageHelper.warning(
+                        (EntityPlayerMP) player, "cells.configurable_cell.split_stack");
+                }
+                return ItemStack.EMPTY;
             }
-            return ItemStack.EMPTY;
+
+            ItemStack toInstall = slotStack.splitStack(requiredComponents);
+            toInstall.setCount(1);
+            ComponentHelper.setInstalledComponent(cellStack, toInstall);
+            slot.onSlotChanged();
+
+            syncAllSlots(player);
+
+            return toInstall;
         }
 
         Slot slot = this.inventorySlots.get(index);
@@ -420,9 +406,10 @@ public class ContainerConfigurableCell extends AEBaseContainer {
      * <p>
      * Validates:
      * - Insert: must be a recognized component
-     * - Extract: blocked if cell has content (swap handled by slotClick)
+     * - Swap: only allowed when the replacement component is compatible
+     * - Extract: blocked if the cell has stored content
      */
-    private static class ComponentSlotHandler implements IItemHandler {
+    private static class ComponentSlotHandler implements IItemHandlerModifiable {
 
         private final EntityPlayer player;
         private final EnumHand hand;
@@ -463,19 +450,58 @@ public class ContainerConfigurableCell extends AEBaseContainer {
             return component;
         }
 
+        @Override
+        public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+            ItemStack cellStack = getCellStack();
+
+            if (stack.isEmpty()) {
+                ComponentHelper.setInstalledComponent(cellStack, ItemStack.EMPTY);
+                return;
+            }
+
+            ItemStack normalized = stack.copy();
+            normalized.setCount(1);
+            ComponentHelper.setInstalledComponent(cellStack, normalized);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
+            if (stack.isEmpty()) return false;
+
+            ItemStack cellStack = getCellStack();
+            int requiredComponents = cellStack.getCount();
+
+            if (requiredComponents > 1 && stack.getCount() < requiredComponents) return false;
+
+            ComponentInfo newInfo = ComponentHelper.getComponentInfo(stack);
+            if (newInfo == null) return false;
+
+            ItemStack currentComponent = ComponentHelper.getInstalledComponent(cellStack);
+            if (currentComponent.isEmpty()) return true;
+
+            if (ItemStack.areItemStacksEqual(currentComponent, stack)
+                && ItemStack.areItemStackTagsEqual(currentComponent, stack)) {
+                return true;
+            }
+
+            if (requiredComponents > 1 && stack.getCount() != requiredComponents) return false;
+
+            return !ComponentHelper.hasContent(cellStack)
+                || ComponentHelper.canSwapComponent(cellStack, stack);
+        }
+
         @Nonnull
         @Override
         public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
             if (stack.isEmpty()) return ItemStack.EMPTY;
 
             ItemStack cellStack = getCellStack();
+            int requiredComponents = cellStack.getCount();
 
-            // Block insertion on stacked cells - return stack to reject
-            // TODO: allow if we have enough components for all cells in the stack
-            if (cellStack.getCount() > 1) {
+            if (requiredComponents > 1 && stack.getCount() < requiredComponents) {
                 if (!simulate && !player.world.isRemote && player instanceof EntityPlayerMP) {
                     ServerMessageHelper.warning(
-                        (EntityPlayerMP) player, "message.cells.configurable_cell.split_stack");
+                        (EntityPlayerMP) player, "cells.configurable_cell.split_stack");
                 }
                 return stack;
             }
@@ -484,7 +510,7 @@ public class ContainerConfigurableCell extends AEBaseContainer {
             ComponentInfo newInfo = ComponentHelper.getComponentInfo(stack);
             if (newInfo == null) return stack;
 
-            // Reject if a component is already installed (swap handled by slotClick)
+            // Reject if a component is already installed
             ItemStack currentComponent = ComponentHelper.getInstalledComponent(cellStack);
             if (!currentComponent.isEmpty()) return stack;
 
@@ -495,9 +521,9 @@ public class ContainerConfigurableCell extends AEBaseContainer {
                 ComponentHelper.setInstalledComponent(cellStack, toStore);
             }
 
-            if (stack.getCount() > 1) {
+            if (stack.getCount() > requiredComponents) {
                 ItemStack remainder = stack.copy();
-                remainder.shrink(1);
+                remainder.shrink(requiredComponents);
 
                 return remainder;
             }
@@ -515,8 +541,9 @@ public class ContainerConfigurableCell extends AEBaseContainer {
             // Block extraction if the cell still has stored content
             if (ComponentHelper.hasContent(cellStack)) return ItemStack.EMPTY;
 
-            // For stacked cells, extract component from all (returns stack of components)
-            int extractCount = Math.min(amount, cellStack.getCount());
+            // For stacked cells, both left and right click should extract the full
+            // component stack because the slot represents one component per cell.
+            int extractCount = cellStack.getCount() > 1 ? cellStack.getCount() : Math.min(amount, 1);
             ItemStack result = component.copy();
             result.setCount(extractCount);
 
@@ -527,8 +554,8 @@ public class ContainerConfigurableCell extends AEBaseContainer {
 
         @Override
         public int getSlotLimit(int slot) {
-            // Allow slot to hold multiple components when extracting from stacked cells
-            return 64;
+            // The slot represents one component per cell in the held stack.
+            return getCellStack().getCount();
         }
     }
 }

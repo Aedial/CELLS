@@ -132,7 +132,7 @@ public class FluidTankSlot<H extends FluidTankSlot.IFluidTankHost> extends Abstr
         // The container's doAction will handle the actual fluid transfer
         NetworkHandler.instance().sendToServer(new PacketInventoryAction(
             InventoryAction.EMPTY_ITEM,
-            getTankIndex(),
+            getActionSlot(),
             0
         ));
         return true;
@@ -144,7 +144,7 @@ public class FluidTankSlot<H extends FluidTankSlot.IFluidTankHost> extends Abstr
         // The container's doAction will handle the actual fluid extraction
         NetworkHandler.instance().sendToServer(new PacketInventoryAction(
             InventoryAction.FILL_ITEM,
-            getTankIndex(),
+            getActionSlot(),
             0
         ));
         return true;

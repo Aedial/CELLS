@@ -95,6 +95,7 @@ final class SubnetProxyGasHelper {
 
         for (IGridNode node : gridA.getNodes()) {
             IGridHost host = node.getMachine();
+            if (!PartSubnetProxyFront.isActiveCellProviderNode(node, host)) continue;
             if (!(host instanceof ICellProvider)) continue;
             if (host instanceof PartSubnetProxyFront) continue;
             if (PartSubnetProxyFront.isPassthroughBusStatic(host)) continue;

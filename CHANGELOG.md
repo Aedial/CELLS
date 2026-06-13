@@ -8,6 +8,31 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.6.9] - 2077-05-01
+### Fixed
+- Fix all Subnet Proxy issues (as if)
+
+
+## [0.6.3-beta] - 2026-06-15
+### Added
+- Add textures for IO Interfaces, Insertion Card, and EMC Cell.
+- Add an EMC Cell reported-amount config in CELLS so the visible stack size no longer depends on ProjectEX's external cap and can be set up to Long.MAX_VALUE.
+- Add targeted Subnet Proxy diagnostics: a rate-limited warning when the proxy detects a failed extract while the item is still listed, plus `/inspectSubnetProxy` to inspect the looked-at proxy's live state and last detected mismatch. Warnings and fault-recording are gated behind an opt-in config, to allow toggling it on only when needed. Faults originate from ghost items or unextractable items, but the exact cause may not come from the proxy itself. Some things may misreport content (e.g., Essentia Storage Bus) or have items that are visible but not extractable (e.g., EMC Link without enough EMC).
+
+### Fixed
+- Fix Subnet Proxy occasionally keeping stale availability after back-grid topology changes, by rebuilding from AE2-active providers and forcing a front-grid refresh when the proxy's published source/election surface actually changes.
+- Fix partially partitioned Configurable Cells refusing to extract stored items and fluids that were no longer listed in the partition filter.
+
+
+## [0.6.2-alpha3] - 2026-06-06
+### Fixed
+- Fix paged interface tank/storage clicks (pour/fill) using the wrong slot indices, which blocked interacting with page 2+ contents.
+- Fix standalone Essentia Interfaces hiding filters past the first page.
+- Fix some jank interactions with the Configurable Cell's component slots, resulting in voiding components or being able to insert invalid components, in some cases. All cases should be fixed, now.
+- Fix Configurable Cell's warnings/errors using the old translation keys.
+- Remove AE2's hotbar handling (1-9 under F keys) from GUIs, where they may conflict with other numeric fields or keybinds.
+
+
 ## [0.6.2-alpha2] - 2026-05-26
 ### Added
 - Add JEI recipe transfer support for Import, Export, Universal, and IO interfaces. All interface GUIs expose a shared toggle that saves whether Import interfaces receive recipe inputs or outputs, and IO interfaces route their Import/Export tabs from that same preference.

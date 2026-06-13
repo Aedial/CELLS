@@ -138,7 +138,7 @@ public class GasTankSlot<H extends GasTankSlot.IGasTankHost> extends AbstractRes
         // Works with IGasItem (Mekanism gas tanks) and GAS_HANDLER_CAPABILITY items
         NetworkHandler.instance().sendToServer(new PacketInventoryAction(
             InventoryAction.EMPTY_ITEM,
-            getTankIndex(),
+            getActionSlot(),
             0
         ));
         return true;
@@ -151,7 +151,7 @@ public class GasTankSlot<H extends GasTankSlot.IGasTankHost> extends AbstractRes
         // Works with IGasItem (Mekanism gas tanks) and GAS_HANDLER_CAPABILITY items
         NetworkHandler.instance().sendToServer(new PacketInventoryAction(
             InventoryAction.FILL_ITEM,
-            getTankIndex(),
+            getActionSlot(),
             0
         ));
         return true;

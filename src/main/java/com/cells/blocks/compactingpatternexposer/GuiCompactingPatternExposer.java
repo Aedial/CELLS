@@ -133,8 +133,6 @@ public class GuiCompactingPatternExposer extends AEBaseGui implements IJEIGhostI
             return;
         }
 
-        if (this.checkHotbarKeys(keyCode)) return;
-
         if (KeyBindings.QUICK_ADD_TO_FILTER.isActiveAndMatches(keyCode)) {
             Slot hoveredSlot = this.getSlotUnderMouse();
             ItemStack stack = QuickAddHelper.getItemUnderCursor(hoveredSlot);

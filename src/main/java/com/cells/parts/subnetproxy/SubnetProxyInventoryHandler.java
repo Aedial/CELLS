@@ -15,6 +15,8 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
 
+import com.cells.config.CellsConfig;
+
 
 /**
  * Filtered, read-only passthrough handler for the Subnet Proxy.
@@ -107,6 +109,31 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
      */
     public void setLocalCells(List<IMEInventoryHandler<T>> cells) {
         this.localCells = cells != null ? cells : Collections.emptyList();
+    }
+
+    /**
+     * Stable identity hash of the current local-cell set, ignoring iteration order.
+     * Used by the front part to detect structural source changes without scanning
+     * full contents.
+     */
+    int getLocalCellIdentityHash() {
+        if (this.localCells.isEmpty()) return 0;
+
+        List<Integer> ids = new ArrayList<>(this.localCells.size());
+        for (IMEInventoryHandler<T> cell : this.localCells) {
+            ids.add(System.identityHashCode(cell));
+        }
+
+        Collections.sort(ids);
+
+        int hash = 1;
+        for (int id : ids) hash = 31 * hash + id;
+
+        return hash;
+    }
+
+    int getLocalCellCount() {
+        return this.localCells.size();
     }
 
     /** Clear all sources (Grid A unavailable). */
@@ -231,6 +258,20 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
             }
         }
 
+        // Cannot report any faults in the following cases, so skip the probe
+        if (type != Actionable.MODULATE || remaining <= 0 || this.frontPart == null) return extracted;
+
+        // Skip the visibility probe if disabled, so we avoid the scan overhead and warning logs
+        if (!CellsConfig.subnetProxyReportExtractionFaults) return extracted;
+
+        // Some callers may request more than visible amount (without doing SIMULATE first),
+        // so we ignore mismatches in the other direction. They are normal and expected.
+        // It *can* still be a fault, but we have no way of differentiating that from a normal request.
+        long visibleAmount = this.getVisibleAmount(request);
+        if (visibleAmount > 0) {
+            this.frontPart.recordExtractionMismatch(this.channel, request, extracted, visibleAmount, type);
+        }
+
         return extracted;
     }
 
@@ -352,6 +393,14 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         List<IMEInventoryHandler<T>> sorted = new ArrayList<>(cells);
         sorted.sort(Comparator.comparingInt(IMEInventoryHandler<T>::getPriority).reversed());
         return sorted;
+    }
+
+    private long getVisibleAmount(T request) {
+        IItemList<T> visible = this.channel.createList();
+        this.getAvailableItems(visible);
+
+        T visibleStack = visible.findPrecise(request);
+        return visibleStack == null ? 0 : visibleStack.getStackSize();
     }
 
     // ========================= IMEInventoryHandler =========================

@@ -122,8 +122,6 @@ public class GuiConfigurableCell extends AEBaseGui {
 
     @Override
     protected void keyTyped(char character, int key) throws IOException {
-        if (this.checkHotbarKeys(key)) return;
-
         boolean isValidKey = key == Keyboard.KEY_DELETE || key == Keyboard.KEY_RIGHT
             || key == Keyboard.KEY_LEFT || key == Keyboard.KEY_BACK
             || Character.isDigit(character);
@@ -149,6 +147,11 @@ public class GuiConfigurableCell extends AEBaseGui {
                 return;
             }
         }
+
+        // We could handle hotbar keys, but it is likely to just be triggered by accident,
+        // and yank the cell out of the player's hand while they're trying to type a number,
+        // because they tried to type the number the cell was on.
+        // if (this.checkHotbarKeys(key)) return;
 
         super.keyTyped(character, key);
     }

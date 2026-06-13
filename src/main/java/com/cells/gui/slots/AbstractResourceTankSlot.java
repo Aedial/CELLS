@@ -124,6 +124,14 @@ public abstract class AbstractResourceTankSlot<R, H> extends GuiCustomSlot {
     }
 
     /**
+     * Get the display slot index used for GUI actions.
+     * The container applies the current page offset server-side.
+     */
+    protected int getActionSlot() {
+        return this.displayTankIndex;
+    }
+
+    /**
      * Set the font renderer for stack size rendering.
      * Must be called after construction.
      */

@@ -389,7 +389,6 @@ public class ContainerEssentiaInterface
      */
     @Nullable
     public IAEEssentiaStack getClientFilterEssentia(int displaySlot) {
-        int actualSlot = displaySlot + (this.currentPage * EssentiaInterfaceLogic.SLOTS_PER_PAGE);
-        return this.host.getFilter(actualSlot);
+        return getClientFilter(displaySlot);
     }
 }
