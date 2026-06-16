@@ -13,9 +13,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
-## [0.6.3-beta] - 2026-06-15
+## [0.6.3-beta] - 2026-06-16
 ### Added
-- Add textures for IO Interfaces, Insertion Card, and EMC Cell.
+- Add textures for IO Interfaces, Compacting Pattern Exposer, Insertion Card, and EMC Cell.
 - Add an EMC Cell reported-amount config in CELLS so the visible stack size no longer depends on ProjectEX's external cap and can be set up to Long.MAX_VALUE.
 - Add targeted Subnet Proxy diagnostics: a rate-limited warning when the proxy detects a failed extract while the item is still listed, plus `/inspectSubnetProxy` to inspect the looked-at proxy's live state and last detected mismatch. Warnings and fault-recording are gated behind an opt-in config, to allow toggling it on only when needed. Faults originate from ghost items or unextractable items, but the exact cause may not come from the proxy itself. Some things may misreport content (e.g., Essentia Storage Bus) or have items that are visible but not extractable (e.g., EMC Link without enough EMC).
 

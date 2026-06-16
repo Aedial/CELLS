@@ -1,0 +1,5 @@
+{
+    "variants": {
+        "normal": { "model": "cells:compacting_pattern_exposer_fixed" }
+    }
+}
