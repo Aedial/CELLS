@@ -659,6 +659,7 @@ item.cells.part.subnet_proxy_front.name=ME Subnet Proxy (Front)
 item.cells.part.subnet_proxy_back.tooltip=Place the front part on the back part to create a Subnet, which allows connecting multiple ME networks together.
 item.cells.part.subnet_proxy_front.tooltip=Place the back part on the front part to create a Subnet, which allows connecting multiple ME networks together.
 item.cells.part.subnet_proxy_direction.tooltip=Content flows from the back part to the front part. Make sure to place them in the correct orientation.
+item.cells.part.subnet_proxy_filters.tooltip=You can add filters to the proxy via the Quick Add keybind, JEI dragging, or JEI recipe fill-in ('+' button).
 gui.cells.subnet_proxy.title=Subnet Proxy
 gui.cells.subnet_proxy.filter_mode=Filter Mode: %s
 gui.cells.subnet_proxy.filter_mode.description=When adding a filter, it will be converted to this type.

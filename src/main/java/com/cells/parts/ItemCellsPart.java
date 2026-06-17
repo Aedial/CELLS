@@ -107,6 +107,7 @@ public class ItemCellsPart extends Item implements IPartItem<IPart> {
         // Subnet proxy parts get the shared direction tooltip
         if (type == CellsPartType.SUBNET_PROXY_BACK || type == CellsPartType.SUBNET_PROXY_FRONT) {
             tooltip.add("§7" + I18n.format("item.cells.part.subnet_proxy_direction.tooltip"));
+            tooltip.add("§7" + I18n.format("item.cells.part.subnet_proxy_filters.tooltip"));
         }
     }
 

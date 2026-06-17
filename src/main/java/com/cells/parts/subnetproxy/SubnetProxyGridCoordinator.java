@@ -117,8 +117,14 @@ public final class SubnetProxyGridCoordinator {
 
     // ========================= Front registration =========================
 
-    public synchronized void registerFront(PartSubnetProxyFront front) {
-        if (registeredFronts.add(front)) recomputeElection();
+    public void registerFront(PartSubnetProxyFront front) {
+        List<PartSubnetProxyFront> frontsToNotify = null;
+
+        synchronized (this) {
+            if (registeredFronts.add(front)) frontsToNotify = recomputeElectionLocked();
+        }
+
+        notifyElectionChanged(frontsToNotify);
     }
 
     /**
@@ -128,12 +134,16 @@ public final class SubnetProxyGridCoordinator {
      * Static-synchronized cleanup to coordinate with the global map mutex.
      */
     public void unregisterFront(PartSubnetProxyFront front) {
+        List<PartSubnetProxyFront> frontsToNotify = null;
         boolean drained;
+
         synchronized (this) {
-            registeredFronts.remove(front);
-            recomputeElection();
+            if (registeredFronts.remove(front)) frontsToNotify = recomputeElectionLocked();
             drained = registeredFronts.isEmpty();
         }
+
+        notifyElectionChanged(frontsToNotify);
+
         if (drained) cleanupIfEmpty(this);
     }
 
@@ -157,8 +167,14 @@ public final class SubnetProxyGridCoordinator {
      * exposed-origins set (e.g. peers on its back-grid were added/removed).
      * Triggers election recomputation.
      */
-    public synchronized void onPeersChanged() {
-        recomputeElection();
+    public void onPeersChanged() {
+        List<PartSubnetProxyFront> frontsToNotify;
+
+        synchronized (this) {
+            frontsToNotify = recomputeElectionLocked();
+        }
+
+        notifyElectionChanged(frontsToNotify);
     }
 
     /**
@@ -200,11 +216,11 @@ public final class SubnetProxyGridCoordinator {
      * O(F × O) where F = fronts on this grid, O = avg exposed origins per
      * front. Both small in practice.
      */
-    private void recomputeElection() {
+    private List<PartSubnetProxyFront> recomputeElectionLocked() {
         originElection.clear();
 
         List<PartSubnetProxyFront> sorted = new ArrayList<>(registeredFronts);
-          sorted.sort(FRONT_ELECTION_ORDER);
+        sorted.sort(FRONT_ELECTION_ORDER);
 
         for (PartSubnetProxyFront f : sorted) {
             Set<IGrid> exposed = f.getExposedOrigins();
@@ -216,11 +232,25 @@ public final class SubnetProxyGridCoordinator {
             }
         }
 
-        // Election flips change which structural inventory surface each front
-        // publishes. AE2 handles that via front-grid force updates; clearing the
-        // proxy snapshots here prevents a later back-grid full-reset diff from
-        // replaying those already-applied structural changes as item deltas.
-        for (PartSubnetProxyFront front : registeredFronts) {
+        return new ArrayList<>(registeredFronts);
+    }
+
+    /**
+     * Notify fronts after the coordinator lock is released so callback-driven
+     * registration changes cannot mutate the live set mid-iteration.
+     */
+    private void notifyElectionChanged(@Nullable List<PartSubnetProxyFront> frontsToNotify) {
+        if (frontsToNotify == null || frontsToNotify.isEmpty()) return;
+
+        for (PartSubnetProxyFront front : frontsToNotify) {
+            synchronized (this) {
+                if (!registeredFronts.contains(front)) continue;
+            }
+
+            // Election flips change which structural inventory surface each front
+            // publishes. AE2 handles that via front-grid force updates; clearing the
+            // proxy snapshots here prevents a later back-grid full-reset diff from
+            // replaying those already-applied structural changes as item deltas.
             front.onCoordinatorElectionChanged();
         }
     }
