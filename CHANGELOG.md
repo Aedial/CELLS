@@ -13,6 +13,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.3-beta2] - 2026-06-17
+### Fixed
+- Fix crash during complex networks' initialization, due to coordinator's election logic (what determines which proxy should forward which events) triggering chained initializations (re-entering the coordinator's code while it's still initializing).
+- Harden the sources handling of Subnet Proxy against stale sources that could have become null (and crashing the instance).
+
+
 ## [0.6.3-beta] - 2026-06-16
 ### Added
 - Add textures for IO Interfaces, Compacting Pattern Exposer, Insertion Card, and EMC Cell.

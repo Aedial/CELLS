@@ -1053,7 +1053,8 @@ public class PartSubnetProxyFront extends AEBasePart
     @Override
     @Nonnull
     public EnumFacing getPrimaryFacing() {
-        return this.getSide().getFacing();
+        AEPartLocation side = this.getSide();
+        return side != null ? side.getFacing() : EnumFacing.NORTH;
     }
 
     public int getInstalledUpgrades(Upgrades u) {
@@ -1336,7 +1337,7 @@ public class PartSubnetProxyFront extends AEBasePart
         this.notifyGridOfChange();
         this.markHostDirty();
 
-        if (this.getHost() != null) this.getHost().markForUpdate();
+        this.markHostForUpdate();
     }
 
     /**
@@ -1373,17 +1374,19 @@ public class PartSubnetProxyFront extends AEBasePart
      */
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkChannelsChanged c) {
+        if (this.getHost() == null) return;
+
         // When Grid B first assigns a channel (e.g. after initial placement),
         // re-discover Grid A's storage so it becomes visible immediately
         // without requiring a world reload or cell array change.
         this.sourcesDirty = true;
         this.notifyGridOfChange();
-        this.getHost().markForUpdate();
+        this.markHostForUpdate();
     }
 
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkPowerStatusChange c) {
-        this.getHost().markForUpdate();
+        this.markHostForUpdate();
     }
 
     // ========================= Neighbor Updates =========================
@@ -1395,7 +1398,7 @@ public class PartSubnetProxyFront extends AEBasePart
 
         if (hasBack != this.cachedHasBack) {
             this.cachedHasBack = hasBack;
-            this.getHost().markForUpdate();
+            this.markHostForUpdate();
         }
     }
 
@@ -1630,6 +1633,13 @@ public class PartSubnetProxyFront extends AEBasePart
         w.markChunkDirty(te.getPos(), te);
     }
 
+    private void markHostForUpdate() {
+        IPartHost host = this.getHost();
+        if (host == null) return;
+
+        host.markForUpdate();
+    }
+
     // IAEAppEngInventory (for config/upgrades inventory change callbacks)
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
@@ -1657,7 +1667,7 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         this.markHostDirty();
-        this.getHost().markForUpdate();
+        this.markHostForUpdate();
     }
 
     /** Guard against recursive markSourcesDirty → notifyGridOfChange → cellUpdate → markSourcesDirty loops */
@@ -1778,9 +1788,12 @@ public class PartSubnetProxyFront extends AEBasePart
         TileEntity selfTile = this.getHost() != null ? this.getHost().getTile() : null;
         if (selfTile == null || selfTile.getWorld() == null) return null;
 
+        AEPartLocation side = this.getSide();
+        if (side == null) return null;
+
         // The back part is in the adjacent block in our facing direction,
         // on the opposite side (facing back toward us).
-        EnumFacing facing = this.getSide().getFacing();
+        EnumFacing facing = side.getFacing();
         BlockPos adjacentPos = selfTile.getPos().offset(facing);
         TileEntity adjacentTile = selfTile.getWorld().getTileEntity(adjacentPos);
         if (!(adjacentTile instanceof IPartHost)) return null;
@@ -1806,11 +1819,14 @@ public class PartSubnetProxyFront extends AEBasePart
         this.rebuildingPassthroughSources = true;
 
         try {
-            // Unregister from previous Grid A monitors before potentially switching grids
-            unregisterGridAListeners();
+            // Detach stale listeners first, but keep the last known back-grid
+            // identity until we know whether this refresh found a replacement.
+            unregisterGridAListeners(false);
 
             PartSubnetProxyBack back = findBackPart();
             if (back == null) {
+                this.gridA = null;
+
                 this.itemHandler.clearSources();
                 this.fluidHandler.clearSources();
                 if (this.gasHandler != null) this.gasHandler.clearSources();
@@ -1835,6 +1851,7 @@ public class PartSubnetProxyFront extends AEBasePart
             try {
                 IGrid gridA = back.getProxy().getGrid();
                 IStorageGrid sg = gridA.getCache(IStorageGrid.class);
+                this.gridA = gridA;
 
                 IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
                 IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
@@ -1929,6 +1946,8 @@ public class PartSubnetProxyFront extends AEBasePart
                     takeSnapshotRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel());
                 }
             } catch (final GridAccessException e) {
+                this.gridA = null;
+
                 this.itemHandler.clearSources();
                 this.fluidHandler.clearSources();
                 if (this.gasHandler != null) this.gasHandler.clearSources();
@@ -1996,10 +2015,14 @@ public class PartSubnetProxyFront extends AEBasePart
         if (!(host instanceof AEBasePart)) return false;
 
         AEBasePart part = (AEBasePart) host;
-        TileEntity selfTile = part.getHost().getTile();
+        IPartHost partHost = part.getHost();
+        AEPartLocation side = part.getSide();
+        if (partHost == null || side == null) return false;
+
+        TileEntity selfTile = partHost.getTile();
         if (selfTile == null || selfTile.getWorld() == null) return false;
 
-        EnumFacing facing = part.getSide().getFacing();
+        EnumFacing facing = side.getFacing();
         BlockPos targetPos = selfTile.getPos().offset(facing);
         TileEntity target = selfTile.getWorld().getTileEntity(targetPos);
 
@@ -2525,8 +2548,8 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     /**
-     * Register the Grid A listener on the given monitors. Unregisters from any
-     * previously registered monitors first.
+     * Register the Grid A listener on the given monitors.
+     * Previous listeners must already have been detached by the caller.
      *
      * @param gridA       Grid A's grid reference, stored for {@link #isLocalSource}
      * @param itemMonitor Grid A's item monitor
@@ -2534,8 +2557,6 @@ public class PartSubnetProxyFront extends AEBasePart
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void registerGridAListeners(IGrid gridA, IMEMonitor itemMonitor, IMEMonitor fluidMonitor) {
-        unregisterGridAListeners();
-
         this.gridA = gridA;
 
         // Fresh token so any stale listener references auto-expire via isValid
@@ -2558,8 +2579,12 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     /** Unregister from all Grid A monitors we're currently listening on. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     private void unregisterGridAListeners() {
+        unregisterGridAListeners(true);
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void unregisterGridAListeners(boolean clearGridReference) {
         if (this.registeredItemMonitor != null) {
             this.registeredItemMonitor.removeListener(this.gridAListener);
             this.registeredItemMonitor = null;
@@ -2585,7 +2610,7 @@ public class PartSubnetProxyFront extends AEBasePart
             }
         }
 
-        this.gridA = null;
+        if (clearGridReference) this.gridA = null;
 
         // Invalidate the token so any lingering references auto-expire
         this.listenerToken = new Object();
@@ -2784,8 +2809,8 @@ public class PartSubnetProxyFront extends AEBasePart
      *
      * Listing and delta forwarding should follow the live per-grid coordinator,
      * not just the cached reference that is normally refreshed during source
-     * rebuilds. If the live registry is temporarily missing our coordinator,
-     * repair the registration once before falling back.
+     * rebuilds. This lookup stays read-only so monitor callbacks never try to
+     * repair coordinator state from inside a forwarding path.
      */
     @Nullable
     private SubnetProxyGridCoordinator getFrontGridCoordinator(@Nullable IGrid frontGrid) {
@@ -2793,15 +2818,6 @@ public class PartSubnetProxyFront extends AEBasePart
 
         SubnetProxyGridCoordinator liveCoord = SubnetProxyGridCoordinator.getOrNull(frontGrid);
         if (liveCoord != null) return liveCoord;
-
-        if (frontGrid != this.currentFrontGrid || this.currentFrontGridCoord == null) {
-            refreshCoordinatorRegistration();
-
-            if (frontGrid != getFrontGridLive()) return null;
-
-            liveCoord = SubnetProxyGridCoordinator.getOrNull(frontGrid);
-            if (liveCoord != null) return liveCoord;
-        }
 
         return frontGrid == this.currentFrontGrid ? this.currentFrontGridCoord : null;
     }
@@ -3335,9 +3351,15 @@ public class PartSubnetProxyFront extends AEBasePart
             return true;
         }
 
+        IPartHost host = this.getHost();
+        AEPartLocation side = this.getSide();
+        if (host == null || side == null) return true;
+
         // Open GUI
-        TileEntity guiTe = this.getHost().getTile();
-        CellsGuiHandler.openPartGui(player, guiTe, this.getSide(), CellsGuiHandler.GUI_PART_SUBNET_PROXY);
+        TileEntity guiTe = host.getTile();
+        if (guiTe == null) return true;
+
+        CellsGuiHandler.openPartGui(player, guiTe, side, CellsGuiHandler.GUI_PART_SUBNET_PROXY);
 
         return true;
     }
@@ -3366,8 +3388,14 @@ public class PartSubnetProxyFront extends AEBasePart
     private boolean tryPlaceComplementaryPart(EntityPlayer player, EnumHand hand) {
         if (player.world.isRemote) return true;
 
-        EnumFacing facing = this.getSide().getFacing();
-        TileEntity selfTile = this.getHost().getTile();
+        IPartHost host = this.getHost();
+        AEPartLocation side = this.getSide();
+        if (host == null || side == null) return true;
+
+        TileEntity selfTile = host.getTile();
+        if (selfTile == null) return true;
+
+        EnumFacing facing = side.getFacing();
         BlockPos adjacentPos = selfTile.getPos().offset(facing);
 
         // Delegate to AE2's part placement helper

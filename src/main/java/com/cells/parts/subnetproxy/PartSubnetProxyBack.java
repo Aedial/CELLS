@@ -133,6 +133,13 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
         this.cachedHasFront = false;
     }
 
+    private void markHostForUpdate() {
+        IPartHost host = this.getHost();
+        if (host == null) return;
+
+        host.markForUpdate();
+    }
+
     @Override
     public void readFromNBT(final NBTTagCompound extra) {
         super.readFromNBT(extra);
@@ -157,12 +164,12 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
 
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkChannelsChanged c) {
-        this.getHost().markForUpdate();
+        this.markHostForUpdate();
     }
 
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkPowerStatusChange c) {
-        this.getHost().markForUpdate();
+        this.markHostForUpdate();
     }
 
     /**
@@ -181,9 +188,12 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
         TileEntity selfTile = this.getHost() != null ? this.getHost().getTile() : null;
         if (selfTile == null || selfTile.getWorld() == null) return null;
 
+        AEPartLocation side = this.getSide();
+        if (side == null) return null;
+
         // The front part is in the adjacent block in our facing direction,
         // on the opposite side (facing back toward us).
-        EnumFacing facing = this.getSide().getFacing();
+        EnumFacing facing = side.getFacing();
         BlockPos adjacentPos = selfTile.getPos().offset(facing);
         TileEntity adjacentTile = selfTile.getWorld().getTileEntity(adjacentPos);
         if (!(adjacentTile instanceof IPartHost)) return null;
@@ -203,7 +213,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
 
         if (hasFront != this.cachedHasFront) {
             this.cachedHasFront = hasFront;
-            this.getHost().markForUpdate();
+            this.markHostForUpdate();
         }
     }
 
@@ -314,7 +324,8 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     @Override
     @Nonnull
     public EnumFacing getPrimaryFacing() {
-        return this.getSide().getFacing();
+        AEPartLocation side = this.getSide();
+        return side != null ? side.getFacing() : EnumFacing.NORTH;
     }
 
     @Override
@@ -401,8 +412,14 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     private boolean tryPlaceComplementaryPart(EntityPlayer player, EnumHand hand) {
         if (player.world.isRemote) return true;
 
-        EnumFacing facing = this.getSide().getFacing();
-        TileEntity selfTile = this.getHost().getTile();
+        IPartHost host = this.getHost();
+        AEPartLocation side = this.getSide();
+        if (host == null || side == null) return true;
+
+        TileEntity selfTile = host.getTile();
+        if (selfTile == null) return true;
+
+        EnumFacing facing = side.getFacing();
         BlockPos adjacentPos = selfTile.getPos().offset(facing);
 
         // Delegate to AE2's part placement helper
