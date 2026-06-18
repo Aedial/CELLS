@@ -659,6 +659,7 @@ item.cells.part.subnet_proxy_front.name=ME子网络代理（前端）
 item.cells.part.subnet_proxy_back.tooltip=将前端部件放置在后端部件上以创建子网络，可将多个ME网络连接在一起。
 item.cells.part.subnet_proxy_front.tooltip=将后端部件放置在前端部件上以创建子网络，可将多个ME网络连接在一起。
 item.cells.part.subnet_proxy_direction.tooltip=内容从后端部件流向前端部件。请确保放置方向正确。
+item.cells.part.subnet_proxy_filters.tooltip=可以通过快速添加按键、JEI拖拽，或JEI配方填充（“+”号按钮），来添加过滤项。
 gui.cells.subnet_proxy.title=子网络代理
 gui.cells.subnet_proxy.filter_mode=过滤模式：%s
 gui.cells.subnet_proxy.filter_mode.description=添加过滤项时，会转换为此类型。
