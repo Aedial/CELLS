@@ -164,11 +164,15 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
 
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkChannelsChanged c) {
+        PartSubnetProxyFront front = findFrontPart();
+        if (front != null) front.markSourcesDirty();
         this.markHostForUpdate();
     }
 
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkPowerStatusChange c) {
+        PartSubnetProxyFront front = findFrontPart();
+        if (front != null) front.markSourcesDirty();
         this.markHostForUpdate();
     }
 

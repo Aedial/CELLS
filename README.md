@@ -300,6 +300,10 @@ Show the available slots from the block the player is looking at.
 - `--handler` can be used to bypass IItemRepository and show the `IItemHandler` slots.
 - Additional arguments can be passed to simulate insertions against these slots. Autocompletion is offered for these arguments.
 
+### /inspectSubnetProxy
+Show developer information about the Subnet Proxy the player is looking at. It is intended for debugging of the Subnet Proxy's behavior and is not meant for general use.
+
+
 ## Credits
 - Chinese translation: @ZHAY10086
 - Russian translation: @MrKoteo

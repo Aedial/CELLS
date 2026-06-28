@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.4-beta] - 2026-06-28
+### Fixed
+- Fix Subnet Proxy keeping removed back-grid storage reachable when AE2 reports the disconnect only as storage deltas instead of the normal cell-array update path, such as broken drives or storage buses retargeting away from their previous inventory.
+
+
 ## [0.6.3-beta2] - 2026-06-17
 ### Fixed
 - Fix crash during complex networks' initialization, due to coordinator's election logic (what determines which proxy should forward which events) triggering chained initializations (re-entering the coordinator's code while it's still initializing).

@@ -154,6 +154,10 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         if (this.frontPart != null) this.frontPart.ensureFiltersCurrent();
     }
 
+    private void ensureSourcesCurrent() {
+        if (this.frontPart != null) this.frontPart.ensureSourcesCurrent();
+    }
+
     private boolean isReadChannelExposed() {
         return this.frontPart == null || this.frontPart.isReadChannelExposed(this.channel);
     }
@@ -233,6 +237,8 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         if (request == null) return null;
         if (!this.matchesVisibleStack(request)) return null;
 
+        this.ensureSourcesCurrent();
+
         long remaining = request.getStackSize();
         if (remaining <= 0) return null;
 
@@ -302,6 +308,8 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
     public IItemList<T> getAvailableItems(final IItemList<T> out) {
         if (!this.isReadChannelExposed()) return out;
 
+        this.ensureSourcesCurrent();
+
         // 1) Local back-grid items, but only when this front is the elected
         // publisher for its own origin on the current front-grid.
         appendLocalAvailableItems(out);
@@ -328,6 +336,8 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
     public IItemList<T> appendLocalAvailableItems(final IItemList<T> out) {
         if (!shouldExposeLocalCells()) return out;
         if (!this.isReadChannelExposed()) return out;
+
+        this.ensureSourcesCurrent();
 
         Predicate<T> visibleFilter = this.getVisibleFilter();
 
@@ -380,6 +390,8 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         if (request == null) return null;
         if (!shouldExposeLocalCells()) return null;
         if (!this.isReadChannelExposed()) return null;
+
+        this.ensureSourcesCurrent();
 
         Predicate<T> visibleFilter = this.getVisibleFilter();
         if (visibleFilter != null && !visibleFilter.test(request)) return null;

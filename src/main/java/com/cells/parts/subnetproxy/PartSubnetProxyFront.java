@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -575,6 +576,13 @@ public class PartSubnetProxyFront extends AEBasePart
     private IGrid gridA;
 
     /**
+     * IActionHost-backed providers that contributed directly-local storage at the
+     * last source rebuild. This lets delta handling recognize later disconnect/
+     * reset events from those same providers without any steady-state rescans.
+     */
+    private Set<IActionHost> knownLocalProviderHosts = Collections.emptySet();
+
+    /**
      * Dirty flag for snapshot-based delta forwarding. Set only by
      * {@link GridAListener#onListUpdate()} (full monitor reset, e.g. power
      * loss/restore). Normal per-item deltas are forwarded immediately in
@@ -776,6 +784,10 @@ public class PartSubnetProxyFront extends AEBasePart
 
     void ensureFiltersCurrent() {
         if (this.filtersDirty) this.rebuildFilters();
+    }
+
+    void ensureSourcesCurrent() {
+        if (this.sourcesDirty) this.updatePassthroughSources();
     }
 
     boolean isReadChannelExposed(IStorageChannel<?> channel) {
@@ -1826,6 +1838,7 @@ public class PartSubnetProxyFront extends AEBasePart
             PartSubnetProxyBack back = findBackPart();
             if (back == null) {
                 this.gridA = null;
+                this.knownLocalProviderHosts = Collections.emptySet();
 
                 this.itemHandler.clearSources();
                 this.fluidHandler.clearSources();
@@ -1863,6 +1876,7 @@ public class PartSubnetProxyFront extends AEBasePart
                 List<IMEInventoryHandler<IAEItemStack>> localItemCells = new ArrayList<>();
                 List<IMEInventoryHandler<IAEFluidStack>> localFluidCells = new ArrayList<>();
                 List<PartSubnetProxyFront> newPeers = new ArrayList<>();
+                Set<IActionHost> newKnownLocalProviders = Collections.newSetFromMap(new IdentityHashMap<>());
 
                 for (IGridNode node : gridA.getNodes()) {
                     IGridHost host = node.getMachine();
@@ -1890,6 +1904,10 @@ public class PartSubnetProxyFront extends AEBasePart
                     // and must be excluded to prevent loop inflation.
                     if (isPassthroughBusStatic(host)) continue;
 
+                    if (host instanceof IActionHost) {
+                        newKnownLocalProviders.add((IActionHost) host);
+                    }
+
                     ICellProvider provider = (ICellProvider) host;
 
                     for (IMEInventoryHandler<?> h : provider.getCellArray(itemChannel)) {
@@ -1905,6 +1923,7 @@ public class PartSubnetProxyFront extends AEBasePart
                 // so election sees the new exposed-origins set.
                 this.peerFronts = newPeers;
                 this.exposedOrigins = computeExposedOrigins(gridA, newPeers);
+                this.knownLocalProviderHosts = newKnownLocalProviders;
                 refreshCoordinatorRegistration();
 
                 this.itemHandler.setLocalCells(localItemCells);
@@ -1947,6 +1966,7 @@ public class PartSubnetProxyFront extends AEBasePart
                 }
             } catch (final GridAccessException e) {
                 this.gridA = null;
+                this.knownLocalProviderHosts = Collections.emptySet();
 
                 this.itemHandler.clearSources();
                 this.fluidHandler.clearSources();
@@ -2362,10 +2382,11 @@ public class PartSubnetProxyFront extends AEBasePart
      * A↔B bidirectional loops. Only changes originating from machines physically
      * on Grid A (drives, chests, local storage buses) are forwarded.
      * <p>
-     * <b>onListUpdate fallback:</b> Full monitor resets (power loss/restore,
-     * force-update from AE2's nesting detection) set {@link #deltasDirty} and
-     * defer to the tick-based snapshot diff path, since no per-item deltas
-     * are available in that case.
+    * <b>onListUpdate fallback:</b> Full monitor resets (power loss/restore,
+    * force-update from AE2's nesting detection) dirty passthrough sources so
+    * the next real front-grid read/extract call performs a one-shot rebuild.
+    * This avoids proactive snapshot scans on every reset while still ensuring
+    * stale sources are dropped before use.
      */
     @SuppressWarnings("rawtypes")
     private class GridAListener implements IMEMonitorHandlerReceiver {
@@ -2373,6 +2394,8 @@ public class PartSubnetProxyFront extends AEBasePart
         @SuppressWarnings("unchecked")
         @Override
         public void postChange(final IBaseMonitor monitor, final Iterable change, final IActionSource actionSource) {
+            boolean refreshSources = shouldRefreshSourcesForDelta(actionSource);
+
             // ---- Determine the ORIGIN grid for this delta ----
             // 1) If the source is already a SubnetProxyEventSource, the upstream
             //    proxy chain has tagged the original origin-grid; use it verbatim
@@ -2384,9 +2407,11 @@ public class PartSubnetProxyFront extends AEBasePart
             IGrid origin = SubnetProxyEventSource.extractOriginGrid(actionSource);
             if (origin == null) {
                 if (gridA == null) return;
-                if (!isPlainLocalSource(actionSource)) return;
+                if (!isPlainLocalSource(actionSource) && !refreshSources) return;
                 origin = gridA;
             }
+
+            if (refreshSources) sourcesDirty = true;
 
             // ---- Loop-back rejection ----
             // Never forward a delta back into the grid where it originated.
@@ -2448,9 +2473,10 @@ public class PartSubnetProxyFront extends AEBasePart
         @Override
         public void onListUpdate() {
             // Full list reset on Grid A (e.g. power loss/restore). No per-item
-            // deltas available, must fall back to snapshot diff on the next tick.
-            deltasDirty = true;
-            alertGridBTick();
+            // deltas available. Defer source rebuild to the next real query/
+            // extraction on Grid B rather than proactively scanning snapshots.
+            sourcesDirty = true;
+            clearPassthroughSnapshots();
         }
 
         @Override
@@ -2486,6 +2512,33 @@ public class PartSubnetProxyFront extends AEBasePart
 
         IGridNode node = machine.getActionableNode();
         return node != null && node.getGrid() == this.gridA;
+    }
+
+    /**
+     * Recognize provider-surface changes that AE2 reports only as monitor deltas.
+     * This covers two silent cases: a provider that used to be directly local has
+     * left Grid A before its removal delta is delivered, and storage buses that
+     * publish a self-sourced diff after retargeting/rebuilding without emitting a
+     * MENetworkCellArrayUpdate.
+     */
+    private boolean shouldRefreshSourcesForDelta(IActionSource source) {
+        if (this.gridA == null || !source.machine().isPresent()) return false;
+
+        IActionHost machine = source.machine().get();
+        if (!this.knownLocalProviderHosts.contains(machine)) return false;
+
+        IGridNode node = machine.getActionableNode();
+        if (node == null || node.getGrid() != this.gridA) return true;
+
+        return isLocalStorageSurfaceProvider(machine);
+    }
+
+    private static boolean isLocalStorageSurfaceProvider(IActionHost machine) {
+        String className = machine.getClass().getName();
+        return className.equals("appeng.parts.misc.PartStorageBus")
+            || className.equals("appeng.fluids.parts.PartFluidStorageBus")
+            || className.equals("com.mekeng.github.common.part.PartGasStorageBus")
+            || className.equals("thaumicenergistics.part.PartEssentiaStorageBus");
     }
 
     /**
