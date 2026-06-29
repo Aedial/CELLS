@@ -303,6 +303,13 @@ public class PartSubnetProxyFront extends AEBasePart
     private int lastPublishedStructureHash = 0;
 
     /**
+     * Identity hash of the cell-handler surface Grid B can discover through
+     * {@link #getCellArray}. Internal back-grid churn can change the published
+     * contents without changing this outer handler set.
+     */
+    private int lastPublishedCellArrayHash = 0;
+
+    /**
      * Runtime-only probe state for "listed but not extractable" mismatches.
      * Kept on the front part so the warning log and the looked-at diagnostic
      * command can both reference the same last-observed fault.
@@ -583,13 +590,20 @@ public class PartSubnetProxyFront extends AEBasePart
     private Set<IActionHost> knownLocalProviderHosts = Collections.emptySet();
 
     /**
-     * Dirty flag for snapshot-based delta forwarding. Set only by
-     * {@link GridAListener#onListUpdate()} (full monitor reset, e.g. power
-     * loss/restore). Normal per-item deltas are forwarded immediately in
+     * Dirty flag for deferred monitor-reset reconciliation on Grid B.
+     * Set by {@link GridAListener#onListUpdate()} so the next proxy tick
+     * can reconcile Grid B's cached listing against the rebuilt back-grid
+     * source set. Normal per-item deltas are forwarded immediately in
      * {@link GridAListener#postChange} and do NOT set this flag.
-     * Cleared after the snapshot diff runs in {@link #tickingRequest}.
      */
     private boolean deltasDirty = false;
+
+    /**
+    * True while a Grid A source refresh still needs a diff against the
+    * previous passthrough snapshot. Lazy source refreshes must preserve the
+    * old snapshot baseline until {@link #tickingRequest} reconciles it.
+    */
+    private boolean pendingMonitorResetReconcile = false;
 
     /**
      * Dirty flag for passthrough sources (local cells from Grid A).
@@ -710,6 +724,7 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         this.lastPublishedStructureHash = this.computePublishedStructureHash();
+        this.lastPublishedCellArrayHash = this.computePublishedCellArrayHash();
     }
 
     // ========================= Page Management =========================
@@ -787,7 +802,14 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     void ensureSourcesCurrent() {
-        if (this.sourcesDirty) this.updatePassthroughSources();
+        if (!this.sourcesDirty) return;
+
+        if (this.pendingMonitorResetReconcile) {
+            this.updatePassthroughSources(false);
+            return;
+        }
+
+        this.updatePassthroughSources();
     }
 
     boolean isReadChannelExposed(IStorageChannel<?> channel) {
@@ -933,35 +955,35 @@ public class PartSubnetProxyFront extends AEBasePart
 
     /**
      * Structural hash of what Grid B can currently see through this proxy.
-     * The hash intentionally ignores item counts and only tracks topology:
-     * local handler sources, listener/monitor bindings, elected peer fronts,
-     * and whether insertion handlers are exposed.
+     * The hash intentionally ignores item counts and unstable back-grid wrapper
+     * identities. It tracks only the externally visible surface on Grid B:
+     * exposed read channels, own-origin election, published peer fronts,
+     * insertion exposure, and the bound back-grid identity.
      */
     private int computePublishedStructureHash() {
         int hash = 1;
         boolean ownOriginVisible = this.shouldExposeOwnOrigin();
 
-        if (ownOriginVisible) {
-            if (this.isReadChannelExposed(ResourceType.ITEM)) {
-                hash = 31 * hash + this.itemHandler.getLocalCellIdentityHash();
-                hash = 31 * hash + identityHash(this.registeredItemMonitor);
-            }
+        hash = 31 * hash + (ownOriginVisible ? 1 : 0);
 
-            if (this.isReadChannelExposed(ResourceType.FLUID)) {
-                hash = 31 * hash + this.fluidHandler.getLocalCellIdentityHash();
-                hash = 31 * hash + identityHash(this.registeredFluidMonitor);
-            }
-
-            if (this.gasHandler != null && this.isReadChannelExposed(ResourceType.GAS)) {
-                hash = 31 * hash + this.gasHandler.getLocalCellIdentityHash();
-                hash = 31 * hash + identityHash(this.gasHandler.getRegisteredMonitor());
-            }
-
-            if (this.essentiaHandler != null && this.isReadChannelExposed(ResourceType.ESSENTIA)) {
-                hash = 31 * hash + this.essentiaHandler.getLocalCellIdentityHash();
-                hash = 31 * hash + identityHash(this.essentiaHandler.getRegisteredMonitor());
-            }
+        int readChannelsBitmask = 0;
+        if (this.isReadChannelExposed(ResourceType.ITEM)) {
+            readChannelsBitmask |= 1 << ResourceType.ITEM.ordinal();
         }
+
+        if (this.isReadChannelExposed(ResourceType.FLUID)) {
+            readChannelsBitmask |= 1 << ResourceType.FLUID.ordinal();
+        }
+
+        if (this.gasHandler != null && this.isReadChannelExposed(ResourceType.GAS)) {
+            readChannelsBitmask |= 1 << ResourceType.GAS.ordinal();
+        }
+
+        if (this.essentiaHandler != null && this.isReadChannelExposed(ResourceType.ESSENTIA)) {
+            readChannelsBitmask |= 1 << ResourceType.ESSENTIA.ordinal();
+        }
+
+        hash = 31 * hash + readChannelsBitmask;
 
         if (this.hasAnyReadChannelExposed()) {
             hash = 31 * hash + sortedIdentityHash(this.getPublishedPeerFronts());
@@ -972,6 +994,44 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         hash = 31 * hash + identityHash(this.gridA);
+
+        return hash;
+    }
+
+    /**
+     * Hash only the outer handler set that Grid B can discover via
+     * {@link #getCellArray}. This is narrower than
+     * {@link #computePublishedStructureHash()}: content-surface changes can be
+     * handled as deltas without forcing Grid B to rebuild its cell array.
+     */
+    private int computePublishedCellArrayHash() {
+        int hash = 1;
+        boolean ownOriginVisible = this.shouldExposeOwnOrigin();
+
+        hash = 31 * hash + (ownOriginVisible ? 1 : 0);
+
+        int readChannelsBitmask = 0;
+        if (this.isReadChannelExposed(ResourceType.ITEM)) {
+            readChannelsBitmask |= 1 << ResourceType.ITEM.ordinal();
+        }
+
+        if (this.isReadChannelExposed(ResourceType.FLUID)) {
+            readChannelsBitmask |= 1 << ResourceType.FLUID.ordinal();
+        }
+
+        if (this.gasHandler != null && this.isReadChannelExposed(ResourceType.GAS)) {
+            readChannelsBitmask |= 1 << ResourceType.GAS.ordinal();
+        }
+
+        if (this.essentiaHandler != null && this.isReadChannelExposed(ResourceType.ESSENTIA)) {
+            readChannelsBitmask |= 1 << ResourceType.ESSENTIA.ordinal();
+        }
+
+        hash = 31 * hash + readChannelsBitmask;
+
+        if (this.insertionActive && !this.enabledChannels.isEmpty()) {
+            hash = 31 * hash + this.getEnabledChannelsBitmask();
+        }
 
         return hash;
     }
@@ -1158,6 +1218,7 @@ public class PartSubnetProxyFront extends AEBasePart
         updateInsertionHandlers();
 
         this.lastPublishedStructureHash = this.computePublishedStructureHash();
+        this.lastPublishedCellArrayHash = this.computePublishedCellArrayHash();
     }
 
     @Override
@@ -1509,7 +1570,7 @@ public class PartSubnetProxyFront extends AEBasePart
     @Override
     public List<IMEInventoryHandler> getCellArray(final IStorageChannel channel) {
         // Only rebuild when invalidated by grid events or config changes
-        if (this.sourcesDirty) this.updatePassthroughSources();
+        this.ensureSourcesCurrent();
         if (this.filtersDirty) this.rebuildFilters();
 
         IItemStorageChannel itemCh = itemChannel();
@@ -1720,19 +1781,22 @@ public class PartSubnetProxyFront extends AEBasePart
     public void markSourcesDirty() {
         if (this.inMarkSourcesDirty) return;
 
+        this.pendingMonitorResetReconcile = false;
+        this.deltasDirty = false;
         this.inMarkSourcesDirty = true;
         try {
             int previousStructureHash = this.lastPublishedStructureHash;
-            IItemList<IAEItemStack> previousItemSnapshot = this.itemHandler.getLastSnapshot();
-            IItemList<IAEFluidStack> previousFluidSnapshot = this.fluidHandler.getLastSnapshot();
-            IItemList<?> previousGasSnapshot = this.gasHandler != null ? this.gasHandler.getLastSnapshot() : null;
-            IItemList<?> previousEssentiaSnapshot = this.essentiaHandler != null ? this.essentiaHandler.getLastSnapshot() : null;
+            int previousCellArrayHash = this.lastPublishedCellArrayHash;
 
             // Eagerly rebuild local cells / peers / Grid A listeners. Without
             // a Grid B notify (see javadoc), there is no later getCellArray()
             // pull that would lazily rebuild via the sourcesDirty flag.
+            // Preserve the existing snapshots as the diff baseline. Storage
+            // buses can emit a follow-up direct delta for the same rebuild,
+            // and keeping the old baseline lets that immediate delta collapse
+            // naturally before the deferred reconcile runs.
             this.sourcesDirty = true;
-            updatePassthroughSources();
+            updatePassthroughSources(false);
             // Back-grid topology may have changed; re-check insertion wiring
             // (handles back part appearing/disappearing or its grid changing).
             updateInsertionHandlers();
@@ -1741,49 +1805,25 @@ public class PartSubnetProxyFront extends AEBasePart
             // changed. Content changes still flow through monitor deltas, but
             // source, election, listener, and insertion-topology changes do not.
             int currentStructureHash = this.computePublishedStructureHash();
+            int currentCellArrayHash = this.computePublishedCellArrayHash();
             this.lastPublishedStructureHash = currentStructureHash;
-            if (currentStructureHash != previousStructureHash) {
+            this.lastPublishedCellArrayHash = currentCellArrayHash;
+            if (currentCellArrayHash != previousCellArrayHash) {
+                this.refreshAllSnapshots();
                 this.notifyGridOfChange();
                 return;
             }
 
-            // Storage-bus cache rebuilds can change the visible listing without
-            // changing handler identities. updatePassthroughSources() already
-            // replaced our snapshots with the new current state, so compare the
-            // old baseline to the new one and forward only the net delta.
-            this.forwardSourceRefreshDeltas(
-                previousItemSnapshot,
-                previousFluidSnapshot,
-                previousGasSnapshot,
-                previousEssentiaSnapshot);
+            // if (currentStructureHash != previousStructureHash)
+            // Published visibility changed, but Grid B's discoverable
+            // handler set did not. Let the deferred snapshot reconcile
+            // publish the content delta without forcing a cell-array rebuild.
+
+            this.pendingMonitorResetReconcile = true;
+            this.deltasDirty = true;
+            this.alertGridBTick();
         } finally {
             this.inMarkSourcesDirty = false;
-        }
-    }
-
-    private void forwardSourceRefreshDeltas(
-            @Nullable IItemList<IAEItemStack> previousItemSnapshot,
-            @Nullable IItemList<IAEFluidStack> previousFluidSnapshot,
-            @Nullable IItemList<?> previousGasSnapshot,
-            @Nullable IItemList<?> previousEssentiaSnapshot) {
-        IStorageGrid gridB;
-        try {
-            gridB = this.getProxy().getStorage();
-        } catch (final GridAccessException e) {
-            return;
-        }
-
-        this.postSnapshotDelta(previousItemSnapshot, this.itemHandler.getLastSnapshot(), itemChannel(), gridB);
-        this.postSnapshotDelta(previousFluidSnapshot, this.fluidHandler.getLastSnapshot(), fluidChannel(), gridB);
-
-        if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-            this.postSnapshotDeltaRaw(previousGasSnapshot, this.gasHandler.getLastSnapshot(),
-                SubnetProxyGasHelper.getChannel(), gridB);
-        }
-
-        if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-            this.postSnapshotDeltaRaw(previousEssentiaSnapshot, this.essentiaHandler.getLastSnapshot(),
-                SubnetProxyEssentiaHelper.getChannel(), gridB);
         }
     }
 
@@ -1827,6 +1867,11 @@ public class PartSubnetProxyFront extends AEBasePart
      */
     @SuppressWarnings("unchecked")
     private void updatePassthroughSources() {
+        this.updatePassthroughSources(true);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void updatePassthroughSources(boolean refreshSnapshots) {
         this.sourcesDirty = false;
         this.rebuildingPassthroughSources = true;
 
@@ -1845,11 +1890,13 @@ public class PartSubnetProxyFront extends AEBasePart
                 if (this.gasHandler != null) this.gasHandler.clearSources();
                 if (this.essentiaHandler != null) this.essentiaHandler.clearSources();
 
-                // Reset snapshots so next connection starts clean
-                this.itemHandler.setLastSnapshot(null);
-                this.fluidHandler.setLastSnapshot(null);
-                if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
-                if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+                if (refreshSnapshots) {
+                    // Reset snapshots so next connection starts clean
+                    this.itemHandler.setLastSnapshot(null);
+                    this.fluidHandler.setLastSnapshot(null);
+                    if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
+                    if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+                }
 
                 // No back: drop peers/origins/coord. Election on whichever
                 // front-grid we previously belonged to must drop us so other
@@ -1952,18 +1999,7 @@ public class PartSubnetProxyFront extends AEBasePart
                     SubnetProxyEssentiaHelper.registerListener(this.essentiaHandler, sg, this.gridAListener, this.listenerToken);
                 }
 
-                // Take baseline snapshots. Grid B will get the full listing via
-                // getCellArray → getAvailableItems (triggered by notifyGridOfChange),
-                // so the snapshot must match what the handlers return right now.
-                takeSnapshot(this.itemHandler, itemChannel);
-                takeSnapshot(this.fluidHandler, fluidChannel);
-
-                if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-                    takeSnapshotRaw(this.gasHandler, SubnetProxyGasHelper.getChannel());
-                }
-                if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-                    takeSnapshotRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel());
-                }
+                if (refreshSnapshots) refreshAllSnapshots();
             } catch (final GridAccessException e) {
                 this.gridA = null;
                 this.knownLocalProviderHosts = Collections.emptySet();
@@ -1973,10 +2009,12 @@ public class PartSubnetProxyFront extends AEBasePart
                 if (this.gasHandler != null) this.gasHandler.clearSources();
                 if (this.essentiaHandler != null) this.essentiaHandler.clearSources();
 
-                this.itemHandler.setLastSnapshot(null);
-                this.fluidHandler.setLastSnapshot(null);
-                if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
-                if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+                if (refreshSnapshots) {
+                    this.itemHandler.setLastSnapshot(null);
+                    this.fluidHandler.setLastSnapshot(null);
+                    if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
+                    if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+                }
 
                 // Back-grid unavailable: also drop peer/origin set & coord
                 this.peerFronts = new ArrayList<>();
@@ -1990,6 +2028,7 @@ public class PartSubnetProxyFront extends AEBasePart
             // there will be no later structural notify from markSourcesDirty.
             if (!this.inMarkSourcesDirty) {
                 this.lastPublishedStructureHash = this.computePublishedStructureHash();
+                this.lastPublishedCellArrayHash = this.computePublishedCellArrayHash();
             }
         }
     }
@@ -2012,6 +2051,19 @@ public class PartSubnetProxyFront extends AEBasePart
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void takeSnapshotRaw(SubnetProxyInventoryHandler handler, IStorageChannel channel) {
         takeSnapshot(handler, channel);
+    }
+
+    private void refreshAllSnapshots() {
+        takeSnapshot(this.itemHandler, itemChannel());
+        takeSnapshot(this.fluidHandler, fluidChannel());
+
+        if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
+            takeSnapshotRaw(this.gasHandler, SubnetProxyGasHelper.getChannel());
+        }
+
+        if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
+            takeSnapshotRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel());
+        }
     }
 
     /**
@@ -2370,8 +2422,10 @@ public class PartSubnetProxyFront extends AEBasePart
      * <p>
      * <b>Immediate forwarding with source-based anti-loop:</b> Filters incoming
      * deltas by checking the {@link IActionSource}'s grid membership and forwards
-     * matching deltas to Grid B immediately. This gives O(δ) per event (same as
-     * classic Storage Bus on Interface).
+     * matching deltas to Grid B immediately. Provider-surface rebuild events also
+     * queue a one-shot snapshot reconcile because the raw monitor delta can be
+     * incomplete, but they still keep the immediate O(δ) forwarding path for the
+     * common case (same as classic Storage Bus on Interface).
      * <p>
      * <b>Anti-loop guarantee:</b> Changes from passthrough storage buses arrive
      * with a {@link MachineSource} whose machine is on a <em>remote</em> grid
@@ -2383,10 +2437,11 @@ public class PartSubnetProxyFront extends AEBasePart
      * on Grid A (drives, chests, local storage buses) are forwarded.
      * <p>
     * <b>onListUpdate fallback:</b> Full monitor resets (power loss/restore,
-    * force-update from AE2's nesting detection) dirty passthrough sources so
-    * the next real front-grid read/extract call performs a one-shot rebuild.
-    * This avoids proactive snapshot scans on every reset while still ensuring
-    * stale sources are dropped before use.
+    * force-update from AE2's nesting detection, storage-bus partition resets)
+    * queue a one-shot rebuild and then force Grid B to refresh from the proxy's
+    * current listing. Some upstream providers suppress their own removal delta
+    * during resets, so relying on incremental correction alone can leave Grid B
+    * with a stale cached view.
      */
     @SuppressWarnings("rawtypes")
     private class GridAListener implements IMEMonitorHandlerReceiver {
@@ -2395,6 +2450,20 @@ public class PartSubnetProxyFront extends AEBasePart
         @Override
         public void postChange(final IBaseMonitor monitor, final Iterable change, final IActionSource actionSource) {
             boolean refreshSources = shouldRefreshSourcesForDelta(actionSource);
+
+            if (refreshSources) {
+                // Storage-surface providers can emit self-sourced monitor events
+                // while their visible listing is being rebuilt. Those deltas are
+                // not a reliable full description of what disappeared or appeared,
+                // so queue a full snapshot reconcile after the immediate delta.
+                // The immediate forward keeps normal content updates responsive,
+                // while the deferred diff corrects stale baselines after partial
+                // storage-bus repartition/reset events.
+                sourcesDirty = true;
+                pendingMonitorResetReconcile = true;
+                deltasDirty = true;
+                alertGridBTick();
+            }
 
             // ---- Determine the ORIGIN grid for this delta ----
             // 1) If the source is already a SubnetProxyEventSource, the upstream
@@ -2410,8 +2479,6 @@ public class PartSubnetProxyFront extends AEBasePart
                 if (!isPlainLocalSource(actionSource) && !refreshSources) return;
                 origin = gridA;
             }
-
-            if (refreshSources) sourcesDirty = true;
 
             // ---- Loop-back rejection ----
             // Never forward a delta back into the grid where it originated.
@@ -2472,11 +2539,13 @@ public class PartSubnetProxyFront extends AEBasePart
 
         @Override
         public void onListUpdate() {
-            // Full list reset on Grid A (e.g. power loss/restore). No per-item
-            // deltas available. Defer source rebuild to the next real query/
-            // extraction on Grid B rather than proactively scanning snapshots.
+            // Full list reset on Grid A (e.g. power loss/restore or a storage
+            // bus rebuild). Preserve the previous snapshot as the diff baseline,
+            // then reconcile against the rebuilt source set on the next Grid B tick.
             sourcesDirty = true;
-            clearPassthroughSnapshots();
+            pendingMonitorResetReconcile = true;
+            deltasDirty = true;
+            alertGridBTick();
         }
 
         @Override
@@ -2519,7 +2588,9 @@ public class PartSubnetProxyFront extends AEBasePart
      * This covers two silent cases: a provider that used to be directly local has
      * left Grid A before its removal delta is delivered, and storage buses that
      * publish a self-sourced diff after retargeting/rebuilding without emitting a
-     * MENetworkCellArrayUpdate.
+     * MENetworkCellArrayUpdate. These events must queue a fresh listing reconcile
+     * in addition to their immediate delta, because the raw stream alone is not
+     * guaranteed to describe the full visibility change.
      */
     private boolean shouldRefreshSourcesForDelta(IActionSource source) {
         if (this.gridA == null || !source.machine().isPresent()) return false;
@@ -2695,15 +2766,39 @@ public class PartSubnetProxyFront extends AEBasePart
         if (!this.deltasDirty) return TickRateModulation.SLEEP;
 
         this.deltasDirty = false;
+
+        if (this.pendingMonitorResetReconcile) {
+            this.reconcilePendingMonitorReset();
+            return TickRateModulation.SLEEP;
+        }
+
         snapshotDiffAndForward();
 
         return TickRateModulation.SLEEP;
     }
 
+    private void reconcilePendingMonitorReset() {
+        if (this.sourcesDirty) this.updatePassthroughSources(false);
+        if (this.filtersDirty) this.rebuildFilters();
+
+        this.pendingMonitorResetReconcile = false;
+
+        this.lastPublishedStructureHash = this.computePublishedStructureHash();
+        this.lastPublishedCellArrayHash = this.computePublishedCellArrayHash();
+
+        // AE2 storage buses can suppress the removal side of a partition reset
+        // when they rebuild their own filter state, which leaves Grid B's cache
+        // stale even though Grid A's current listing is already correct. Force a
+        // Grid B refresh from the rebuilt proxy surface instead of trying to
+        // reconstruct the missing delta locally.
+        this.refreshAllSnapshots();
+        this.notifyGridOfChange();
+    }
+
     /**
-     * Snapshot-based delta forwarding, used only as a fallback for
-     * {@link GridAListener#onListUpdate()} (full monitor resets such as
-     * power loss/restore or AE2's nesting-triggered force-update).
+     * Snapshot-based delta forwarding, used only as a fallback when the proxy
+     * has already marked normal content deltas dirty without a pending full
+     * monitor reset.
      * <p>
      * Normal per-item deltas are forwarded immediately in
      * {@link GridAListener#postChange} and never reach this path.
@@ -3001,7 +3096,7 @@ public class PartSubnetProxyFront extends AEBasePart
     // ========================= Diagnostics =========================
 
     public void refreshDiagnosticsState() {
-        if (this.sourcesDirty) this.updatePassthroughSources();
+        this.ensureSourcesCurrent();
         if (this.filtersDirty) this.rebuildFilters();
     }
 
