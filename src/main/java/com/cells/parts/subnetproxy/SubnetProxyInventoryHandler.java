@@ -291,7 +291,7 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         if (type != Actionable.MODULATE || remaining <= 0 || this.frontPart == null) return extracted;
 
         // Skip the visibility probe if disabled, so we avoid the scan overhead and warning logs
-        if (!CellsConfig.subnetProxyReportExtractionFaults) return extracted;
+        if (!CellsConfig.general.subnetProxyReportExtractionFaults) return extracted;
 
         // Some callers may request more than visible amount (without doing SIMULATE first),
         // so we ignore mismatches in the other direction. They are normal and expected.

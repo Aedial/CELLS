@@ -523,7 +523,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
      */
     private void drawNbtInfo(FontRenderer font, Minecraft minecraft, int leftMargin, int y) {
         int nbtSize = currentRecipe.getNbtSize();
-        long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
+        long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.general.nbtSizeWarningThresholdKB);
         String nbtSizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
         String nbtLabel = I18n.format("tooltip.cells.nbt_size", nbtSizeStr);
 
@@ -735,7 +735,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
                 // NBT info for non-compacting cells
                 tooltip.add(I18n.format("jei.cells.cellview.tooltip.nbt_info"));
                 if (NBTSizeHelper.exceedsThreshold(currentRecipe.getNbtSize(),
-                        NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB))) {
+                        NBTSizeHelper.kbToBytes(CellsConfig.general.nbtSizeWarningThresholdKB))) {
                     tooltip.add(I18n.format("tooltip.cells.nbt_size.warning"));
                 }
             }

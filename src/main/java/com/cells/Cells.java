@@ -5,7 +5,6 @@ import java.io.File;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
@@ -68,7 +67,6 @@ public class Cells {
         // Initialize configuration
         File configDir = event.getModConfigurationDirectory();
         CellsConfig.init(new File(configDir, Tags.MODID + ".cfg"));
-        MinecraftForge.EVENT_BUS.register(new CellsConfig());
 
         // Load configurable cell component whitelist (checks config/ for override)
         ComponentHelper.loadWhitelist(configDir);

@@ -634,7 +634,7 @@ public class PartSubnetProxyFront extends AEBasePart
         this.getProxy().setIdlePowerUsage(1.0);
 
         // Upgrade inventory with configurable slot count
-        int upgradeSlots = CellsConfig.subnetProxyUpgradeSlots;
+        int upgradeSlots = CellsConfig.general.subnetProxyUpgradeSlots;
         this.upgrades = new UpgradeInventory(this, upgradeSlots) {
             @Override
             public int getMaxInstalled(Upgrades u) {
@@ -716,7 +716,7 @@ public class PartSubnetProxyFront extends AEBasePart
 
     /** Maximum pages = 1 (base) + max capacity cards */
     public int getMaxPages() {
-        return 1 + CellsConfig.subnetProxyUpgradeSlots;
+        return 1 + CellsConfig.general.subnetProxyUpgradeSlots;
     }
 
     /** Actual pages available = 1 + installed capacity cards */
@@ -2683,8 +2683,8 @@ public class PartSubnetProxyFront extends AEBasePart
         // snapshot diff. Normal deltas are forwarded immediately in postChange,
         // so ticking is only needed for rare full-reset events.
         return new TickingRequest(
-            CellsConfig.subnetProxyMinTickRate,
-            CellsConfig.subnetProxyMaxTickRate,
+            CellsConfig.general.subnetProxyMinTickRate,
+            CellsConfig.general.subnetProxyMaxTickRate,
             !this.deltasDirty, true);
     }
 

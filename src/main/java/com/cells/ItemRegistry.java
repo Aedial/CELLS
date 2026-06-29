@@ -94,27 +94,27 @@ public class ItemRegistry {
 
     public static void init() {
         // Initialize items based on config
-        if (CellsConfig.enableCompactingCells) {
+        if (CellsConfig.enabledCells.enableCompactingCells) {
             COMPACTING_CELL = new ItemCompactingCell();
             COMPACTING_COMPONENT = new ItemCompactingComponent();
         }
 
-        if (CellsConfig.enableHDCells) {
+        if (CellsConfig.enabledCells.enableHDCells) {
             HYPER_DENSITY_CELL = new ItemHyperDensityCell();
             HYPER_DENSITY_COMPONENT = new ItemHyperDensityComponent();
         }
 
-        if (CellsConfig.enableHDCompactingCells) {
+        if (CellsConfig.enabledCells.enableHDCompactingCells) {
             HYPER_DENSITY_COMPACTING_CELL = new ItemHyperDensityCompactingCell();
             HYPER_DENSITY_COMPACTING_COMPONENT = new ItemHyperDensityCompactingComponent();
         }
 
-        if (CellsConfig.enableFluidHDCells) {
+        if (CellsConfig.enabledCells.enableFluidHDCells) {
             FLUID_HYPER_DENSITY_CELL = new ItemFluidHyperDensityCell();
             FLUID_HYPER_DENSITY_COMPONENT = new ItemFluidHyperDensityComponent();
         }
 
-        if (CellsConfig.enableConfigurableCells) CONFIGURABLE_CELL = new ItemConfigurableCell();
+        if (CellsConfig.enabledCells.enableConfigurableCells) CONFIGURABLE_CELL = new ItemConfigurableCell();
 
         // Creative cells are always available (no config toggle)
         CREATIVE_CELL = new ItemCreativeCell();

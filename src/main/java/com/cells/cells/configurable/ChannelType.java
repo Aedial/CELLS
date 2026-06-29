@@ -117,10 +117,10 @@ public enum ChannelType {
      */
     public int getMaxTypes() {
         switch (this) {
-            case ITEM:     return CellsConfig.configurableCellItemMaxTypes;
-            case FLUID:    return CellsConfig.configurableCellFluidMaxTypes;
-            case ESSENTIA: return CellsConfig.configurableCellEssentiaMaxTypes;
-            case GAS:      return CellsConfig.configurableCellGasMaxTypes;
+            case ITEM:     return CellsConfig.general.configurableCellItemMaxTypes;
+            case FLUID:    return CellsConfig.general.configurableCellFluidMaxTypes;
+            case ESSENTIA: return CellsConfig.general.configurableCellEssentiaMaxTypes;
+            case GAS:      return CellsConfig.general.configurableCellGasMaxTypes;
             default:       return 63;
         }
     }

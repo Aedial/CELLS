@@ -143,12 +143,12 @@ public final class ThaumicEnergisticsIntegration {
                 AEApi.instance().client().addCellInformation(handler, tooltip);
 
                 // Add NBT size information (if enabled in config)
-                if (CellsConfig.enableNbtSizeTooltip && handler != null) {
+                if (CellsConfig.general.enableNbtSizeTooltip && handler != null) {
                     ICellInventory<?> cellInv = handler.getCellInv();
 
                     if (cellInv instanceof INBTSizeProvider) {
                         int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
-                        long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
+                        long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.general.nbtSizeWarningThresholdKB);
                         String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
 
                         tooltip.add("");

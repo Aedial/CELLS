@@ -2,14 +2,11 @@ package com.cells.config;
 
 import java.io.File;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
-import net.minecraftforge.common.config.Configuration;
-import net.minecraftforge.common.config.Property;
+import net.minecraftforge.common.config.Config;
+import net.minecraftforge.common.config.ConfigManager;
 import net.minecraftforge.fml.client.event.ConfigChangedEvent;
+import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import com.cells.Tags;
@@ -29,149 +26,66 @@ import com.cells.Tags;
  * Supports in-game modification via the Forge config GUI.
  * </p>
  */
-public class CellsConfig {
+@Mod.EventBusSubscriber(modid = Tags.MODID)
+@Config(modid = Tags.MODID, name = Tags.MODID, category = "")
+@Config.LangKey(Tags.MODID + ".config.title")
+public final class CellsConfig {
 
     private static final int[] DEFAULT_EMC_CELL_PARTITION_SLOTS = new int[] {1, 9, 54};
-    public static final long DEFAULT_EMC_CELL_REPORTED_AMOUNT = Integer.MAX_VALUE;
+    private static final long DEFAULT_EMC_CELL_REPORTED_AMOUNT = Integer.MAX_VALUE;
 
-    public static final String CATEGORY_GENERAL = "general";
-    public static final String CATEGORY_CELLS = "cells";
-    public static final String CATEGORY_IDLE_DRAIN = "idle_drain";
-    public static final String CATEGORY_ENABLED = "enabled_cells";
-    public static final String CATEGORY_INTERFACES = "interfaces";
+    private static final String CATEGORY_GENERAL = "general";
+    private static final String CATEGORY_CELLS = "cells";
+    private static final String CATEGORY_IDLE_DRAIN = "idle_drain";
+    private static final String CATEGORY_ENABLED = "enabled_cells";
+    private static final String CATEGORY_INTERFACES = "interfaces";
+    private static final String CATEGORY_HIDDEN = "hidden";
 
-    public static final String CATEGORY_HIDDEN = "hidden";
-
-    static public final List<String> hiddenCategories = Arrays.asList(
-        CATEGORY_HIDDEN
-    );
-
-    // Default blacklist entries for essentia containers that should be ignored by the Essentia Interface
-    // Mithminite Jar is blacklisted by default because it crashes if overfilled more than 250 (bug with the jar)
-    static private final String[] defaultEssentiaContainerBlacklist = new String[] {
+    // Mithminite Jar is blacklisted by default because it crashes if overfilled more than 250 (bug in the base mod)
+    private static final String[] DEFAULT_ESSENTIA_CONTAINER_BLACKLIST = new String[] {
         "thaumadditions:jar_mithminite"
     };
 
-    private static Configuration config;
+    @Config.Name(CATEGORY_GENERAL)
+    @Config.LangKey(Tags.MODID + ".config.category.general")
+    @Config.Comment("General settings for cell behavior")
+    public static GeneralCategory general = new GeneralCategory();
 
-    /** Maximum item types for hyper-density item cells */
-    public static int hdItemMaxTypes = 63;
+    @Config.Name(CATEGORY_CELLS)
+    @Config.LangKey(Tags.MODID + ".config.category.cells")
+    @Config.Comment("Misc settings for cells.")
+    public static CellsCategory cells = new CellsCategory();
 
-    /** Maximum item types for hyper-density fluid cells */
-    public static int hdFluidMaxTypes = 63;
+    @Config.Name(CATEGORY_IDLE_DRAIN)
+    @Config.LangKey(Tags.MODID + ".config.category.idle_drain")
+    @Config.Comment("Idle power drain settings (AE power per tick). Higher values = more power consumption.")
+    public static IdleDrainCategory idleDrain = new IdleDrainCategory();
 
-    /** Idle drain for compacting cells */
-    public static double compactingIdleDrain = 6.0;
+    @Config.Name(CATEGORY_ENABLED)
+    @Config.LangKey(Tags.MODID + ".config.category.enabled_cells")
+    @Config.Comment("Enable or disable specific cell types. Disabled cells will not be registered.")
+    public static EnabledCellsCategory enabledCells = new EnabledCellsCategory();
 
-    /** Idle drain for hyper-density cells */
-    public static double hdIdleDrain = 10.0;
+    @Config.Name(CATEGORY_INTERFACES)
+    @Config.LangKey(Tags.MODID + ".config.category.interfaces")
+    @Config.Comment("Settings for resource interfaces (Fluid, Gas, Essentia, Item import/export interfaces).")
+    public static InterfacesCategory interfaces = new InterfacesCategory();
 
-    /** Idle drain for hyper-density compacting cells */
-    public static double hdCompactingIdleDrain = 20.0;
+    @Config.Name(CATEGORY_HIDDEN)
+    @Config.Comment("Hidden client preferences.")
+    public static HiddenCategory hidden = new HiddenCategory();
 
-    /** Idle drain for fluid hyper-density cells */
-    public static double fluidHdIdleDrain = 10.0;
+    // Forge 1.12 does not support long-backed @Config fields, so these two values
+    // are normalized once during sync and then served from cached parsed values.
+    private static long emcCellReportedAmountValue = DEFAULT_EMC_CELL_REPORTED_AMOUNT;
+    private static long interfaceMaxSlotSizeLimitValue = Long.MAX_VALUE;
 
-    /** Enable compacting cells */
-    public static boolean enableCompactingCells = true;
+    private CellsConfig() {
+    }
 
-    /** Enable hyper-density cells */
-    public static boolean enableHDCells = true;
-
-    /** Enable hyper-density compacting cells */
-    public static boolean enableHDCompactingCells = true;
-
-    /** Enable fluid hyper-density cells */
-    public static boolean enableFluidHDCells = true;
-
-    /** Enable configurable cells */
-    public static boolean enableConfigurableCells = true;
-
-    /** Idle drain for configurable cells */
-    public static double configurableCellIdleDrain = 3.0;
-
-    /** Maximum types for configurable item cells */
-    public static int configurableCellItemMaxTypes = 63;
-
-    /** Maximum types for configurable fluid cells */
-    public static int configurableCellFluidMaxTypes = 63;
-
-    /** Maximum types for configurable essentia cells */
-    public static int configurableCellEssentiaMaxTypes = 63;
-
-    /** Maximum types for configurable gas cells */
-    public static int configurableCellGasMaxTypes = 63;
-
-    /** Upgrade slots for compacting cells */
-    public static int compactingCellUpgradeSlots = 4;
-
-    /** Upgrade slots for hyper-density item cells */
-    public static int hdItemCellUpgradeSlots = 4;
-
-    /** Upgrade slots for hyper-density compacting cells */
-    public static int hdCompactingCellUpgradeSlots = 4;
-
-    /** Upgrade slots for hyper-density fluid cells */
-    public static int hdFluidCellUpgradeSlots = 4;
-
-    /** Upgrade slots for configurable cells */
-    public static int configurableCellUpgradeSlots = 4;
-
-    /** Server tick interval between EMC cell buffer flushes */
-    public static int emcCellSyncIntervalTicks = 20;
-
-    /** Reported stack size for learned EMC cell filters */
-    public static long emcCellReportedAmount = DEFAULT_EMC_CELL_REPORTED_AMOUNT;
-
-    /** Base tier plus upgrade-defined unlocked partition slots for the EMC cell */
-    public static int[] emcCellPartitionSlots = DEFAULT_EMC_CELL_PARTITION_SLOTS.clone();
-
-    /** NBT size warning threshold in KB (tooltip shows warning when exceeded) */
-    public static int nbtSizeWarningThresholdKB = 100;
-
-    /** Enable NBT size computation and display in cell tooltips */
-    public static boolean enableNbtSizeTooltip = true;
-
-    /** Maximum slot size limit for interfaces (caps user-configurable max slot size) */
-    public static long interfaceMaxSlotSizeLimit = Long.MAX_VALUE;
-
-    /** Minimum polling rate for interfaces (0 = allow adaptive) */
-    public static int interfaceMinPollingRate = 0;
-
-    /** Use fixed (non-animated) textures for interface blocks and parts. Requires restart. */
-    public static boolean useFixedInterfaceTextures = true;
-
-    /** Whether the controls help panel is visible in Interface GUIs. Persisted as a hidden config. */
-    public static boolean showControlsHelp = false;
-
-    /** Whether JEI recipe transfer sends recipe inputs to Export interfaces and outputs to Import interfaces, or the opposite */
-    public static boolean jeiTransferInputsToExport = true;
-
-    /** Whether JEI recipe transfer adds recipe outputs to Creative Cell filters instead of recipe inputs */
-    public static boolean jeiTransferOutputsToCreativeCell = true;
-
-    /** Number of upgrade slots for the Subnet Proxy (1-24) */
-    public static int subnetProxyUpgradeSlots = 5;
-
-    /** Minimum tick rate for the Subnet Proxy (ticks between updates) */
-    public static int subnetProxyMinTickRate = 5;
-
-    /** Maximum tick rate for the Subnet Proxy (ticks between updates when idle) */
-    public static int subnetProxyMaxTickRate = 60;
-
-    /** Enable Subnet Proxy extraction-fault reporting and warning logs */
-    public static boolean subnetProxyReportExtractionFaults = false;
-
-    /** Essentia Creative Cell fix */
-    public static boolean enableEssentiaCreativeCellFix = true;
-
-    /**
-     * Set of tile entity registry IDs (e.g. "thaumcraft:thaumatorium") that the
-     * Essentia Interface should treat as non-interactable. Blacklisted TEs will
-     * not be detected as adjacent essentia containers, preventing both push and
-     * pull operations.
-     */
-    private static Set<String> essentiaContainerBlacklist = Collections.emptySet();
+    public static boolean isHiddenCategory(String categoryName) {
+        return CATEGORY_HIDDEN.equals(categoryName);
+    }
 
     /**
      * Check whether a tile entity registry ID is blacklisted from essentia
@@ -181,355 +95,106 @@ public class CellsConfig {
      * @return true if the tile entity should be ignored by the essentia interface
      */
     public static boolean isEssentiaContainerBlacklisted(String registryId) {
-        return essentiaContainerBlacklist.contains(registryId);
+        if (registryId == null) return false;
+
+        for (String entry : interfaces.essentiaContainerBlacklist) {
+            if (entry == null) continue;
+
+            if (registryId.equals(entry.trim())) return true;
+        }
+
+        return false;
     }
 
     /**
-     * Initializes the configuration from the given file.
+     * Syncs the annotated config.
      *
      * @param configFile The configuration file
      */
     public static void init(File configFile) {
-        if (config == null) {
-            config = new Configuration(configFile);
-            loadConfig();
+        syncConfig();
+    }
+
+    private static void syncConfig() {
+        ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
+
+        NormalizedLongConfigValues normalizedLongValues = normalizeConfiguredValues();
+
+        emcCellReportedAmountValue = normalizedLongValues.emcCellReportedAmount;
+        interfaceMaxSlotSizeLimitValue = normalizedLongValues.interfaceMaxSlotSizeLimit;
+
+        if (normalizedLongValues.changed) {
+            ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
         }
     }
 
-    /**
-     * Gets the configuration instance for the GUI.
-     *
-     * @return The configuration instance
-     */
-    public static Configuration getConfig() {
-        return config;
+    private static NormalizedLongConfigValues normalizeConfiguredValues() {
+        boolean changed = false;
+
+        NormalizedLongValue normalizedReportedAmount = normalizeReportedAmount(general.emcCellReportedAmount);
+        if (!normalizedReportedAmount.normalizedValue.equals(general.emcCellReportedAmount)) {
+            general.emcCellReportedAmount = normalizedReportedAmount.normalizedValue;
+            changed = true;
+        }
+
+        NormalizedLongValue normalizedInterfaceLimit = normalizeInterfaceMaxSlotSizeLimit(interfaces.interfaceMaxSlotSizeLimit);
+        if (!normalizedInterfaceLimit.normalizedValue.equals(interfaces.interfaceMaxSlotSizeLimit)) {
+            interfaces.interfaceMaxSlotSizeLimit = normalizedInterfaceLimit.normalizedValue;
+            changed = true;
+        }
+
+        int[] sanitizedPartitionSlots = sanitizeEmcCellPartitionSlots(general.emcCellPartitionSlots);
+        if (!Arrays.equals(sanitizedPartitionSlots, general.emcCellPartitionSlots)) {
+            general.emcCellPartitionSlots = sanitizedPartitionSlots;
+            changed = true;
+        }
+
+        return new NormalizedLongConfigValues(
+            changed,
+            normalizedReportedAmount.parsedValue,
+            normalizedInterfaceLimit.parsedValue
+        );
     }
 
-    /**
-     * Loads all configuration values from file.
-     */
-    public static void loadConfig() {
-        // Category language keys
-        config.getCategory(CATEGORY_GENERAL).setLanguageKey(Tags.MODID + ".config.category.general");
-        config.getCategory(CATEGORY_CELLS).setLanguageKey(Tags.MODID + ".config.category.cells");
-        config.getCategory(CATEGORY_IDLE_DRAIN).setLanguageKey(Tags.MODID + ".config.category.idle_drain");
-        config.getCategory(CATEGORY_ENABLED).setLanguageKey(Tags.MODID + ".config.category.enabled_cells");
-        config.getCategory(CATEGORY_INTERFACES).setLanguageKey(Tags.MODID + ".config.category.interfaces");
+    public static long getEmcCellReportedAmount() {
+        return emcCellReportedAmountValue;
+    }
 
-        config.addCustomCategoryComment(CATEGORY_GENERAL, "General settings for cell behavior");
-        config.addCustomCategoryComment(CATEGORY_CELLS, "Misc settings for cells.");
-        config.addCustomCategoryComment(CATEGORY_IDLE_DRAIN,
-            "Idle power drain settings (AE power per tick). Higher values = more power consumption.");
-        config.addCustomCategoryComment(CATEGORY_ENABLED,
-            "Enable or disable specific cell types. Disabled cells will not be registered.");
-        config.addCustomCategoryComment(CATEGORY_INTERFACES,
-            "Settings for resource interfaces (Fluid, Gas, Essentia, Item import/export interfaces).");
+    private static NormalizedLongValue normalizeReportedAmount(String rawValue) {
+        String trimmedValue = rawValue == null ? "" : rawValue.trim();
 
-
-        // General category
-        Property p = config.get(CATEGORY_GENERAL,
-            "hdItemMaxTypes", 63,
-            "Maximum item types for hyper-density item storage cells (1-16384)", 1, 16384
-        );
-        p.setLanguageKey(Tags.MODID + ".config.hdItemMaxTypes");
-        hdItemMaxTypes = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "hdFluidMaxTypes", 63,
-            "Maximum item types for hyper-density fluid storage cells (1-16384)", 1, 16384
-        );
-        p.setLanguageKey(Tags.MODID + ".config.hdFluidMaxTypes");
-        hdFluidMaxTypes = p.getInt();
-
-        // General: configurable cell max types per channel
-        p = config.get(CATEGORY_GENERAL,
-            "configurableCellItemMaxTypes", 63,
-            "Maximum item types for configurable item storage cells (1-16384)", 1, 16384
-        );
-        p.setLanguageKey(Tags.MODID + ".config.configurableCellItemMaxTypes");
-        configurableCellItemMaxTypes = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "configurableCellFluidMaxTypes", 63,
-            "Maximum fluid types for configurable fluid storage cells (1-16384)", 1, 16384
-        );
-        p.setLanguageKey(Tags.MODID + ".config.configurableCellFluidMaxTypes");
-        configurableCellFluidMaxTypes = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "configurableCellEssentiaMaxTypes", 63,
-            "Maximum essentia types for configurable essentia storage cells (1-16384)", 1, 16384
-        );
-        p.setLanguageKey(Tags.MODID + ".config.configurableCellEssentiaMaxTypes");
-        configurableCellEssentiaMaxTypes = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "configurableCellGasMaxTypes", 63,
-            "Maximum gas types for configurable gas storage cells (1-16384)", 1, 16384
-        );
-        p.setLanguageKey(Tags.MODID + ".config.configurableCellGasMaxTypes");
-        configurableCellGasMaxTypes = p.getInt();
-
-        // Was for Cell Terminal, but seems Cell Workbench automatically adapts (lol)
-        // 4 is the max we can show on 1 Terminal row safely, but can always accommodate more if needed
-
-        // General: Upgrade slots per cell type
-        p = config.get(CATEGORY_GENERAL,
-            "compactingCellUpgradeSlots", 4,
-            "Number of upgrade slots for compacting cells (1-16)", 1, 16
-        );
-        p.setLanguageKey(Tags.MODID + ".config.compactingCellUpgradeSlots");
-        compactingCellUpgradeSlots = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "hdItemCellUpgradeSlots", 4,
-            "Number of upgrade slots for hyper-density item cells (1-16)", 1, 16
-        );
-        p.setLanguageKey(Tags.MODID + ".config.hdItemCellUpgradeSlots");
-        hdItemCellUpgradeSlots = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "hdCompactingCellUpgradeSlots", 4,
-            "Number of upgrade slots for hyper-density compacting cells (1-16)", 1, 16
-        );
-        p.setLanguageKey(Tags.MODID + ".config.hdCompactingCellUpgradeSlots");
-        hdCompactingCellUpgradeSlots = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "hdFluidCellUpgradeSlots", 4,
-            "Number of upgrade slots for hyper-density fluid cells (1-16)", 1, 16
-        );
-        p.setLanguageKey(Tags.MODID + ".config.hdFluidCellUpgradeSlots");
-        hdFluidCellUpgradeSlots = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "configurableCellUpgradeSlots", 4,
-            "Number of upgrade slots for configurable cells (1-16)", 1, 16
-        );
-        p.setLanguageKey(Tags.MODID + ".config.configurableCellUpgradeSlots");
-        configurableCellUpgradeSlots = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "emcCellSyncIntervalTicks", 20,
-            "Server tick interval between EMC cell buffer flushes to player EMC (1-72000)", 1, 72000
-        );
-        p.setLanguageKey(Tags.MODID + ".config.emcCellSyncIntervalTicks");
-        emcCellSyncIntervalTicks = p.getInt();
-
-        // Use String to preserve values above Integer.MAX_VALUE in the Forge config GUI.
-        p = config.get(CATEGORY_GENERAL,
-            "emcCellReportedAmount", String.valueOf(DEFAULT_EMC_CELL_REPORTED_AMOUNT),
-            "Reported stack size for learned EMC cell filters. Use a positive non-zero number up to Long.MAX_VALUE. Invalid values fall back to the default."
-        );
-        p.setLanguageKey(Tags.MODID + ".config.emcCellReportedAmount");
-        String reportedAmountStr = p.getString();
         try {
-            long parsed = Long.parseLong(reportedAmountStr);
-            emcCellReportedAmount = parsed > 0 ? parsed : DEFAULT_EMC_CELL_REPORTED_AMOUNT;
-        } catch (NumberFormatException e) {
-            emcCellReportedAmount = DEFAULT_EMC_CELL_REPORTED_AMOUNT;
+            long parsedValue = Long.parseLong(trimmedValue);
+            if (parsedValue > 0) {
+                return new NormalizedLongValue(Long.toString(parsedValue), parsedValue);
+            }
+        } catch (NumberFormatException ignored) {
         }
 
-        p = config.get(CATEGORY_GENERAL,
-            "emcCellPartitionSlots", DEFAULT_EMC_CELL_PARTITION_SLOTS,
-            "Unlocked partition slots for EMC cell tiers. Index 0 is the base cell with no upgrade installed. Each following entry unlocks slots for emc_upgrade_1, emc_upgrade_2, and so on."
+        return new NormalizedLongValue(
+            String.valueOf(DEFAULT_EMC_CELL_REPORTED_AMOUNT),
+            DEFAULT_EMC_CELL_REPORTED_AMOUNT
         );
-        p.setLanguageKey(Tags.MODID + ".config.emcCellPartitionSlots");
-        emcCellPartitionSlots = sanitizeEmcCellPartitionSlots(p.getIntList());
+    }
 
-        // General: NBT size warning threshold
-        p = config.get(CATEGORY_GENERAL,
-            "nbtSizeWarningThresholdKB", 100,
-            "NBT size warning threshold in KB. Tooltip shows warning when cell NBT exceeds this.", 1, 10000
-        );
-        p.setLanguageKey(Tags.MODID + ".config.nbtSizeWarningThresholdKB");
-        nbtSizeWarningThresholdKB = p.getInt();
+    public static long getInterfaceMaxSlotSizeLimit() {
+        return interfaceMaxSlotSizeLimitValue;
+    }
 
-        // General: Enable NBT size tooltip
-        p = config.get(CATEGORY_GENERAL,
-            "enableNbtSizeTooltip", true,
-            "Enable NBT size computation and display in cell tooltips. Disable for performance."
-        );
-        p.setLanguageKey(Tags.MODID + ".config.enableNbtSizeTooltip");
-        enableNbtSizeTooltip = p.getBoolean();
+    private static NormalizedLongValue normalizeInterfaceMaxSlotSizeLimit(String rawValue) {
+        String trimmedValue = rawValue == null ? "" : rawValue.trim();
 
-        // Cells category
-        p = config.get(CATEGORY_CELLS,
-            "enableEssentiaCreativeCellFix", true,
-            "Enable the fix for the Essentia Creative Cell that makes it report only Max Int instead of Max Long / 2. This prevents deltas from overflowing and not reporting the right amounts. Disable this config if Thaumic Energistics support long in your version."
-        );
-        p.setLanguageKey(Tags.MODID + ".config.enableEssentiaCreativeCellFix");
-        enableEssentiaCreativeCellFix = p.getBoolean();
-
-        // Idle drain category
-        p = config.get(CATEGORY_IDLE_DRAIN,
-            "compactingIdleDrain", 6.0D,
-            "Idle drain for compacting cells", 0.0D, 100.0D
-        );
-        p.setLanguageKey(Tags.MODID + ".config.compactingIdleDrain");
-        compactingIdleDrain = p.getDouble();
-
-        p = config.get(CATEGORY_IDLE_DRAIN,
-            "hdIdleDrain", 10.0D,
-            "Idle drain for hyper-density cells", 0.0D, 100.0D
-        );
-        p.setLanguageKey(Tags.MODID + ".config.hdIdleDrain");
-        hdIdleDrain = p.getDouble();
-
-        p = config.get(CATEGORY_IDLE_DRAIN,
-            "hdCompactingIdleDrain", 20.0D,
-            "Idle drain for hyper-density compacting cells", 0.0D, 100.0D
-        );
-        p.setLanguageKey(Tags.MODID + ".config.hdCompactingIdleDrain");
-        hdCompactingIdleDrain = p.getDouble();
-
-        p = config.get(CATEGORY_IDLE_DRAIN,
-            "fluidHdIdleDrain", 10.0D,
-            "Idle drain for fluid hyper-density cells", 0.0D, 100.0D
-        );
-        p.setLanguageKey(Tags.MODID + ".config.fluidHdIdleDrain");
-        fluidHdIdleDrain = p.getDouble();
-
-        p = config.get(CATEGORY_IDLE_DRAIN,
-            "configurableCellIdleDrain", 3.0D,
-            "Idle drain for configurable cells", 0.0D, 100.0D
-        );
-        p.setLanguageKey(Tags.MODID + ".config.configurableCellIdleDrain");
-        configurableCellIdleDrain = p.getDouble();
-
-        // Enabled cells category
-        p = config.get(CATEGORY_ENABLED,
-            "enableCompactingCells", true,
-            "Enable compacting storage cells"
-        );
-        p.setLanguageKey(Tags.MODID + ".config.enableCompactingCells");
-        enableCompactingCells = p.getBoolean();
-
-        p = config.get(CATEGORY_ENABLED,
-            "enableHDCells", true,
-            "Enable hyper-density storage cells"
-        );
-        p.setLanguageKey(Tags.MODID + ".config.enableHDCells");
-        enableHDCells = p.getBoolean();
-
-        p = config.get(CATEGORY_ENABLED,
-            "enableHDCompactingCells", true,
-            "Enable hyper-density compacting storage cells"
-        );
-        p.setLanguageKey(Tags.MODID + ".config.enableHDCompactingCells");
-        enableHDCompactingCells = p.getBoolean();
-
-        p = config.get(CATEGORY_ENABLED,
-            "enableFluidHDCells", true,
-            "Enable fluid hyper-density storage cells"
-        );
-        p.setLanguageKey(Tags.MODID + ".config.enableFluidHDCells");
-        enableFluidHDCells = p.getBoolean();
-
-        p = config.get(CATEGORY_ENABLED,
-            "enableConfigurableCells", true,
-            "Enable configurable storage cells"
-        );
-        p.setLanguageKey(Tags.MODID + ".config.enableConfigurableCells");
-        enableConfigurableCells = p.getBoolean();
-
-        // Interfaces category
-
-        // Use String to handle Long.MAX_VALUE precisely (double loses precision above 2^53)
-        p = config.get(CATEGORY_INTERFACES,
-            "interfaceMaxSlotSizeLimit", String.valueOf(Long.MAX_VALUE),
-            "Maximum slot size limit for interfaces. Caps the user-configurable max slot size per slot. Use -1 for unlimited (Long.MAX_VALUE)."
-        );
-        p.setLanguageKey(Tags.MODID + ".config.interfaceMaxSlotSizeLimit");
-        String maxSlotStr = p.getString();
         try {
-            long parsed = Long.parseLong(maxSlotStr);
-            interfaceMaxSlotSizeLimit = parsed < 0 ? Long.MAX_VALUE : Math.max(1, parsed);
-        } catch (NumberFormatException e) {
-            interfaceMaxSlotSizeLimit = Long.MAX_VALUE;
+            long parsedValue = Long.parseLong(trimmedValue);
+            if (parsedValue < 0) return new NormalizedLongValue("-1", Long.MAX_VALUE);
+
+
+            long normalizedValue = Math.max(1, parsedValue);
+            return new NormalizedLongValue(Long.toString(normalizedValue), normalizedValue);
+        } catch (NumberFormatException ignored) {
         }
 
-        p = config.get(CATEGORY_INTERFACES,
-            "interfaceMinPollingRate", 0,
-            "Minimum polling rate for interfaces in ticks. 0 allows adaptive (AE2-managed tick rates). " +
-            "Higher values force interfaces to poll at least this often, reducing responsiveness but saving performance.", 0, Integer.MAX_VALUE
-        );
-        p.setLanguageKey(Tags.MODID + ".config.interfaceMinPollingRate");
-        interfaceMinPollingRate = p.getInt();
-
-        p = config.get(CATEGORY_INTERFACES,
-            "useFixedInterfaceTextures", true,
-            "Use fixed (non-animated) textures for interface blocks and parts. " +
-            "Requires a game restart to take effect."
-        );
-        p.setLanguageKey(Tags.MODID + ".config.useFixedInterfaceTextures");
-        useFixedInterfaceTextures = p.getBoolean();
-
-        String[] blacklistEntries = config.getStringList(
-            "essentiaContainerBlacklist", CATEGORY_INTERFACES,
-            defaultEssentiaContainerBlacklist,
-            "List of tile entity registry IDs that the Essentia Interface should ignore. " +
-            "Blacklisted tile entities will not be detected as adjacent essentia containers, " +
-            "preventing both push and pull operations. " +
-            "Use F3 or a mod like WAILA/TOP to find the tile entity ID (e.g. \"thaumcraft:thaumatorium\")."
-        );
-        config.getCategory(CATEGORY_INTERFACES)
-            .get("essentiaContainerBlacklist")
-            .setLanguageKey(Tags.MODID + ".config.essentiaContainerBlacklist");
-        Set<String> parsed = new HashSet<>();
-        for (String entry : blacklistEntries) {
-            String trimmed = entry.trim();
-            if (!trimmed.isEmpty()) parsed.add(trimmed);
-        }
-        essentiaContainerBlacklist = parsed;
-
-        // Subnet Proxy settings
-        p = config.get(CATEGORY_GENERAL,
-            "subnetProxyUpgradeSlots", 5,
-            "Number of upgrade slots for the Subnet Proxy (1-24)", 1, 24
-        );
-        p.setLanguageKey(Tags.MODID + ".config.subnetProxyUpgradeSlots");
-        subnetProxyUpgradeSlots = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "subnetProxyMinTickRate", 5,
-            "Minimum tick rate for the Subnet Proxy in ticks (lower = more responsive, higher = less CPU). " +
-            "This is the fastest the proxy will poll for changes.", 1, 200
-        );
-        p.setLanguageKey(Tags.MODID + ".config.subnetProxyMinTickRate");
-        subnetProxyMinTickRate = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "subnetProxyMaxTickRate", 60,
-            "Maximum tick rate for the Subnet Proxy in ticks (idle interval). " +
-            "This is the slowest the proxy will poll when no changes are detected.", 1, 1200
-        );
-        p.setLanguageKey(Tags.MODID + ".config.subnetProxyMaxTickRate");
-        subnetProxyMaxTickRate = p.getInt();
-
-        p = config.get(CATEGORY_GENERAL,
-            "subnetProxyReportExtractionFaults", false,
-            "Enable Subnet Proxy extraction-fault reporting and warning logs. " +
-            "A reported fault can originate from the proxy, a connected inventory, or the network itself."
-        );
-        p.setLanguageKey(Tags.MODID + ".config.subnetProxyReportExtractionFaults");
-        subnetProxyReportExtractionFaults = p.getBoolean();
-
-        // Hidden category: GUI preferences (not shown in config GUI)
-        p = config.get(CATEGORY_HIDDEN, "showControlsHelp", false,
-            "Whether the controls help panel is visible in Interface GUIs.");
-        showControlsHelp = p.getBoolean();
-
-        p = config.get(CATEGORY_HIDDEN, "jeiTransferInputsToExport", true,
-            "Whether JEI recipe transfer sends recipe inputs to Export interfaces and outputs to Import interfaces, or the opposite.");
-        jeiTransferInputsToExport = p.getBoolean();
-
-        p = config.get(CATEGORY_HIDDEN, "jeiTransferOutputsToCreativeCell", jeiTransferInputsToExport,
-            "Whether JEI recipe transfer adds recipe outputs to Creative Cell filters instead of recipe inputs.");
-        jeiTransferOutputsToCreativeCell = p.getBoolean();
-
-        // Save if config was created or changed
-        if (config.hasChanged()) config.save();
+        return new NormalizedLongValue(String.valueOf(Long.MAX_VALUE), Long.MAX_VALUE);
     }
 
     /**
@@ -539,9 +204,8 @@ public class CellsConfig {
      * @param value true to show the panel, false to hide it
      */
     public static void setShowControlsHelp(boolean value) {
-        showControlsHelp = value;
-        config.get(CATEGORY_HIDDEN, "showControlsHelp", false).set(value);
-        config.save();
+        hidden.showControlsHelp = value;
+        ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
     }
 
     /**
@@ -549,37 +213,40 @@ public class CellsConfig {
      * Export uses the shared preference directly and Import receives the opposite side.
      */
     public static boolean interfaceReceivesJeiInputs(boolean isExportInterface) {
-        return isExportInterface ? jeiTransferInputsToExport : !jeiTransferInputsToExport;
+        return isExportInterface ? hidden.jeiTransferInputsToExport : !hidden.jeiTransferInputsToExport;
     }
 
     /**
      * Whether Creative Cell filters should receive JEI recipe outputs.
      */
     public static boolean creativeCellReceivesJeiOutputs() {
-        return jeiTransferOutputsToCreativeCell;
+        return hidden.jeiTransferOutputsToCreativeCell;
     }
 
     public static int getEmcCellUnlockedSlots(int tier) {
-        if (emcCellPartitionSlots.length == 0) return DEFAULT_EMC_CELL_PARTITION_SLOTS[0];
+        int[] configuredSlots = sanitizeEmcCellPartitionSlots(general.emcCellPartitionSlots);
+        if (configuredSlots.length == 0) return DEFAULT_EMC_CELL_PARTITION_SLOTS[0];
 
-        int clampedTier = Math.max(0, Math.min(tier, emcCellPartitionSlots.length - 1));
-        return Math.max(1, emcCellPartitionSlots[clampedTier]);
+        int clampedTier = Math.max(0, Math.min(tier, configuredSlots.length - 1));
+        return Math.max(1, configuredSlots[clampedTier]);
     }
 
     public static int getEmcCellUpgradeTierCount() {
-        return Math.max(0, emcCellPartitionSlots.length - 1);
+        return Math.max(0, sanitizeEmcCellPartitionSlots(general.emcCellPartitionSlots).length - 1);
     }
 
     public static int getEmcCellMaxPartitionSlots() {
         int maxSlots = 1;
 
-        for (int slots : emcCellPartitionSlots) maxSlots = Math.max(maxSlots, slots);
+        for (int slots : sanitizeEmcCellPartitionSlots(general.emcCellPartitionSlots)) {
+            maxSlots = Math.max(maxSlots, slots);
+        }
 
         return maxSlots;
     }
 
     public static int[] getEmcCellPartitionSlots() {
-        return emcCellPartitionSlots.clone();
+        return sanitizeEmcCellPartitionSlots(general.emcCellPartitionSlots);
     }
 
     private static int[] sanitizeEmcCellPartitionSlots(int[] configuredSlots) {
@@ -601,9 +268,8 @@ public class CellsConfig {
      * Must be called from the client side only.
      */
     public static void setJeiTransferInputsToExport(boolean value) {
-        jeiTransferInputsToExport = value;
-        config.get(CATEGORY_HIDDEN, "jeiTransferInputsToExport", true).set(value);
-        config.save();
+        hidden.jeiTransferInputsToExport = value;
+        ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
     }
 
     /**
@@ -611,9 +277,8 @@ public class CellsConfig {
      * Must be called from the client side only.
      */
     public static void setJeiTransferOutputsToCreativeCell(boolean value) {
-        jeiTransferOutputsToCreativeCell = value;
-        config.get(CATEGORY_HIDDEN, "jeiTransferOutputsToCreativeCell", true).set(value);
-        config.save();
+        hidden.jeiTransferOutputsToCreativeCell = value;
+        ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
     }
 
     /**
@@ -622,7 +287,222 @@ public class CellsConfig {
      * @param event The config changed event
      */
     @SubscribeEvent
-    public void onConfigChanged(ConfigChangedEvent.OnConfigChangedEvent event) {
-        if (event.getModID().equals(Tags.MODID)) loadConfig();
+    public static void onConfigChanged(ConfigChangedEvent.OnConfigChangedEvent event) {
+        if (!Tags.MODID.equals(event.getModID())) return;
+
+        syncConfig();
+    }
+
+    public static class GeneralCategory {
+
+        @Config.LangKey(Tags.MODID + ".config.hdItemMaxTypes")
+        @Config.Comment("Maximum item types for hyper-density item storage cells (1-16384)")
+        @Config.RangeInt(min = 1, max = 16384)
+        public int hdItemMaxTypes = 63;
+
+        @Config.LangKey(Tags.MODID + ".config.hdFluidMaxTypes")
+        @Config.Comment("Maximum item types for hyper-density fluid storage cells (1-16384)")
+        @Config.RangeInt(min = 1, max = 16384)
+        public int hdFluidMaxTypes = 63;
+
+        @Config.LangKey(Tags.MODID + ".config.configurableCellItemMaxTypes")
+        @Config.Comment("Maximum item types for configurable item storage cells (1-16384)")
+        @Config.RangeInt(min = 1, max = 16384)
+        public int configurableCellItemMaxTypes = 63;
+
+        @Config.LangKey(Tags.MODID + ".config.configurableCellFluidMaxTypes")
+        @Config.Comment("Maximum fluid types for configurable fluid storage cells (1-16384)")
+        @Config.RangeInt(min = 1, max = 16384)
+        public int configurableCellFluidMaxTypes = 63;
+
+        @Config.LangKey(Tags.MODID + ".config.configurableCellEssentiaMaxTypes")
+        @Config.Comment("Maximum essentia types for configurable essentia storage cells (1-16384)")
+        @Config.RangeInt(min = 1, max = 16384)
+        public int configurableCellEssentiaMaxTypes = 63;
+
+        @Config.LangKey(Tags.MODID + ".config.configurableCellGasMaxTypes")
+        @Config.Comment("Maximum gas types for configurable gas storage cells (1-16384)")
+        @Config.RangeInt(min = 1, max = 16384)
+        public int configurableCellGasMaxTypes = 63;
+
+        @Config.LangKey(Tags.MODID + ".config.compactingCellUpgradeSlots")
+        @Config.Comment("Number of upgrade slots for compacting cells (1-16)")
+        @Config.RangeInt(min = 1, max = 16)
+        public int compactingCellUpgradeSlots = 4;
+
+        @Config.LangKey(Tags.MODID + ".config.hdItemCellUpgradeSlots")
+        @Config.Comment("Number of upgrade slots for hyper-density item cells (1-16)")
+        @Config.RangeInt(min = 1, max = 16)
+        public int hdItemCellUpgradeSlots = 4;
+
+        @Config.LangKey(Tags.MODID + ".config.hdCompactingCellUpgradeSlots")
+        @Config.Comment("Number of upgrade slots for hyper-density compacting cells (1-16)")
+        @Config.RangeInt(min = 1, max = 16)
+        public int hdCompactingCellUpgradeSlots = 4;
+
+        @Config.LangKey(Tags.MODID + ".config.hdFluidCellUpgradeSlots")
+        @Config.Comment("Number of upgrade slots for hyper-density fluid cells (1-16)")
+        @Config.RangeInt(min = 1, max = 16)
+        public int hdFluidCellUpgradeSlots = 4;
+
+        @Config.LangKey(Tags.MODID + ".config.configurableCellUpgradeSlots")
+        @Config.Comment("Number of upgrade slots for configurable cells (1-16)")
+        @Config.RangeInt(min = 1, max = 16)
+        public int configurableCellUpgradeSlots = 4;
+
+        @Config.LangKey(Tags.MODID + ".config.emcCellSyncIntervalTicks")
+        @Config.Comment("Server tick interval between EMC cell buffer flushes to player EMC (1-72000)")
+        @Config.RangeInt(min = 1, max = 72000)
+        public int emcCellSyncIntervalTicks = 20;
+
+        // Forge's 1.12 annotation config has no long adapter, so this stays string-backed
+        // and is normalized during config sync before being cached as a parsed long.
+        @Config.LangKey(Tags.MODID + ".config.emcCellReportedAmount")
+        @Config.Comment("Reported stack size for learned EMC cell filters. Use a positive non-zero number up to Long.MAX_VALUE. Invalid values fall back to the default.")
+        public String emcCellReportedAmount = String.valueOf(DEFAULT_EMC_CELL_REPORTED_AMOUNT);
+
+        @Config.LangKey(Tags.MODID + ".config.emcCellPartitionSlots")
+        @Config.Comment("Unlocked partition slots for EMC cell tiers. Index 0 is the base cell with no upgrade installed. Each following entry unlocks slots for emc_upgrade_1, emc_upgrade_2, and so on.")
+        public int[] emcCellPartitionSlots = DEFAULT_EMC_CELL_PARTITION_SLOTS.clone();
+
+        @Config.LangKey(Tags.MODID + ".config.nbtSizeWarningThresholdKB")
+        @Config.Comment("NBT size warning threshold in KB. Tooltip shows warning when cell NBT exceeds this.")
+        @Config.RangeInt(min = 1, max = 10000)
+        public int nbtSizeWarningThresholdKB = 100;
+
+        @Config.LangKey(Tags.MODID + ".config.enableNbtSizeTooltip")
+        @Config.Comment("Enable NBT size computation and display in cell tooltips. Disable for performance.")
+        public boolean enableNbtSizeTooltip = true;
+
+        @Config.LangKey(Tags.MODID + ".config.subnetProxyUpgradeSlots")
+        @Config.Comment("Number of upgrade slots for the Subnet Proxy (1-24)")
+        @Config.RangeInt(min = 1, max = 24)
+        public int subnetProxyUpgradeSlots = 5;
+
+        @Config.LangKey(Tags.MODID + ".config.subnetProxyMinTickRate")
+        @Config.Comment("Minimum tick rate for the Subnet Proxy in ticks (lower = more responsive, higher = less CPU). This is the fastest the proxy will poll for changes.")
+        @Config.RangeInt(min = 1, max = 200)
+        public int subnetProxyMinTickRate = 5;
+
+        @Config.LangKey(Tags.MODID + ".config.subnetProxyMaxTickRate")
+        @Config.Comment("Maximum tick rate for the Subnet Proxy in ticks (idle interval). This is the slowest the proxy will poll when no changes are detected.")
+        @Config.RangeInt(min = 1, max = 1200)
+        public int subnetProxyMaxTickRate = 60;
+
+        @Config.LangKey(Tags.MODID + ".config.subnetProxyReportExtractionFaults")
+        @Config.Comment("Enable Subnet Proxy extraction-fault reporting and warning logs. A reported fault can originate from the proxy, a connected inventory, or the network itself.")
+        public boolean subnetProxyReportExtractionFaults = false;
+    }
+
+    public static class CellsCategory {
+
+        @Config.LangKey(Tags.MODID + ".config.enableEssentiaCreativeCellFix")
+        @Config.Comment("Enable the fix for the Essentia Creative Cell that makes it report only Max Int instead of Max Long / 2. This prevents deltas from overflowing and not reporting the right amounts. Disable this config if Thaumic Energistics support long in your version.")
+        public boolean enableEssentiaCreativeCellFix = true;
+    }
+
+    public static class IdleDrainCategory {
+
+        @Config.LangKey(Tags.MODID + ".config.compactingIdleDrain")
+        @Config.Comment("Idle drain for compacting cells")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double compactingIdleDrain = 6.0D;
+
+        @Config.LangKey(Tags.MODID + ".config.hdIdleDrain")
+        @Config.Comment("Idle drain for hyper-density cells")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double hdIdleDrain = 10.0D;
+
+        @Config.LangKey(Tags.MODID + ".config.hdCompactingIdleDrain")
+        @Config.Comment("Idle drain for hyper-density compacting cells")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double hdCompactingIdleDrain = 20.0D;
+
+        @Config.LangKey(Tags.MODID + ".config.fluidHdIdleDrain")
+        @Config.Comment("Idle drain for fluid hyper-density cells")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double fluidHdIdleDrain = 10.0D;
+
+        @Config.LangKey(Tags.MODID + ".config.configurableCellIdleDrain")
+        @Config.Comment("Idle drain for configurable cells")
+        @Config.RangeDouble(min = 0.0D, max = 100.0D)
+        public double configurableCellIdleDrain = 3.0D;
+    }
+
+    public static class EnabledCellsCategory {
+
+        @Config.LangKey(Tags.MODID + ".config.enableCompactingCells")
+        @Config.Comment("Enable compacting storage cells")
+        public boolean enableCompactingCells = true;
+
+        @Config.LangKey(Tags.MODID + ".config.enableHDCells")
+        @Config.Comment("Enable hyper-density storage cells")
+        public boolean enableHDCells = true;
+
+        @Config.LangKey(Tags.MODID + ".config.enableHDCompactingCells")
+        @Config.Comment("Enable hyper-density compacting storage cells")
+        public boolean enableHDCompactingCells = true;
+
+        @Config.LangKey(Tags.MODID + ".config.enableFluidHDCells")
+        @Config.Comment("Enable fluid hyper-density storage cells")
+        public boolean enableFluidHDCells = true;
+
+        @Config.LangKey(Tags.MODID + ".config.enableConfigurableCells")
+        @Config.Comment("Enable configurable storage cells")
+        public boolean enableConfigurableCells = true;
+    }
+
+    public static class InterfacesCategory {
+
+        // Forge's 1.12 annotation config has no long adapter, so this stays string-backed
+        // and is normalized during config sync before being cached as a parsed long.
+        @Config.LangKey(Tags.MODID + ".config.interfaceMaxSlotSizeLimit")
+        @Config.Comment("Maximum slot size limit for interfaces. Caps the user-configurable max slot size per slot. Use -1 for unlimited (Long.MAX_VALUE).")
+        public String interfaceMaxSlotSizeLimit = String.valueOf(Long.MAX_VALUE);
+
+        @Config.LangKey(Tags.MODID + ".config.interfaceMinPollingRate")
+        @Config.Comment("Minimum polling rate for interfaces in ticks. 0 allows adaptive (AE2-managed tick rates). Higher values force interfaces to poll at least this often, reducing responsiveness but saving performance.")
+        @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
+        public int interfaceMinPollingRate = 0;
+
+        @Config.LangKey(Tags.MODID + ".config.useFixedInterfaceTextures")
+        @Config.Comment("Use fixed (non-animated) textures for interface blocks and parts. Requires a game restart to take effect.")
+        @Config.RequiresMcRestart
+        public boolean useFixedInterfaceTextures = true;
+
+        @Config.LangKey(Tags.MODID + ".config.essentiaContainerBlacklist")
+        @Config.Comment("List of tile entity registry IDs that the Essentia Interface should ignore. Blacklisted tile entities will not be detected as adjacent essentia containers, preventing both push and pull operations. Use F3 or a mod like WAILA/TOP to find the tile entity ID (e.g. \"thaumcraft:thaumatorium\").")
+        public String[] essentiaContainerBlacklist = DEFAULT_ESSENTIA_CONTAINER_BLACKLIST.clone();
+    }
+
+    public static class HiddenCategory {
+
+        public boolean showControlsHelp = false;
+        public boolean jeiTransferInputsToExport = true;
+        public boolean jeiTransferOutputsToCreativeCell = true;
+    }
+
+    private static class NormalizedLongValue {
+
+        private final String normalizedValue;
+        private final long parsedValue;
+
+        private NormalizedLongValue(String normalizedValue, long parsedValue) {
+            this.normalizedValue = normalizedValue;
+            this.parsedValue = parsedValue;
+        }
+    }
+
+    private static class NormalizedLongConfigValues {
+
+        private final boolean changed;
+        private final long emcCellReportedAmount;
+        private final long interfaceMaxSlotSizeLimit;
+
+        private NormalizedLongConfigValues(boolean changed, long emcCellReportedAmount, long interfaceMaxSlotSizeLimit) {
+            this.changed = changed;
+            this.emcCellReportedAmount = emcCellReportedAmount;
+            this.interfaceMaxSlotSizeLimit = interfaceMaxSlotSizeLimit;
+        }
     }
 }

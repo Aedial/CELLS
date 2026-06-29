@@ -79,7 +79,7 @@ public class CellsJEIPlugin implements IModPlugin {
         ingredientRegistry = registry.getIngredientRegistry();
 
         // Register configurable cell assembly recipe plugin
-        if (CellsConfig.enableConfigurableCells && ItemRegistry.CONFIGURABLE_CELL != null) {
+        if (CellsConfig.enabledCells.enableConfigurableCells && ItemRegistry.CONFIGURABLE_CELL != null) {
             registry.addRecipeRegistryPlugin(new ConfigurableCellRegistryPlugin());
         }
 

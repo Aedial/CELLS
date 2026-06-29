@@ -246,7 +246,7 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
      * @return The configured max slot size limit (defaults to Long.MAX_VALUE)
      */
     public long getMaxMaxSlotSize() {
-        return CellsConfig.interfaceMaxSlotSizeLimit;
+        return CellsConfig.getInterfaceMaxSlotSizeLimit();
     }
 
     public long getMaxSlotSize() {

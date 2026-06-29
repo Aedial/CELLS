@@ -87,7 +87,7 @@ public class InterfaceTickScheduler {
      * @return The configured minimum polling rate (defaults to 0 for adaptive)
      */
     public static int getMinPollingRate() {
-        return CellsConfig.interfaceMinPollingRate;
+        return CellsConfig.interfaces.interfaceMinPollingRate;
     }
 
     public static int getDefaultPollingRate() {

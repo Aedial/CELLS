@@ -95,9 +95,9 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
             }
 
             // Add NBT size information (if enabled in config)
-            if (CellsConfig.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
+            if (CellsConfig.general.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
                 int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
-                long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
+                long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.general.nbtSizeWarningThresholdKB);
                 String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
 
                 tooltip.add("");
@@ -171,12 +171,12 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
 
     @Override
     public int getMaxTypes() {
-        return CellsConfig.hdItemMaxTypes;
+        return CellsConfig.general.hdItemMaxTypes;
     }
 
     @Override
     public double getIdleDrain() {
-        return CellsConfig.hdIdleDrain;
+        return CellsConfig.idleDrain.hdIdleDrain;
     }
 
     @Override
@@ -200,7 +200,7 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, CellsConfig.hdItemCellUpgradeSlots, Arrays.asList(
+        return new CustomCellUpgrades(is, CellsConfig.general.hdItemCellUpgradeSlots, Arrays.asList(
             CustomCellUpgrades.CustomUpgrades.OVERFLOW,
             CustomCellUpgrades.CustomUpgrades.EQUAL_DISTRIBUTION
         ));

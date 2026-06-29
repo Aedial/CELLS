@@ -342,7 +342,7 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
     }
 
     private long getReportedAmount() {
-        return CellsConfig.emcCellReportedAmount;
+        return CellsConfig.getEmcCellReportedAmount();
     }
 
     private long getAccessibleFilterCount() {

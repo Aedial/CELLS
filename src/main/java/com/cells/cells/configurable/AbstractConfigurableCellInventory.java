@@ -98,7 +98,7 @@ public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> i
 
     @Override
     public double getIdleDrain() {
-        return CellsConfig.configurableCellIdleDrain;
+        return CellsConfig.idleDrain.configurableCellIdleDrain;
     }
 
     @Override
@@ -119,7 +119,7 @@ public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> i
 
     @Override
     public IItemHandler getUpgradesInventory() {
-        return new CustomCellUpgrades(cellStack, CellsConfig.configurableCellUpgradeSlots, Collections.singletonList(CustomCellUpgrades.CustomUpgrades.OVERFLOW));
+        return new CustomCellUpgrades(cellStack, CellsConfig.general.configurableCellUpgradeSlots, Collections.singletonList(CustomCellUpgrades.CustomUpgrades.OVERFLOW));
     }
 
     @Override

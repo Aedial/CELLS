@@ -213,7 +213,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
                     storedTypes++;
 
                     // Track NBT size for this item (if enabled)
-                    if (CellsConfig.enableNbtSizeTooltip) {
+                    if (CellsConfig.general.enableNbtSizeTooltip) {
                         int itemSize = NBTSizeHelper.calculateSize(itemTag);
                         itemNbtSizes.put(key, itemSize);
                         totalNbtSize += itemSize;
@@ -383,7 +383,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
             keyToNbtIndex.put(key, index);
 
             // Track NBT size for this new item (if enabled)
-            if (CellsConfig.enableNbtSizeTooltip) {
+            if (CellsConfig.general.enableNbtSizeTooltip) {
                 int itemSize = NBTSizeHelper.calculateSize(itemTag);
                 itemNbtSizes.put(key, itemSize);
                 totalNbtSize += itemSize;

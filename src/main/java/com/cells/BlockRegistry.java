@@ -198,7 +198,7 @@ public class BlockRegistry {
 
         // When using fixed textures, redirect both the item model and the block state
         // to use the _fixed model variant (which references non-animated textures)
-        if (CellsConfig.useFixedInterfaceTextures) {
+        if (CellsConfig.interfaces.useFixedInterfaceTextures) {
             ResourceLocation fixedModel = new ResourceLocation(regName.getNamespace(), regName.getPath() + "_fixed");
             ModelResourceLocation fixedModelLoc = new ModelResourceLocation(fixedModel, "inventory");
 

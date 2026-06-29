@@ -118,7 +118,7 @@ public final class GasBlockRegistry {
     private static void registerBlockModel(Block block) {
         ResourceLocation regName = block.getRegistryName();
 
-        if (CellsConfig.useFixedInterfaceTextures) {
+        if (CellsConfig.interfaces.useFixedInterfaceTextures) {
             ResourceLocation fixedModel = new ResourceLocation(regName.getNamespace(), regName.getPath() + "_fixed");
             ModelResourceLocation fixedModelLoc = new ModelResourceLocation(fixedModel, "inventory");
 

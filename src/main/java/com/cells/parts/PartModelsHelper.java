@@ -55,8 +55,8 @@ public final class PartModelsHelper {
      * @return Array of [MODEL_BASE, MODELS_OFF, MODELS_ON, MODELS_HAS_CHANNEL]
      */
     public static Object[] createInterfaceModels(String prefix) {
-        String baseName = CellsConfig.useFixedInterfaceTextures ? "base_fixed" : "base";
-        String hasChannelName = CellsConfig.useFixedInterfaceTextures ? "has_channel_fixed" : "has_channel";
+        String baseName = CellsConfig.interfaces.useFixedInterfaceTextures ? "base_fixed" : "base";
+        String hasChannelName = CellsConfig.interfaces.useFixedInterfaceTextures ? "has_channel_fixed" : "has_channel";
 
         ResourceLocation modelBase = new ResourceLocation(Tags.MODID, prefix + baseName);
 

@@ -72,7 +72,7 @@ public class GuiControlsHelpToggleButton extends GuiButton implements ITooltip {
 
         // Right arrow (u=SPRITE_SIZE) when panel is visible (click to collapse);
         // left arrow (u=0) when panel is hidden (click to expand).
-        int u = CellsConfig.showControlsHelp ? SPRITE_SIZE : 0;
+        int u = CellsConfig.hidden.showControlsHelp ? SPRITE_SIZE : 0;
         int v = hovered ? SPRITE_SIZE : 0;
 
         mc.getTextureManager().bindTexture(TEXTURE);

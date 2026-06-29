@@ -178,9 +178,9 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         }
 
         // Add NBT size information (if enabled in config)
-        if (CellsConfig.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
+        if (CellsConfig.general.enableNbtSizeTooltip && cellInv instanceof INBTSizeProvider) {
             int nbtSize = ((INBTSizeProvider) cellInv).getTotalNbtSize();
-            long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.nbtSizeWarningThresholdKB);
+            long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.general.nbtSizeWarningThresholdKB);
             String sizeStr = NBTSizeHelper.formatSizeWithColor(nbtSize, warningThreshold);
 
             tooltip.add("");
@@ -330,7 +330,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, CellsConfig.configurableCellUpgradeSlots, Collections.singletonList(CustomCellUpgrades.CustomUpgrades.OVERFLOW));
+        return new CustomCellUpgrades(is, CellsConfig.general.configurableCellUpgradeSlots, Collections.singletonList(CustomCellUpgrades.CustomUpgrades.OVERFLOW));
     }
 
     @Override
