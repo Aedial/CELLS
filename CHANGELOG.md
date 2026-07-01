@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.4-beta3] - 2026-07-01
+### Fixed
+- Mitigate performance issues with 0.6.4-beta2's more heavy-handed reconciliation, in the force-update path.
+
+
 ## [0.6.4-beta2] - 2026-06-29
 ### Fixed
 - Fix Subnet Proxy showing stale items after a partitioned Storage Bus rebuilds, which could leave items visible-but-unextractable and later double-count them on the front network. The cost of force-updates has been increased (due to more heavy-handed reconciliation for correctness' sake), but the steady-state cost should be about the same as before.

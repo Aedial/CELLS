@@ -2,6 +2,7 @@ package com.cells.parts.subnetproxy;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -322,6 +323,12 @@ public class PartSubnetProxyFront extends AEBasePart
 
     private static final long FAULT_LOG_COOLDOWN_TICKS = 100L;
 
+    /**
+     * Trace switch for Subnet Proxy update flow diagnostics.
+     * Flip while investigating issue #84-class force-update races.
+     */
+    private static final boolean TRACE_UPDATE_FLOW = Boolean.parseBoolean(System.getProperty("cells.trace.subnetproxy.updateflow", "false"));
+
     public static class FaultRecord {
 
         public final long firstObservedTick;
@@ -604,6 +611,21 @@ public class PartSubnetProxyFront extends AEBasePart
     * old snapshot baseline until {@link #tickingRequest} reconciles it.
     */
     private boolean pendingMonitorResetReconcile = false;
+
+    /**
+     * World tick of the last back-grid cell-array rebuild routed through
+     * {@link #markSourcesDirty()}. Storage-bus partition resets emit a direct
+     * self-sourced delta in the same tick after that rebuild; ordinary storage
+     * bus content changes do not.
+     */
+    private long lastSourceDirtyTick = Long.MIN_VALUE;
+
+    /**
+     * True when the next monitor-reset reconcile should force Grid B to rebuild
+     * from the proxy's current listing instead of using the cheaper snapshot
+     * diff path. Reserved for storage-surface reset signatures only.
+     */
+    private boolean pendingForcedGridBRefresh = false;
 
     /**
      * Dirty flag for passthrough sources (local cells from Grid A).
@@ -1783,6 +1805,7 @@ public class PartSubnetProxyFront extends AEBasePart
 
         this.pendingMonitorResetReconcile = false;
         this.deltasDirty = false;
+        this.pendingForcedGridBRefresh = false;
         this.inMarkSourcesDirty = true;
         try {
             int previousStructureHash = this.lastPublishedStructureHash;
@@ -1795,6 +1818,7 @@ public class PartSubnetProxyFront extends AEBasePart
             // buses can emit a follow-up direct delta for the same rebuild,
             // and keeping the old baseline lets that immediate delta collapse
             // naturally before the deferred reconcile runs.
+            this.lastSourceDirtyTick = this.getObservedWorldTick();
             this.sourcesDirty = true;
             updatePassthroughSources(false);
             // Back-grid topology may have changed; re-check insertion wiring
@@ -1892,10 +1916,7 @@ public class PartSubnetProxyFront extends AEBasePart
 
                 if (refreshSnapshots) {
                     // Reset snapshots so next connection starts clean
-                    this.itemHandler.setLastSnapshot(null);
-                    this.fluidHandler.setLastSnapshot(null);
-                    if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
-                    if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+                    this.clearPassthroughSnapshots();
                 }
 
                 // No back: drop peers/origins/coord. Election on whichever
@@ -2010,10 +2031,7 @@ public class PartSubnetProxyFront extends AEBasePart
                 if (this.essentiaHandler != null) this.essentiaHandler.clearSources();
 
                 if (refreshSnapshots) {
-                    this.itemHandler.setLastSnapshot(null);
-                    this.fluidHandler.setLastSnapshot(null);
-                    if (this.gasHandler != null) this.gasHandler.setLastSnapshot(null);
-                    if (this.essentiaHandler != null) this.essentiaHandler.setLastSnapshot(null);
+                    this.clearPassthroughSnapshots();
                 }
 
                 // Back-grid unavailable: also drop peer/origin set & coord
@@ -2415,6 +2433,212 @@ public class PartSubnetProxyFront extends AEBasePart
         }
     }
 
+    private void traceUpdate(String phase, String detail) {
+        Cells.LOGGER.info(
+            "[SubnetProxyTrace] phase={} pos={} side={} dim={} tick={} frontGrid={} backGrid={} state[sourcesDirty={}, filtersDirty={}, deltasDirty={}, pendingReset={}, pendingForce={}, insertionActive={}, structureHash={}, cellArrayHash={}] {}",
+            phase,
+            this.describeTracePos(),
+            this.getSide(),
+            this.getTraceDimension(),
+            this.getObservedWorldTick(),
+            describeGrid(this.getFrontGridLive()),
+            describeGrid(this.gridA),
+            this.sourcesDirty,
+            this.filtersDirty,
+            this.deltasDirty,
+            this.pendingMonitorResetReconcile,
+            this.pendingForcedGridBRefresh,
+            this.insertionActive,
+            this.lastPublishedStructureHash,
+            this.lastPublishedCellArrayHash,
+            detail);
+    }
+
+    private String describeTracePos() {
+        TileEntity tile = this.getHost() != null ? this.getHost().getTile() : null;
+        BlockPos pos = tile != null ? tile.getPos() : null;
+
+        return pos != null ? pos.toString() : "<no-pos>";
+    }
+
+    private String getTraceDimension() {
+        World world = this.getHostWorld();
+
+        return world != null ? Integer.toString(world.provider.getDimension()) : "<no-dim>";
+    }
+
+    private String findTraceCaller() {
+        StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+        for (StackTraceElement frame : stack) {
+            String className = frame.getClassName();
+            String methodName = frame.getMethodName();
+
+            if (className.equals(Thread.class.getName())) continue;
+
+            if (className.equals(PartSubnetProxyFront.class.getName())
+                    && (methodName.equals("findTraceCaller")
+                        || methodName.equals("traceUpdate")
+                        || methodName.equals("notifyGridOfChange"))) {
+                continue;
+            }
+
+            if (className.equals(PartSubnetProxyFront.class.getName())) return methodName;
+
+            if (className.startsWith(PartSubnetProxyFront.class.getName() + "$")) {
+                return className.substring(className.lastIndexOf('$') + 1) + "." + methodName;
+            }
+
+            return className + "." + methodName;
+        }
+
+        return "<unknown>";
+    }
+
+    private String describeMonitor(@Nullable IBaseMonitor monitor) {
+        if (monitor == null) return "null";
+        if (monitor == this.registeredItemMonitor) return "item";
+        if (monitor == this.registeredFluidMonitor) return "fluid";
+        if (this.gasHandler != null && monitor == this.gasHandler.getRegisteredMonitor()) return "gas";
+        if (this.essentiaHandler != null && monitor == this.essentiaHandler.getRegisteredMonitor()) return "essentia";
+
+        return monitor.getClass().getSimpleName() + '@'
+            + Integer.toHexString(System.identityHashCode(monitor));
+    }
+
+    private String describeActionSource(@Nullable IActionSource source) {
+        if (source == null) return "null";
+
+        StringBuilder builder = new StringBuilder();
+        builder.append(source.getClass().getSimpleName())
+            .append('@')
+            .append(Integer.toHexString(System.identityHashCode(source)));
+
+        IGrid origin = SubnetProxyEventSource.extractOriginGrid(source);
+        if (origin != null) builder.append(", origin=").append(describeGrid(origin));
+
+        UUID eventId = SubnetProxyEventSource.extractEventId(source);
+        if (eventId != null) builder.append(", eventId=").append(eventId);
+
+        if (!source.machine().isPresent()) {
+            builder.append(", machine=<none>");
+            return builder.toString();
+        }
+
+        IActionHost machine = source.machine().get();
+        builder.append(", machine=")
+            .append(machine.getClass().getSimpleName())
+            .append('@')
+            .append(Integer.toHexString(System.identityHashCode(machine)));
+
+        IGridNode node = machine.getActionableNode();
+        builder.append(", machineGrid=").append(describeGrid(node != null ? node.getGrid() : null));
+        builder.append(", knownLocal=").append(this.knownLocalProviderHosts.contains(machine));
+
+        return builder.toString();
+    }
+
+    private String describeChannel(IStorageChannel<?> channel) {
+        ResourceType type = channelToResourceType(channel, itemChannel(), fluidChannel());
+        if (type != null) return type.name();
+
+        return channel.getClass().getSimpleName() + '@'
+            + Integer.toHexString(System.identityHashCode(channel));
+    }
+
+    private static String describeGrid(@Nullable IGrid grid) {
+        if (grid == null) return "null";
+
+        return grid.getClass().getSimpleName() + '@'
+            + Integer.toHexString(System.identityHashCode(grid));
+    }
+
+    private static String describeChangeIterable(@Nullable Iterable<?> change) {
+        if (change == null) return "null";
+
+        if (change instanceof Collection) {
+            return change.getClass().getSimpleName() + "[size=" + ((Collection<?>) change).size() + "]";
+        }
+
+        return change.getClass().getSimpleName();
+    }
+
+    private static String describeActionHostIdentity(@Nullable IActionHost host) {
+        if (host == null) return "null";
+
+        return host.getClass().getSimpleName() + '@'
+            + Integer.toHexString(System.identityHashCode(host));
+    }
+
+    private static String describeMonitorIdentity(@Nullable IMEMonitor<?> monitor) {
+        if (monitor == null) return "null";
+
+        return monitor.getClass().getSimpleName() + '@'
+            + Integer.toHexString(System.identityHashCode(monitor));
+    }
+
+    private String summarizeActionHosts(Iterable<IActionHost> hosts, int maxEntries) {
+        StringBuilder builder = new StringBuilder();
+        int total = 0;
+
+        for (IActionHost host : hosts) {
+            if (total < maxEntries) {
+                if (builder.length() > 0) builder.append(", ");
+                builder.append(describeActionHostIdentity(host));
+            }
+
+            total++;
+        }
+
+        if (total == 0) return "[]";
+        if (total > maxEntries) builder.append(", ... total=").append(total);
+
+        return '[' + builder.toString() + ']';
+    }
+
+    private <T extends IAEStack<T>> String summarizeAeChanges(Iterable<T> changes, int maxEntries) {
+        StringBuilder builder = new StringBuilder();
+        int total = 0;
+
+        for (T change : changes) {
+            if (total < maxEntries) {
+                if (builder.length() > 0) builder.append("; ");
+                builder.append(describeAeStack(change))
+                    .append(" delta=")
+                    .append(change.getStackSize());
+            }
+
+            total++;
+        }
+
+        if (total == 0) return "[]";
+        if (total > maxEntries) builder.append("; ... total=").append(total);
+
+        return "[" + builder + "]";
+    }
+
+    private <T extends IAEStack<T>> String summarizeSnapshotList(@Nullable IItemList<T> list, int maxEntries) {
+        if (list == null) return "null";
+
+        StringBuilder builder = new StringBuilder();
+        int total = 0;
+
+        for (T stack : list) {
+            if (total < maxEntries) {
+                if (builder.length() > 0) builder.append("; ");
+                builder.append(describeAeStack(stack))
+                    .append(" size=")
+                    .append(stack.getStackSize());
+            }
+
+            total++;
+        }
+
+        if (total == 0) return "[]";
+        if (total > maxEntries) builder.append("; ... total=").append(total);
+
+        return "[" + builder + "]";
+    }
+
     // ========================= Grid A Listener (Delta Forwarding) =========================
 
     /**
@@ -2449,16 +2673,19 @@ public class PartSubnetProxyFront extends AEBasePart
         @SuppressWarnings("unchecked")
         @Override
         public void postChange(final IBaseMonitor monitor, final Iterable change, final IActionSource actionSource) {
-            boolean refreshSources = shouldRefreshSourcesForDelta(actionSource);
+            boolean forceGridBRefresh = isStorageSurfaceResetDelta(actionSource);
+            boolean refreshSources = forceGridBRefresh || shouldRefreshSourcesForDelta(actionSource);
 
             if (refreshSources) {
+                if (forceGridBRefresh) pendingForcedGridBRefresh = true;
+
                 // Storage-surface providers can emit self-sourced monitor events
                 // while their visible listing is being rebuilt. Those deltas are
                 // not a reliable full description of what disappeared or appeared,
-                // so queue a full snapshot reconcile after the immediate delta.
-                // The immediate forward keeps normal content updates responsive,
-                // while the deferred diff corrects stale baselines after partial
-                // storage-bus repartition/reset events.
+                // so queue a source refresh after the immediate delta. Only the
+                // storage-bus reset signature upgrades that reconcile into a full
+                // Grid B rebuild; generic force-updates stay on the cheaper
+                // snapshot-diff path.
                 sourcesDirty = true;
                 pendingMonitorResetReconcile = true;
                 deltasDirty = true;
@@ -2586,11 +2813,11 @@ public class PartSubnetProxyFront extends AEBasePart
     /**
      * Recognize provider-surface changes that AE2 reports only as monitor deltas.
      * This covers two silent cases: a provider that used to be directly local has
-     * left Grid A before its removal delta is delivered, and storage buses that
-     * publish a self-sourced diff after retargeting/rebuilding without emitting a
-     * MENetworkCellArrayUpdate. These events must queue a fresh listing reconcile
-     * in addition to their immediate delta, because the raw stream alone is not
-     * guaranteed to describe the full visibility change.
+     * left Grid A before its removal delta is delivered, and similar stale-host
+     * transitions where the provider's actionable node no longer matches Grid A.
+     * Ordinary local storage-bus content changes must stay on the cheap direct
+     * delta path; their reset signature is handled separately by
+     * {@link #isStorageSurfaceResetDelta(IActionSource)}.
      */
     private boolean shouldRefreshSourcesForDelta(IActionSource source) {
         if (this.gridA == null || !source.machine().isPresent()) return false;
@@ -2599,9 +2826,25 @@ public class PartSubnetProxyFront extends AEBasePart
         if (!this.knownLocalProviderHosts.contains(machine)) return false;
 
         IGridNode node = machine.getActionableNode();
-        if (node == null || node.getGrid() != this.gridA) return true;
+        return node == null || node.getGrid() != this.gridA;
+    }
 
-        return isLocalStorageSurfaceProvider(machine);
+    /**
+     * Storage-bus partition resets rebuild the back-grid cell array first, then
+     * emit a self-sourced delta from the rebuilt storage bus in the same world
+     * tick. That combination is the expensive correctness case that still needs
+     * a full Grid B rebuild after the immediate delta is forwarded.
+     */
+    private boolean isStorageSurfaceResetDelta(IActionSource source) {
+        if (this.gridA == null || !source.machine().isPresent()) return false;
+        if (!this.pendingMonitorResetReconcile) return false;
+
+        IActionHost machine = source.machine().get();
+        if (!this.knownLocalProviderHosts.contains(machine)) return false;
+        if (!isLocalStorageSurfaceProvider(machine)) return false;
+
+        long observedTick = this.getObservedWorldTick();
+        return observedTick >= 0 && observedTick == this.lastSourceDirtyTick;
     }
 
     private static boolean isLocalStorageSurfaceProvider(IActionHost machine) {
@@ -2660,6 +2903,41 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         for (T delta : deltas) snapshot.add(delta);
+    }
+
+    private <T extends IAEStack<T>> String applySnapshotDeltasWithTrace(
+            IItemList<T> snapshot,
+            List<T> deltas) {
+        StringBuilder builder = new StringBuilder();
+        int total = 0;
+
+        for (T delta : deltas) {
+            T beforeStack = snapshot.findPrecise(delta);
+            long before = beforeStack != null ? beforeStack.getStackSize() : 0L;
+
+            snapshot.add(delta);
+
+            T afterStack = snapshot.findPrecise(delta);
+            long after = afterStack != null ? afterStack.getStackSize() : 0L;
+
+            if (total < 8) {
+                if (builder.length() > 0) builder.append("; ");
+                builder.append(describeAeStack(delta))
+                    .append(" before=")
+                    .append(before)
+                    .append(", delta=")
+                    .append(delta.getStackSize())
+                    .append(", after=")
+                    .append(after);
+            }
+
+            total++;
+        }
+
+        if (total == 0) return "[]";
+        if (total > 8) builder.append("; ... total=").append(total);
+
+        return "[" + builder + "]";
     }
 
     /** Wake up Grid B's tick manager so we compute the snapshot diff. */
@@ -2782,17 +3060,29 @@ public class PartSubnetProxyFront extends AEBasePart
         if (this.filtersDirty) this.rebuildFilters();
 
         this.pendingMonitorResetReconcile = false;
+        boolean forceGridBRefresh = this.pendingForcedGridBRefresh;
+        this.pendingForcedGridBRefresh = false;
+        this.lastSourceDirtyTick = Long.MIN_VALUE;
 
-        this.lastPublishedStructureHash = this.computePublishedStructureHash();
-        this.lastPublishedCellArrayHash = this.computePublishedCellArrayHash();
+        int previousStructureHash = this.lastPublishedStructureHash;
+        int previousCellArrayHash = this.lastPublishedCellArrayHash;
+        int currentStructureHash = this.computePublishedStructureHash();
+        int currentCellArrayHash = this.computePublishedCellArrayHash();
+        this.lastPublishedStructureHash = currentStructureHash;
+        this.lastPublishedCellArrayHash = currentCellArrayHash;
+        if (forceGridBRefresh || currentCellArrayHash != previousCellArrayHash) {
+            this.refreshAllSnapshots();
+            this.notifyGridOfChange();
+            return;
+        }
 
-        // AE2 storage buses can suppress the removal side of a partition reset
-        // when they rebuild their own filter state, which leaves Grid B's cache
-        // stale even though Grid A's current listing is already correct. Force a
-        // Grid B refresh from the rebuilt proxy surface instead of trying to
-        // reconstruct the missing delta locally.
-        this.refreshAllSnapshots();
-        this.notifyGridOfChange();
+        // if (currentStructureHash != previousStructureHash) {
+        // Visibility surface changed without altering Grid B's handler set.
+        // Preserve the old baseline and let snapshotDiffAndForward emit the
+        // content delta instead of forcing a cell-array rebuild.
+        // }
+
+        snapshotDiffAndForward();
     }
 
     /**
