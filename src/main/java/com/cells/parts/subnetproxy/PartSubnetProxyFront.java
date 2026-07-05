@@ -325,7 +325,6 @@ public class PartSubnetProxyFront extends AEBasePart
 
     /**
      * Trace switch for Subnet Proxy update flow diagnostics.
-     * Flip while investigating issue #84-class force-update races.
      */
     private static final boolean TRACE_UPDATE_FLOW = Boolean.parseBoolean(System.getProperty("cells.trace.subnetproxy.updateflow", "false"));
 
@@ -652,6 +651,19 @@ public class PartSubnetProxyFront extends AEBasePart
      * a tile entity lookup every tick.
      */
     private boolean cachedHasBack = false;
+
+    /**
+     * True while config or upgrade inventories are being restored from NBT.
+     * Inventory callbacks during this phase should coalesce into a single
+     * deferred Grid B refresh instead of trying to notify immediately.
+     */
+    private boolean loadingFromNbt = false;
+
+    /**
+     * A Grid B cell-array refresh was requested while the front node or grid
+     * was unavailable. Replayed once the front joins a live Grid B.
+     */
+    private boolean pendingGridBNotify = false;
 
     /**
      * World tick when this part was placed. Used to suppress spurious
@@ -1241,6 +1253,15 @@ public class PartSubnetProxyFront extends AEBasePart
 
         this.lastPublishedStructureHash = this.computePublishedStructureHash();
         this.lastPublishedCellArrayHash = this.computePublishedCellArrayHash();
+        this.replayDeferredGridBNotify("addToWorld");
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.addToWorld",
+                "cachedHasBack=" + this.cachedHasBack
+                    + ", hasInsertionCard=" + this.hasInsertionCard()
+                    + ", enabledChannels=" + this.enabledChannels);
+        }
     }
 
     @Override
@@ -1253,6 +1274,14 @@ public class PartSubnetProxyFront extends AEBasePart
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
         if (te != null && te.getWorld() != null) {
             this.placedTick = te.getWorld().getTotalWorldTime();
+        }
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.onPlacement",
+                "placedTick=" + this.placedTick
+                    + ", heldHasTag=" + held.hasTagCompound()
+                    + ", side=" + side);
         }
     }
 
@@ -1269,6 +1298,14 @@ public class PartSubnetProxyFront extends AEBasePart
 
     @Override
     public void removeFromWorld() {
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.removeFromWorld",
+                "currentCoord=" + (this.currentFrontGridCoord != null)
+                    + ", peers=" + this.peerFronts.size()
+                    + ", exposedOrigins=" + this.exposedOrigins.size());
+        }
+
         unregisterGridAListeners();
         // Drop back-grid monitor reference held by insertion handlers
         this.itemInsertionHandler.clearMonitor();
@@ -1297,26 +1334,41 @@ public class PartSubnetProxyFront extends AEBasePart
     public void readFromNBT(final NBTTagCompound data) {
         super.readFromNBT(data);
 
-        // Sparse config deserialization: only non-empty slots were written
-        if (data.hasKey("config")) readSparseConfig(data.getCompoundTag("config"));
+        this.loadingFromNbt = true;
+        try {
+            // Sparse config deserialization: only non-empty slots were written
+            if (data.hasKey("config")) readSparseConfig(data.getCompoundTag("config"));
 
-        this.upgrades.readFromNBT(data, "upgrades");
-        this.currentPage = data.getInteger("currentPage");
-        this.filterMode = ResourceType.fromOrdinal(data.getInteger("filterMode"));
-        this.fuzzyMode = FuzzyMode.values()[Math.max(0, Math.min(
-            data.getInteger("fuzzyMode"), FuzzyMode.values().length - 1))];
-        this.priority = data.getInteger("priority");
+            this.upgrades.readFromNBT(data, "upgrades");
+            this.currentPage = data.getInteger("currentPage");
+            this.filterMode = ResourceType.fromOrdinal(data.getInteger("filterMode"));
+            this.fuzzyMode = FuzzyMode.values()[Math.max(0, Math.min(
+                data.getInteger("fuzzyMode"), FuzzyMode.values().length - 1))];
+            this.priority = data.getInteger("priority");
 
-        // Channel exposure bitmask. Missing key = empty set (default-off), which
-        // matches the field's default for fresh parts placed before this NBT key existed.
-        this.enabledChannels = EnumSet.noneOf(ResourceType.class);
-        if (data.hasKey("enabledChannels")) {
-            int mask = data.getInteger("enabledChannels");
-            for (ResourceType t : ResourceType.values()) {
-                if ((mask & (1 << t.ordinal())) != 0) this.enabledChannels.add(t);
+            // Channel exposure bitmask. Missing key = empty set (default-off), which
+            // matches the field's default for fresh parts placed before this NBT key existed.
+            this.enabledChannels = EnumSet.noneOf(ResourceType.class);
+            if (data.hasKey("enabledChannels")) {
+                int mask = data.getInteger("enabledChannels");
+                for (ResourceType t : ResourceType.values()) {
+                    if ((mask & (1 << t.ordinal())) != 0) this.enabledChannels.add(t);
+                }
             }
+        } finally {
+            this.loadingFromNbt = false;
         }
         this.filtersDirty = true;
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.readFromNBT",
+                "currentPage=" + this.currentPage
+                    + ", filterMode=" + this.filterMode
+                    + ", fuzzyMode=" + this.fuzzyMode
+                    + ", priority=" + this.priority
+                    + ", enabledChannels=" + this.enabledChannels);
+        }
     }
 
     @Override
@@ -1477,11 +1529,20 @@ public class PartSubnetProxyFront extends AEBasePart
         this.sourcesDirty = true;
         this.notifyGridOfChange();
         this.markHostForUpdate();
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate("front.stateChange.channels", "markedSourcesDirty=true");
+        }
     }
 
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkPowerStatusChange c) {
         this.markHostForUpdate();
+        this.replayDeferredGridBNotify("stateChange.power");
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate("front.stateChange.power", "hostUpdateRequested=true");
+        }
     }
 
     // ========================= Neighbor Updates =========================
@@ -1494,6 +1555,12 @@ public class PartSubnetProxyFront extends AEBasePart
         if (hasBack != this.cachedHasBack) {
             this.cachedHasBack = hasBack;
             this.markHostForUpdate();
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.onNeighborChanged",
+                    "neighbor=" + neighbor + ", cachedHasBack=" + this.cachedHasBack);
+            }
         }
     }
 
@@ -1591,6 +1658,13 @@ public class PartSubnetProxyFront extends AEBasePart
     @SuppressWarnings({"rawtypes", "unchecked"})
     @Override
     public List<IMEInventoryHandler> getCellArray(final IStorageChannel channel) {
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.getCellArray.enter",
+                "channel=" + this.describeChannel(channel)
+                    + ", requestedType=" + channelToResourceType(channel, itemChannel(), fluidChannel()));
+        }
+
         // Only rebuild when invalidated by grid events or config changes
         this.ensureSourcesCurrent();
         if (this.filtersDirty) this.rebuildFilters();
@@ -1606,7 +1680,7 @@ public class PartSubnetProxyFront extends AEBasePart
         if (requestedType != null
                 && !this.enabledChannels.contains(requestedType)
                 && !this.isReadChannelExposed(requestedType)) {
-            return Collections.emptyList();
+            return this.traceCellArrayReturn(channel, Collections.emptyList(), "channelHidden");
         }
 
         if (channel == itemCh) {
@@ -1617,32 +1691,36 @@ public class PartSubnetProxyFront extends AEBasePart
             List<IMEInventoryHandler> read = this.isReadChannelExposed(ResourceType.ITEM)
                 ? this.itemHandler.asCellArray()
                 : Collections.emptyList();
-            if (!this.insertionActive || !this.enabledChannels.contains(ResourceType.ITEM)) return read;
+            if (!this.insertionActive || !this.enabledChannels.contains(ResourceType.ITEM)) {
+                return this.traceCellArrayReturn(channel, read, "itemReadOnly");
+            }
 
             List<IMEInventoryHandler> insert = this.itemInsertionHandler.asCellArray();
-            if (insert.isEmpty()) return read;
-            if (read.isEmpty()) return insert;
+            if (insert.isEmpty()) return this.traceCellArrayReturn(channel, read, "itemReadOnlyInsertionEmpty");
+            if (read.isEmpty()) return this.traceCellArrayReturn(channel, insert, "itemInsertionOnly");
 
             List<IMEInventoryHandler> combined = new ArrayList<>(read.size() + insert.size());
             combined.addAll(read);
             combined.addAll(insert);
-            return combined;
+            return this.traceCellArrayReturn(channel, combined, "itemCombined");
         }
 
         if (channel == fluidCh) {
             List<IMEInventoryHandler> read = this.isReadChannelExposed(ResourceType.FLUID)
                 ? this.fluidHandler.asCellArray()
                 : Collections.emptyList();
-            if (!this.insertionActive || !this.enabledChannels.contains(ResourceType.FLUID)) return read;
+            if (!this.insertionActive || !this.enabledChannels.contains(ResourceType.FLUID)) {
+                return this.traceCellArrayReturn(channel, read, "fluidReadOnly");
+            }
 
             List<IMEInventoryHandler> insert = this.fluidInsertionHandler.asCellArray();
-            if (insert.isEmpty()) return read;
-            if (read.isEmpty()) return insert;
+            if (insert.isEmpty()) return this.traceCellArrayReturn(channel, read, "fluidReadOnlyInsertionEmpty");
+            if (read.isEmpty()) return this.traceCellArrayReturn(channel, insert, "fluidInsertionOnly");
 
             List<IMEInventoryHandler> combined = new ArrayList<>(read.size() + insert.size());
             combined.addAll(read);
             combined.addAll(insert);
-            return combined;
+            return this.traceCellArrayReturn(channel, combined, "fluidCombined");
         }
 
         // Gas channel (MekanismEnergistics)
@@ -1653,19 +1731,21 @@ public class PartSubnetProxyFront extends AEBasePart
             if (!result.isEmpty()) {
                 if (!this.insertionActive
                         || !this.enabledChannels.contains(ResourceType.GAS)
-                        || this.gasInsertionHandler == null) return result;
+                        || this.gasInsertionHandler == null) {
+                    return this.traceCellArrayReturn(channel, result, "gasReadOnly");
+                }
                 List<IMEInventoryHandler> insert = this.gasInsertionHandler.asCellArray();
-                if (insert.isEmpty()) return result;
+                if (insert.isEmpty()) return this.traceCellArrayReturn(channel, result, "gasReadOnlyInsertionEmpty");
                 List<IMEInventoryHandler> combined = new ArrayList<>(result.size() + insert.size());
                 combined.addAll(result);
                 combined.addAll(insert);
-                return combined;
+                return this.traceCellArrayReturn(channel, combined, "gasCombined");
             }
 
             if (this.insertionActive
                     && this.enabledChannels.contains(ResourceType.GAS)
                     && this.gasInsertionHandler != null) {
-                return this.gasInsertionHandler.asCellArray();
+                return this.traceCellArrayReturn(channel, this.gasInsertionHandler.asCellArray(), "gasInsertionOnly");
             }
         }
 
@@ -1677,23 +1757,28 @@ public class PartSubnetProxyFront extends AEBasePart
             if (!result.isEmpty()) {
                 if (!this.insertionActive
                         || !this.enabledChannels.contains(ResourceType.ESSENTIA)
-                        || this.essentiaInsertionHandler == null) return result;
+                        || this.essentiaInsertionHandler == null) {
+                    return this.traceCellArrayReturn(channel, result, "essentiaReadOnly");
+                }
                 List<IMEInventoryHandler> insert = this.essentiaInsertionHandler.asCellArray();
-                if (insert.isEmpty()) return result;
+                if (insert.isEmpty()) return this.traceCellArrayReturn(channel, result, "essentiaReadOnlyInsertionEmpty");
                 List<IMEInventoryHandler> combined = new ArrayList<>(result.size() + insert.size());
                 combined.addAll(result);
                 combined.addAll(insert);
-                return combined;
+                return this.traceCellArrayReturn(channel, combined, "essentiaCombined");
             }
 
             if (this.insertionActive
                     && this.enabledChannels.contains(ResourceType.ESSENTIA)
                     && this.essentiaInsertionHandler != null) {
-                return this.essentiaInsertionHandler.asCellArray();
+                return this.traceCellArrayReturn(
+                    channel,
+                    this.essentiaInsertionHandler.asCellArray(),
+                    "essentiaInsertionOnly");
             }
         }
 
-        return Collections.emptyList();
+        return this.traceCellArrayReturn(channel, Collections.emptyList(), "unsupportedChannel");
     }
 
     @Override
@@ -1738,6 +1823,13 @@ public class PartSubnetProxyFront extends AEBasePart
     // IAEAppEngInventory (for config/upgrades inventory change callbacks)
     @Override
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
+        if (this.loadingFromNbt) {
+            if (inv == this.upgrades) setCurrentPage(this.currentPage);
+            if (inv == this.upgrades || inv == this.config) this.filtersDirty = true;
+            this.deferGridBNotify("onChangeInventory.nbtRestore");
+            return;
+        }
+
         // When upgrades change, the number of pages may change
         if (inv == this.upgrades) {
             // Clamp current page if capacity cards removed
@@ -1801,7 +1893,17 @@ public class PartSubnetProxyFront extends AEBasePart
      * insertion-active flip path may still fan out.
      */
     public void markSourcesDirty() {
-        if (this.inMarkSourcesDirty) return;
+        if (this.inMarkSourcesDirty) {
+            if (TRACE_UPDATE_FLOW) this.traceUpdate("front.markSourcesDirty.skip", "reason=recursive");
+            return;
+        }
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.markSourcesDirty.enter",
+                "previousStructureHash=" + formatHash(this.lastPublishedStructureHash)
+                    + ", previousCellArrayHash=" + formatHash(this.lastPublishedCellArrayHash));
+        }
 
         this.pendingMonitorResetReconcile = false;
         this.deltasDirty = false;
@@ -1833,6 +1935,14 @@ public class PartSubnetProxyFront extends AEBasePart
             this.lastPublishedStructureHash = currentStructureHash;
             this.lastPublishedCellArrayHash = currentCellArrayHash;
             if (currentCellArrayHash != previousCellArrayHash) {
+                if (TRACE_UPDATE_FLOW) {
+                    this.traceUpdate(
+                        "front.markSourcesDirty.notifyGridB",
+                        "previousStructureHash=" + formatHash(previousStructureHash)
+                            + ", currentStructureHash=" + formatHash(currentStructureHash)
+                            + ", previousCellArrayHash=" + formatHash(previousCellArrayHash)
+                            + ", currentCellArrayHash=" + formatHash(currentCellArrayHash));
+                }
                 this.refreshAllSnapshots();
                 this.notifyGridOfChange();
                 return;
@@ -1845,6 +1955,13 @@ public class PartSubnetProxyFront extends AEBasePart
 
             this.pendingMonitorResetReconcile = true;
             this.deltasDirty = true;
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.markSourcesDirty.deferReconcile",
+                    "previousStructureHash=" + formatHash(previousStructureHash)
+                        + ", currentStructureHash=" + formatHash(currentStructureHash)
+                        + ", currentCellArrayHash=" + formatHash(currentCellArrayHash));
+            }
             this.alertGridBTick();
         } finally {
             this.inMarkSourcesDirty = false;
@@ -1896,6 +2013,12 @@ public class PartSubnetProxyFront extends AEBasePart
 
     @SuppressWarnings("unchecked")
     private void updatePassthroughSources(boolean refreshSnapshots) {
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.updatePassthroughSources.enter",
+                "refreshSnapshots=" + refreshSnapshots + ", inMarkSourcesDirty=" + this.inMarkSourcesDirty);
+        }
+
         this.sourcesDirty = false;
         this.rebuildingPassthroughSources = true;
 
@@ -1925,6 +2048,12 @@ public class PartSubnetProxyFront extends AEBasePart
                 this.peerFronts = new ArrayList<>();
                 this.exposedOrigins = new HashSet<>();
                 refreshCoordinatorRegistration();
+
+                if (TRACE_UPDATE_FLOW) {
+                    this.traceUpdate(
+                        "front.updatePassthroughSources.noBack",
+                        "refreshSnapshots=" + refreshSnapshots + ", listenersCleared=true");
+                }
 
                 return;
             }
@@ -2020,6 +2149,21 @@ public class PartSubnetProxyFront extends AEBasePart
                     SubnetProxyEssentiaHelper.registerListener(this.essentiaHandler, sg, this.gridAListener, this.listenerToken);
                 }
 
+                if (TRACE_UPDATE_FLOW) {
+                    this.traceUpdate(
+                        "front.updatePassthroughSources.ready",
+                        "refreshSnapshots=" + refreshSnapshots
+                            + ", localItemCells=" + localItemCells.size()
+                            + ", localFluidCells=" + localFluidCells.size()
+                            + ", gasLocalCells=" + (this.gasHandler != null ? this.gasHandler.getLocalCellCount() : 0)
+                            + ", essentiaLocalCells=" + (this.essentiaHandler != null ? this.essentiaHandler.getLocalCellCount() : 0)
+                            + ", peers=" + newPeers.size()
+                            + ", exposedOrigins=" + this.exposedOrigins.size()
+                            + ", knownLocalProviders=" + newKnownLocalProviders.size()
+                            + ", itemMonitor=" + describeMonitorIdentity(this.registeredItemMonitor)
+                            + ", fluidMonitor=" + describeMonitorIdentity(this.registeredFluidMonitor));
+                }
+
                 if (refreshSnapshots) refreshAllSnapshots();
             } catch (final GridAccessException e) {
                 this.gridA = null;
@@ -2038,6 +2182,12 @@ public class PartSubnetProxyFront extends AEBasePart
                 this.peerFronts = new ArrayList<>();
                 this.exposedOrigins = new HashSet<>();
                 refreshCoordinatorRegistration();
+
+                if (TRACE_UPDATE_FLOW) {
+                    this.traceUpdate(
+                        "front.updatePassthroughSources.gridAccessException",
+                        "refreshSnapshots=" + refreshSnapshots + ", exception=" + e.getClass().getSimpleName());
+                }
             }
         } finally {
             this.rebuildingPassthroughSources = false;
@@ -2299,6 +2449,12 @@ public class PartSubnetProxyFront extends AEBasePart
 
         boolean shouldBeActive = hasInsertionCard();
 
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.updateInsertionHandlers.enter",
+                "shouldBeActive=" + shouldBeActive + ", filtersDirty=" + this.filtersDirty);
+        }
+
         if (!shouldBeActive) {
             if (this.insertionActive) {
                 this.itemInsertionHandler.clearMonitor();
@@ -2310,6 +2466,10 @@ public class PartSubnetProxyFront extends AEBasePart
                     this.essentiaInsertionHandler.clearMonitor();
                 }
                 this.insertionActive = false;
+            }
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate("front.updateInsertionHandlers.noCard", "wasActive=" + this.insertionActive);
             }
             return;
         }
@@ -2327,6 +2487,10 @@ public class PartSubnetProxyFront extends AEBasePart
                     this.essentiaInsertionHandler.clearMonitor();
                 }
                 this.insertionActive = false;
+            }
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate("front.updateInsertionHandlers.noBack", "wasActive=" + this.insertionActive);
             }
             return;
         }
@@ -2361,6 +2525,18 @@ public class PartSubnetProxyFront extends AEBasePart
             }
 
             this.insertionActive = true;
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.updateInsertionHandlers.ready",
+                    "backGrid=" + describeGrid(backGrid)
+                        + ", itemReady=" + (this.itemInsertionHandler.asCellArray().size() == 1)
+                        + ", fluidReady=" + (this.fluidInsertionHandler.asCellArray().size() == 1)
+                        + ", gasReady=" + (this.gasInsertionHandler != null
+                            && this.gasInsertionHandler.asCellArray().size() == 1)
+                        + ", essentiaReady=" + (this.essentiaInsertionHandler != null
+                            && this.essentiaInsertionHandler.asCellArray().size() == 1));
+            }
         } catch (final GridAccessException e) {
             // Back grid not available
             this.itemInsertionHandler.clearMonitor();
@@ -2372,6 +2548,12 @@ public class PartSubnetProxyFront extends AEBasePart
                 this.essentiaInsertionHandler.clearMonitor();
             }
             this.insertionActive = false;
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.updateInsertionHandlers.gridAccessException",
+                    "exception=" + e.getClass().getSimpleName());
+            }
         }
     }
 
@@ -2429,13 +2611,59 @@ public class PartSubnetProxyFront extends AEBasePart
     private void notifyGridOfChange() {
         IGridNode node = this.getProxy().getNode();
         if (node != null && node.getGrid() != null) {
+            boolean replayedPending = this.pendingGridBNotify;
+            this.pendingGridBNotify = false;
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.notifyGridOfChange",
+                    "caller=" + this.findTraceCaller()
+                        + ", posted=true, grid=" + describeGrid(node.getGrid())
+                        + ", replayedPending=" + replayedPending);
+            }
             node.getGrid().postEvent(new MENetworkCellArrayUpdate());
+            return;
+        }
+
+        String traceCaller = TRACE_UPDATE_FLOW ? this.findTraceCaller() : "<no-trace>";
+        this.deferGridBNotify("notifyGridOfChange:" + traceCaller);
+    }
+
+    private void deferGridBNotify(String reason) {
+        if (this.pendingGridBNotify) return;
+
+        this.pendingGridBNotify = true;
+
+        if (TRACE_UPDATE_FLOW) {
+            IGridNode node = this.getProxy().getNode();
+            this.traceUpdate(
+                "front.notifyGridOfChange.defer",
+                "reason=" + reason
+                    + ", node=" + (node != null)
+                    + ", grid=" + describeGrid(node != null ? node.getGrid() : null));
         }
     }
 
+    private void replayDeferredGridBNotify(String reason) {
+        if (!this.pendingGridBNotify) return;
+
+        IGridNode node = this.getProxy().getNode();
+        if (node == null || node.getGrid() == null) return;
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.notifyGridOfChange.replay",
+                "reason=" + reason + ", grid=" + describeGrid(node.getGrid()));
+        }
+
+        this.notifyGridOfChange();
+    }
+
     private void traceUpdate(String phase, String detail) {
+        if (!TRACE_UPDATE_FLOW) return;
+
         Cells.LOGGER.info(
-            "[SubnetProxyTrace] phase={} pos={} side={} dim={} tick={} frontGrid={} backGrid={} state[sourcesDirty={}, filtersDirty={}, deltasDirty={}, pendingReset={}, pendingForce={}, insertionActive={}, structureHash={}, cellArrayHash={}] {}",
+            "[SubnetProxyTrace] phase={} pos={} side={} dim={} tick={} frontGrid={} backGrid={} state[sourcesDirty={}, filtersDirty={}, deltasDirty={}, pendingReset={}, pendingForce={}, pendingGridNotify={}, insertionActive={}, structureHash={}, cellArrayHash={}] {}",
             phase,
             this.describeTracePos(),
             this.getSide(),
@@ -2448,10 +2676,25 @@ public class PartSubnetProxyFront extends AEBasePart
             this.deltasDirty,
             this.pendingMonitorResetReconcile,
             this.pendingForcedGridBRefresh,
+            this.pendingGridBNotify,
             this.insertionActive,
             this.lastPublishedStructureHash,
             this.lastPublishedCellArrayHash,
             detail);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private List<IMEInventoryHandler> traceCellArrayReturn(
+            IStorageChannel<?> channel,
+            List<IMEInventoryHandler> result,
+            String reason) {
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.getCellArray.return",
+                "channel=" + this.describeChannel(channel) + ", size=" + result.size() + ", reason=" + reason);
+        }
+
+        return result;
     }
 
     private String describeTracePos() {
@@ -2676,6 +2919,16 @@ public class PartSubnetProxyFront extends AEBasePart
             boolean forceGridBRefresh = isStorageSurfaceResetDelta(actionSource);
             boolean refreshSources = forceGridBRefresh || shouldRefreshSourcesForDelta(actionSource);
 
+            if (TRACE_UPDATE_FLOW) {
+                traceUpdate(
+                    "gridA.postChange.enter",
+                    "monitor=" + describeMonitor(monitor)
+                        + ", changes=" + describeChangeIterable(change)
+                        + ", source=" + describeActionSource(actionSource)
+                        + ", forceGridBRefresh=" + forceGridBRefresh
+                        + ", refreshSources=" + refreshSources);
+            }
+
             if (refreshSources) {
                 if (forceGridBRefresh) pendingForcedGridBRefresh = true;
 
@@ -2702,8 +2955,20 @@ public class PartSubnetProxyFront extends AEBasePart
             //    which case we'd be inflating the loop and must reject.
             IGrid origin = SubnetProxyEventSource.extractOriginGrid(actionSource);
             if (origin == null) {
-                if (gridA == null) return;
-                if (!isPlainLocalSource(actionSource) && !refreshSources) return;
+                if (gridA == null) {
+                    if (TRACE_UPDATE_FLOW) {
+                        traceUpdate("gridA.postChange.skip", "reason=noBackGrid, monitor=" + describeMonitor(monitor));
+                    }
+                    return;
+                }
+                if (!isPlainLocalSource(actionSource) && !refreshSources) {
+                    if (TRACE_UPDATE_FLOW) {
+                        traceUpdate(
+                            "gridA.postChange.skip",
+                            "reason=nonLocalSource, source=" + describeActionSource(actionSource));
+                    }
+                    return;
+                }
                 origin = gridA;
             }
 
@@ -2713,26 +2978,55 @@ public class PartSubnetProxyFront extends AEBasePart
             // hears A's local change with origin=A; B→A's front-grid is A;
             // origin == front-grid -> reject.)
             IGrid frontGrid = getFrontGridLive();
-            if (frontGrid != null && origin == frontGrid) return;
+            if (frontGrid != null && origin == frontGrid) {
+                if (TRACE_UPDATE_FLOW) {
+                    traceUpdate(
+                        "gridA.postChange.skip",
+                        "reason=loopBack, origin=" + describeGrid(origin));
+                }
+                return;
+            }
 
             // ---- Reach-set check (1-hop visibility) ----
             // Forward only if our published listing actually exposes this
             // origin's items. Otherwise we'd be forwarding ghost deltas
             // for items we don't even list.
-            if (!exposedOrigins.contains(origin)) return;
+            if (!exposedOrigins.contains(origin)) {
+                if (TRACE_UPDATE_FLOW) {
+                    traceUpdate(
+                        "gridA.postChange.skip",
+                        "reason=originNotExposed, origin=" + describeGrid(origin)
+                            + ", exposedOrigins=" + PartSubnetProxyFront.this.exposedOrigins.size());
+                }
+                return;
+            }
 
             // ---- Election: only one front per origin publishes on a given grid ----
             // Diamond topologies (A→B→D + A→C→D) are dedup'd here:
             // exactly one of B→D / C→D is elected to forward A's deltas.
             SubnetProxyGridCoordinator coord = getFrontGridCoordinator(frontGrid);
-            if (coord != null && !coord.isElected(PartSubnetProxyFront.this, origin)) return;
+            if (coord != null && !coord.isElected(PartSubnetProxyFront.this, origin)) {
+                if (TRACE_UPDATE_FLOW) {
+                    traceUpdate(
+                        "gridA.postChange.skip",
+                        "reason=notElected, origin=" + describeGrid(origin));
+                }
+                return;
+            }
 
             // ---- Event-UUID dedup (belt-and-suspenders) ----
             // Reuse the upstream UUID so a single logical event keeps the same
             // identity through the chain; generate a fresh one for new origins.
             UUID eventId = SubnetProxyEventSource.extractEventId(actionSource);
             if (eventId == null) eventId = UUID.randomUUID();
-            if (coord != null && !coord.tryAccept(eventId)) return;
+            if (coord != null && !coord.tryAccept(eventId)) {
+                if (TRACE_UPDATE_FLOW) {
+                    traceUpdate(
+                        "gridA.postChange.skip",
+                        "reason=duplicateEvent, eventId=" + eventId + ", origin=" + describeGrid(origin));
+                }
+                return;
+            }
 
             // Ensure filters are current before testing deltas
             if (filtersDirty) rebuildFilters();
@@ -2743,24 +3037,45 @@ public class PartSubnetProxyFront extends AEBasePart
                     PartSubnetProxyFront.this, eventId, origin);
 
                 if (monitor == registeredItemMonitor) {
-                    if (!isReadChannelExposed(ResourceType.ITEM)) return;
+                    if (!isReadChannelExposed(ResourceType.ITEM)) {
+                        if (TRACE_UPDATE_FLOW) traceUpdate("gridA.postChange.skip", "reason=itemChannelHidden");
+                        return;
+                    }
                     IStorageChannel<IAEItemStack> ch = itemChannel();
                     forwardFilteredDeltas(change, itemHandler, ch, gridB, wrapped);
                 } else if (monitor == registeredFluidMonitor) {
-                    if (!isReadChannelExposed(ResourceType.FLUID)) return;
+                    if (!isReadChannelExposed(ResourceType.FLUID)) {
+                        if (TRACE_UPDATE_FLOW) traceUpdate("gridA.postChange.skip", "reason=fluidChannelHidden");
+                        return;
+                    }
                     IStorageChannel<IAEFluidStack> ch = fluidChannel();
                     forwardFilteredDeltas(change, fluidHandler, ch, gridB, wrapped);
                 } else if (gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()
                            && monitor == gasHandler.getRegisteredMonitor()) {
-                    if (!isReadChannelExposed(ResourceType.GAS)) return;
+                    if (!isReadChannelExposed(ResourceType.GAS)) {
+                        if (TRACE_UPDATE_FLOW) traceUpdate("gridA.postChange.skip", "reason=gasChannelHidden");
+                        return;
+                    }
                     forwardFilteredDeltas(change, gasHandler, SubnetProxyGasHelper.getChannel(), gridB, wrapped);
                 } else if (essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()
                            && monitor == essentiaHandler.getRegisteredMonitor()) {
-                    if (!isReadChannelExposed(ResourceType.ESSENTIA)) return;
+                    if (!isReadChannelExposed(ResourceType.ESSENTIA)) {
+                        if (TRACE_UPDATE_FLOW) traceUpdate("gridA.postChange.skip", "reason=essentiaChannelHidden");
+                        return;
+                    }
                     forwardFilteredDeltas(change, essentiaHandler, SubnetProxyEssentiaHelper.getChannel(), gridB, wrapped);
+                } else if (TRACE_UPDATE_FLOW) {
+                    traceUpdate(
+                        "gridA.postChange.skip",
+                        "reason=untrackedMonitor, monitor=" + describeMonitor(monitor));
                 }
             } catch (final GridAccessException e) {
                 // Grid B not available
+                if (TRACE_UPDATE_FLOW) {
+                    traceUpdate(
+                        "gridA.postChange.skip",
+                        "reason=gridBUnavailable, exception=" + e.getClass().getSimpleName());
+                }
             }
         }
 
@@ -2772,6 +3087,7 @@ public class PartSubnetProxyFront extends AEBasePart
             sourcesDirty = true;
             pendingMonitorResetReconcile = true;
             deltasDirty = true;
+            if (TRACE_UPDATE_FLOW) traceUpdate("gridA.onListUpdate", "queuedMonitorResetReconcile=true");
             alertGridBTick();
         }
 
@@ -2879,7 +3195,22 @@ public class PartSubnetProxyFront extends AEBasePart
             if (handler.matchesVisibleStack(change)) forwarded.add(change);
         }
 
-        if (forwarded.isEmpty()) return;
+        if (forwarded.isEmpty()) {
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "gridA.forwardFilteredDeltas.skip",
+                    "channel=" + this.describeChannel(channel) + ", reason=noVisibleDeltas");
+            }
+            return;
+        }
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "gridA.forwardFilteredDeltas.forward",
+                "channel=" + this.describeChannel(channel)
+                    + ", deltas=" + this.summarizeAeChanges(forwarded, 4)
+                    + ", source=" + this.describeActionSource(source));
+        }
 
         gridB.postAlterationOfStoredItems(channel, forwarded, source);
 
@@ -2944,8 +3275,14 @@ public class PartSubnetProxyFront extends AEBasePart
     private void alertGridBTick() {
         try {
             this.getProxy().getTick().alertDevice(this.getProxy().getNode());
+            if (TRACE_UPDATE_FLOW) this.traceUpdate("front.alertGridBTick", "posted=true");
         } catch (final GridAccessException e) {
             // Grid B not available yet
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.alertGridBTick",
+                    "posted=false, exception=" + e.getClass().getSimpleName());
+            }
         }
     }
 
@@ -2978,6 +3315,15 @@ public class PartSubnetProxyFront extends AEBasePart
         // (see updatePassthroughSources). Their monitor reference is tracked
         // on the handler itself (getRegisteredMonitor) so unregisterGridAListeners
         // can tear them down symmetrically.
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.registerGridAListeners",
+                "gridA=" + describeGrid(gridA)
+                    + ", itemMonitor=" + describeMonitorIdentity(this.registeredItemMonitor)
+                    + ", fluidMonitor=" + describeMonitorIdentity(this.registeredFluidMonitor)
+                    + ", listenerToken=" + Integer.toHexString(System.identityHashCode(this.listenerToken)));
+        }
     }
 
     /** Unregister from all Grid A monitors we're currently listening on. */
@@ -2987,6 +3333,14 @@ public class PartSubnetProxyFront extends AEBasePart
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void unregisterGridAListeners(boolean clearGridReference) {
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.unregisterGridAListeners.enter",
+                "clearGridReference=" + clearGridReference
+                    + ", itemMonitor=" + describeMonitorIdentity(this.registeredItemMonitor)
+                    + ", fluidMonitor=" + describeMonitorIdentity(this.registeredFluidMonitor));
+        }
+
         if (this.registeredItemMonitor != null) {
             this.registeredItemMonitor.removeListener(this.gridAListener);
             this.registeredItemMonitor = null;
@@ -3016,6 +3370,13 @@ public class PartSubnetProxyFront extends AEBasePart
 
         // Invalidate the token so any lingering references auto-expire
         this.listenerToken = new Object();
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.unregisterGridAListeners.exit",
+                "clearGridReference=" + clearGridReference
+                    + ", listenerToken=" + Integer.toHexString(System.identityHashCode(this.listenerToken)));
+        }
     }
 
     // ========================= IGridTickable (on Grid B) =========================
@@ -3041,7 +3402,17 @@ public class PartSubnetProxyFront extends AEBasePart
     @Override
     public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
         if (node != this.getProxy().getNode()) return TickRateModulation.SLEEP;
+
+        this.replayDeferredGridBNotify("tickingRequest");
+
         if (!this.deltasDirty) return TickRateModulation.SLEEP;
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.tickingRequest.run",
+                "ticksSinceLastCall=" + ticksSinceLastCall
+                    + ", pendingMonitorResetReconcile=" + this.pendingMonitorResetReconcile);
+        }
 
         this.deltasDirty = false;
 
@@ -3071,6 +3442,15 @@ public class PartSubnetProxyFront extends AEBasePart
         this.lastPublishedStructureHash = currentStructureHash;
         this.lastPublishedCellArrayHash = currentCellArrayHash;
         if (forceGridBRefresh || currentCellArrayHash != previousCellArrayHash) {
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.reconcilePendingMonitorReset.notifyGridB",
+                    "forceGridBRefresh=" + forceGridBRefresh
+                        + ", previousStructureHash=" + formatHash(previousStructureHash)
+                        + ", currentStructureHash=" + formatHash(currentStructureHash)
+                        + ", previousCellArrayHash=" + formatHash(previousCellArrayHash)
+                        + ", currentCellArrayHash=" + formatHash(currentCellArrayHash));
+            }
             this.refreshAllSnapshots();
             this.notifyGridOfChange();
             return;
@@ -3081,6 +3461,14 @@ public class PartSubnetProxyFront extends AEBasePart
         // Preserve the old baseline and let snapshotDiffAndForward emit the
         // content delta instead of forcing a cell-array rebuild.
         // }
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.reconcilePendingMonitorReset.snapshotDiff",
+                "previousStructureHash=" + formatHash(previousStructureHash)
+                    + ", currentStructureHash=" + formatHash(currentStructureHash)
+                    + ", currentCellArrayHash=" + formatHash(currentCellArrayHash));
+        }
 
         snapshotDiffAndForward();
     }
@@ -3292,6 +3680,16 @@ public class PartSubnetProxyFront extends AEBasePart
             : null;
 
         if (newCoord != this.currentFrontGridCoord || frontGrid != this.currentFrontGrid) {
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.refreshCoordinatorRegistration.rebind",
+                    "previousFrontGrid=" + describeGrid(this.currentFrontGrid)
+                        + ", nextFrontGrid=" + describeGrid(frontGrid)
+                        + ", previousCoord=" + (this.currentFrontGridCoord != null)
+                        + ", nextCoord=" + (newCoord != null)
+                        + ", exposedOrigins=" + this.exposedOrigins.size());
+            }
+
             if (this.currentFrontGridCoord != null) {
                 this.currentFrontGridCoord.unregisterFront(this);
             }
@@ -3301,6 +3699,11 @@ public class PartSubnetProxyFront extends AEBasePart
             if (newCoord != null) newCoord.registerFront(this);
         } else if (newCoord != null) {
             // Same coord, but our exposedOrigins likely changed; re-elect.
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.refreshCoordinatorRegistration.peersChanged",
+                    "frontGrid=" + describeGrid(frontGrid) + ", exposedOrigins=" + this.exposedOrigins.size());
+            }
             newCoord.onPeersChanged();
         }
     }
@@ -3366,12 +3769,29 @@ public class PartSubnetProxyFront extends AEBasePart
     void onCoordinatorElectionChanged() {
         clearPassthroughSnapshots();
 
-        if (this.rebuildingPassthroughSources) return;
+        if (this.rebuildingPassthroughSources) {
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate("front.onCoordinatorElectionChanged.skip", "reason=rebuildingPassthroughSources");
+            }
+            return;
+        }
 
         int currentStructureHash = this.computePublishedStructureHash();
-        if (currentStructureHash == this.lastPublishedStructureHash) return;
+        if (currentStructureHash == this.lastPublishedStructureHash) {
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.onCoordinatorElectionChanged.skip",
+                    "reason=structureUnchanged, structureHash=" + formatHash(currentStructureHash));
+            }
+            return;
+        }
 
         this.lastPublishedStructureHash = currentStructureHash;
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.onCoordinatorElectionChanged.notifyGridB",
+                "structureHash=" + formatHash(currentStructureHash));
+        }
         this.notifyGridOfChange();
     }
 

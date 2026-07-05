@@ -36,10 +36,10 @@ import appeng.api.parts.PartItemStack;
 import appeng.api.util.AECableType;
 import appeng.api.util.AEPartLocation;
 import appeng.items.parts.PartModels;
-import appeng.me.GridAccessException;
 import appeng.parts.AEBasePart;
 import appeng.parts.PartModel;
 
+import com.cells.Cells;
 import com.cells.api.ISubnetProxy;
 import com.cells.Tags;
 import com.cells.parts.CellsPartType;
@@ -69,6 +69,8 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     protected static final int POWERED_FLAG = 1;
     protected static final int CHANNEL_FLAG = 2;
     protected static final int BOTH_PARTS_FLAG = 4;
+
+    private static final boolean TRACE_UPDATE_FLOW = Boolean.parseBoolean(System.getProperty("cells.trace.subnetproxy.updateflow", "false"));
 
     @PartModels
     public static final ResourceLocation MODEL_BASE = new ResourceLocation(Tags.MODID, "part/subnet_proxy_back/base");
@@ -116,6 +118,10 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     public void addToWorld() {
         super.addToWorld();
         this.cachedHasFront = findFrontPart() != null;
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate("back.addToWorld", "cachedHasFront=" + this.cachedHasFront);
+        }
     }
 
     @Override
@@ -125,10 +131,18 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
         if (te != null && te.getWorld() != null) {
             this.placedTick = te.getWorld().getTotalWorldTime();
         }
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate("back.onPlacement", "placedTick=" + this.placedTick + ", side=" + side);
+        }
     }
 
     @Override
     public void removeFromWorld() {
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate("back.removeFromWorld", "cachedHasFront=" + this.cachedHasFront);
+        }
+
         super.removeFromWorld();
         this.cachedHasFront = false;
     }
@@ -150,6 +164,55 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
         super.writeToNBT(extra);
     }
 
+    // TODO: abstract the code instead of duplicating it in both front and back parts
+    private void traceUpdate(String phase, String detail) {
+        if (!TRACE_UPDATE_FLOW) return;
+
+        Cells.LOGGER.info(
+            "[SubnetProxyTrace] phase={} pos={} side={} dim={} tick={} grid={} {}",
+            phase,
+            this.describeTracePos(),
+            this.getSide(),
+            this.getTraceDimension(),
+            this.getObservedWorldTick(),
+            describeGrid(this.getLiveGrid()),
+            detail);
+    }
+
+    private String describeTracePos() {
+        TileEntity tile = this.getHost() != null ? this.getHost().getTile() : null;
+        BlockPos pos = tile != null ? tile.getPos() : null;
+
+        return pos != null ? pos.toString() : "<no-pos>";
+    }
+
+    private String getTraceDimension() {
+        TileEntity tile = this.getHost() != null ? this.getHost().getTile() : null;
+
+        return tile != null && tile.getWorld() != null
+            ? Integer.toString(tile.getWorld().provider.getDimension())
+            : "<no-dim>";
+    }
+
+    private long getObservedWorldTick() {
+        TileEntity tile = this.getHost() != null ? this.getHost().getTile() : null;
+
+        return tile != null && tile.getWorld() != null ? tile.getWorld().getTotalWorldTime() : -1L;
+    }
+
+    @Nullable
+    private IGrid getLiveGrid() {
+        IGridNode node = this.getProxy().getNode();
+        return node != null ? node.getGrid() : null;
+    }
+
+    private static String describeGrid(@Nullable IGrid grid) {
+        if (grid == null) return "null";
+
+        return grid.getClass().getSimpleName() + '@'
+            + Integer.toHexString(System.identityHashCode(grid));
+    }
+
     // ========================= Grid event subscriptions =========================
 
     // The back part's outer proxy sits on Grid A, so MENetworkEventSubscribe
@@ -159,12 +222,14 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     @MENetworkEventSubscribe
     public void cellUpdate(final MENetworkCellArrayUpdate ev) {
         PartSubnetProxyFront front = findFrontPart();
+        if (TRACE_UPDATE_FLOW) this.traceUpdate("back.cellUpdate", "frontFound=" + (front != null));
         if (front != null) front.markSourcesDirty();
     }
 
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkChannelsChanged c) {
         PartSubnetProxyFront front = findFrontPart();
+        if (TRACE_UPDATE_FLOW) this.traceUpdate("back.stateChange.channels", "frontFound=" + (front != null));
         if (front != null) front.markSourcesDirty();
         this.markHostForUpdate();
     }
@@ -172,6 +237,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkPowerStatusChange c) {
         PartSubnetProxyFront front = findFrontPart();
+        if (TRACE_UPDATE_FLOW) this.traceUpdate("back.stateChange.power", "frontFound=" + (front != null));
         if (front != null) front.markSourcesDirty();
         this.markHostForUpdate();
     }
@@ -218,6 +284,12 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
         if (hasFront != this.cachedHasFront) {
             this.cachedHasFront = hasFront;
             this.markHostForUpdate();
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "back.onNeighborChanged",
+                    "neighbor=" + neighbor + ", cachedHasFront=" + this.cachedHasFront);
+            }
         }
     }
 

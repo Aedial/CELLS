@@ -13,6 +13,14 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.4-beta4] - 2026-07-06
+### Added
+- Add thorough debug tracing for Subnet Proxy's network events, hidden behind the `-Dcells.trace.subnetproxy.updateflow=true` JVM flag. This will log the flow of events through EVERY proxy, which is A LOT of logs, so DO NOT ENABLE IT unless you are debugging the proxy and know what you're doing!
+
+### Fixed
+- Maybe fix some Subnet Proxy race conditions in network initialization, resulting in deltas being duplicated (ghost items for some items) or not being forwarded (items not showing up on the front grid).
+
+
 ## [0.6.4-beta3] - 2026-07-01
 ### Fixed
 - Mitigate performance issues with 0.6.4-beta2's more heavy-handed reconciliation, in the force-update path.
