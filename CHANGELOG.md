@@ -13,6 +13,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.4-beta5] - 2026-07-07
+### Fixed
+- Fix Subnet Proxy sometimes loading with an empty front-side view after a restart, by forcing a fresh relist when load-time front-grid churn invalidates the proxy's snapshot baseline before the final network is ready.
+- Fix Subnet Proxy forwarding deltas from devices it has not yet listed (e.g., a Storage Bus or ME Drive that is still initializing), which could cause reconciliation to fail and prevent the "true" deltas from being forwarded to the front grid, resulting in missing items in the front grid, or cause the proxy to forward ghost items when the ME Drive finishes initializing.
+
+
 ## [0.6.4-beta4] - 2026-07-06
 ### Added
 - Add thorough debug tracing for Subnet Proxy's network events, hidden behind the `-Dcells.trace.subnetproxy.updateflow=true` JVM flag. This will log the flow of events through EVERY proxy, which is A LOT of logs, so DO NOT ENABLE IT unless you are debugging the proxy and know what you're doing!

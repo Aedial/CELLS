@@ -666,6 +666,12 @@ public class PartSubnetProxyFront extends AEBasePart
     private boolean pendingGridBNotify = false;
 
     /**
+     * True while Grid B still needs to pull a fresh cell array from this part
+     * before snapshot-based deltas can safely resume.
+     */
+    private boolean awaitingGridBCellArrayBootstrap = false;
+
+    /**
      * World tick when this part was placed. Used to suppress spurious
      * activation caused by off-hand fall-through on the same tick as
      * placement (AE2's client-side PartPlacement returns PASS, so
@@ -1781,6 +1787,62 @@ public class PartSubnetProxyFront extends AEBasePart
         return this.traceCellArrayReturn(channel, Collections.emptyList(), "unsupportedChannel");
     }
 
+    private void completeGridBCellArrayBootstrap(IStorageChannel<?> channel, String reason) {
+        if (!this.awaitingGridBCellArrayBootstrap) return;
+        ResourceType type = channelToResourceType(channel, itemChannel(), fluidChannel());
+        if (type == null) return;
+
+        if (!this.isReadChannelExposed(type)) {
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.getCellArray.bootstrapIgnored",
+                    "channel=" + this.describeChannel(channel)
+                        + ", reason=" + reason
+                        + ", readExposed=false");
+            }
+            return;
+        }
+
+        if (this.pendingMonitorResetReconcile && !this.hasBootstrapVisibleReadSource(type)) {
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.getCellArray.bootstrapDeferred",
+                    "channel=" + this.describeChannel(channel)
+                        + ", reason=" + reason
+                        + ", pendingReset=true");
+            }
+            return;
+        }
+
+        this.refreshAllSnapshots();
+        this.awaitingGridBCellArrayBootstrap = false;
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.getCellArray.bootstrapComplete",
+                "channel=" + this.describeChannel(channel) + ", reason=" + reason);
+        }
+    }
+
+    private boolean hasBootstrapVisibleReadSource(ResourceType type) {
+        if (!this.isReadChannelExposed(type)) return true;
+
+        switch (type) {
+            case ITEM:
+                return this.itemHandler.getLocalCellCount() > 0 || !this.getPublishedPeerFronts().isEmpty();
+            case FLUID:
+                return this.fluidHandler.getLocalCellCount() > 0 || !this.getPublishedPeerFronts().isEmpty();
+            case GAS:
+                return (this.gasHandler != null && this.gasHandler.getLocalCellCount() > 0)
+                    || !this.getPublishedPeerFronts().isEmpty();
+            case ESSENTIA:
+                return (this.essentiaHandler != null && this.essentiaHandler.getLocalCellCount() > 0)
+                    || !this.getPublishedPeerFronts().isEmpty();
+            default:
+                return true;
+        }
+    }
+
     @Override
     public int getPriority() {
         return this.priority;
@@ -2006,7 +2068,6 @@ public class PartSubnetProxyFront extends AEBasePart
      * forwarded by the back part, or initial placement). Cost: O(nodes) per
      * invocation, amortized to O(1) between grid events.
      */
-    @SuppressWarnings("unchecked")
     private void updatePassthroughSources() {
         this.updatePassthroughSources(true);
     }
@@ -2630,6 +2691,11 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     private void deferGridBNotify(String reason) {
+        if (this.hasAnyReadChannelExposed()) {
+            this.awaitingGridBCellArrayBootstrap = true;
+            this.clearPassthroughSnapshots();
+        }
+
         if (this.pendingGridBNotify) return;
 
         this.pendingGridBNotify = true;
@@ -2659,11 +2725,28 @@ public class PartSubnetProxyFront extends AEBasePart
         this.notifyGridOfChange();
     }
 
+    private boolean retryGridBCellArrayBootstrap(String reason) {
+        if (!this.awaitingGridBCellArrayBootstrap) return false;
+        if (!this.hasMissingVisibleReadSnapshot()) {
+            this.awaitingGridBCellArrayBootstrap = false;
+            return false;
+        }
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate(
+                "front.getCellArray.retryNotify",
+                "reason=" + reason + ", frontGrid=" + describeGrid(this.getFrontGridLive()));
+        }
+
+        this.notifyGridOfChange();
+        return true;
+    }
+
     private void traceUpdate(String phase, String detail) {
         if (!TRACE_UPDATE_FLOW) return;
 
         Cells.LOGGER.info(
-            "[SubnetProxyTrace] phase={} pos={} side={} dim={} tick={} frontGrid={} backGrid={} state[sourcesDirty={}, filtersDirty={}, deltasDirty={}, pendingReset={}, pendingForce={}, pendingGridNotify={}, insertionActive={}, structureHash={}, cellArrayHash={}] {}",
+            "[SubnetProxyTrace] phase={} pos={} side={} dim={} tick={} frontGrid={} backGrid={} state[sourcesDirty={}, filtersDirty={}, deltasDirty={}, pendingReset={}, pendingForce={}, pendingGridNotify={}, awaitingCellArrayBootstrap={}, insertionActive={}, structureHash={}, cellArrayHash={}] {}",
             phase,
             this.describeTracePos(),
             this.getSide(),
@@ -2677,6 +2760,7 @@ public class PartSubnetProxyFront extends AEBasePart
             this.pendingMonitorResetReconcile,
             this.pendingForcedGridBRefresh,
             this.pendingGridBNotify,
+            this.awaitingGridBCellArrayBootstrap,
             this.insertionActive,
             this.lastPublishedStructureHash,
             this.lastPublishedCellArrayHash,
@@ -2693,6 +2777,8 @@ public class PartSubnetProxyFront extends AEBasePart
                 "front.getCellArray.return",
                 "channel=" + this.describeChannel(channel) + ", size=" + result.size() + ", reason=" + reason);
         }
+
+        this.completeGridBCellArrayBootstrap(channel, reason);
 
         return result;
     }
@@ -2737,6 +2823,7 @@ public class PartSubnetProxyFront extends AEBasePart
         return "<unknown>";
     }
 
+    @SuppressWarnings("rawtypes")
     private String describeMonitor(@Nullable IBaseMonitor monitor) {
         if (monitor == null) return "null";
         if (monitor == this.registeredItemMonitor) return "item";
@@ -2819,6 +2906,7 @@ public class PartSubnetProxyFront extends AEBasePart
             + Integer.toHexString(System.identityHashCode(monitor));
     }
 
+    @SuppressWarnings("unused")
     private String summarizeActionHosts(Iterable<IActionHost> hosts, int maxEntries) {
         StringBuilder builder = new StringBuilder();
         int total = 0;
@@ -2859,6 +2947,7 @@ public class PartSubnetProxyFront extends AEBasePart
         return "[" + builder + "]";
     }
 
+    @SuppressWarnings("unused")
     private <T extends IAEStack<T>> String summarizeSnapshotList(@Nullable IItemList<T> list, int maxEntries) {
         if (list == null) return "null";
 
@@ -2969,6 +3058,21 @@ public class PartSubnetProxyFront extends AEBasePart
                     }
                     return;
                 }
+
+                if (actionSource.machine().isPresent()) {
+                    IActionHost machine = actionSource.machine().get();
+                    if (!refreshSources
+                            && isLocalStorageSurfaceProvider(machine)
+                            && !knownLocalProviderHosts.contains(machine)) {
+                        if (TRACE_UPDATE_FLOW) {
+                            traceUpdate(
+                                "gridA.postChange.skip",
+                                "reason=excludedStorageSurface, source=" + describeActionSource(actionSource));
+                        }
+                        return;
+                    }
+                }
+
                 origin = gridA;
             }
 
@@ -3236,6 +3340,7 @@ public class PartSubnetProxyFront extends AEBasePart
         for (T delta : deltas) snapshot.add(delta);
     }
 
+    @SuppressWarnings("unused")
     private <T extends IAEStack<T>> String applySnapshotDeltasWithTrace(
             IItemList<T> snapshot,
             List<T> deltas) {
@@ -3405,6 +3510,10 @@ public class PartSubnetProxyFront extends AEBasePart
 
         this.replayDeferredGridBNotify("tickingRequest");
 
+        if (this.retryGridBCellArrayBootstrap("tickingRequest.precheck")) {
+            return TickRateModulation.FASTER;
+        }
+
         if (!this.deltasDirty) return TickRateModulation.SLEEP;
 
         if (TRACE_UPDATE_FLOW) {
@@ -3418,12 +3527,16 @@ public class PartSubnetProxyFront extends AEBasePart
 
         if (this.pendingMonitorResetReconcile) {
             this.reconcilePendingMonitorReset();
-            return TickRateModulation.SLEEP;
+            return this.retryGridBCellArrayBootstrap("tickingRequest.postReconcile")
+                ? TickRateModulation.FASTER
+                : TickRateModulation.SLEEP;
         }
 
         snapshotDiffAndForward();
 
-        return TickRateModulation.SLEEP;
+        return this.retryGridBCellArrayBootstrap("tickingRequest.postSnapshotDiff")
+            ? TickRateModulation.FASTER
+            : TickRateModulation.SLEEP;
     }
 
     private void reconcilePendingMonitorReset() {
@@ -3431,7 +3544,13 @@ public class PartSubnetProxyFront extends AEBasePart
         if (this.filtersDirty) this.rebuildFilters();
 
         this.pendingMonitorResetReconcile = false;
-        boolean forceGridBRefresh = this.pendingForcedGridBRefresh;
+        // A cleared snapshot cannot safely bootstrap through the diff-only path:
+        // the first snapshotDiffChannel() call would just establish a new
+        // baseline and emit no delta. When that happens during world-load
+        // grid churn, Grid B can miss the initial contents unless we force a
+        // full cell-array refresh on the current front-grid.
+        boolean missingVisibleSnapshot = this.hasMissingVisibleReadSnapshot();
+        boolean forceGridBRefresh = this.pendingForcedGridBRefresh || missingVisibleSnapshot;
         this.pendingForcedGridBRefresh = false;
         this.lastSourceDirtyTick = Long.MIN_VALUE;
 
@@ -3446,12 +3565,17 @@ public class PartSubnetProxyFront extends AEBasePart
                 this.traceUpdate(
                     "front.reconcilePendingMonitorReset.notifyGridB",
                     "forceGridBRefresh=" + forceGridBRefresh
+                        + ", missingVisibleSnapshot=" + missingVisibleSnapshot
                         + ", previousStructureHash=" + formatHash(previousStructureHash)
                         + ", currentStructureHash=" + formatHash(currentStructureHash)
                         + ", previousCellArrayHash=" + formatHash(previousCellArrayHash)
                         + ", currentCellArrayHash=" + formatHash(currentCellArrayHash));
             }
-            this.refreshAllSnapshots();
+            if (missingVisibleSnapshot) {
+                this.awaitingGridBCellArrayBootstrap = true;
+            } else {
+                this.refreshAllSnapshots();
+            }
             this.notifyGridOfChange();
             return;
         }
@@ -3471,6 +3595,25 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         snapshotDiffAndForward();
+    }
+
+    private boolean hasMissingVisibleReadSnapshot() {
+        if (this.isReadChannelExposed(ResourceType.ITEM) && this.itemHandler.getLastSnapshot() == null) return true;
+        if (this.isReadChannelExposed(ResourceType.FLUID) && this.fluidHandler.getLastSnapshot() == null) return true;
+
+        if (this.gasHandler != null
+                && this.isReadChannelExposed(ResourceType.GAS)
+                && this.gasHandler.getLastSnapshot() == null) {
+            return true;
+        }
+
+        if (this.essentiaHandler != null
+                && this.isReadChannelExposed(ResourceType.ESSENTIA)
+                && this.essentiaHandler.getLastSnapshot() == null) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -3549,6 +3692,15 @@ public class PartSubnetProxyFront extends AEBasePart
 
         IItemList<T> previous = handler.getLastSnapshot();
         if (previous == null) {
+            if (this.awaitingGridBCellArrayBootstrap) {
+                if (TRACE_UPDATE_FLOW) {
+                    this.traceUpdate(
+                        "front.snapshotDiffChannel.skipBootstrap",
+                        "channel=" + this.describeChannel(channel) + ", reason=awaitingCellArrayBootstrap");
+                }
+                return;
+            }
+
             // First snapshot: no delta to forward, just establish baseline.
             // Grid B already got the full listing via getCellArray → getAvailableItems.
             handler.setLastSnapshot(current);
@@ -3609,7 +3761,7 @@ public class PartSubnetProxyFront extends AEBasePart
         gridB.postAlterationOfStoredItems(channel, changes, src);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"rawtypes", "unchecked", "unused"})
     private void postSnapshotDeltaRaw(
             @Nullable IItemList<?> previous,
             @Nullable IItemList<?> current,
