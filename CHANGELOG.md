@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.5-beta] - 2026-07-08
+### Fixed
+- Fix Import/Export Interfaces loading filters from memory cards in the wrong order.
+
+
 ## [0.6.4-beta5] - 2026-07-07
 ### Fixed
 - Fix Subnet Proxy sometimes loading with an empty front-side view after a restart, by forcing a fresh relist when load-time front-grid churn invalidates the proxy's snapshot baseline before the final network is ready.

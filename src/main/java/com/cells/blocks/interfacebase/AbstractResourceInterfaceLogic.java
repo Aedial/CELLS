@@ -1209,8 +1209,11 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     protected void mergeFiltersFromNBT(NBTTagCompound data, String name, @Nullable EntityPlayer player) {
         if (!data.hasKey(name)) return;
 
-        // Read source filters into temporary array
+        // Read source filters into temporary array in their original slot order,
+        // so we can merge them into the current filter inventory.
         List<R> sourceFilters = new ArrayList<>();
+        for (int i = 0; i < FILTER_SLOTS; i++) sourceFilters.add(null);
+
         NBTTagCompound filtersMap = data.getCompoundTag(name);
         for (String key : filtersMap.getKeySet()) {
             if (!key.startsWith("#")) continue;
@@ -1222,7 +1225,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                 NBTTagCompound filterTag = filtersMap.getCompoundTag(key);
                 if (filterTag.isEmpty()) continue;
 
-                sourceFilters.add(readResourceFromNBT(filterTag));
+                sourceFilters.set(slot, readResourceFromNBT(filterTag));
             } catch (NumberFormatException ignored) {
             }
         }
