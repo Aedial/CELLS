@@ -39,71 +39,73 @@ if (propertyBool('publish_to_maven')) {
     }
 }
 
-// Documentation here: https://github.com/matthewprenger/CurseGradle/wiki/
+// Documentation here: https://github.com/Darkhax/CurseForgeGradle
 if (propertyBool('publish_to_curseforge')) {
-    apply plugin: 'com.matthewprenger.cursegradle'
+    apply plugin: 'net.darkhax.curseforgegradle'
     assertProperty('curseforge_project_id')
     assertProperty('release_type')
     setDefaultProperty('curseforge_debug', false, false)
-    curseforge {
-        apiKey = System.getenv('CURSEFORGE_TOKEN') == null ? "" : System.getenv('CURSEFORGE_TOKEN')
-        // noinspection GroovyAssignabilityCheck
-        project {
-            id = propertyString('curseforge_project_id')
-            addGameVersion 'Java 8'
-            addGameVersion 'Forge'
-            addGameVersion 'Client'
-            addGameVersion 'Server'
-            addGameVersion '1.12.2'
-            releaseType = propertyString('release_type')
+
+    // Applied scripts are compiled before plugin classes are directly visible here,
+    // so resolve the task type from the applied plugin's classloader at runtime.
+    // Cba actually creating a separate task class just for this, so just use the plugin's task class directly.
+    def curseForgeTaskClass = plugins.findPlugin('net.darkhax.curseforgegradle').class.classLoader
+            .loadClass('net.darkhax.curseforgegradle.TaskPublishCurseForge')
+
+    tasks.register('curseforge', curseForgeTaskClass) {
+        disableVersionDetection()
+        debugMode = propertyBool('curseforge_debug')
+        apiToken = System.getenv('CURSEFORGE_TOKEN') == null ? '' : System.getenv('CURSEFORGE_TOKEN')
+
+        doFirst {
+            def mainFile = upload(propertyString('curseforge_project_id'), tasks.reobfJar)
 
             // Use CI-provided changelog if set, otherwise extract from CHANGELOG.md
             def clOverride = propertyString('curseforge_changelog')
+            def changelogRaw = ''
             if (!clOverride.isEmpty()) {
-                changelog = clOverride
-                changelogType = 'markdown'
+                changelogRaw = clOverride
             } else if (propertyBool('publish_with_changelog')) {
-                changelog = parserChangelog()
-                changelogType = 'markdown'
+                changelogRaw = parserChangelog()
             }
 
             // Use CI-provided display name if set, otherwise default to "Mod Name mod_version"
             def dnOverride = propertyString('curseforge_display_name')
             def displayName = !dnOverride.isEmpty() ? dnOverride : "${propertyString('mod_name')} ${propertyString('mod_version')}"
 
-            mainArtifact(tasks.reobfJar.archiveFile) {
-                it.displayName = displayName
-                if (propertyBool('use_mixins')) {
-                    relations {
-                        requiredDependency 'mixin-booter'
-                    }
-                }
-                if (propertyBool('use_asset_mover')) {
-                    relations {
-                        requiredDependency 'assetmover'
-                    }
-                }
+            mainFile.displayName = displayName
+            mainFile.releaseType = propertyString('release_type')
+            if (!changelogRaw.isEmpty()) {
+                mainFile.changelog = changelogRaw
+                mainFile.changelogType = 'markdown'
+            }
 
-                relations {
-                    // Required: AE2-UEL
-                    requiredDependency 'ae2-extended-life'
-                    // Required: MixinBooter
-                    optionalDependency 'mixin-booter'
-                    // Optional: Thaumic Energistics
-                    optionalDependency 'thaumic-energistics'
-                    // Optional: Mekanism Energistics
-                    optionalDependency 'mekanism-energistics'
-                    // Optional: JEI
-                    optionalDependency 'jei'
-                    // Optional: ProjectEX
-                    optionalDependency 'projectex'
-                }
+            mainFile.addJavaVersion('Java 8')
+            mainFile.addModLoader('Forge')
+            mainFile.addGameVersion('1.12.2')
+            mainFile.addEnvironment('Client', 'Server')
+
+            if (propertyBool('use_asset_mover')) {
+                mainFile.addRelation('assetmover', 'requiredDependency')
             }
-            options {
-                debug = propertyBool('curseforge_debug')
+            if (propertyBool('use_mixins')) {
+                mainFile.addRelation('mixin-booter', 'optionalDependency')
             }
+
+            // Required: AE2-UEL
+            mainFile.addRelation('ae2-extended-life', 'requiredDependency')
+
+            // Optional: JEI
+            mainFile.addRelation('jei', 'optionalDependency')
+            // Optional: Thaumic Energistics
+            mainFile.addRelation('thaumic-energistics', 'optionalDependency')
+            // Optional: Mekanism Energistics
+            mainFile.addRelation('mekanism-energistics', 'optionalDependency')
+            // Optional: ProjectEX
+            mainFile.addRelation('projectex', 'optionalDependency')
         }
     }
+    tasks.curseforge.dependsOn(tasks.reobfJar)
 }
 
 // Documentation here: https://github.com/modrinth/minotaur
