@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.6-beta] - 2026-07-21
+### Fixed
+- Fix item-based Interfaces voiding buffered overflow when a disconnected export slot is clicked (extraction by hand) after lowering its max slot size.
+
+
 ## [0.6.5-beta] - 2026-07-08
 ### Fixed
 - Fix Import/Export Interfaces loading filters from memory cards in the wrong order.

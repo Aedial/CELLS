@@ -910,9 +910,12 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
             return -removed; // Return negative to indicate removal
         }
 
-        // Clamp to effective slot size (per-slot override or global)
+        // If the slot is already over capacity because the limit was lowered while disconnected,
+        // preserve that overflow while draining it back down. Positive deltas still cannot grow
+        // the slot beyond the current configured limit.
         long effectiveMax = getEffectiveMaxSlotSize(slot);
-        if (newAmount > effectiveMax) newAmount = effectiveMax;
+        long maxAllowed = Math.max(currentAmount, effectiveMax);
+        if (newAmount > maxAllowed) newAmount = maxAllowed;
 
         long actualDelta = newAmount - currentAmount;
         this.amounts[slot] = newAmount;
