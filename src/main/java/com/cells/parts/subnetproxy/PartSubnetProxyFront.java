@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -2338,9 +2337,10 @@ public class PartSubnetProxyFront extends AEBasePart
      * Only called when {@code filtersDirty} is true (config/upgrade change).
      * Uses AE2's native {@link IItemList#findPrecise} for precise matching,
      * which leverages interned {@code AESharedItemStack} reference lookups
-     * (identity hash, zero NBT cost). Fuzzy matching uses a {@code Map<Item,
-     * List<IAEItemStack>>} index for O(1) candidate lookup + damage-range
-     * comparisons.
+     * (identity hash, zero NBT cost). Fuzzy matching delegates to AE2's native
+     * {@link IItemList#findFuzzy}, matching the behavior of most fuzzy-capable
+     * AE2 parts: ordinary items match by {@code Item}, while damageable items
+     * also honor {@link FuzzyMode} durability ranges.
      */
     private void rebuildFilters() {
         this.filtersDirty = false;
@@ -2370,10 +2370,6 @@ public class PartSubnetProxyFront extends AEBasePart
         // so a Set<Fluid> gives us O(1) lookup with the same semantics.
         Set<Fluid> fuzzyFluidIndex = hasFuzzy ? new HashSet<>() : null;
 
-        // For fuzzy item matching, we index filters by Item to avoid O(F) per-item scans.
-        // Only the filters for the matching Item need to be checked per incoming stack.
-        Map<Item, List<IAEItemStack>> fuzzyItemIndex = hasFuzzy ? new HashMap<>() : null;
-
         for (int i = 0; i < totalSlots; i++) {
             ItemStack stack = this.config.getStackInSlot(i);
             if (stack.isEmpty()) continue;
@@ -2393,11 +2389,6 @@ public class PartSubnetProxyFront extends AEBasePart
                 if (aeFilter != null) {
                     itemFilterList.add(aeFilter);
                     hasItemFilters = true;
-
-                    if (hasFuzzy) {
-                        // Index by Item for O(1) lookup of candidate filters per incoming stack
-                        fuzzyItemIndex.computeIfAbsent(stack.getItem(), k -> new ArrayList<>()).add(aeFilter);
-                    }
                 }
             }
         }
@@ -2406,25 +2397,14 @@ public class PartSubnetProxyFront extends AEBasePart
         if (!hasItemFilters && !hasInverter) {
             // No filters + whitelist = pass everything
             this.itemHandler.setFilter(null);
-        } else if (hasFuzzy && fuzzyItemIndex != null && !fuzzyItemIndex.isEmpty()) {
-            // Fuzzy matching: look up candidate filters by Item, then check damage range.
-            // O(1) map lookup + O(K) fuzzy checks where K = filters for the same Item.
-            // There should not be many filters per Item, except with metadata-items (Thermal Expansion materials, etc.)
+        } else if (hasFuzzy && hasItemFilters) {
+            // Match AE2's native fuzzy partition semantics. For most ordinary
+            // items this widens matching to all stacks with the same Item;
+            // damageable items are additionally grouped by FuzzyMode.
             this.itemHandler.setFilter(aeStack -> {
                 if (aeStack == null) return false;
 
-                Item item = aeStack.getDefinition().getItem();
-                List<IAEItemStack> candidates = fuzzyItemIndex.get(item);
-
-                boolean matchesAny = false;
-                if (candidates != null) {
-                    for (IAEItemStack aeFilter : candidates) {
-                        if (aeStack.fuzzyComparison(aeFilter, fuzzyMode)) {
-                            matchesAny = true;
-                            break;
-                        }
-                    }
-                }
+                boolean matchesAny = !itemFilterList.findFuzzy(aeStack, fuzzyMode).isEmpty();
 
                 return hasInverter != matchesAny;
             });
