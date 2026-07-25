@@ -224,9 +224,7 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
 
     @Override
     public void setActiveTab(ResourceType tab) {
-        if (this.availableTabs.contains(tab)) {
-            this.activeTab = tab;
-        }
+        if (this.availableTabs.contains(tab)) this.activeTab = tab;
     }
 
     @Override
@@ -419,9 +417,7 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
         super.uploadSettings(from, compound, player);
 
         // Upload to all logics - each logic reads only its own prefixed keys
-        for (IInterfaceLogic logic : this.allLogics) {
-            logic.uploadSettings(compound, player);
-        }
+        for (IInterfaceLogic logic : this.allLogics) logic.uploadSettings(compound, player);
     }
 
     // ============================== AENetworkInvTile contract ==============================
@@ -436,25 +432,19 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
     public void onChangeInventory(IItemHandler inv, int slot, InvOperation mc, ItemStack removed, ItemStack added) {
         // Forward to ALL logics so each detects its own inventory changes.
         // Each logic checks if 'inv' matches its own inventories and acts accordingly.
-        for (IInterfaceLogic logic : this.allLogics) {
-            logic.onChangeInventory(inv, slot, removed, added);
-        }
+        for (IInterfaceLogic logic : this.allLogics) logic.onChangeInventory(inv, slot, removed, added);
         this.markDirtyAndSave();
     }
 
     @Override
     public void getDrops(final World w, final BlockPos pos, final List<ItemStack> drops) {
-        for (IInterfaceLogic logic : this.allLogics) {
-            logic.getDrops(drops);
-        }
+        for (IInterfaceLogic logic : this.allLogics) logic.getDrops(drops);
     }
 
     @Override
     public void getNoDrops(final World w, final BlockPos pos, final List<ItemStack> drops) {
         // During wrench dismantling, upgrades are saved to NBT but stored items must still drop
-        for (IInterfaceLogic logic : this.allLogics) {
-            logic.getStorageDrops(drops);
-        }
+        for (IInterfaceLogic logic : this.allLogics) logic.getStorageDrops(drops);
     }
 
     @Override
@@ -476,32 +466,24 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
         // Re-scan the capability cache for all logics now that all TEs are in the
         // world and the grid proxy is ready. During readFromNBT, adjacent TEs may
         // not have been loaded yet, leaving the push/pull card's cache empty.
-        for (IInterfaceLogic logic : this.allLogics) {
-            logic.onGridReady();
-        }
+        for (IInterfaceLogic logic : this.allLogics) logic.onGridReady();
     }
 
     // ============================== Grid events ==============================
 
     @Override
     public void gridChanged() {
-        for (IInterfaceLogic logic : this.allLogics) {
-            logic.wakeUpIfAdaptive();
-        }
+        for (IInterfaceLogic logic : this.allLogics) logic.wakeUpIfAdaptive();
     }
 
     @MENetworkEventSubscribe
     public void powerStatusChanged(final MENetworkPowerStatusChange event) {
-        for (IInterfaceLogic logic : this.allLogics) {
-            logic.wakeUpIfAdaptive();
-        }
+        for (IInterfaceLogic logic : this.allLogics) logic.wakeUpIfAdaptive();
     }
 
     @MENetworkEventSubscribe
     public void channelsChanged(final MENetworkChannelsChanged event) {
-        for (IInterfaceLogic logic : this.allLogics) {
-            logic.wakeUpIfAdaptive();
-        }
+        for (IInterfaceLogic logic : this.allLogics) logic.wakeUpIfAdaptive();
     }
 
     // ============================== IGridTickable ==============================

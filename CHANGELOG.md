@@ -13,6 +13,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.6-beta2] - 2026-07-25
+### Added
+- Add HWYLA and The One Probe lines for interface timing, including the effective AE2-network import/export interval, per-card adjacent pull/push interval details, and transfer quantities.
+- Optimize Compacting Card's compacting chain check on the hot path.
+
+### Changed
+- Reformulate some tooltip lines to be clearer.
+
+
 ## [0.6.6-beta] - 2026-07-21
 ### Fixed
 - Fix item-based Interfaces voiding buffered overflow when a disconnected export slot is clicked (extraction by hand) after lowering its max slot size.

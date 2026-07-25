@@ -18,7 +18,6 @@ import net.minecraft.world.World;
 
 import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.IFluidTankProperties;
@@ -31,6 +30,7 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
 import appeng.fluids.items.FluidDummyItem;
 import appeng.util.item.AEItemStack;
 
@@ -45,6 +45,7 @@ import com.cells.blocks.iointerface.IIOInterfaceHost;
 import com.cells.gui.QuickAddHelper;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
+import com.cells.util.IInterfaceTooltipView;
 
 
 /**
@@ -346,7 +347,7 @@ public final class InterfaceApiHelper {
     }
 
     @Nullable
-    private static Object createFilterValue(ResourceType resourceType, ItemStack stack) {
+    private static IAEStack<?> createFilterValue(ResourceType resourceType, ItemStack stack) {
         ItemStack normalized = FilterHostUtil.normalizeFilter(stack);
         if (normalized.isEmpty()) return null;
 
@@ -366,7 +367,7 @@ public final class InterfaceApiHelper {
     }
 
     @Nullable
-    private static Object createFluidFilterValue(ItemStack stack) {
+    private static IAEStack<?> createFluidFilterValue(ItemStack stack) {
         FluidStack fluid = null;
         if (stack.getItem() instanceof FluidDummyItem) {
             fluid = ((FluidDummyItem) stack.getItem()).getFluidStack(stack);
@@ -386,7 +387,7 @@ public final class InterfaceApiHelper {
     }
 
     @Nullable
-    private static Object createGasFilterValue(ItemStack stack) {
+    private static IAEStack<?> createGasFilterValue(ItemStack stack) {
         if (!MekanismEnergisticsIntegration.isModLoaded()) return null;
 
         return createGasFilterValueInternal(stack);
@@ -394,7 +395,7 @@ public final class InterfaceApiHelper {
 
     @Optional.Method(modid = MEKENG_MODID)
     @Nullable
-    private static Object createGasFilterValueInternal(ItemStack stack) {
+    private static IAEStack<?> createGasFilterValueInternal(ItemStack stack) {
         mekanism.api.gas.GasStack gas = getGasFromFilterStack(stack);
         if (gas == null || gas.getGas() == null) return null;
 
@@ -414,7 +415,7 @@ public final class InterfaceApiHelper {
     }
 
     @Nullable
-    private static Object createEssentiaFilterValue(ItemStack stack) {
+    private static IAEStack<?> createEssentiaFilterValue(ItemStack stack) {
         if (!ThaumicEnergisticsIntegration.isModLoaded()) return null;
 
         return createEssentiaFilterValueInternal(stack);
@@ -422,7 +423,7 @@ public final class InterfaceApiHelper {
 
     @Optional.Method(modid = THAUMICENERGISTICS_MODID)
     @Nullable
-    private static Object createEssentiaFilterValueInternal(ItemStack stack) {
+    private static IAEStack<?> createEssentiaFilterValueInternal(ItemStack stack) {
         thaumicenergistics.api.EssentiaStack essentia = QuickAddHelper.getEssentiaFromItemStack(stack);
         if (essentia == null || essentia.getAspect() == null) return null;
 
@@ -501,7 +502,7 @@ public final class InterfaceApiHelper {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    private static final class LogicInterfaceHost implements IInterfaceHost {
+    private static final class LogicInterfaceHost implements IInterfaceHost, IInterfaceTooltipView {
 
         private final com.cells.blocks.interfacebase.IInterfaceHost owner;
         private final AbstractResourceInterfaceLogic logic;
@@ -554,6 +555,16 @@ public final class InterfaceApiHelper {
             return this.logic.getUpgradeInventory();
         }
 
+        @Override
+        public int getTooltipPollingRate() {
+            return this.logic.getPollingRate();
+        }
+
+        @Override
+        public long getTooltipTransferQuantity() {
+            return this.logic.getMaxSlotSize();
+        }
+
         @Nonnull
         @Override
         public EnumFacing getPrimaryFacing() {
@@ -599,7 +610,7 @@ public final class InterfaceApiHelper {
                 return;
             }
 
-            Object filterValue = createFilterValue(this.resourceType, normalized);
+            IAEStack<?> filterValue = createFilterValue(this.resourceType, normalized);
             if (filterValue == null) return;
 
             this.logic.setFilter(slot, filterValue);

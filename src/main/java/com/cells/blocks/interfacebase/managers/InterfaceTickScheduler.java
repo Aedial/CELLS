@@ -95,6 +95,10 @@ public class InterfaceTickScheduler {
         return Math.max(minRate, DEFAULT_POLLING_RATE);
     }
 
+    public static int getAdaptiveCardNetworkIOMinInterval() {
+        return MIN_IO_INTERVAL;
+    }
+
     public int getPollingRate() {
         return this.pollingRate;
     }
