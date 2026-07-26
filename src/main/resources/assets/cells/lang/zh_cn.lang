@@ -62,6 +62,19 @@ tooltip.cells.polling_rate.import=输入的固定间隔（0 = 自适应，设置
 tooltip.cells.polling_rate.export=输出的固定间隔（0 = 自适应，设置为非零值时以刻为单位）
 cells.polling_rate.custom.import=轮询率：§r每§b%s§r输入一次
 cells.polling_rate.custom.export=轮询率：§r每§b%s§r输出一次
+tooltip.cells.probe.type_prefix=%s：%s
+tooltip.cells.probe.network.import.fixed=向AE2网络输入：每§a%s§r一次%s
+tooltip.cells.probe.network.import.adaptive=向AE2网络输入：自适应（每§a%s§r到§a%s§r一次）%s
+tooltip.cells.probe.network.export.fixed=从AE2网络输出：每§a%s§r一次%s
+tooltip.cells.probe.network.export.adaptive=从AE2网络输出：自适应（每§a%s§r到§a%s§r一次）%s
+tooltip.cells.probe.network.io.fixed=向/从AE2网络输入/输出：每§a%s§r一次%s
+tooltip.cells.probe.network.io.adaptive=向/从AE2网络输入/输出：自适应（每§a%s§r到§a%s§r一次）%s
+tooltip.cells.probe.card.pull=从%s拉取：每§a%s§r一次%s
+tooltip.cells.probe.card.push=向%s推送：每§a%s§r一次%s
+tooltip.cells.probe.quantity.single=（最多§b%s§r）
+tooltip.cells.probe.quantity.io=（输入§b%s§r / 输入§b%s§r）
+tooltip.cells.probe.scope.adjacent=每个相邻容器
+tooltip.cells.probe.scope.facing=面向的容器
 
 # Clear filters - direction-specific (different behavior)
 tooltip.cells.clear_filters.import=清除所有过滤槽位。将跳过存有内容的过滤槽位。
@@ -226,8 +239,8 @@ item.cells.equal_distribution_card.16x.name=均分卡（16x）
 item.cells.equal_distribution_card.32x.name=均分卡（32x）
 item.cells.equal_distribution_card.63x.name=均分卡（63x）
 item.cells.equal_distribution_card.infinite.name=均分卡（无限制）
-tooltip.cells.equal_distribution_card.desc=将元件可容纳类型限制为%d，并均分容量（每种类型占用元件的%d）。将元件的一半容量预留给类型开销。
-tooltip.cells.equal_distribution_card.desc.infinite=将容量均分给所有类型。如果你在配置中增加了“最大类型数”，使用该升级卡。
+tooltip.cells.equal_distribution_card.desc=将元件可容纳类型限制为%d种，并均分容量（每种类型上限为元件总容量的%d）。会预先预留类型开销（即元件的一半容量），而不是在添加每种类型时才预留。
+tooltip.cells.equal_distribution_card.desc.infinite=将容量均分给所有类型。仅在配置中增加了“最大类型数”时，才应使用该升级卡。
 
 # Compression Tier Card
 item.cells.compression_tier_card.3x.name=压缩等级卡（3x）
@@ -365,7 +378,7 @@ tooltip.cells.upgrade.oredict_active=矿物词典转换已激活
 item.cells.configurable_cell.name=可配置ME存储元件
 item.cells.configurable_cell.name_configured=可配置ME存储元件（%s）
 tooltip.cells.configurable_cell.no_component=未安装组件！放入ME存储组件来定义容量。
-tooltip.cells.configurable_cell.info=可接受任意ME存储组件以定义容量和类型。自带内置的均分功能。
+tooltip.cells.configurable_cell.info=可接受任意ME存储组件以定义容量和类型。自带内置的均分卡。
 tooltip.cells.component.configurable_compatible=§b兼容可配置元件§r
 tooltip.cells.configurable_cell.capacity_per_type=每种类型上限：%s %s
 
