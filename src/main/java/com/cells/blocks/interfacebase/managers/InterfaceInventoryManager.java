@@ -246,7 +246,7 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
      * @return The configured max slot size limit (defaults to Long.MAX_VALUE)
      */
     public long getMaxMaxSlotSize() {
-        return CellsConfig.interfaceMaxSlotSizeLimit;
+        return CellsConfig.getInterfaceMaxSlotSizeLimit();
     }
 
     public long getMaxSlotSize() {
@@ -729,13 +729,16 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
      * Merge filters from NBT (memory card upload), skipping duplicates.
      * Reports skipped filters to the player as a chat message.
      *
-     * @param sourceFilters Array of source filters to merge (may contain nulls)
+     * @param sourceFilters Source filters to merge, in source slot order (may contain nulls)
      * @param player Player to notify about skipped filters, or null
      */
     public void mergeFilters(List<R> sourceFilters, @Nullable EntityPlayer player) {
         List<R> skippedFilters = new ArrayList<>();
 
-        for (R sourceFilter : sourceFilters) {
+        int sourceSlotCount = Math.min(sourceFilters.size(), FILTER_SLOTS);
+
+        for (int sourceSlot = 0; sourceSlot < sourceSlotCount; sourceSlot++) {
+            R sourceFilter = sourceFilters.get(sourceSlot);
             if (sourceFilter == null) continue;
 
             K sourceKey = this.ops.createKey(sourceFilter);
@@ -744,8 +747,8 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
             // Skip if filter already exists in target
             if (this.filterToSlotMap.containsKey(sourceKey)) continue;
 
-            // Find an empty slot
-            int targetSlot = findEmptyFilterSlot();
+            // Restore into the original slot when possible so per-slot settings stay aligned.
+            int targetSlot = this.filters[sourceSlot] == null ? sourceSlot : findEmptyFilterSlot();
             if (targetSlot < 0) {
                 skippedFilters.add(this.ops.copy(sourceFilter));
                 continue;
@@ -907,9 +910,12 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
             return -removed; // Return negative to indicate removal
         }
 
-        // Clamp to effective slot size (per-slot override or global)
+        // If the slot is already over capacity because the limit was lowered while disconnected,
+        // preserve that overflow while draining it back down. Positive deltas still cannot grow
+        // the slot beyond the current configured limit.
         long effectiveMax = getEffectiveMaxSlotSize(slot);
-        if (newAmount > effectiveMax) newAmount = effectiveMax;
+        long maxAllowed = Math.max(currentAmount, effectiveMax);
+        if (newAmount > maxAllowed) newAmount = maxAllowed;
 
         long actualDelta = newAmount - currentAmount;
         this.amounts[slot] = newAmount;

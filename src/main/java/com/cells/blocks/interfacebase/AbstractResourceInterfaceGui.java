@@ -269,8 +269,8 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
      * Build the shared JEI transfer routing tooltip shown in every interface GUI.
      */
     protected String getRecipeTransferButtonTooltip() {
-        String importDir = CellsConfig.jeiTransferInputsToExport ? "outputs" : "inputs";
-        String exportDir = CellsConfig.jeiTransferInputsToExport ? "inputs" : "outputs";
+        String importDir = CellsConfig.hidden.jeiTransferInputsToExport ? "outputs" : "inputs";
+        String exportDir = CellsConfig.hidden.jeiTransferInputsToExport ? "inputs" : "outputs";
         String importInterfaceTarget = I18n.format("cells.recipe_component." + importDir);
         String exportInterfaceTarget = I18n.format("cells.recipe_component." + exportDir);
 
@@ -339,7 +339,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             5,
             this.guiLeft + 6,
             this.guiTop + 6,  // title is at y=6
-            () -> CellsConfig.showControlsHelp
+            () -> CellsConfig.hidden.showControlsHelp
                 ? I18n.format("tooltip.cells.controls_help.hide")
                 : I18n.format("tooltip.cells.controls_help.show")
         );
@@ -350,7 +350,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             6,
             this.guiLeft + 182,
             this.guiTop + 135,
-            () -> CellsConfig.jeiTransferInputsToExport,
+            () -> CellsConfig.hidden.jeiTransferInputsToExport,
             this::getRecipeTransferButtonTooltip
         );
         this.buttonList.add(this.recipeTransferDirectionButton);
@@ -468,7 +468,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         this.fontRenderer.drawString(title, 18, 6, 0x404040);
 
         // Draw controls help widget on the left side (only when enabled)
-        if (CellsConfig.showControlsHelp) {
+        if (CellsConfig.hidden.showControlsHelp) {
             ImportInterfaceControlsHelper.drawControlsHelpWidget(
                 this.fontRenderer,
                 this.guiLeft,
@@ -501,7 +501,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         super.actionPerformed(btn);
 
         if (btn == this.recipeTransferDirectionButton) {
-            CellsConfig.setJeiTransferInputsToExport(!CellsConfig.jeiTransferInputsToExport);
+            CellsConfig.setJeiTransferInputsToExport(!CellsConfig.hidden.jeiTransferInputsToExport);
             return;
         }
 
@@ -548,7 +548,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         }
 
         if (btn == this.controlsToggleButton) {
-            CellsConfig.setShowControlsHelp(!CellsConfig.showControlsHelp);
+            CellsConfig.setShowControlsHelp(!CellsConfig.hidden.showControlsHelp);
             return;
         }
 
@@ -621,7 +621,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         List<Rectangle> areas = new ArrayList<>(super.getJEIExclusionArea());
 
         // Add controls help widget area on the left side (only when the panel is visible)
-        if (CellsConfig.showControlsHelp) {
+        if (CellsConfig.hidden.showControlsHelp) {
             Rectangle controlsBounds = ImportInterfaceControlsHelper.getBounds(
                 this.fontRenderer,
                 this.guiLeft,

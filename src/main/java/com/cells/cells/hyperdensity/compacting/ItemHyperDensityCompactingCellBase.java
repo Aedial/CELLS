@@ -173,7 +173,7 @@ public abstract class ItemHyperDensityCompactingCellBase extends AbstractTieredC
 
     @Override
     public double getIdleDrain() {
-        return CellsConfig.hdCompactingIdleDrain;
+        return CellsConfig.idleDrain.hdCompactingIdleDrain;
     }
 
     @Override
@@ -208,7 +208,7 @@ public abstract class ItemHyperDensityCompactingCellBase extends AbstractTieredC
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, CellsConfig.hdCompactingCellUpgradeSlots, Arrays.asList(
+        return new CustomCellUpgrades(is, CellsConfig.general.hdCompactingCellUpgradeSlots, Arrays.asList(
             CustomCellUpgrades.CustomUpgrades.OVERFLOW,
             CustomCellUpgrades.CustomUpgrades.OREDICT,
             CustomCellUpgrades.CustomUpgrades.COMPRESSION_TIER,

@@ -62,6 +62,19 @@ tooltip.cells.polling_rate.import=Fixed interval for importing (0 = adaptive, no
 tooltip.cells.polling_rate.export=Interval for exporting (0 = adaptive, nonzero = ticks)
 cells.polling_rate.custom.import=Polling Rate: §rimport every §b%s§r
 cells.polling_rate.custom.export=Polling Rate: §rexport every §b%s§r
+tooltip.cells.probe.type_prefix=%s: %s
+tooltip.cells.probe.network.import.fixed=Imports to AE2 network every §a%s§r %s
+tooltip.cells.probe.network.import.adaptive=Imports to AE2 network: Adaptive (every §a%s§r to §a%s§r) %s
+tooltip.cells.probe.network.export.fixed=Exports from AE2 network every §a%s§r %s
+tooltip.cells.probe.network.export.adaptive=Exports from AE2 network: Adaptive (every §a%s§r to §a%s§r) %s
+tooltip.cells.probe.network.io.fixed=Exports to/Imports from AE2 network every §a%s§r %s
+tooltip.cells.probe.network.io.adaptive=Exports to/Imports from AE2 network: Adaptive (every §a%s§r to §a%s§r) %s
+tooltip.cells.probe.card.pull=Pulls from %s every §a%s§r %s
+tooltip.cells.probe.card.push=Pushes to %s every §a%s§r %s
+tooltip.cells.probe.quantity.single=(up to §b%s§r)
+tooltip.cells.probe.quantity.io=(§b%s§r in / §b%s§r out)
+tooltip.cells.probe.scope.adjacent=every adjacent inventory
+tooltip.cells.probe.scope.facing=facing inventory
 
 # Clear filters - direction-specific (different behavior)
 tooltip.cells.clear_filters.import=Clear all filter slots. Filters with content will be skipped.
@@ -226,8 +239,8 @@ item.cells.equal_distribution_card.16x.name=Equal Distribution Card (16x)
 item.cells.equal_distribution_card.32x.name=Equal Distribution Card (32x)
 item.cells.equal_distribution_card.63x.name=Equal Distribution Card (63x)
 item.cells.equal_distribution_card.infinite.name=Equal Distribution Card (unbounded)
-tooltip.cells.equal_distribution_card.desc=Limits cell to %d types, dividing capacity equally (each type is limited to %d of the cell). Reserves half of the cell's capacity for types overhead.
-tooltip.cells.equal_distribution_card.desc.infinite=Divides capacity equally among all types. Use it if you increased the 'max types' in config.
+tooltip.cells.equal_distribution_card.desc=Limits cell to %d types, dividing capacity equally (each type is limited to %d of the cell). Reserves the type overhead (half of the cell) beforehead, instead of when each type is added.
+tooltip.cells.equal_distribution_card.desc.infinite=Divides capacity equally among all types. Use it ONLY if you increased the 'max types' in config.
 
 # Compression Tier Card
 item.cells.compression_tier_card.3x.name=Compression Tier Card (3x)
@@ -365,7 +378,7 @@ tooltip.cells.upgrade.oredict_active=Oredict conversion active
 item.cells.configurable_cell.name=Configurable ME Storage Cell
 item.cells.configurable_cell.name_configured=Configurable ME Storage Cell (%s)
 tooltip.cells.configurable_cell.no_component=No component installed! Insert a ME Storage Component to define capacity.
-tooltip.cells.configurable_cell.info=Accepts any ME Storage Component to define capacity and type. Comes with built-in Equal Distribution.
+tooltip.cells.configurable_cell.info=Accepts any ME Storage Component to define capacity and type. Comes with a built-in Equal Distribution card.
 tooltip.cells.component.configurable_compatible=§bCompatible with Configurable Cell§r
 tooltip.cells.configurable_cell.capacity_per_type=Per-type limit: %s %s
 

@@ -36,7 +36,7 @@ public final class EmcCellSyncManager {
         if (event.phase != TickEvent.Phase.END) return;
         if (trackedInventories.isEmpty()) return;
 
-        int interval = Math.max(1, CellsConfig.emcCellSyncIntervalTicks);
+        int interval = Math.max(1, CellsConfig.general.emcCellSyncIntervalTicks);
         if (++ticksUntilFlush < interval) return;
 
         ticksUntilFlush = 0;

@@ -80,7 +80,7 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
                     storedTypes++;
 
                     // Track NBT size for this fluid (if enabled)
-                    if (CellsConfig.enableNbtSizeTooltip) {
+                    if (CellsConfig.general.enableNbtSizeTooltip) {
                         int fluidSize = NBTSizeHelper.calculateSize(fluidTag);
                         fluidNbtSizes.put(key, fluidSize);
                         totalNbtSize += fluidSize;
@@ -140,7 +140,7 @@ public class ConfigurableCellFluidInventory extends AbstractConfigurableCellInve
             nbtIndexToCount.put(index, count);
 
             // Track NBT size for this new fluid (if enabled)
-            if (CellsConfig.enableNbtSizeTooltip) {
+            if (CellsConfig.general.enableNbtSizeTooltip) {
                 int fluidSize = NBTSizeHelper.calculateSize(fluidTag);
                 fluidNbtSizes.put(key, fluidSize);
                 totalNbtSize += fluidSize;

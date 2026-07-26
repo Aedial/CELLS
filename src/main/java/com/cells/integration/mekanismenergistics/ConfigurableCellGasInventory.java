@@ -89,7 +89,7 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
                     storedTypes++;
 
                     // Track NBT size for this gas (if enabled)
-                    if (CellsConfig.enableNbtSizeTooltip) {
+                    if (CellsConfig.general.enableNbtSizeTooltip) {
                         int entrySize = NBTSizeHelper.calculateSize(entryTag);
                         gasEntryNbtSizes.put(key, entrySize);
                         totalNbtSize += entrySize;
@@ -144,7 +144,7 @@ public class ConfigurableCellGasInventory extends AbstractConfigurableCellInvent
             nbtIndexToCount.put(index, count);
 
             // Track NBT size for this new gas (if enabled)
-            if (CellsConfig.enableNbtSizeTooltip) {
+            if (CellsConfig.general.enableNbtSizeTooltip) {
                 int entrySize = NBTSizeHelper.calculateSize(entryTag);
                 gasEntryNbtSizes.put(key, entrySize);
                 totalNbtSize += entrySize;

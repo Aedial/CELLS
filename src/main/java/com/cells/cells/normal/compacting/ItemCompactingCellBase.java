@@ -149,7 +149,7 @@ public abstract class ItemCompactingCellBase extends AbstractTieredCellItem impl
     }
 
     public double getIdleDrain() {
-        return CellsConfig.compactingIdleDrain;
+        return CellsConfig.idleDrain.compactingIdleDrain;
     }
 
     public boolean isBlackListed(@Nonnull ItemStack cellItem, @Nonnull IAEItemStack requestedAddition) {
@@ -182,7 +182,7 @@ public abstract class ItemCompactingCellBase extends AbstractTieredCellItem impl
 
     @Override
     public IItemHandler getUpgradesInventory(ItemStack is) {
-        return new CustomCellUpgrades(is, CellsConfig.compactingCellUpgradeSlots, Arrays.asList(
+        return new CustomCellUpgrades(is, CellsConfig.general.compactingCellUpgradeSlots, Arrays.asList(
             CustomCellUpgrades.CustomUpgrades.OVERFLOW,
             CustomCellUpgrades.CustomUpgrades.OREDICT,
             CustomCellUpgrades.CustomUpgrades.COMPRESSION_TIER,

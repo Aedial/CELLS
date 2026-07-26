@@ -35,7 +35,7 @@ public class CreativeEssentiaCellInventory
 
     @Override
     public long getMaxAllowed() {
-        if (CellsConfig.enableEssentiaCreativeCellFix) {
+        if (CellsConfig.cells.enableEssentiaCreativeCellFix) {
             // Cap max allowed to int max to avoid overflow issues with the creative cell's infinite amount
             return Integer.MAX_VALUE;
         } else {
@@ -45,7 +45,7 @@ public class CreativeEssentiaCellInventory
 
     @Override
     public long getReportedAmount() {
-        if (CellsConfig.enableEssentiaCreativeCellFix) {
+        if (CellsConfig.cells.enableEssentiaCreativeCellFix) {
             return Integer.MAX_VALUE;
         } else {
             return super.getReportedAmount();

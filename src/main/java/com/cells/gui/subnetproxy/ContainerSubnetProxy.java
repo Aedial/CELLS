@@ -117,7 +117,7 @@ public class ContainerSubnetProxy extends AEBaseContainer
         this.totalPages = part.getTotalPages();
         this.filterMode = part.getFilterMode().ordinal();
         this.fuzzyMode = part.getFuzzyMode().ordinal();
-        this.availableUpgrades = CellsConfig.subnetProxyUpgradeSlots;
+        this.availableUpgrades = CellsConfig.general.subnetProxyUpgradeSlots;
         this.priority = part.getPriority();
         this.hasInsertionCard = part.hasInsertionCard() ? 1 : 0;
         this.enabledChannels = part.getEnabledChannelsBitmask();
@@ -129,7 +129,7 @@ public class ContainerSubnetProxy extends AEBaseContainer
         // Add upgrade slots (Cell Workbench dynamic column style)
         // Up to 3 columns of 8 rows each, starting at (187, 26)
         UpgradeInventory upgradeInv = part.getUpgradeInventory();
-        int maxUpgrades = CellsConfig.subnetProxyUpgradeSlots;
+        int maxUpgrades = CellsConfig.general.subnetProxyUpgradeSlots;
 
         // Column x-offsets matching Cell Workbench: first at 187, second at 187+27=214, third at 214+18=232
         final int[] colX = { 187, 214, 232 };
@@ -242,7 +242,7 @@ public class ContainerSubnetProxy extends AEBaseContainer
     public boolean isSlotEnabled(int idx) {
         // Each upgrade slot has its index as the group number.
         // Slot is enabled if its index is < configured upgrade count.
-        return idx < CellsConfig.subnetProxyUpgradeSlots;
+        return idx < CellsConfig.general.subnetProxyUpgradeSlots;
     }
 
     // ========================= Page Navigation =========================
@@ -313,7 +313,7 @@ public class ContainerSubnetProxy extends AEBaseContainer
             }
             this.filterMode = this.part.getFilterMode().ordinal();
             this.fuzzyMode = this.part.getFuzzyMode().ordinal();
-            this.availableUpgrades = CellsConfig.subnetProxyUpgradeSlots;
+            this.availableUpgrades = CellsConfig.general.subnetProxyUpgradeSlots;
             this.priority = this.part.getPriority();
             this.hasInsertionCard = this.part.hasInsertionCard() ? 1 : 0;
             this.enabledChannels = this.part.getEnabledChannelsBitmask();

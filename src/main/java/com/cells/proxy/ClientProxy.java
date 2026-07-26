@@ -3,6 +3,8 @@ package com.cells.proxy;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.color.ItemColors;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
@@ -19,9 +21,15 @@ import com.cells.items.ItemRecoveryContainer;
 
 public class ClientProxy extends CommonProxy {
 
+    private static final String TOP_MODID = "theoneprobe";
+    private static final String WAILA_MODID = "waila";
+
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
+
+        // Register TOP integration
+        if (Loader.isModLoaded(TOP_MODID)) registerTheOneProbeIntegration();
 
         // Register keybindings
         KeyBindings.registerAll();
@@ -30,6 +38,9 @@ public class ClientProxy extends CommonProxy {
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
+
+        // Register WAILA integration
+        if (Loader.isModLoaded(WAILA_MODID)) registerWailaIntegration();
 
         // Register memory card interaction handler
         MinecraftForge.EVENT_BUS.register(new MemoryCardInteractionHandler());
@@ -44,6 +55,16 @@ public class ClientProxy extends CommonProxy {
 
         // Register item color handlers
         registerItemColors();
+    }
+
+    @Optional.Method(modid = TOP_MODID)
+    private static void registerTheOneProbeIntegration() {
+        com.cells.integration.theoneprobe.CellsTheOneProbePlugin.register();
+    }
+
+    @Optional.Method(modid = WAILA_MODID)
+    private static void registerWailaIntegration() {
+        com.cells.integration.waila.CellsWailaModule.register();
     }
 
     /**

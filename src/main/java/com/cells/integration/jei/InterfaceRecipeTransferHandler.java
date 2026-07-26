@@ -135,7 +135,7 @@ public class InterfaceRecipeTransferHandler<C extends Container> implements IRec
         ContainerIOInterface ioContainer = (ContainerIOInterface) container;
         ResourceType type = ioContainer.getHost().getResourceType();
 
-        int inputTarget = CellsConfig.jeiTransferInputsToExport
+        int inputTarget = CellsConfig.hidden.jeiTransferInputsToExport
             ? IIOInterfaceHost.TAB_EXPORT
             : IIOInterfaceHost.TAB_IMPORT;
         int outputTarget = inputTarget == IIOInterfaceHost.TAB_EXPORT

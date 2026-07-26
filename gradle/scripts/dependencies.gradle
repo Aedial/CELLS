@@ -53,6 +53,12 @@ dependencies {
     // ---- Optional: JEI ----
     devOnlyNonPublishable rfg.deobf("curse.maven:jei-238222:3043174")
 
+    // ---- Optional: HWYLA ----
+    devOnlyNonPublishable rfg.deobf("curse.maven:hwyla-253449:2568751")
+
+    // ---- Optional: The One Probe ----
+    devOnlyNonPublishable rfg.deobf("curse.maven:the-one-probe-245211:2667280")
+
     // ---- Optional: Thaumic Energistics ----
     devOnlyNonPublishable rfg.deobf("curse.maven:thaumcraft-223628:2629023")
     devOnlyNonPublishable rfg.deobf("curse.maven:thaumic-energistics-223666:2915506")

@@ -13,6 +13,54 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.6-beta2] - 2026-07-25
+### Added
+- Add HWYLA and The One Probe lines for interface timing, including the effective AE2-network import/export interval, per-card adjacent pull/push interval details, and transfer quantities.
+- Optimize Compacting Card's compacting chain check on the hot path.
+
+### Changed
+- Reformulate some tooltip lines to be clearer.
+
+
+## [0.6.6-beta] - 2026-07-21
+### Fixed
+- Fix item-based Interfaces voiding buffered overflow when a disconnected export slot is clicked (extraction by hand) after lowering its max slot size.
+
+
+## [0.6.5-beta] - 2026-07-08
+### Fixed
+- Fix Import/Export Interfaces loading filters from memory cards in the wrong order.
+
+
+## [0.6.4-beta5] - 2026-07-07
+### Fixed
+- Fix Subnet Proxy sometimes loading with an empty front-side view after a restart, by forcing a fresh relist when load-time front-grid churn invalidates the proxy's snapshot baseline before the final network is ready.
+- Fix Subnet Proxy forwarding deltas from devices it has not yet listed (e.g., a Storage Bus or ME Drive that is still initializing), which could cause reconciliation to fail and prevent the "true" deltas from being forwarded to the front grid, resulting in missing items in the front grid, or cause the proxy to forward ghost items when the ME Drive finishes initializing.
+
+
+## [0.6.4-beta4] - 2026-07-06
+### Added
+- Add thorough debug tracing for Subnet Proxy's network events, hidden behind the `-Dcells.trace.subnetproxy.updateflow=true` JVM flag. This will log the flow of events through EVERY proxy, which is A LOT of logs, so DO NOT ENABLE IT unless you are debugging the proxy and know what you're doing!
+
+### Fixed
+- Maybe fix some Subnet Proxy race conditions in network initialization, resulting in deltas being duplicated (ghost items for some items) or not being forwarded (items not showing up on the front grid).
+
+
+## [0.6.4-beta3] - 2026-07-01
+### Fixed
+- Mitigate performance issues with 0.6.4-beta2's more heavy-handed reconciliation, in the force-update path.
+
+
+## [0.6.4-beta2] - 2026-06-29
+### Fixed
+- Fix Subnet Proxy showing stale items after a partitioned Storage Bus rebuilds, which could leave items visible-but-unextractable and later double-count them on the front network. The cost of force-updates has been increased (due to more heavy-handed reconciliation for correctness' sake), but the steady-state cost should be about the same as before.
+
+
+## [0.6.4-beta] - 2026-06-28
+### Fixed
+- Fix Subnet Proxy keeping removed back-grid storage reachable when AE2 reports the disconnect only as storage deltas instead of the normal cell-array update path, such as broken drives or storage buses retargeting away from their previous inventory.
+
+
 ## [0.6.3-beta2] - 2026-06-17
 ### Fixed
 - Fix crash during complex networks' initialization, due to coordinator's election logic (what determines which proxy should forward which events) triggering chained initializations (re-entering the coordinator's code while it's still initializing).

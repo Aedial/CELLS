@@ -85,7 +85,7 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
                     storedTypes++;
 
                     // Track NBT size for this essentia (if enabled)
-                    if (CellsConfig.enableNbtSizeTooltip) {
+                    if (CellsConfig.general.enableNbtSizeTooltip) {
                         int entrySize = NBTSizeHelper.calculateSize(entryTag);
                         essentiaEntryNbtSizes.put(key, entrySize);
                         totalNbtSize += entrySize;
@@ -140,7 +140,7 @@ public class ConfigurableCellEssentiaInventory extends AbstractConfigurableCellI
             nbtIndexToCount.put(index, count);
 
             // Track NBT size for this new essentia (if enabled)
-            if (CellsConfig.enableNbtSizeTooltip) {
+            if (CellsConfig.general.enableNbtSizeTooltip) {
                 int entrySize = NBTSizeHelper.calculateSize(entryTag);
                 essentiaEntryNbtSizes.put(key, entrySize);
                 totalNbtSize += entrySize;

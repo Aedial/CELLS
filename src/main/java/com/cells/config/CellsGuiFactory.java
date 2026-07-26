@@ -68,11 +68,10 @@ public class CellsGuiFactory implements IModGuiFactory {
         private static List<IConfigElement> getConfigElements() {
             List<IConfigElement> elements = new ArrayList<>();
 
-            // Add each category
-            for (String category : CellsConfig.getConfig().getCategoryNames()) {
-                if (!CellsConfig.hiddenCategories.contains(category)) {
-                    elements.add(new ConfigElement(CellsConfig.getConfig().getCategory(category)));
-                }
+            for (IConfigElement categoryElement : ConfigElement.from(CellsConfig.class).getChildElements()) {
+                if (CellsConfig.isHiddenCategory(categoryElement.getName())) continue;
+
+                elements.add(categoryElement);
             }
 
             return elements;

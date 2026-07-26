@@ -79,7 +79,7 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
                     storedTypes++;
 
                     // Track NBT size for this item (if enabled)
-                    if (CellsConfig.enableNbtSizeTooltip) {
+                    if (CellsConfig.general.enableNbtSizeTooltip) {
                         int itemSize = NBTSizeHelper.calculateSize(itemTag);
                         itemNbtSizes.put(key, itemSize);
                         totalNbtSize += itemSize;
@@ -140,7 +140,7 @@ public class ConfigurableCellItemInventory extends AbstractConfigurableCellInven
             nbtIndexToCount.put(index, count);
 
             // Track NBT size for this new item (if enabled)
-            if (CellsConfig.enableNbtSizeTooltip) {
+            if (CellsConfig.general.enableNbtSizeTooltip) {
                 int itemSize = NBTSizeHelper.calculateSize(itemTag);
                 itemNbtSizes.put(key, itemSize);
                 totalNbtSize += itemSize;

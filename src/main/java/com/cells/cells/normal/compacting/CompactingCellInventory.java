@@ -4,13 +4,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.World;
+import net.minecraftforge.common.util.Constants;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
@@ -63,8 +66,18 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
     private static final int DEFAULT_TIERS_UP = 1;
     private static final int DEFAULT_TIERS_DOWN = 1;
 
+    private static final String NBT_CONFIG_INVENTORY = "list";
+    private static final String NBT_CONFIG_ITEMS = "Items";
+    private static final String NBT_CONFIG_SLOT = "Slot";
+    private static final String NBT_ITEM_ID = "id";
+    private static final String NBT_ITEM_DAMAGE = "Damage";
+    private static final String NBT_ITEM_TAG = "tag";
+
     // Cached partition item for detecting changes
     private ItemStack cachedPartitionItem = ItemStack.EMPTY;
+    private String cachedPartitionItemId = null;
+    private NBTTagCompound cachedPartitionTag = null;
+    private int cachedPartitionMeta = 0;
 
     private final ItemStack cellStack;
     private final ISaveProvider container;
@@ -367,7 +380,9 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         if (mainTier >= currentMaxTiers) mainTier = -1;
 
         if (tagCompound.hasKey(NBT_CACHED_PARTITION)) {
-            cachedPartitionItem = new ItemStack(tagCompound.getCompoundTag(NBT_CACHED_PARTITION));
+            updateCachedPartitionIdentity(new ItemStack(tagCompound.getCompoundTag(NBT_CACHED_PARTITION)));
+        } else {
+            updateCachedPartitionIdentity(ItemStack.EMPTY);
         }
 
         // Recalculate mainTier if it's invalid, but we have chain data
@@ -866,19 +881,69 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         return cachedHasPartition;
     }
 
+    private void updateCachedPartitionIdentity(@Nullable ItemStack partitionItem) {
+        if (partitionItem == null || partitionItem.isEmpty()) {
+            cachedPartitionItem = ItemStack.EMPTY;
+            cachedPartitionItemId = null;
+            cachedPartitionTag = null;
+            cachedPartitionMeta = 0;
+
+            return;
+        }
+
+        cachedPartitionItemId = partitionItem.getItem().getRegistryName() == null
+                ? null
+                : partitionItem.getItem().getRegistryName().toString();
+        cachedPartitionMeta = partitionItem.getItemDamage();
+
+        NBTTagCompound partitionTag = partitionItem.getTagCompound();
+        cachedPartitionTag = partitionTag == null ? null : partitionTag.copy();
+    }
+
+    // Read the serialized partition entry directly so hot-path checks do not rebuild
+    // CellConfig handlers or instantiate ItemStacks just to notice external config edits.
+    @Nullable
+    private NBTTagCompound getFirstSerializedPartition() {
+        if (!tagCompound.hasKey(NBT_CONFIG_INVENTORY, Constants.NBT.TAG_COMPOUND)) return null;
+
+        NBTTagCompound configData = tagCompound.getCompoundTag(NBT_CONFIG_INVENTORY);
+        NBTTagList items = configData.getTagList(NBT_CONFIG_ITEMS, Constants.NBT.TAG_COMPOUND);
+        NBTTagCompound firstPartition = null;
+        int firstSlot = Integer.MAX_VALUE;
+
+        for (int i = 0; i < items.tagCount(); i++) {
+            NBTTagCompound itemData = items.getCompoundTagAt(i);
+            if (!itemData.hasKey(NBT_ITEM_ID, Constants.NBT.TAG_STRING)) continue;
+
+            int slot = itemData.getInteger(NBT_CONFIG_SLOT);
+            if (slot < 0 || slot > firstSlot) continue;
+
+            firstPartition = itemData;
+            firstSlot = slot;
+            if (slot == 0) break;
+        }
+
+        return firstPartition;
+    }
+
+    private boolean matchesCachedPartition(@Nonnull NBTTagCompound serializedPartition) {
+        if (cachedPartitionItemId == null) return false;
+        if (!cachedPartitionItemId.equals(serializedPartition.getString(NBT_ITEM_ID))) return false;
+        if (serializedPartition.getInteger(NBT_ITEM_DAMAGE) != cachedPartitionMeta) return false;
+
+        NBTTagCompound partitionTag = serializedPartition.hasKey(NBT_ITEM_TAG, Constants.NBT.TAG_COMPOUND)
+                ? serializedPartition.getCompoundTag(NBT_ITEM_TAG)
+                : null;
+
+        return Objects.equals(cachedPartitionTag, partitionTag);
+    }
+
     /**
-     * Actually check if the cell has a partition configured by reading the config inventory.
+     * Actually check if the cell has a partition configured by reading the serialized config data.
      * Used during initialization and when the cache needs to be refreshed.
      */
     private boolean checkHasPartition() {
-        IItemHandler configInv = getConfigInventory();
-        if (configInv == null) return false;
-
-        for (int i = 0; i < configInv.getSlots(); i++) {
-            if (!configInv.getStackInSlot(i).isEmpty()) return true;
-        }
-
-        return false;
+        return getFirstSerializedPartition() != null;
     }
 
     /**
@@ -886,20 +951,12 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      * Returns true if the chain needs to be reinitialized.
      */
     private boolean hasPartitionChanged() {
-        ItemStack currentPartition = getFirstPartitionedItem();
+        NBTTagCompound currentPartition = getFirstSerializedPartition();
 
-        // Both empty = no change
-        if ((currentPartition == null || currentPartition.isEmpty()) && cachedPartitionItem.isEmpty()) {
-            return false;
-        }
+        if (currentPartition == null) return !cachedPartitionItem.isEmpty();
+        if (cachedPartitionItem.isEmpty()) return true;
 
-        // One empty, other not = changed
-        if (currentPartition == null || currentPartition.isEmpty() || cachedPartitionItem.isEmpty()) {
-            return true;
-        }
-
-        // Compare items
-        return !CellMathHelper.areItemsEqual(currentPartition, cachedPartitionItem);
+        return !matchesCachedPartition(currentPartition);
     }
 
     /**
@@ -941,8 +998,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             cachedMaxCapacityInBaseUnits = -1;
         }
 
-        cachedPartitionItem = partitionItem.copy();
-        cachedPartitionItem.setCount(1);
+        updateCachedPartitionIdentity(partitionItem);
         cachedHasPartition = true;
         chainFullyInitialized = mainTier >= 0;
 
@@ -1039,7 +1095,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         // Partition was removed - reset everything
         if (currentPartition == null || currentPartition.isEmpty()) {
             reset();
-            cachedPartitionItem = ItemStack.EMPTY;
+            updateCachedPartitionIdentity(ItemStack.EMPTY);
             cachedHasPartition = false;
             chainFullyInitialized = false;
             saveChanges();
@@ -1050,8 +1106,7 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         // Partition set or changed - initialize/reinitialize the chain
         reset();
         initializeCompressionChain(currentPartition, world);
-        cachedPartitionItem = currentPartition.copy();
-        cachedPartitionItem.setCount(1);
+        updateCachedPartitionIdentity(currentPartition);
         cachedHasPartition = true;
         chainFullyInitialized = mainTier >= 0 && !cachedChainEmpty;
 
@@ -1121,15 +1176,10 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
      */
     @Nullable
     private ItemStack getFirstPartitionedItem() {
-        IItemHandler configInv = getConfigInventory();
-        if (configInv == null) return null;
+        NBTTagCompound serializedPartition = getFirstSerializedPartition();
+        if (serializedPartition == null) return null;
 
-        for (int i = 0; i < configInv.getSlots(); i++) {
-            ItemStack partItem = configInv.getStackInSlot(i);
-            if (!partItem.isEmpty()) return partItem.copy();
-        }
-
-        return null;
+        return new ItemStack(serializedPartition);
     }
 
     /**

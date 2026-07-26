@@ -107,6 +107,14 @@ public final class SubnetProxyGridCoordinator {
     private final Map<IGrid, PartSubnetProxyFront> originElection = new HashMap<>();
 
     /**
+     * origin-grid -> membership fingerprint of direct same-origin fronts on this
+     * coordinator's grid. The elected front unions these siblings' filters, so
+     * registration churn inside the group is still a visible surface change even
+     * when the elected representative stays the same.
+     */
+    private final Map<IGrid, Integer> ownOriginGroups = new HashMap<>();
+
+    /**
      * LRU of recently-seen event UUIDs. {@link LinkedHashSet} preserves
      * insertion order, allowing eviction of the oldest entry when the cap
      * is reached.
@@ -217,22 +225,74 @@ public final class SubnetProxyGridCoordinator {
      * front. Both small in practice.
      */
     private List<PartSubnetProxyFront> recomputeElectionLocked() {
-        originElection.clear();
+        Map<IGrid, PartSubnetProxyFront> previousElection = new HashMap<>(originElection);
+        Map<IGrid, Integer> previousOwnOriginGroups = new HashMap<>(ownOriginGroups);
+
+        Map<IGrid, PartSubnetProxyFront> newElection = new HashMap<>();
+        Map<IGrid, Integer> newOwnOriginGroups = new HashMap<>();
 
         List<PartSubnetProxyFront> sorted = new ArrayList<>(registeredFronts);
         sorted.sort(FRONT_ELECTION_ORDER);
 
+        Map<IGrid, List<PartSubnetProxyFront>> ownOriginMembers = new HashMap<>();
+
         for (PartSubnetProxyFront f : sorted) {
+            IGrid ownOrigin = f.getBackGrid();
+            if (ownOrigin != null) {
+                ownOriginMembers.computeIfAbsent(ownOrigin, ignored -> new ArrayList<>()).add(f);
+            }
+
             Set<IGrid> exposed = f.getExposedOrigins();
             if (exposed == null || exposed.isEmpty()) continue;
 
             for (IGrid origin : exposed) {
                 if (origin == null) continue;
-                originElection.putIfAbsent(origin, f);
+                newElection.putIfAbsent(origin, f);
             }
         }
 
+        for (Map.Entry<IGrid, List<PartSubnetProxyFront>> entry : ownOriginMembers.entrySet()) {
+            newOwnOriginGroups.put(entry.getKey(), membershipFingerprint(entry.getValue()));
+        }
+
+        originElection.clear();
+        originElection.putAll(newElection);
+
+        ownOriginGroups.clear();
+        ownOriginGroups.putAll(newOwnOriginGroups);
+
+        if (sameElection(previousElection, newElection)
+                && previousOwnOriginGroups.equals(newOwnOriginGroups)) {
+            return null;
+        }
+
         return new ArrayList<>(registeredFronts);
+    }
+
+    private static boolean sameElection(
+            Map<IGrid, PartSubnetProxyFront> previous,
+            Map<IGrid, PartSubnetProxyFront> current) {
+        if (previous.size() != current.size()) return false;
+
+        for (Map.Entry<IGrid, PartSubnetProxyFront> entry : previous.entrySet()) {
+            if (current.get(entry.getKey()) != entry.getValue()) return false;
+        }
+
+        return true;
+    }
+
+    private static int membershipFingerprint(List<PartSubnetProxyFront> fronts) {
+        if (fronts.isEmpty()) return 0;
+
+        List<Integer> ids = new ArrayList<>(fronts.size());
+        for (PartSubnetProxyFront front : fronts) ids.add(System.identityHashCode(front));
+
+        ids.sort(Integer::compareTo);
+
+        int hash = 1;
+        for (int id : ids) hash = 31 * hash + id;
+
+        return hash;
     }
 
     /**

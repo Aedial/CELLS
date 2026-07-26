@@ -66,7 +66,7 @@ public enum CellsPartType {
     @SideOnly(Side.CLIENT)
     private static ModelResourceLocation modelFromBaseName(String baseName) {
         // Subnet proxy parts don't have animated textures, so they don't need the _fixed suffix
-        boolean needsFixedSuffix = CellsConfig.useFixedInterfaceTextures
+        boolean needsFixedSuffix = CellsConfig.interfaces.useFixedInterfaceTextures
             && !baseName.startsWith("subnet_proxy");
         String suffix = needsFixedSuffix ? "_fixed" : "";
         return new ModelResourceLocation(new ResourceLocation(Tags.MODID, "part/" + baseName + suffix), "inventory");

@@ -59,7 +59,7 @@ public enum CellsGasPartType {
 
     @SideOnly(Side.CLIENT)
     private static ModelResourceLocation modelFromBaseName(String baseName) {
-        String suffix = CellsConfig.useFixedInterfaceTextures ? "_fixed" : "";
+        String suffix = CellsConfig.interfaces.useFixedInterfaceTextures ? "_fixed" : "";
         return new ModelResourceLocation(new ResourceLocation(Tags.MODID, "part/" + baseName + suffix), "inventory");
     }
 

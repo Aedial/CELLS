@@ -205,7 +205,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
                     storedTypes++;
 
                     // Track NBT size for this fluid (if enabled)
-                    if (CellsConfig.enableNbtSizeTooltip) {
+                    if (CellsConfig.general.enableNbtSizeTooltip) {
                         int fluidSize = NBTSizeHelper.calculateSize(fluidTag);
                         fluidNbtSizes.put(key, fluidSize);
                         totalNbtSize += fluidSize;
@@ -362,7 +362,7 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
             keyToNbtIndex.put(key, index);
 
             // Track NBT size for this new fluid (if enabled)
-            if (CellsConfig.enableNbtSizeTooltip) {
+            if (CellsConfig.general.enableNbtSizeTooltip) {
                 int fluidSize = NBTSizeHelper.calculateSize(fluidTag);
                 fluidNbtSizes.put(key, fluidSize);
                 totalNbtSize += fluidSize;
