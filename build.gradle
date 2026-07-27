@@ -1,4 +1,5 @@
 import com.gtnewhorizons.retrofuturagradle.mcp.InjectTagsTask
+import net.darkhax.curseforgegradle.TaskPublishCurseForge
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.gradle.ext.Gradle
 
@@ -48,6 +49,7 @@ setDefaultProperty 'minecraft_username', true, 'Developer'
 setDefaultProperty 'extra_jvm_args', false, ''
 setDefaultProperty 'extra_tweak_classes', false, ''
 setDefaultProperty 'change_minecraft_sources', false, false
+setDefaultProperty 'publish_to_curseforge', true, false
 
 version = propertyString('mod_version')
 group = propertyString('root_package')
@@ -371,6 +373,16 @@ tasks.withType(JavaCompile).configureEach {
 tasks.register('cleanroomAfterSync') {
     group 'cleanroom helpers'
     dependsOn 'injectTags', 'generateMixinJson'
+}
+
+if (propertyBool('publish_to_curseforge')) {
+    assertProperty 'curseforge_project_id'
+    apply plugin: 'net.darkhax.curseforgegradle'
+    tasks.register('curseforge', TaskPublishCurseForge) {
+        disableVersionDetection()
+        group = 'publishing'
+        description = "Uploads CurseForge project ${propertyString('curseforge_project_id')}"
+    }
 }
 
 if (propertyBool('use_modern_java_syntax')) {
