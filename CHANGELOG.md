@@ -17,6 +17,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Fixed
 - Add shift right-click an EMC Cell on an EMC Link to copy the EMC Link's filter into the EMC Cell, for easier transition.
 - Fix EMC Cells not opening in CELLS' JEI cell viewer.
+- Fix some JEI areas (like history) not being able to Quick Add.
 
 
 ## [0.6.6-beta2] - 2026-07-25
