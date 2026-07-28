@@ -1,5 +1,10 @@
 package com.cells.cells.emc;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 import javax.annotation.Nonnull;
 
 import net.minecraft.item.ItemStack;
@@ -139,5 +144,70 @@ public class EmcCellFilterHandler extends AbstractCreativeCellFilterHandler<Item
         }
 
         return count;
+    }
+
+    @Nonnull
+    public MergeResult mergeMissingStacks(@Nonnull Iterable<ItemStack> stacks) {
+        int unlockedSlots = getUnlockedSlots();
+        Set<ItemStackKey> knownFilters = new LinkedHashSet<>();
+        List<Integer> emptySlots = new ArrayList<>();
+
+        // Collect known filters and empty slots
+        for (int slot = 0; slot < unlockedSlots; slot++) {
+            ItemStack existingStack = getStackInSlot(slot);
+            if (existingStack.isEmpty()) {
+                emptySlots.add(slot);
+                continue;
+            }
+
+            ItemStackKey existingKey = ItemStackKey.of(existingStack);
+            if (existingKey != null) knownFilters.add(existingKey);
+        }
+
+        int addedCount = 0;
+        int blockedByCapacityCount = 0;
+        int nextEmptySlot = 0;
+
+        // Append new unique filters into currently empty slots without disturbing existing partitions
+        for (ItemStack stack : stacks) {
+            if (stack.isEmpty()) continue;
+
+            ItemStack normalized = ProjectEXUtils.fixOutput(stack);
+            if (normalized.isEmpty()) continue;
+            if (!isItemValid(0, normalized)) continue;
+
+            ItemStackKey key = ItemStackKey.of(normalized);
+            if (key == null || !knownFilters.add(key)) continue;
+
+            if (nextEmptySlot >= emptySlots.size()) {
+                blockedByCapacityCount++;
+                continue;
+            }
+
+            setStackInSlot(emptySlots.get(nextEmptySlot), normalized);
+            nextEmptySlot++;
+            addedCount++;
+        }
+
+        return new MergeResult(addedCount, blockedByCapacityCount);
+    }
+
+    public static class MergeResult {
+
+        private final int addedCount;
+        private final int blockedByCapacityCount;
+
+        private MergeResult(int addedCount, int blockedByCapacityCount) {
+            this.addedCount = addedCount;
+            this.blockedByCapacityCount = blockedByCapacityCount;
+        }
+
+        public int getAddedCount() {
+            return this.addedCount;
+        }
+
+        public int getBlockedByCapacityCount() {
+            return this.blockedByCapacityCount;
+        }
     }
 }

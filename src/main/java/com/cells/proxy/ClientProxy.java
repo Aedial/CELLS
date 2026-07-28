@@ -1,7 +1,10 @@
 package com.cells.proxy;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.color.ItemColors;
+import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Optional;
@@ -55,6 +58,12 @@ public class ClientProxy extends CommonProxy {
 
         // Register item color handlers
         registerItemColors();
+    }
+
+    @Override
+    @Nullable
+    public World getClientWorld() {
+        return Minecraft.getMinecraft().world;
     }
 
     @Optional.Method(modid = TOP_MODID)

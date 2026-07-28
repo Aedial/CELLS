@@ -1,6 +1,7 @@
 package com.cells.integration.jei;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -16,6 +17,7 @@ import mezz.jei.api.IModPlugin;
 import mezz.jei.api.IModRegistry;
 import mezz.jei.api.IJeiRuntime;
 import mezz.jei.api.JEIPlugin;
+import mezz.jei.api.IRecipesGui;
 import mezz.jei.api.IIngredientListOverlay;
 import mezz.jei.api.IBookmarkOverlay;
 import mezz.jei.api.ingredients.IIngredientRegistry;
@@ -174,16 +176,7 @@ public class CellsJEIPlugin implements IModPlugin {
      */
     @Nullable
     public static Object getIngredientUnderMouse() {
-        if (jeiRuntime == null) return null;
-
-        // Check ingredient list first
-        IIngredientListOverlay ingredientList = jeiRuntime.getIngredientListOverlay();
-        Object ingredient = ingredientList.getIngredientUnderMouse();
-        if (ingredient != null) return unwrapBookmarkItem(ingredient);
-
-        // Check bookmarks
-        IBookmarkOverlay bookmarks = jeiRuntime.getBookmarkOverlay();
-        return unwrapBookmarkItem(bookmarks.getIngredientUnderMouse());
+        return getHoverIngredientUnderMouse();
     }
 
     /**
@@ -193,27 +186,10 @@ public class CellsJEIPlugin implements IModPlugin {
      */
     @Nullable
     public static ItemStack getItemIngredientUnderMouse() {
-        if (jeiRuntime == null) return null;
+        Object ingredient = getHoverIngredientUnderMouse();
+        if (ingredient == null) return null;
 
-        // Check ingredient list
-        IIngredientListOverlay ingredientList = jeiRuntime.getIngredientListOverlay();
-        Object ingredient = ingredientList.getIngredientUnderMouse();
-
-        if (ingredient != null) {
-            ItemStack result = convertToItemStack(ingredient);
-            if (result != null) return result;
-        }
-
-        // Check bookmarks (latest HEI wraps each bookmark in a BookmarkItem<I>; unwrap reflectively)
-        IBookmarkOverlay bookmarks = jeiRuntime.getBookmarkOverlay();
-        ingredient = unwrapBookmarkItem(bookmarks.getIngredientUnderMouse());
-
-        if (ingredient != null) {
-            ItemStack result = convertToItemStack(ingredient);
-            if (result != null) return result;
-        }
-
-        return null;
+        return convertToItemStack(ingredient);
     }
 
     /**
@@ -223,27 +199,88 @@ public class CellsJEIPlugin implements IModPlugin {
      */
     @Nullable
     public static FluidStack getFluidIngredientUnderMouse() {
+        Object ingredient = getHoverIngredientUnderMouse();
+        if (ingredient == null) return null;
+
+        return convertToFluidStack(ingredient);
+    }
+
+    /**
+     * Mirror JEI/HEI's own focus lookup order for keyboard shortcuts.
+     * <p>
+     * HEI resolves hover targets from the recipes GUI before the ingredient
+     * list and bookmark overlays. CELLS quick-add uses this same order so that
+     * recipe-view ingredients, including history flows, are handled by
+     * the same keybind path.
+     */
+    @Nullable
+    private static Object getHoverIngredientUnderMouse() {
         if (jeiRuntime == null) return null;
 
-        // Check ingredient list
+        IRecipesGui recipesGui = jeiRuntime.getRecipesGui();
+        if (recipesGui != null) {
+            Object ingredient = normalizeHoveredIngredient(recipesGui.getIngredientUnderMouse());
+            if (ingredient != null) return ingredient;
+        }
+
         IIngredientListOverlay ingredientList = jeiRuntime.getIngredientListOverlay();
-        Object ingredient = ingredientList.getIngredientUnderMouse();
+        Object ingredient = normalizeHoveredIngredient(ingredientList.getIngredientUnderMouse());
+        if (ingredient != null) return ingredient;
 
-        if (ingredient != null) {
-            FluidStack result = convertToFluidStack(ingredient);
-            if (result != null) return result;
-        }
-
-        // Check bookmarks
         IBookmarkOverlay bookmarks = jeiRuntime.getBookmarkOverlay();
-        ingredient = unwrapBookmarkItem(bookmarks.getIngredientUnderMouse());
+        return normalizeHoveredIngredient(bookmarks.getIngredientUnderMouse());
+    }
 
-        if (ingredient != null) {
-            FluidStack result = convertToFluidStack(ingredient);
-            if (result != null) return result;
+    @Nullable
+    private static Object normalizeHoveredIngredient(@Nullable Object ingredient) {
+        return unwrapCollapsedGroupIngredient(unwrapBookmarkItem(ingredient));
+    }
+
+    @Nullable
+    private static Object unwrapCollapsedGroupIngredient(@Nullable Object ingredient) {
+        if (ingredient == null) return null;
+
+        if (!collapsedGroupLookupAttempted) {
+            try {
+                collapsedGroupIngredientClass = Class.forName("mezz.jei.ingredients.group.CollapsedGroupIngredient");
+            } catch (ClassNotFoundException ignored) {
+                // Regular JEI does not expose collapsed group ingredients.
+            }
+            collapsedGroupLookupAttempted = true;
         }
 
-        return null;
+        Class<?> groupClass = collapsedGroupIngredientClass;
+        if (groupClass == null || !groupClass.isInstance(ingredient)) return ingredient;
+
+        try {
+            Method getIngredients = collapsedGroupGetIngredientsMethod;
+            if (getIngredients == null) {
+                getIngredients = groupClass.getMethod("getIngredients");
+                collapsedGroupGetIngredientsMethod = getIngredients;
+            }
+
+            Object ingredients = getIngredients.invoke(ingredient);
+            if (!(ingredients instanceof List)) return ingredient;
+
+            List<?> ingredientElements = (List<?>) ingredients;
+            if (ingredientElements.isEmpty()) return null;
+
+            Object firstElement = ingredientElements.get(0);
+            if (firstElement == null) return null;
+
+            Method getIngredient = ingredientElementGetIngredientMethod;
+            if (getIngredient == null || !getIngredient.getDeclaringClass().isInstance(firstElement)) {
+                getIngredient = firstElement.getClass().getMethod("getIngredient");
+                ingredientElementGetIngredientMethod = getIngredient;
+            }
+
+            Object inner = getIngredient.invoke(firstElement);
+            if (inner == ingredient) return ingredient;
+
+            return normalizeHoveredIngredient(inner);
+        } catch (ReflectiveOperationException e) {
+            return ingredient;
+        }
     }
 
     @Nullable
@@ -273,6 +310,18 @@ public class CellsJEIPlugin implements IModPlugin {
 
     /** True once we've tried to resolve {@link #bookmarkItemClass} at least once. */
     private static volatile boolean bookmarkLookupAttempted;
+
+    /** Reflective class handle for HEI's collapsed ingredient groups, if present. */
+    private static volatile Class<?> collapsedGroupIngredientClass;
+
+    /** Cached {@code getIngredients()} lookup for collapsed ingredient groups. */
+    private static volatile Method collapsedGroupGetIngredientsMethod;
+
+    /** Cached {@code getIngredient()} lookup for the first element in a collapsed group. */
+    private static volatile Method ingredientElementGetIngredientMethod;
+
+    /** True once we've tried to resolve {@link #collapsedGroupIngredientClass} at least once. */
+    private static volatile boolean collapsedGroupLookupAttempted;
 
     /**
      * Unwrap an HEI {@code BookmarkItem<I>} to the inner ingredient.

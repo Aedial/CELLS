@@ -269,6 +269,10 @@ tooltip.cells.emc_cell.unbound=Unbound: re-insert it to bind it to a player
 tooltip.cells.emc_cell.buffered=Buffered EMC: %s
 tooltip.cells.emc_cell.unlearned=Unlearned partition filters: %s
 tooltip.cells.emc_cell.unlearned_hint=Hold Shift to list blocked filters
+message.cells.emc_cell.link_copy=Copied %s new partition filters from EMC Link
+message.cells.emc_cell.link_copy_full=Copied %s new partition filters from EMC Link; %s more unique filters did not fit
+message.cells.emc_cell.link_copy_full_none=EMC cell partition is full; %s unique filters did not fit
+message.cells.emc_cell.link_copy_none=No new partition filters copied from EMC Link
 tooltip.cells.emc_capacity_card.desc=Allows the Cell to provide %s different partitioned items
 
 

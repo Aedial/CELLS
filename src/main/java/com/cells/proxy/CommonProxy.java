@@ -1,5 +1,8 @@
 package com.cells.proxy;
 
+import javax.annotation.Nullable;
+
+import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
@@ -87,5 +90,10 @@ public class CommonProxy {
     }
 
     public void postInit(FMLPostInitializationEvent event) {
+    }
+
+    @Nullable
+    public World getClientWorld() {
+        return null;
     }
 }
