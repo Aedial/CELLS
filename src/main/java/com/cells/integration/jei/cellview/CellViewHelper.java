@@ -12,6 +12,7 @@ import appeng.api.storage.channels.IItemStorageChannel;
 import appeng.api.storage.channels.IFluidStorageChannel;
 import appeng.api.storage.data.IAEStack;
 
+import com.cells.Tags;
 import com.cells.cells.configurable.ItemConfigurableCell;
 import com.cells.cells.creative.AbstractCreativeCellItem;
 import com.cells.cells.hyperdensity.compacting.IItemHyperDensityCompactingCell;
@@ -35,7 +36,7 @@ public final class CellViewHelper {
 
     /**
      * Cell types supported by CELLS mod.
-     * UNKNOWN is for non-CELLS cells (like vanilla AE2 or other addons).
+     * UNKNOWN is for cells without a dedicated JEI subtype (like non-CELLS).
      */
     public enum CellType {
         /** Normal compacting cell (single item type with compression chain) */
@@ -50,7 +51,7 @@ public final class CellViewHelper {
         CONFIGURABLE,
         /** Creative cell (infinite source of partitioned items) */
         CREATIVE,
-        /** Unknown/external cell (vanilla AE2 or other addon) */
+        /** Unknown or generic cell (including external or unsupported CELLS subtypes) */
         UNKNOWN
     }
 
@@ -58,7 +59,7 @@ public final class CellViewHelper {
      * Detect the CELLS mod cell type for an ItemStack.
      *
      * @param stack The cell item
-     * @return The detected cell type, or UNKNOWN if not a CELLS cell
+     * @return The detected cell type, or UNKNOWN if no dedicated subtype applies
      */
     @Nonnull
     public static CellType getCellType(@Nonnull ItemStack stack) {
@@ -93,10 +94,13 @@ public final class CellViewHelper {
     }
 
     /**
-     * Check if a cell is a CELLS mod cell (not external/unknown).
+     * Check if a stack belongs to CELLS' registry namespace.
      */
     public static boolean isCellsModCell(@Nonnull ItemStack stack) {
-        return getCellType(stack) != CellType.UNKNOWN;
+        if (stack.isEmpty()) return false;
+        if (stack.getItem().getRegistryName() == null) return false;
+
+        return Tags.MODID.equals(stack.getItem().getRegistryName().getNamespace());
     }
 
     /**

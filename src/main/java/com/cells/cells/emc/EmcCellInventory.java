@@ -33,6 +33,7 @@ import moze_intel.projecte.api.capabilities.IKnowledgeProvider;
 import moze_intel.projecte.config.ProjectEConfig;
 import moze_intel.projecte.utils.Constants;
 
+import com.cells.Cells;
 import com.cells.config.CellsConfig;
 import com.cells.util.CellMathHelper;
 import com.cells.util.DeferredCellOperations;
@@ -480,7 +481,12 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
     @Nullable
     private World getWorld(@Nullable IActionSource src) {
         World world = CellMathHelper.getWorldFromSource(src);
-        return world != null ? world : CellMathHelper.getWorldFromContainer(this.container);
+        if (world != null) return world;
+
+        world = CellMathHelper.getWorldFromContainer(this.container);
+        if (world != null) return world;
+
+        return Cells.proxy != null ? Cells.proxy.getClientWorld() : null;
     }
 
     private static final class FilterEntry {

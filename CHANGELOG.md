@@ -13,6 +13,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.6-beta3] - 2026-07-27
+### Fixed
+- Add shift right-click an EMC Cell on an EMC Link to copy the EMC Link's filter into the EMC Cell, for easier transition.
+- Fix EMC Cells not opening in CELLS' JEI cell viewer.
+
+
 ## [0.6.6-beta2] - 2026-07-25
 ### Added
 - Add HWYLA and The One Probe lines for interface timing, including the effective AE2-network import/export interval, per-card adjacent pull/push interval details, and transfer quantities.

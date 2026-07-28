@@ -165,6 +165,7 @@ registry_name@metadata = bytes,channel,tier_name
 ### EMC Cell
 A cell that acts like a Personal EMC Link from ProjectEX, allowing you to convert items to EMC and back. It is the strict equivalent of configured Storage Bus on an EMC Link, allowing in only the items that are whitelisted in the filter, but not with strict matching. The matching rules are the same as the ones for other ProjectEx blocks.
 To spare performance, accumulated EMC is only flushed to the player's network once a second (configurable).
+You can copy the partition filters from an EMC Link to an EMC Cell by shift-right-clicking the EMC Link with the EMC Cell in hand, to allow for easy migration of setups. No existing filter will be overwritten.
 
 
 ### Upgrades
@@ -182,7 +183,7 @@ Install in an Import Interface to void items that don't match any filter. This i
 
 
 #### Pull Card
-Install in an Import Interface to pull items from adjacent inventories. This is useful for automated systems where items need to be imported from external sources. Can set the time interval, quantity per operation, and quantity to maintain in the adjacent inventories. The quantity is per interface's filter.
+Install in an Import Interface to pull items from adjacent inventories until the internal inventory is full (full slots are skipped for performance). This is useful for automated systems where items need to be imported from external sources. Can set the time interval, quantity per operation, and quantity to maintain in the adjacent inventories. The quantity is per interface's filter.
 
 **Compatible with**: Import Interfaces
 
@@ -213,7 +214,7 @@ Limits the number of types a cell can hold and divides capacity equally among th
 Use cases:
 - Force a cell to hold exactly one item type with maximum capacity (1x)
 - Prevent one item from dominating cell storage
-- Ensure fair storage distribution across multiple stored items
+- Ensure fair storage distribution across multiple stored items. Do note that excess can still spill over to other storages if a Sticky Card is not used.
 
 **Compatible with**: Hyper-Density Storage Cells
 

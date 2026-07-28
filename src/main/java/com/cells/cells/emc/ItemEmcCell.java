@@ -1,6 +1,7 @@
 package com.cells.cells.emc;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -12,14 +13,22 @@ import javax.annotation.Nullable;
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.EnumActionResult;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import net.minecraftforge.items.IItemHandler;
@@ -33,6 +42,7 @@ import appeng.util.Platform;
 
 import com.latmod.mods.projectex.ProjectEXUtils;
 import com.latmod.mods.projectex.integration.PersonalEMC;
+import com.latmod.mods.projectex.tile.TileLink;
 
 import moze_intel.projecte.api.capabilities.IKnowledgeProvider;
 
@@ -142,6 +152,41 @@ public class ItemEmcCell extends Item implements ICellWorkbenchItem, IItemGroup 
     }
 
     @Override
+    @Nonnull
+    public EnumActionResult onItemUseFirst(@Nonnull EntityPlayer player, @Nonnull World world,
+                                           @Nonnull BlockPos pos, @Nonnull EnumFacing side,
+                                           float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
+        if (!player.isSneaking()) return EnumActionResult.PASS;
+
+        TileEntity tileEntity = world.getTileEntity(pos);
+        if (!(tileEntity instanceof TileLink)) return EnumActionResult.PASS;
+
+        TileLink link = (TileLink) tileEntity;
+        // TODO: Maybe gate behind a config?
+        //       Users of the same Team should already have the same pool, but they would lose it if the owner quits.
+        //       Currently, it mirrors BlockLink's owner-only access so shift-copy does not expose other users.
+        if (!player.getUniqueID().equals(link.owner)) return EnumActionResult.PASS;
+
+        if (!world.isRemote) copyPartitionFromLink(player.getHeldItem(hand), player, link);
+
+        return EnumActionResult.SUCCESS;
+    }
+
+    @Optional.Method(modid = "jei")
+    @SideOnly(Side.CLIENT)
+    private void addJeiCellViewHint(@Nonnull List<String> tooltip) {
+        String keybind = mezz.jei.config.KeyBindings.showRecipe.getDisplayName();
+        tooltip.add("");
+        tooltip.add(I18n.format("tooltip.cells.jei_view_contents", keybind));
+    }
+
+    @Optional.Method(modid = "jei")
+    @SideOnly(Side.CLIENT)
+    private static boolean isJeiCellViewEnabled() {
+        return com.cells.integration.jei.CellsJEIPlugin.enableCellView;
+    }
+
+    @Override
     @SideOnly(Side.CLIENT)
     public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
                                @Nonnull ITooltipFlag flag) {
@@ -170,6 +215,8 @@ public class ItemEmcCell extends Item implements ICellWorkbenchItem, IItemGroup 
         }
 
         addUnlearnedPartitionTooltip(partitionInfo, tooltip);
+
+        if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) addJeiCellViewHint(tooltip);
     }
 
     @SideOnly(Side.CLIENT)
@@ -251,5 +298,35 @@ public class ItemEmcCell extends Item implements ICellWorkbenchItem, IItemGroup 
     @SideOnly(Side.CLIENT)
     private boolean isShiftDown() {
         return Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
+    }
+
+    private void copyPartitionFromLink(@Nonnull ItemStack cellStack, @Nonnull EntityPlayer player, @Nonnull TileLink link) {
+        ensureOwner(cellStack, player);
+
+        EmcCellFilterHandler filterHandler = new EmcCellFilterHandler(cellStack);
+        EmcCellFilterHandler.MergeResult result = filterHandler.mergeMissingStacks(Arrays.asList(link.outputSlots));
+        int addedCount = result.getAddedCount();
+        int blockedByCapacityCount = result.getBlockedByCapacityCount();
+
+        String prefix = "message.cells.emc_cell.link_copy";
+
+        if (blockedByCapacityCount > 0) {
+            TextComponentTranslation msg;
+            if (addedCount > 0) {
+                msg = new TextComponentTranslation(prefix + "_full", addedCount, blockedByCapacityCount);
+            } else {
+                msg = new TextComponentTranslation(prefix + "_full_none", blockedByCapacityCount);
+            }
+            player.sendStatusMessage(msg, true);
+
+            return;
+        }
+
+        if (addedCount > 0) {
+            player.sendStatusMessage(new TextComponentTranslation(prefix, addedCount), true);
+            return;
+        }
+
+        player.sendStatusMessage(new TextComponentTranslation(prefix + "_none"), true);
     }
 }
