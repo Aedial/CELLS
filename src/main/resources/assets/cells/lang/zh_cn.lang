@@ -269,6 +269,10 @@ tooltip.cells.emc_cell.unbound=未绑定：重新放入以绑定至玩家
 tooltip.cells.emc_cell.buffered=缓存的EMC：%s
 tooltip.cells.emc_cell.unlearned=未学习的分区过滤项：%s
 tooltip.cells.emc_cell.unlearned_hint=按住Shift列出被阻止的过滤项
+message.cells.emc_cell.link_copy=从EMC接口复制了%s个新的分区过滤项
+message.cells.emc_cell.link_copy_full=从EMC接口复制了%s个新的分区过滤项；另有%s个唯一过滤项无法容纳
+message.cells.emc_cell.link_copy_full_none=EMC元件分区已满；另有%s个唯一过滤项无法容纳
+message.cells.emc_cell.link_copy_none=未从EMC接口复制任何新的分区过滤项
 tooltip.cells.emc_capacity_card.desc=允许元件提供%s种不同的分区物品
 
 
