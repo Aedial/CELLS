@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.7-beta] - 2026-08-666
+### Added
+- Expand WAILA and The One Probe block tooltips beyond interface timings, including filter counts, hidden behavior toggles, and current pull/push card I/O sides for interfaces, exposed pattern summaries for the Compacting Pattern Exposer, and channel/filter mode summaries for Subnet Proxies.
+
+
 ## [0.6.6-beta3] - 2026-07-27
 ### Fixed
 - Add shift right-click an EMC Cell on an EMC Link to copy the EMC Link's filter into the EMC Cell, for easier transition.
@@ -22,7 +27,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [0.6.6-beta2] - 2026-07-25
 ### Added
-- Add HWYLA and The One Probe lines for interface timing, including the effective AE2-network import/export interval, per-card adjacent pull/push interval details, and transfer quantities.
+- Add WAILA and The One Probe lines for interface timing, including the effective AE2-network import/export interval, per-card adjacent pull/push interval details, and transfer quantities.
 - Optimize Compacting Card's compacting chain check on the hot path.
 
 ### Changed

@@ -1,11 +1,13 @@
 package com.cells.blocks.interfacebase.managers;
 
+import java.util.ArrayList;
 import java.lang.ref.WeakReference;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.tileentity.TileEntity;
@@ -328,6 +330,22 @@ public class InterfaceAdjacentHandler<R, K> {
         }
 
         return this.cachedCapabilities.get(facing);
+    }
+
+    /**
+     * Get the facings that currently resolve to a valid adjacent handler.
+     * Tooltips use this to show the sides an auto-pull/push card can actually reach.
+     */
+    @Nonnull
+    public List<EnumFacing> getActiveFacings() {
+        if (!this.capabilityCachePopulated) refreshCapabilityCache();
+
+        List<EnumFacing> activeFacings = new ArrayList<>();
+        for (EnumFacing facing : this.callbacks.getTargetFacings()) {
+            if (getValidCachedCapability(facing) != null) activeFacings.add(facing);
+        }
+
+        return activeFacings;
     }
 
     /**

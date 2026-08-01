@@ -384,6 +384,40 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
         return -1;
     }
 
+    public int getConfiguredFilterCount() {
+        int configuredFilters = 0;
+
+        for (IAEItemStack filter : this.cachedFilterStacks) {
+            if (filter != null) configuredFilters++;
+        }
+
+        return configuredFilters;
+    }
+
+    public int getExposedPatternCount() {
+        this.rebuildPatternsIfNeeded();
+
+        int exposedPatterns = 0;
+        for (SlotPatterns slotPatterns : this.slotPatterns) {
+            if (slotPatterns == null) continue;
+
+            if (slotPatterns.upward != null && slotPatterns.upward.details != null) exposedPatterns++;
+            if (slotPatterns.downward != null && slotPatterns.downward.details != null) exposedPatterns++;
+        }
+
+        return exposedPatterns;
+    }
+
+    public int getCustomMultiplierCount() {
+        int customMultipliers = 0;
+
+        for (long multiplier : this.patternMultipliers) {
+            if (multiplier > DEFAULT_PATTERN_MULTIPLIER) customMultipliers++;
+        }
+
+        return customMultipliers;
+    }
+
     @Nullable
     public PatternPreview getUpPreview(int slot) {
         return this.getPreview(slot, true);

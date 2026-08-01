@@ -567,6 +567,12 @@ public final class InterfaceApiHelper {
 
         @Nonnull
         @Override
+        public Collection<EnumFacing> getTooltipAutoTransferFacings() {
+            return this.logic.getTooltipAutoTransferFacings();
+        }
+
+        @Nonnull
+        @Override
         public EnumFacing getPrimaryFacing() {
             return this.targetFacings.isEmpty() ? EnumFacing.NORTH : this.targetFacings.get(0);
         }
