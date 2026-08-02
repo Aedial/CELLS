@@ -17,6 +17,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Added
 - Expand WAILA and The One Probe block tooltips beyond interface timings, including filter counts, hidden behavior toggles, and current pull/push card I/O sides for interfaces, exposed pattern summaries for the Compacting Pattern Exposer, and channel/filter mode summaries for Subnet Proxies.
 
+### Fixed
+- Fix performance regression in Compacting Cell, where the cell would try rebuilding the compacting chain on every single call instead of genuine changes.
+
+### Changed
+- Slightly change how push/pull card treats "keep quantity" field input, to be less eager about reformatting the field while typing.
+
 
 ## [0.6.6-beta3] - 2026-07-27
 ### Fixed

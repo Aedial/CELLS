@@ -891,6 +891,9 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
             return;
         }
 
+        cachedPartitionItem = partitionItem.copy();
+        cachedPartitionItem.setCount(1);
+
         cachedPartitionItemId = partitionItem.getItem().getRegistryName() == null
                 ? null
                 : partitionItem.getItem().getRegistryName().toString();
