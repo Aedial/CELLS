@@ -14,7 +14,7 @@ import com.cells.api.IInterfaceProvider;
 
 
 @SideOnly(Side.CLIENT)
-public final class InterfaceProbeTooltipHelper extends AbstractInterfaceProbeTooltipHelper<String> {
+public final class InterfaceProbeTooltipHelper extends AbstractProbeTooltipHelper<String> {
 
     private static final InterfaceProbeTooltipHelper INSTANCE = new InterfaceProbeTooltipHelper();
 
@@ -22,10 +22,6 @@ public final class InterfaceProbeTooltipHelper extends AbstractInterfaceProbeToo
 
     public static boolean appendTooltipLines(@Nullable Object target, Consumer<String> sink) {
         return INSTANCE.appendLines(target, sink);
-    }
-
-    public static void appendTooltipLines(@Nullable IInterfaceProvider provider, Consumer<String> sink) {
-        INSTANCE.appendLines(provider, sink);
     }
 
     @Override

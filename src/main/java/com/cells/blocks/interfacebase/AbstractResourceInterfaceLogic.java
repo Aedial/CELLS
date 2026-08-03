@@ -1,6 +1,7 @@
 package com.cells.blocks.interfacebase;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -797,6 +798,17 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     @Override
     public int getPollingRate() {
         return this.tickScheduler.getPollingRate();
+    }
+
+    /**
+     * Get the facings an installed auto-pull/push card can currently reach.
+     * Tooltips use the active capability cache so they do not claim every theoretical side.
+     */
+    @Nonnull
+    public List<EnumFacing> getTooltipAutoTransferFacings() {
+        if (!this.upgradeManager.hasAutoPullPushUpgrade()) return Collections.emptyList();
+
+        return this.adjacentHandler.getActiveFacings();
     }
 
     @Override

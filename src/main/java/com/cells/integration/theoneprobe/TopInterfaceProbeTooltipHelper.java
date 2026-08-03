@@ -8,11 +8,11 @@ import javax.annotation.Nullable;
 import mcjty.theoneprobe.api.IProbeInfo;
 
 import com.cells.api.IInterfaceProvider;
-import com.cells.util.AbstractInterfaceProbeTooltipHelper;
+import com.cells.util.AbstractProbeTooltipHelper;
 import com.cells.util.LocalizedTooltipText;
 
 
-public final class TopInterfaceProbeTooltipHelper extends AbstractInterfaceProbeTooltipHelper<LocalizedTooltipText> {
+public final class TopInterfaceProbeTooltipHelper extends AbstractProbeTooltipHelper<LocalizedTooltipText> {
 
     private static final TopInterfaceProbeTooltipHelper INSTANCE = new TopInterfaceProbeTooltipHelper();
 
@@ -22,12 +22,6 @@ public final class TopInterfaceProbeTooltipHelper extends AbstractInterfaceProbe
         if (probeInfo == null) return false;
 
         return INSTANCE.appendLines(target, createSink(probeInfo));
-    }
-
-    public static void appendTooltipLines(@Nullable IInterfaceProvider provider, IProbeInfo probeInfo) {
-        if (probeInfo == null) return;
-
-        INSTANCE.appendLines(provider, createSink(probeInfo));
     }
 
     private static Consumer<LocalizedTooltipText> createSink(IProbeInfo probeInfo) {

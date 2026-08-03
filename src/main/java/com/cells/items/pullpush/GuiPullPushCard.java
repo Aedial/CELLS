@@ -426,21 +426,29 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
         if (isValidKey && activeField.textboxKeyTyped(character, key)) {
             String out = activeField.getText().replaceAll(",", "");
 
-            // Remove leading zeros
-            while (out.startsWith("0") && out.length() > 1) {
-                out = out.substring(1);
-            }
-
-            // Skip when empty (unsaved), let user type freely
-            if (!out.isEmpty()) {
-                try {
-                    long parsed = Long.parseLong(out);
-                    this.onFieldValueChanged(activeField, parsed);
-                } catch (final NumberFormatException e) {
-                    // Exceeded Long.MAX_VALUE, clamp to Integer.MAX_VALUE
-                    this.onFieldValueChanged(activeField, Integer.MAX_VALUE);
+            // Remove leading zeros, unless the full thing is all "0"s (which is valid)
+            // This lets users type "5000", remove the "5" and put a "6" to make "6000",
+            // without re-typing the 0s.
+            boolean allZeros = out.chars().allMatch(c -> c == '0');
+            if (!allZeros) {
+                while (out.startsWith("0") && out.length() > 1) {
+                    out = out.substring(1);
                 }
             }
+
+            // If empty, we treat it at 0, as is the start state
+            long value = 0;
+            if (!out.isEmpty()) {
+                try {
+                    value = Long.parseLong(out);
+                } catch (final NumberFormatException e) {
+                    // Exceeded Long.MAX_VALUE, clamp to Integer.MAX_VALUE
+                    value = Integer.MAX_VALUE;
+                }
+            }
+
+            // ...and 0 does not reformat the field, to allow for "_000"
+            this.onFieldValueChanged(activeField, value, value != 0);
 
             // After all processing (including potential reformat), if we
             // pre-skipped a comma for backspace/delete, nudge the cursor past
@@ -463,8 +471,12 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
     /**
      * Handles value change for either text field, clamping and reformatting with commas.
      * Sends the appropriate packet to the server.
+     *
+     * @param field The text field that changed
+     * @param newValue The new numeric value (already parsed from the field)
+     * @param reformat Whether to reformat the field with commas and no leading zeros
      */
-    private void onFieldValueChanged(GuiTextField field, long newValue) {
+    private void onFieldValueChanged(GuiTextField field, long newValue, boolean reformat) {
         int min = (field == this.quantityField)
             ? ContainerPullPushCard.MINIMUM_QUANTITY
             : ContainerPullPushCard.MINIMUM_KEEP_QUANTITY;
@@ -473,7 +485,7 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
         String displayValue = String.format("%,d", clamped);
         String currentText = field.getText();
 
-        if (!currentText.equals(displayValue)) {
+        if (reformat && !currentText.equals(displayValue)) {
             // Preserve cursor position relative to the end (commas shift positions)
             int cursorFromEnd = currentText.length() - field.getCursorPosition();
             field.setText(displayValue);
