@@ -395,6 +395,8 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         syncmaxSlotSizeOverrides();
     }
 
+    // TODO: Share the sync logic better with the other container types (I/O, Combined, Proxy)
+
     @Override
     public void addListener(@Nonnull IContainerListener listener) {
         super.addListener(listener);

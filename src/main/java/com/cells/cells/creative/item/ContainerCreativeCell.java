@@ -30,10 +30,6 @@ public class ContainerCreativeCell extends AbstractCreativeCellSyncContainer<Cre
 
     public ContainerCreativeCell(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, hand, new CreativeCellFilterHandler(playerInv.player.getHeldItem(hand)));
-
-        // Filter slots are handled as custom GUI slots in the GUI class
-        // Bind player inventory - start at y=159 to leave room for our custom GUI area
-        bindPlayerInventory(playerInv, 0, 159);
     }
 
     @Override
@@ -63,20 +59,9 @@ public class ContainerCreativeCell extends AbstractCreativeCellSyncContainer<Cre
     }
 
     @Override
-    @Nullable
-    protected IAEItemStack copySyncStack(@Nullable IAEItemStack stack) {
-        return stack != null ? stack.copy() : null;
-    }
-
-    @Override
     protected boolean syncStacksEqual(@Nullable IAEItemStack a, @Nullable IAEItemStack b) {
         if (a == null) return b == null;
         return a.equals(b);
-    }
-
-    @Override
-    protected boolean isSyncStackEmpty(@Nullable IAEItemStack stack) {
-        return stack == null;
     }
 
     @Override
@@ -92,16 +77,5 @@ public class ContainerCreativeCell extends AbstractCreativeCellSyncContainer<Cre
         if (filterStack.isEmpty()) return null;
 
         return AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class).createStack(filterStack);
-    }
-
-    // ================================= GUI Support =================================
-
-    /**
-     * Get filter at slot as IAEItemStack for unified GUI slot rendering.
-     * This provides the same interface as item interfaces use.
-     */
-    @Nullable
-    public IAEItemStack getFilter(int slot) {
-        return getSyncStack(slot);
     }
 }

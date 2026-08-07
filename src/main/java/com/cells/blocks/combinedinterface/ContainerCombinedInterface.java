@@ -676,8 +676,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
 
     @Override
     public String getTypeLocalizationKey() {
-        ResourceType tab = this.host.getActiveTab();
-        return "cells.type." + tab.name().toLowerCase();
+        return this.host.getActiveTab().getTranslationKey();
     }
 
     @SuppressWarnings("rawtypes")

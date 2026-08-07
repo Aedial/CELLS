@@ -271,7 +271,7 @@ public class SubnetProxyFilterWidget extends AbstractResourceFilterSlot<IAEItemS
             // Show error: item is not valid for the current filter mode
             ResourceType mode = this.container.getFilterMode();
             MessageHelper.error("message.cells.not_valid_content",
-                I18n.format("cells.type." + mode.name().toLowerCase()));
+                I18n.format(mode.getTranslationKey()));
             return;
         }
 
@@ -293,7 +293,7 @@ public class SubnetProxyFilterWidget extends AbstractResourceFilterSlot<IAEItemS
             // Show error: ingredient not valid for current filter mode
             ResourceType mode = this.container.getFilterMode();
             MessageHelper.error("message.cells.not_valid_content",
-                I18n.format("cells.type." + mode.name().toLowerCase()));
+                I18n.format(mode.getTranslationKey()));
             return false;
         }
 

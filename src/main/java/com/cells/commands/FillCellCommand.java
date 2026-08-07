@@ -49,6 +49,8 @@ public class FillCellCommand extends CommandBase {
         return "fillCell";
     }
 
+    // TODO: Localize the command
+
     @Override
     @Nonnull
     public String getUsage(@Nonnull ICommandSender sender) {

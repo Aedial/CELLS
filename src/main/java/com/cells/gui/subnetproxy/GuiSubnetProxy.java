@@ -152,7 +152,7 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
             public String getMessage() {
                 // Dynamic tooltip showing the current filter mode name
                 ResourceType mode = GuiSubnetProxy.this.container.getFilterMode();
-                String type = I18n.format("cells.type." + mode.name().toLowerCase());
+                String type = I18n.format(mode.getTranslationKey());
                 return I18n.format("gui.cells.subnet_proxy.filter_mode", type) + "\n\n" + 
                     I18n.format("gui.cells.subnet_proxy.filter_mode.description");
             }
@@ -215,7 +215,7 @@ public class GuiSubnetProxy extends AEBaseGui implements IJEIGhostIngredients {
                 @Override
                 public String getMessage() {
                     ResourceType mode = GuiSubnetProxy.this.container.getFilterMode();
-                    String type = I18n.format("cells.type." + mode.name().toLowerCase());
+                    String type = I18n.format(mode.getTranslationKey());
                     return I18n.format("gui.cells.subnet_proxy.filter_mode", type) + "\n\n" +
                         I18n.format("gui.cells.subnet_proxy.filter_mode.description");
                 }

@@ -15,6 +15,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumHand;
 
 import appeng.util.Platform;
+import appeng.api.storage.data.IAEStack;
 
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.network.CellsNetworkHandler;
@@ -36,7 +37,10 @@ import com.cells.network.sync.ResourceType;
  * @param <H> The filter handler type
  * @param <S> The stack type used for sync (what gets sent in packets)
  */
-public abstract class AbstractCreativeCellSyncContainer<H extends AbstractCreativeCellFilterHandler<?, ?>, S>
+public abstract class AbstractCreativeCellSyncContainer<
+            H extends AbstractCreativeCellFilterHandler<?, ?>,
+            S extends IAEStack<S>
+        >
         extends AbstractCreativeCellContainer<H>
         implements IResourceSyncContainer, IQuickAddFilterContainer {
 
@@ -45,9 +49,39 @@ public abstract class AbstractCreativeCellSyncContainer<H extends AbstractCreati
 
     protected AbstractCreativeCellSyncContainer(InventoryPlayer playerInv, EnumHand hand, H filterHandler) {
         super(playerInv, hand, filterHandler);
+
+        // Bind player inventory - start at y=159 to leave room for our custom GUI area
+        bindPlayerInventory(playerInv, 0, 159);
     }
 
     // ================================= Abstract Methods =================================
+
+    /**
+     * Check if a sync stack is "empty" (null or empty equivalent).
+     */
+    protected boolean isSyncStackEmpty(@Nullable S stack) {
+        return stack == null;
+    }
+
+    /**
+     * Get filter at slot as the sync type for unified GUI slot rendering.
+     * This mirrors interfaces' API for consistency.
+     */
+    @Nullable
+    public S getFilter(int slot) {
+        return getSyncStack(slot);
+    }
+
+    /**
+     * Copy a sync stack for caching.
+     *
+     * @param stack The stack to copy
+     * @return A copy of the stack, or null if the input is null
+     */
+    @Nullable
+    protected S copySyncStack(@Nullable S stack) {
+        return stack != null ? stack.copy() : null;
+    }
 
     /**
      * @return The resource type for network sync.
@@ -74,23 +108,9 @@ public abstract class AbstractCreativeCellSyncContainer<H extends AbstractCreati
     protected abstract void setSyncStack(int slot, @Nullable S stack);
 
     /**
-     * Copy a sync stack for caching.
-     *
-     * @param stack The stack to copy
-     * @return A copy of the stack, or null if the input is null
-     */
-    @Nullable
-    protected abstract S copySyncStack(@Nullable S stack);
-
-    /**
      * Check if two sync stacks are equal for comparison.
      */
     protected abstract boolean syncStacksEqual(@Nullable S a, @Nullable S b);
-
-    /**
-     * Check if a sync stack is "empty" (null or empty equivalent).
-     */
-    protected abstract boolean isSyncStackEmpty(@Nullable S stack);
 
     /**
      * Check if the filter handler contains this stack.
@@ -143,7 +163,7 @@ public abstract class AbstractCreativeCellSyncContainer<H extends AbstractCreati
 
     @Override
     public String getTypeLocalizationKey() {
-        return "cells.type." + getResourceType().name().toLowerCase();
+        return getResourceType().getTranslationKey();
     }
 
     // ================================= Common Filter Operations =================================

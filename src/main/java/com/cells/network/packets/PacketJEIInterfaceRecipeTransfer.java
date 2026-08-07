@@ -65,6 +65,12 @@ public class PacketJEIInterfaceRecipeTransfer implements IMessage {
     public PacketJEIInterfaceRecipeTransfer() {
     }
 
+    // TODO: The packet is currently not protected against sending an "infinite" list.
+    //       An easy fix would be to limit each <ResourceType, directionTab> pair
+    //       to a maximum of 180 entries (max size of the interface).
+    //       A better fix would be to ask the interface container how much space it has
+    //       for each resource type and direction tab, and only send that many entries,
+    //       but that would require another round-trip to the server...
     public PacketJEIInterfaceRecipeTransfer(@Nonnull List<TransferEntry> entries) {
         this.entries = new ArrayList<>(entries);
     }
@@ -75,7 +81,7 @@ public class PacketJEIInterfaceRecipeTransfer implements IMessage {
         this.entries = new ArrayList<>(count);
 
         for (int i = 0; i < count; i++) {
-            ResourceType type = ResourceType.fromOrdinal(buf.readByte());
+            ResourceType type = ResourceType.values()[buf.readByte()];
             int directionTab = buf.readByte();
             Object resource = type.read(buf);
             this.entries.add(new TransferEntry(type, directionTab, resource));

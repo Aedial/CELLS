@@ -17,6 +17,8 @@ import com.cells.network.packets.PacketOverlayMessage;
  * <p>
  * Use this for all server-side feedback messages (containers, packet handlers, etc.)
  * where the player should see both a chat log entry and an immediate visual overlay.
+ * FIXME: Consider resolving the chat message on the client side instead of server side,
+ *        so that the overlay and chat are consistent in the player's locale.
  */
 public final class ServerMessageHelper {
 

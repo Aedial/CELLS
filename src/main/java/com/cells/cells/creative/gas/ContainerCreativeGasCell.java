@@ -28,9 +28,6 @@ public class ContainerCreativeGasCell extends AbstractCreativeCellSyncContainer<
 
     public ContainerCreativeGasCell(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, hand, new CreativeGasCellFilterHandler(playerInv.player.getHeldItem(hand)));
-
-        // Bind player inventory - start at y=159 to leave room for our custom GUI area
-        bindPlayerInventory(playerInv, 0, 159);
     }
 
     @Override
@@ -58,20 +55,9 @@ public class ContainerCreativeGasCell extends AbstractCreativeCellSyncContainer<
     }
 
     @Override
-    @Nullable
-    protected IAEGasStack copySyncStack(@Nullable IAEGasStack stack) {
-        return stack != null ? stack.copy() : null;
-    }
-
-    @Override
     protected boolean syncStacksEqual(@Nullable IAEGasStack a, @Nullable IAEGasStack b) {
         if (a == null) return b == null;
         return a.equals(b);
-    }
-
-    @Override
-    protected boolean isSyncStackEmpty(@Nullable IAEGasStack stack) {
-        return stack == null;
     }
 
     @Override
@@ -84,16 +70,5 @@ public class ContainerCreativeGasCell extends AbstractCreativeCellSyncContainer<
     protected IAEGasStack extractResourceFromItemStack(@Nonnull ItemStack container) {
         GasStack gas = QuickAddHelper.getGasFromItemStack(container);
         return gas != null ? AEGasStack.of(gas) : null;
-    }
-
-    // ================================= GUI Support =================================
-
-    /**
-     * Get filter at slot as IAEGasStack for unified GUI slot rendering.
-     * This provides the same interface as gas interfaces use.
-     */
-    @Nullable
-    public IAEGasStack getFilter(int slot) {
-        return getSyncStack(slot);
     }
 }

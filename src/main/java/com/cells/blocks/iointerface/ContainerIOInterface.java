@@ -694,7 +694,7 @@ public class ContainerIOInterface extends AEBaseContainer
 
     @Override
     public String getTypeLocalizationKey() {
-        return "cells.type." + this.host.getResourceType().name().toLowerCase();
+        return this.host.getResourceType().getTranslationKey();
     }
 
     @SuppressWarnings("rawtypes")
