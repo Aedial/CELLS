@@ -4,6 +4,8 @@ import javax.annotation.Nullable;
 
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.Optional;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
@@ -33,9 +35,14 @@ import com.cells.recipes.InscriberRecipeHandler;
 
 public class CommonProxy {
 
+    private static final String TOP_MODID = "theoneprobe";
+
     public void preInit(FMLPreInitializationEvent event) {
         // Initialize our creative tab before items so constructors can reference it
         CellsCreativeTab.init();
+
+        // Register TOP integration (must be on common, even though TOP is mostly client-side)
+        if (Loader.isModLoaded(TOP_MODID)) registerTheOneProbeIntegration();
 
         // Initialize blocks
         BlockRegistry.init();
@@ -95,5 +102,10 @@ public class CommonProxy {
     @Nullable
     public World getClientWorld() {
         return null;
+    }
+
+    @Optional.Method(modid = TOP_MODID)
+    private static void registerTheOneProbeIntegration() {
+        com.cells.integration.theoneprobe.CellsTheOneProbePlugin.register();
     }
 }
