@@ -299,6 +299,16 @@ public class ContainerCombinedInterface extends AEBaseContainer
         getActiveLogic().setPollingRate(ticks);
     }
 
+    public boolean triggerImmediatePollingAction() {
+        boolean didWork = false;
+        for (ResourceType type : this.host.getAvailableTabs()) {
+            IInterfaceLogic logic = this.host.getLogicForType(type);
+            if (logic != null) didWork |= logic.triggerImmediatePollingAction();
+        }
+
+        return didWork;
+    }
+
     public void clearFilters() {
         getActiveLogic().clearFilters();
     }

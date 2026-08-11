@@ -149,6 +149,15 @@ public interface IInterfaceLogic {
     void wakeUpIfAdaptive();
 
     /**
+     * Run one immediate polling cycle for all available tabs, including Pull/Push Card operations.
+     * This manually triggers the same resource movement path the scheduler would
+     * normally perform on a later tick.
+     *
+     * @return true when the cycle moved any resources
+     */
+    boolean triggerImmediatePollingAction();
+
+    /**
      * Called when the grid proxy becomes ready (after onReady/addToWorld).
      * Re-scans the adjacent capability cache and re-registers tick rate.
      * <p>

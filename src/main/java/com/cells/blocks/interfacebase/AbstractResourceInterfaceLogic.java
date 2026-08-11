@@ -1345,6 +1345,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         this.tickScheduler.wakeUpIfAdaptive();
     }
 
+    @Override
+    public boolean triggerImmediatePollingAction() {
+        return this.tickScheduler.triggerImmediatePollingAction(
+            this.host.isExport(),
+            this.upgradeManager.hasAutoPullPushUpgrade()
+        );
+    }
+
     /**
      * Get the maximum request size for the AE network.
      * This is used to clamp requests to avoid issues with some mods

@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.8-beta] - 2026-08-30
+### Added
+- Add a manual refresh button to interface GUIs so the current tab can immediately push/pull all content to the network, including Pull/Push Card operations.
+
+
 ## [0.6.7-beta] - 2026-08-07
 ### Added
 - Expand WAILA and The One Probe block tooltips beyond interface timings, including filter counts, hidden behavior toggles, and current pull/push card I/O sides for interfaces, exposed pattern summaries for the Compacting Pattern Exposer, and channel/filter mode summaries for Subnet Proxies.

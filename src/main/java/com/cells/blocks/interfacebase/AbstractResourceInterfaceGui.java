@@ -38,6 +38,7 @@ import com.cells.config.CellsConfig;
 import com.cells.gui.DynamicTooltipTabButton;
 import com.cells.gui.GuiClearFiltersButton;
 import com.cells.gui.GuiControlsHelpToggleButton;
+import com.cells.gui.GuiImmediatePollingButton;
 import com.cells.gui.GuiPageNavigation;
 import com.cells.gui.GuiPullPushUpgradeButton;
 import com.cells.gui.GuiRecipeTransferDirectionButton;
@@ -52,6 +53,7 @@ import com.cells.network.packets.PacketChangePage;
 import com.cells.network.packets.PacketClearFilters;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketOpenSlotOverrideGui;
+import com.cells.network.packets.PacketTriggerPollingAction;
 import com.cells.util.PollingRateUtils;
 
 
@@ -105,6 +107,12 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     private GuiPullPushUpgradeButton pullPushButton;
     private GuiControlsHelpToggleButton controlsToggleButton;
     private GuiRecipeTransferDirectionButton recipeTransferDirectionButton;
+    private GuiImmediatePollingButton pollingActionButton;
+
+    public static final int POLLING_ACTION_BUTTON_X_NO_TOOLBOX = 186;
+    public static final int POLLING_ACTION_BUTTON_Y_NO_TOOLBOX = 157;
+    public static final int POLLING_ACTION_BUTTON_X_WITH_TOOLBOX = 214;
+    public static final int POLLING_ACTION_BUTTON_Y_WITH_TOOLBOX = 106;
 
     // JEI ghost target mapping
     protected final Map<Object, Object> mapTargetSlot = new HashMap<>();
@@ -345,6 +353,18 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         );
         this.buttonList.add(this.controlsToggleButton);
 
+        // When toolbox is not present, the button is under the upgrades area. When it is present,
+        // the button is moved to the right of the push/pull button to avoid overlap with the toolbox.
+        this.pollingActionButton = new GuiImmediatePollingButton(
+            1,
+            this.getPollingActionButtonX(),
+            this.getPollingActionButtonY(),
+            () -> I18n.format("tooltip.cells.trigger_poll.title") + "\n\n"
+                + I18n.format("tooltip.cells.trigger_poll.desc") + "\n"
+                + I18n.format("tooltip.cells.trigger_poll.cards")
+        );
+        this.buttonList.add(this.pollingActionButton);
+
         // Toggle button to swap whether Import or Export interfaces receive recipe inputs.
         this.recipeTransferDirectionButton = new GuiRecipeTransferDirectionButton(
             6,
@@ -493,6 +513,13 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         if (hasToolbox) {
             // Draw the extension from the same texture, sampling from x=210 in the texture
             this.drawTexturedModalRect(offsetX + 210, offsetY + 149, 210, 149, 36, 67);
+
+            // Draw the refresh button's border (16x16 button + 8px padding) at the correct position
+            int padding = 8;
+            int size = 16 + 2 * padding;
+            int buttonX = POLLING_ACTION_BUTTON_X_WITH_TOOLBOX - padding;
+            int buttonY = POLLING_ACTION_BUTTON_Y_WITH_TOOLBOX - padding;
+            this.drawTexturedModalRect(offsetX + buttonX, offsetY + buttonY, buttonX, buttonY, size, size);
         }
     }
 
@@ -502,6 +529,11 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
         if (btn == this.recipeTransferDirectionButton) {
             CellsConfig.setJeiTransferInputsToExport(!CellsConfig.hidden.jeiTransferInputsToExport);
+            return;
+        }
+
+        if (btn == this.pollingActionButton) {
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketTriggerPollingAction());
             return;
         }
 
@@ -641,6 +673,18 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             areas.add(new Rectangle(this.guiLeft + 210, this.guiTop + 149, 36, 67));
         }
 
+        if (this.pollingActionButton != null && this.pollingActionButton.visible) {
+            Rectangle buttonBounds = new Rectangle(
+                this.pollingActionButton.x,
+                this.pollingActionButton.y,
+                this.pollingActionButton.getWidth(),
+                this.pollingActionButton.getHeight()
+            );
+            Rectangle mainGuiBounds = new Rectangle(this.guiLeft, this.guiTop, this.xSize, this.ySize);
+
+            if (!mainGuiBounds.contains(buttonBounds)) areas.add(buttonBounds);
+        }
+
         return areas;
     }
 
@@ -738,5 +782,17 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     private boolean hasToolbox() {
         return this.container instanceof IToolboxContainer
             && ((IToolboxContainer) this.container).hasToolbox();
+    }
+
+    private int getPollingActionButtonX() {
+        if (this.hasToolbox()) return this.guiLeft + POLLING_ACTION_BUTTON_X_WITH_TOOLBOX;
+
+        return this.guiLeft + POLLING_ACTION_BUTTON_X_NO_TOOLBOX;
+    }
+
+    private int getPollingActionButtonY() {
+        if (this.hasToolbox()) return this.guiTop + POLLING_ACTION_BUTTON_Y_WITH_TOOLBOX;
+
+        return this.guiTop + POLLING_ACTION_BUTTON_Y_NO_TOOLBOX;
     }
 }

@@ -56,6 +56,9 @@ cells.filter_slot.hint.right_click=Right-click to override max slot size
 cells.polling_rate.title=Polling Rate
 cells.polling_rate.adaptive=Polling Rate: Adaptive
 cells.clear_filters=Clear Filters
+tooltip.cells.trigger_poll.title=Transfer everything now
+tooltip.cells.trigger_poll.desc=Immediately transfers all content for the interface
+tooltip.cells.trigger_poll.cards=Includes Pull/Push Card transfers.
 
 # Polling rate - direction-specific
 tooltip.cells.polling_rate.import=Fixed interval for importing (0 = adaptive, nonzero = ticks)

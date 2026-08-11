@@ -303,6 +303,10 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         this.host.setPollingRate(ticks);
     }
 
+    public boolean triggerImmediatePollingAction() {
+        return this.host.triggerImmediatePollingAction();
+    }
+
     /**
      * Clear all filters. Delegates to host.
      */

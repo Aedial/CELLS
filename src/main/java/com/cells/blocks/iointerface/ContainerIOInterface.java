@@ -328,6 +328,11 @@ public class ContainerIOInterface extends AEBaseContainer
         this.host.setPollingRate(ticks);
     }
 
+    public boolean triggerImmediatePollingAction() {
+        return this.host.getImportLogic().triggerImmediatePollingAction() |
+               this.host.getExportLogic().triggerImmediatePollingAction();
+    }
+
     public void clearFilters() {
         getActiveLogic().clearFilters();
     }
