@@ -115,6 +115,9 @@ tooltip.cells.probe.matching.blacklist=黑名单
 tooltip.cells.clear_filters.import=清除所有过滤槽位。将跳过存有内容的过滤槽位。
 tooltip.cells.clear_filters.export=清除所有过滤项，并将存储的内容发送回网络。
 tooltip.cells.clear_filters.all=清除所有过滤槽位
+tooltip.cells.trigger_poll.title=立即传输所有内容
+tooltip.cells.trigger_poll.desc=立即传输该接口的所有内容
+tooltip.cells.trigger_poll.cards=包括拉取/推送卡片的传输。
 
 # Controls help toggle button
 tooltip.cells.controls_help.show=显示控制帮助
@@ -295,8 +298,8 @@ tooltip.cells.decompression_tier_card.desc=支持最多%d级解压。出于性�
 
 # EMC Cell
 item.cells.emc_cell.name=EMC ME存储元件
-item.cells.emc_capacity_card.tier1.name=精致EMC升级
-item.cells.emc_capacity_card.tier2.name=压缩EMC升级
+item.cells.emc_capacity_card.tier1.name=精致EMC升级卡
+item.cells.emc_capacity_card.tier2.name=压缩EMC升级卡
 tooltip.cells.emc_cell.info=已绑定的EMC存储元件。以固定数量公开已学习的分区物品，并将支持的输入物品转换为EMC。
 tooltip.cells.emc_cell.slots=分区槽位：%s
 tooltip.cells.emc_cell.owner=绑定至：%s
