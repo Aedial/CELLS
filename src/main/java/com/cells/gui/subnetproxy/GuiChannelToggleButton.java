@@ -139,7 +139,7 @@ public class GuiChannelToggleButton extends GuiButton implements ITooltip {
     @Override
     public String getMessage() {
         boolean enabled = this.enabledSupplier.getAsBoolean();
-        String typeName = I18n.format("cells.type." + this.type.name().toLowerCase());
+        String typeName = I18n.format(this.type.getTranslationKey());
         String stateKey = enabled
             ? "gui.cells.subnet_proxy.channel_toggle.enabled"
             : "gui.cells.subnet_proxy.channel_toggle.disabled";

@@ -173,6 +173,13 @@ public interface IFilterableInterfaceHost<T, K> extends IInterfaceHost {
         getInterfaceLogic().clearFilters();
     }
 
+    /**
+     * Run the polling process immediately for this host's active logic.
+     */
+    default boolean triggerImmediatePollingAction() {
+        return getInterfaceLogic().triggerImmediatePollingAction();
+    }
+
     // ================================= Upgrades (delegated to logic) =================================
 
     /**

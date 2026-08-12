@@ -303,6 +303,10 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         this.host.setPollingRate(ticks);
     }
 
+    public boolean triggerImmediatePollingAction() {
+        return this.host.triggerImmediatePollingAction();
+    }
+
     /**
      * Clear all filters. Delegates to host.
      */
@@ -394,6 +398,8 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         // Server-side per-slot size override sync
         syncmaxSlotSizeOverrides();
     }
+
+    // TODO: Share the sync logic better with the other container types (I/O, Combined, Proxy)
 
     @Override
     public void addListener(@Nonnull IContainerListener listener) {

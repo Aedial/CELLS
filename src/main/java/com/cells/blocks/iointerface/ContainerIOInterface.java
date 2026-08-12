@@ -328,6 +328,11 @@ public class ContainerIOInterface extends AEBaseContainer
         this.host.setPollingRate(ticks);
     }
 
+    public boolean triggerImmediatePollingAction() {
+        return this.host.getImportLogic().triggerImmediatePollingAction() |
+               this.host.getExportLogic().triggerImmediatePollingAction();
+    }
+
     public void clearFilters() {
         getActiveLogic().clearFilters();
     }
@@ -694,7 +699,7 @@ public class ContainerIOInterface extends AEBaseContainer
 
     @Override
     public String getTypeLocalizationKey() {
-        return "cells.type." + this.host.getResourceType().name().toLowerCase();
+        return this.host.getResourceType().getTranslationKey();
     }
 
     @SuppressWarnings("rawtypes")

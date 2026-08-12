@@ -24,15 +24,11 @@ import com.cells.items.ItemRecoveryContainer;
 
 public class ClientProxy extends CommonProxy {
 
-    private static final String TOP_MODID = "theoneprobe";
     private static final String WAILA_MODID = "waila";
 
     @Override
     public void preInit(FMLPreInitializationEvent event) {
         super.preInit(event);
-
-        // Register TOP integration
-        if (Loader.isModLoaded(TOP_MODID)) registerTheOneProbeIntegration();
 
         // Register keybindings
         KeyBindings.registerAll();
@@ -64,11 +60,6 @@ public class ClientProxy extends CommonProxy {
     @Nullable
     public World getClientWorld() {
         return Minecraft.getMinecraft().world;
-    }
-
-    @Optional.Method(modid = TOP_MODID)
-    private static void registerTheOneProbeIntegration() {
-        com.cells.integration.theoneprobe.CellsTheOneProbePlugin.register();
     }
 
     @Optional.Method(modid = WAILA_MODID)

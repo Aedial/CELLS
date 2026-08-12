@@ -17,6 +17,7 @@ import com.cells.network.packets.PacketSetPollingRate;
 import com.cells.network.packets.PacketSetPullPushKeepQuantity;
 import com.cells.network.packets.PacketSetPullPushQuantity;
 import com.cells.network.packets.PacketSetPullPushRate;
+import com.cells.network.packets.PacketTriggerPollingAction;
 import com.cells.network.packets.PacketsetMaxSlotSizeOverride;
 import com.cells.network.packets.PacketOpenSlotOverrideGui;
 import com.cells.network.packets.PacketSwitchTab;
@@ -50,6 +51,7 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketSetMaxSlotSize.Handler.class, PacketSetMaxSlotSize.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketOpenGui.Handler.class, PacketOpenGui.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetPollingRate.Handler.class, PacketSetPollingRate.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketTriggerPollingAction.Handler.class, PacketTriggerPollingAction.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetConfigurableCellCapacity.Handler.class, PacketSetConfigurableCellCapacity.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetConfigurableCellMaxTypes.Handler.class, PacketSetConfigurableCellMaxTypes.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSaveMemoryCardWithFilters.Handler.class, PacketSaveMemoryCardWithFilters.class, packetId++, Side.SERVER);

@@ -37,7 +37,8 @@ public class GuiCreativeCell extends AbstractCreativeCellGui<ContainerCreativeCe
 
     @Override
     protected String getTitleKey() {
-        return "cells.creative_cell.item.title";
+        String type = this.container.getResourceType().name().toLowerCase();
+        return "cells.creative_cell." + type + ".title";
     }
 
     @Override

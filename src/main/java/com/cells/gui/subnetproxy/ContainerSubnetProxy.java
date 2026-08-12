@@ -620,7 +620,7 @@ public class ContainerSubnetProxy extends AEBaseContainer
 
     @Override
     public String getTypeLocalizationKey() {
-        return "cells.type." + this.getFilterMode().name().toLowerCase();
+        return this.getFilterMode().getTranslationKey();
     }
 
     /**

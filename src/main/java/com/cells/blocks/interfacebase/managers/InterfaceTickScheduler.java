@@ -306,6 +306,40 @@ public class InterfaceTickScheduler {
         return shouldSleep ? TickRateModulation.SLEEP : TickRateModulation.SLOWER;
     }
 
+    /**
+     * Run the polling process immediately, outside AE2's normal tick cadence.
+     * <p>
+     * Import-oriented interfaces pull from adjacent inventories before pushing the
+     * result into the ME network so one click can flush freshly gathered content.
+     * Export-oriented interfaces do the reverse so one click can stage from the
+     * ME network and immediately hand the staged content to any push card.
+     *
+     * @param isExport Whether the active logic is currently exporting
+     * @param hasAutoPullPushUpgrade Whether the active logic has an auto pull/push card installed
+     * @return true when any network I/O or card transfer moved resources
+     */
+    public boolean triggerImmediatePollingAction(boolean isExport, boolean hasAutoPullPushUpgrade) {
+        if (!this.callbacks.getGridProxy().isActive()) return false;
+
+        boolean didWork = false;
+
+        if (isExport) {
+            didWork |= this.callbacks.performNetworkIO();
+            if (hasAutoPullPushUpgrade) didWork |= this.callbacks.performAutoPullPush();
+        } else {
+            if (hasAutoPullPushUpgrade) didWork |= this.callbacks.performAutoPullPush();
+            didWork |= this.callbacks.performNetworkIO();
+        }
+
+        if (didWork) this.callbacks.markDirtyAndSave();
+
+        if (this.pollingRate == 0 && (this.callbacks.hasWorkToDo() || hasAutoPullPushUpgrade)) {
+            this.wakeUpIfAdaptive();
+        }
+
+        return didWork;
+    }
+
     // ============================== Sleep/Wake management ==============================
 
     /**

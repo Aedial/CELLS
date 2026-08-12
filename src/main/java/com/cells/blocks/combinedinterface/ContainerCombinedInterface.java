@@ -299,6 +299,16 @@ public class ContainerCombinedInterface extends AEBaseContainer
         getActiveLogic().setPollingRate(ticks);
     }
 
+    public boolean triggerImmediatePollingAction() {
+        boolean didWork = false;
+        for (ResourceType type : this.host.getAvailableTabs()) {
+            IInterfaceLogic logic = this.host.getLogicForType(type);
+            if (logic != null) didWork |= logic.triggerImmediatePollingAction();
+        }
+
+        return didWork;
+    }
+
     public void clearFilters() {
         getActiveLogic().clearFilters();
     }
@@ -676,8 +686,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
 
     @Override
     public String getTypeLocalizationKey() {
-        ResourceType tab = this.host.getActiveTab();
-        return "cells.type." + tab.name().toLowerCase();
+        return this.host.getActiveTab().getTranslationKey();
     }
 
     @SuppressWarnings("rawtypes")

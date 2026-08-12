@@ -46,7 +46,7 @@ import com.cells.gui.slots.AbstractResourceFilterSlot;
  * @param <C> Type of the container used by this GUI
  */
 @Optional.Interface(iface = "appeng.container.interfaces.IJEIGhostIngredients", modid = "jei")
-public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellContainer<?>>
+public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellSyncContainer<?, ?>>
         extends AEBaseGui implements IJEIGhostIngredients {
 
     protected static final ResourceLocation TEXTURE = new ResourceLocation(Tags.MODID, "textures/guis/creative_cell.png");
@@ -66,7 +66,11 @@ public abstract class AbstractCreativeCellGui<C extends AbstractCreativeCellCont
     /**
      * Get the localization key for the GUI title.
      */
-    protected abstract String getTitleKey();
+    protected String getTitleKey() {
+        String type = this.container.getResourceType().getName();
+        return "cells.creative_cell." + type + ".title";
+    }
+
 
     /**
      * Called during initGui to create type-specific slots (items or fluids).

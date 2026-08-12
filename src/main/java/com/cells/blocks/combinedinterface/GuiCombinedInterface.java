@@ -288,7 +288,7 @@ public class GuiCombinedInterface
             List<ResourceType> tabs = this.host.getAvailableTabs();
 
             if (this.hoveredTabIndex < tabs.size()) {
-                String tabName = I18n.format("cells.type." + tabs.get(this.hoveredTabIndex).name().toLowerCase());
+                String tabName = I18n.format(tabs.get(this.hoveredTabIndex).getTranslationKey());
                 this.drawHoveringText(Collections.singletonList(tabName), mouseX, mouseY);
             }
         }

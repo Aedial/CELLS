@@ -41,6 +41,7 @@ import com.cells.Tags;
 import com.cells.ItemRegistry;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
+import com.cells.network.sync.ResourceType;
 import com.cells.util.FluidStackKey;
 
 
@@ -197,18 +198,17 @@ public class ItemRecoveryContainer extends Item {
         return stack.getTagCompound().getInteger(NBT_TYPE);
     }
 
-    public static String getTypeKey(int type) {
+    public static ResourceType getResourceType(int type) {
         switch (type) {
             case TYPE_FLUID:
-                return "fluid";
+                return ResourceType.FLUID;
             case TYPE_GAS:
-                return "gas";
+                return ResourceType.GAS;
             case TYPE_ESSENTIA:
-                return "essentia";
+                return ResourceType.ESSENTIA;
             case TYPE_ITEM:
-                return "item";
             default:
-                return "unknown";
+                return ResourceType.ITEM;
         }
     }
 
@@ -387,7 +387,7 @@ public class ItemRecoveryContainer extends Item {
     @SideOnly(Side.CLIENT)
     public String getItemStackDisplayName(@Nonnull ItemStack stack) {
         int type = getType(stack);
-        String typeName = I18n.format("cells.type." + getTypeKey(type));
+        String typeName = I18n.format(getResourceType(type).getTranslationKey());
         String contentName = getContentDisplayName(stack, type);
 
         if (contentName == null || contentName.isEmpty()) {
@@ -429,9 +429,9 @@ public class ItemRecoveryContainer extends Item {
                                @Nonnull ITooltipFlag flag) {
         int type = getType(stack);
         long amount = getAmount(stack);
-        String typeKey = getTypeKey(type);
-        String typeName = I18n.format("cells.type." + typeKey);
-        String unitName = I18n.format("cells.unit." + typeKey);
+        ResourceType resourceType = getResourceType(type);
+        String typeName = I18n.format(resourceType.getTranslationKey());
+        String unitName = I18n.format(resourceType.getUnitTranslationKey());
 
         tooltip.add("§7" + I18n.format("tooltip.cells.recovery_container.type", typeName));
 
@@ -638,8 +638,8 @@ public class ItemRecoveryContainer extends Item {
         //       into thinking the problem is already solved
 
         // Use type-appropriate unit for message
-        String typeKey = getTypeKey(type);
-        String unitName = new TextComponentTranslation("cells.unit." + typeKey).getFormattedText();
+        ResourceType resourceType = getResourceType(type);
+        String unitName = new TextComponentTranslation(resourceType.getUnitTranslationKey()).getFormattedText();
 
         if (transferred > 0) {
             long remaining = amount - transferred;
@@ -658,7 +658,7 @@ public class ItemRecoveryContainer extends Item {
             // No transfer occurred - inform player
             player.sendStatusMessage(new TextComponentTranslation(
                 "cells.recovery_container.no_transfer",
-                new TextComponentTranslation("cells.type." + typeKey)
+                new TextComponentTranslation(resourceType.getTranslationKey())
             ), true);
         }
 

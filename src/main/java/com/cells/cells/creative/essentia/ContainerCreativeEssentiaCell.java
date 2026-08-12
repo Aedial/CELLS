@@ -27,9 +27,6 @@ public class ContainerCreativeEssentiaCell extends AbstractCreativeCellSyncConta
 
     public ContainerCreativeEssentiaCell(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, hand, new CreativeEssentiaCellFilterHandler(playerInv.player.getHeldItem(hand)));
-
-        // Bind player inventory - start at y=159 to leave room for our custom GUI area
-        bindPlayerInventory(playerInv, 0, 159);
     }
 
     @Override
@@ -58,20 +55,9 @@ public class ContainerCreativeEssentiaCell extends AbstractCreativeCellSyncConta
     }
 
     @Override
-    @Nullable
-    protected IAEEssentiaStack copySyncStack(@Nullable IAEEssentiaStack stack) {
-        return stack != null ? stack.copy() : null;
-    }
-
-    @Override
     protected boolean syncStacksEqual(@Nullable IAEEssentiaStack a, @Nullable IAEEssentiaStack b) {
         if (a == null) return b == null;
         return a.equals(b);
-    }
-
-    @Override
-    protected boolean isSyncStackEmpty(@Nullable IAEEssentiaStack stack) {
-        return stack == null;
     }
 
     @Override
@@ -85,16 +71,5 @@ public class ContainerCreativeEssentiaCell extends AbstractCreativeCellSyncConta
     protected IAEEssentiaStack extractResourceFromItemStack(@Nonnull ItemStack container) {
         EssentiaStack raw = QuickAddHelper.getEssentiaFromItemStack(container);
         return raw != null ? AEEssentiaStack.fromEssentiaStack(raw) : null;
-    }
-
-    // ================================= GUI Support =================================
-
-    /**
-     * Get filter at slot as IAEEssentiaStack for unified GUI slot rendering.
-     * This provides the same interface as other creative cells use.
-     */
-    @Nullable
-    public IAEEssentiaStack getFilter(int slot) {
-        return getSyncStack(slot);
     }
 }

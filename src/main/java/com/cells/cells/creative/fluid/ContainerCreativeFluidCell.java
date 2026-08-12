@@ -27,9 +27,6 @@ public class ContainerCreativeFluidCell extends AbstractCreativeCellSyncContaine
 
     public ContainerCreativeFluidCell(InventoryPlayer playerInv, EnumHand hand) {
         super(playerInv, hand, new CreativeFluidCellFilterHandler(playerInv.player.getHeldItem(hand)));
-
-        // Bind player inventory - start at y=159 to leave room for our custom GUI area
-        bindPlayerInventory(playerInv, 0, 159);
     }
 
     @Override
@@ -57,20 +54,9 @@ public class ContainerCreativeFluidCell extends AbstractCreativeCellSyncContaine
     }
 
     @Override
-    @Nullable
-    protected IAEFluidStack copySyncStack(@Nullable IAEFluidStack stack) {
-        return stack != null ? stack.copy() : null;
-    }
-
-    @Override
     protected boolean syncStacksEqual(@Nullable IAEFluidStack a, @Nullable IAEFluidStack b) {
         if (a == null) return b == null;
         return a.equals(b);
-    }
-
-    @Override
-    protected boolean isSyncStackEmpty(@Nullable IAEFluidStack stack) {
-        return stack == null;
     }
 
     @Override
@@ -83,16 +69,5 @@ public class ContainerCreativeFluidCell extends AbstractCreativeCellSyncContaine
     protected IAEFluidStack extractResourceFromItemStack(@Nonnull ItemStack container) {
         FluidStack fluid = QuickAddHelper.getFluidFromItemStack(container);
         return fluid != null ? AEFluidStack.fromFluidStack(fluid) : null;
-    }
-
-    // ================================= GUI Support =================================
-
-    /**
-     * Get filter at slot as IAEFluidStack for unified GUI slot rendering.
-     * This provides the same interface as fluid interfaces use.
-     */
-    @Nullable
-    public IAEFluidStack getFilter(int slot) {
-        return getSyncStack(slot);
     }
 }

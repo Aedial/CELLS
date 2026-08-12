@@ -36,22 +36,50 @@ public enum ResourceType {
     /**
      * Item stacks - uses vanilla serialization + NBT.
      */
-    ITEM,
+    ITEM("item"),
 
     /**
      * Fluid stacks - uses AE2's IAEFluidStack.
      */
-    FLUID,
+    FLUID("fluid"),
 
     /**
      * Gas stacks - requires MekanismEnergistics.
      */
-    GAS,
+    GAS("gas"),
 
     /**
      * Essentia stacks - requires ThaumicEnergistics.
      */
-    ESSENTIA;
+    ESSENTIA("essentia");
+
+
+    private final String name;
+
+    ResourceType(String name) {
+        this.name = name;
+    }
+
+    ResourceType() {
+        this.name = this.name().toLowerCase();
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public String getTranslationKey() {
+        return "cells.type." + this.name;
+    }
+
+    public String getUnitTranslationKey() {
+        return "cells.unit." + this.name;
+    }
+
+    @Override
+    public String toString() {
+        return this.name;
+    }
 
     // ================================= Serialization =================================
 
