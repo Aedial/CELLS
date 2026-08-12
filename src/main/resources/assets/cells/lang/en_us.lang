@@ -298,8 +298,8 @@ tooltip.cells.decompression_tier_card.desc=Enables up to %d decompression tiers.
 
 # EMC Cell
 item.cells.emc_cell.name=EMC ME Storage Cell
-item.cells.emc_capacity_card.tier1.name=Refined EMC Upgrade
-item.cells.emc_capacity_card.tier2.name=Compressed EMC Upgrade
+item.cells.emc_capacity_card.tier1.name=Refined EMC Upgrade Card
+item.cells.emc_capacity_card.tier2.name=Compressed EMC Upgrade Card
 tooltip.cells.emc_cell.info=Bound EMC storage cell. Exposes learned partition items at a fixed count and converts accepted inserts into EMC.
 tooltip.cells.emc_cell.slots=Partition slots: %s
 tooltip.cells.emc_cell.owner=Bound to: %s
