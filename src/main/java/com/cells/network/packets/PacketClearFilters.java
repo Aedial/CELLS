@@ -11,8 +11,9 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import appeng.tile.inventory.AppEngInternalInventory;
 
-import com.cells.blocks.interfacebase.item.ContainerItemInterface;
-import com.cells.blocks.interfacebase.fluid.ContainerFluidInterface;
+import com.cells.blocks.combinedinterface.ContainerCombinedInterface;
+import com.cells.blocks.interfacebase.AbstractContainerInterface;
+import com.cells.blocks.iointerface.ContainerIOInterface;
 import com.cells.gui.subnetproxy.ContainerSubnetProxy;
 import com.cells.parts.subnetproxy.PartSubnetProxyFront;
 
@@ -46,10 +47,12 @@ public class PacketClearFilters implements IMessage {
             player.getServerWorld().addScheduledTask(() -> {
                 Container container = player.openContainer;
 
-                if (container instanceof ContainerItemInterface) {
-                    ((ContainerItemInterface) container).clearFilters();
-                } else if (container instanceof ContainerFluidInterface) {
-                    ((ContainerFluidInterface) container).clearFilters();
+                if (container instanceof AbstractContainerInterface) {
+                    ((AbstractContainerInterface<?, ?, ?>) container).clearFilters();
+                } else if (container instanceof ContainerCombinedInterface) {
+                    ((ContainerCombinedInterface) container).clearFilters();
+                } else if (container instanceof ContainerIOInterface) {
+                    ((ContainerIOInterface) container).clearFilters();
                 } else if (container instanceof ContainerSubnetProxy) {
                     // Clear all filter slots in the Subnet Proxy config inventory
                     PartSubnetProxyFront part = ((ContainerSubnetProxy) container).getPart();
@@ -57,7 +60,12 @@ public class PacketClearFilters implements IMessage {
                     for (int i = 0; i < config.getSlots(); i++) {
                         config.setStackInSlot(i, ItemStack.EMPTY);
                     }
+                } else {
+                    return;
                 }
+
+                container.detectAndSendChanges();
+
             });
 
             return null;

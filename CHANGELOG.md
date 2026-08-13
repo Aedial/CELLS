@@ -13,6 +13,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.8-beta] - 2026-??-??
+### Fixed
+- Fix the Clear Filters button not applying in I/O and Universal Interfaces.
+
+
 ## [0.6.7-beta2] - 2026-08-11
 ### Added
 - Add a manual refresh button to interface GUIs so the current tab can immediately push/pull all content to the network, including Pull/Push Card operations.
