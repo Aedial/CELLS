@@ -129,8 +129,10 @@ public class InterfaceAdjacentHandler<R, K> {
 
     /**
      * Cached weak references to adjacent tile entities, keyed by facing direction.
-     * WeakReference prevents memory leaks if the TE is removed without neighborChanged firing.
-     * Must check ref.get() != null && !te.isInvalid() before every use.
+     * Entries are retained even when the tile does not provide one of our capabilities,
+     * so a redstone-only neighbor notification from the same tile does not cause another
+     * capability probe. WeakReference prevents memory leaks if the TE is removed without
+     * neighborChanged firing. Must check ref.get() != null && !te.isInvalid() before every use.
      */
     private final Map<EnumFacing, WeakReference<TileEntity>> cachedAdjacentTiles = new EnumMap<>(EnumFacing.class);
 
@@ -168,8 +170,17 @@ public class InterfaceAdjacentHandler<R, K> {
      * For use by {@link #scanAndCacheFacing} implementations in subclasses.
      */
     protected void putCapabilityCache(EnumFacing facing, TileEntity te, Object handler) {
-        this.cachedAdjacentTiles.put(facing, new WeakReference<>(te));
+        cacheAdjacentTile(facing, te);
         this.cachedCapabilities.put(facing, handler);
+    }
+
+    /**
+     * Remember the adjacent tile even when it does not expose a usable handler.
+     * This provides a negative cache for repeated neighbor notifications caused by
+     * internal state changes such as a comparator/redstone-output update.
+     */
+    protected void cacheAdjacentTile(EnumFacing facing, TileEntity te) {
+        this.cachedAdjacentTiles.put(facing, new WeakReference<>(te));
     }
 
     // ============================== Cache management ==============================
@@ -227,9 +238,10 @@ public class InterfaceAdjacentHandler<R, K> {
             return;
         }
 
+        cacheAdjacentTile(facing, te);
+
         List<Capability<?>> caps = this.ops.getAdjacentCapabilities();
         if (caps == null || caps.isEmpty()) {
-            this.cachedAdjacentTiles.remove(facing);
             this.cachedCapabilities.remove(facing);
             return;
         }
@@ -248,8 +260,7 @@ public class InterfaceAdjacentHandler<R, K> {
             }
         }
 
-        // No matching capability found
-        this.cachedAdjacentTiles.remove(facing);
+        // No matching capability found, remove the capability but retain the TE as a negative cache
         this.cachedCapabilities.remove(facing);
     }
 
@@ -305,10 +316,28 @@ public class InterfaceAdjacentHandler<R, K> {
 
         for (EnumFacing facing : EnumFacing.VALUES) {
             if (pos.offset(facing).equals(neighborPos)) {
+                if (isCachedTileStillPresent(world, neighborPos, facing)) return;
+
                 invalidateCapabilityCacheForFacing(facing, hasAutoPullPushUpgrade);
                 return;
             }
         }
+    }
+
+    /**
+     * Check whether a neighbor notification came from the exact tile entity already
+     * represented by this cache entry. A loaded-chunk tile lookup is cheap and avoids
+     * calling {@link TileEntity#getCapability} again for ordinary redstone updates.
+     */
+    private boolean isCachedTileStillPresent(World world, BlockPos neighborPos, EnumFacing facing) {
+        WeakReference<TileEntity> ref = this.cachedAdjacentTiles.get(facing);
+        if (ref == null) return false;
+
+        TileEntity cachedTile = ref.get();
+        return cachedTile != null
+                && !cachedTile.isInvalid()
+                && world.isBlockLoaded(neighborPos)
+                && world.getTileEntity(neighborPos) == cachedTile;
     }
 
     /**

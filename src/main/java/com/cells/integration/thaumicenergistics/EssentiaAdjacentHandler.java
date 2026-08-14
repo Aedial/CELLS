@@ -50,6 +50,10 @@ public class EssentiaAdjacentHandler extends InterfaceAdjacentHandler<EssentiaSt
 
         TileEntity te = world.getTileEntity(adjacentPos);
         if (te == null || te.isInvalid()) return;
+
+        // Keep a negative cache for non-essentia tiles too
+        cacheAdjacentTile(facing, te);
+
         if (!(te instanceof IAspectContainer)) return;
 
         // Check if this tile entity type is blacklisted in config
