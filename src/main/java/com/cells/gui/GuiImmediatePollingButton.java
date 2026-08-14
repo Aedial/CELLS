@@ -50,9 +50,7 @@ public class GuiImmediatePollingButton extends GuiButton implements ITooltip {
             && mouseX < this.x + this.width && mouseY < this.y + this.height;
 
         float tint = this.enabled ? 1.0F : 0.5F;
-        boolean wasBlendEnabled = GL11.glIsEnabled(GL11.GL_BLEND);
 
-        GlStateManager.pushMatrix();
         GlStateManager.enableBlend();
         GlStateManager.color(tint, tint, tint, 1.0F);
 
@@ -87,9 +85,7 @@ public class GuiImmediatePollingButton extends GuiButton implements ITooltip {
             Gui.drawRect(this.x, this.y, this.x + this.width, this.y + this.height, HOVER_OVERLAY_COLOR);
         }
 
-        if (!wasBlendEnabled) GlStateManager.disableBlend();
-
-        GlStateManager.popMatrix();
+        GlStateManager.disableBlend();
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
