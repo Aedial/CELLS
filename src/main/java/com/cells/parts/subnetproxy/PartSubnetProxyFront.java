@@ -8,7 +8,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -605,6 +604,18 @@ public class PartSubnetProxyFront extends AEBasePart
     private boolean deltasDirty = false;
 
     /**
+     * A filter, fuzzy/inverter, or capacity change altered the visible storage
+     * surface. Unlike a cell-provider topology change, this must be published
+     * as item deltas against the last proxy snapshot.
+     * <p>
+     * The flag is coalesced and dispatched by the Grid B tick manager. This
+     * keeps bulk actions (Clear, JEI recipe transfer, memory-card import) from
+     * rescanning and publishing once per edited filter slot, without polling
+     * while the proxy is idle.
+     */
+    private boolean filterVisibilityDirty = false;
+
+    /**
     * True while a Grid A source refresh still needs a diff against the
     * previous passthrough snapshot. Lazy source refreshes must preserve the
     * old snapshot baseline until {@link #tickingRequest} reconciles it.
@@ -822,7 +833,7 @@ public class PartSubnetProxyFront extends AEBasePart
     public void setFuzzyMode(FuzzyMode mode) {
         this.fuzzyMode = mode;
         this.filtersDirty = true;
-        this.notifyGridOfChange();
+        this.queueFilterVisibilityRefreshForOwnOrigin();
         this.markHostDirty();
     }
 
@@ -1441,6 +1452,8 @@ public class PartSubnetProxyFront extends AEBasePart
     public void uploadSettings(final SettingsFrom from, final NBTTagCompound compound, final EntityPlayer player) {
         if (compound == null) return;
 
+        int previousChannels = this.getEnabledChannelsBitmask();
+
         if (compound.hasKey("priority")) this.setPriority(compound.getInteger("priority"));
 
         if (compound.hasKey("filterMode")) {
@@ -1487,7 +1500,8 @@ public class PartSubnetProxyFront extends AEBasePart
 
         this.setCurrentPage(this.currentPage);
         this.filtersDirty = true;
-        this.notifyGridOfChange();
+        this.queueFilterVisibilityRefreshForOwnOrigin();
+        if (previousChannels != this.getEnabledChannelsBitmask()) this.notifyGridOfChange();
         this.markHostDirty();
 
         this.markHostForUpdate();
@@ -1897,7 +1911,6 @@ public class PartSubnetProxyFront extends AEBasePart
             // Clamp current page if capacity cards removed
             setCurrentPage(this.currentPage);
             this.filtersDirty = true;
-            this.notifyGridOfChange();
 
             // If the insertion card was added or removed, rewire local insertion
             // handlers (their monitor points at back-grid). The cell array on
@@ -1906,13 +1919,18 @@ public class PartSubnetProxyFront extends AEBasePart
             boolean addedInsertion = !added.isEmpty() && added.getItem() instanceof ItemInsertionCard;
             if (removedInsertion || addedInsertion) {
                 updateInsertionHandlers();
+                this.notifyGridOfChange();
             }
+
+            this.queueFilterVisibilityRefreshForOwnOrigin();
         }
 
-        // When config changes, filters need rebuilding
+        // Filter edits alter the contents exposed by an existing cell handler.
+        // They are not a cell-array topology change, so publish a coalesced
+        // snapshot delta instead of relying on MENetworkCellArrayUpdate.
         if (inv == this.config) {
             this.filtersDirty = true;
-            this.notifyGridOfChange();
+            this.queueFilterVisibilityRefreshForOwnOrigin();
         }
 
         this.markHostDirty();
@@ -3465,6 +3483,75 @@ public class PartSubnetProxyFront extends AEBasePart
         }
     }
 
+    /**
+     * Queue a one-shot visibility reconciliation for this front and every
+     * direct parallel front that shares its back-grid origin.
+     * <p>
+     * A parallel front may be the elected publisher even when this front owns
+     * the edited filter. Its visible predicate is the union of the parallel
+     * filters, so that publisher must diff its own snapshot. Publishing from
+     * the elected front also lets the normal wrapped monitor event propagate
+     * the change to one-hop downstream proxies without any special traversal.
+     */
+    private void queueFilterVisibilityRefreshForOwnOrigin() {
+        this.queueFilterVisibilityRefresh();
+
+        for (PartSubnetProxyFront sibling : this.getParallelOwnOriginFronts()) {
+            if (sibling != this) sibling.queueFilterVisibilityRefresh();
+        }
+    }
+
+    /**
+     * Queue this front once and wake Grid B without keeping it awake afterward.
+     */
+    private void queueFilterVisibilityRefresh() {
+        if (this.filterVisibilityDirty) return;
+
+        this.filterVisibilityDirty = true;
+        this.alertGridBTick();
+    }
+
+    /**
+     * Rebuild the changed filters and publish their visible-listing delta.
+     * <p>
+     * A filter edit changes the content reported by an already-registered
+     * handler; it does not add or remove that handler. Therefore, posting only
+     * {@link MENetworkCellArrayUpdate} leaves the consumers that depend on
+     * monitor deltas without an add/remove event. The proxy's snapshot diff
+     * supplies that event directly.
+     * <p>
+     * If no prior snapshot is available (initial connection or source churn),
+     * retain AE2's full cell-array bootstrap path instead. In that state a
+     * diff has no trustworthy old listing to compare against.
+     */
+    private void publishQueuedFilterVisibilityChange() {
+        this.filterVisibilityDirty = false;
+
+        if (this.filtersDirty) this.rebuildFilters();
+
+        if (this.sourcesDirty || this.hasMissingVisibleReadSnapshot()) {
+            if (this.hasAnyReadChannelExposed()) {
+                this.awaitingGridBCellArrayBootstrap = true;
+                this.clearPassthroughSnapshots();
+                this.notifyGridOfChange();
+            }
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.publishFilterVisibility.bootstrap",
+                    "sourcesDirty=" + this.sourcesDirty
+                        + ", missingVisibleSnapshot=" + this.hasMissingVisibleReadSnapshot());
+            }
+            return;
+        }
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate("front.publishFilterVisibility.snapshotDiff", "baselineReady=true");
+        }
+
+        this.snapshotDiffAndForward();
+    }
+
     // ========================= IGridTickable (on Grid B) =========================
 
     @Nonnull
@@ -3476,12 +3563,13 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         // Alertable so the Grid A listener's onListUpdate can wake us for
-        // snapshot diff. Normal deltas are forwarded immediately in postChange,
-        // so ticking is only needed for rare full-reset events.
+        // snapshot diff. Filter edits also use this one-shot wake-up to publish
+        // their visibility delta. Normal storage deltas are still forwarded
+        // immediately in postChange, so ticking is never used for polling.
         return new TickingRequest(
             CellsConfig.general.subnetProxyMinTickRate,
             CellsConfig.general.subnetProxyMaxTickRate,
-            !this.deltasDirty, true);
+            !(this.deltasDirty || this.filterVisibilityDirty), true);
     }
 
     @Nonnull
@@ -3493,6 +3581,13 @@ public class PartSubnetProxyFront extends AEBasePart
 
         if (this.retryGridBCellArrayBootstrap("tickingRequest.precheck")) {
             return TickRateModulation.FASTER;
+        }
+
+        if (this.filterVisibilityDirty) {
+            this.publishQueuedFilterVisibilityChange();
+            return this.retryGridBCellArrayBootstrap("tickingRequest.postFilterVisibility")
+                ? TickRateModulation.FASTER
+                : TickRateModulation.SLEEP;
         }
 
         if (!this.deltasDirty) return TickRateModulation.SLEEP;

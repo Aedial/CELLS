@@ -23,6 +23,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ### Fixed
 - Fix the Clear Filters button not applying in I/O and Universal Interfaces.
+- Fix Subnet Proxy not properly initializing when adding the first filters (resulting in nothing being forwarded until reloaded).
 
 
 ## [0.6.7-beta2] - 2026-08-11
