@@ -97,10 +97,11 @@ import appeng.util.inv.filter.IAEItemFilter;
 import appeng.util.item.AEItemStack;
 
 import com.cells.Cells;
+import com.cells.Tags;
 import com.cells.api.FilterHostUtil;
 import com.cells.api.ISubnetProxy;
 import com.cells.helpers.SubnetProxyMemoryCardHelper;
-import com.cells.Tags;
+import com.cells.helpers.UpgradeCardInteractionHelper;
 import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
@@ -4329,6 +4330,17 @@ public class PartSubnetProxyFront extends AEBasePart
         // try the off-hand, which triggers onPartActivate on the just-placed part.
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
         if (te != null && te.getWorld() != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
+
+        final ItemStack heldItem = player.getHeldItem(hand);
+        if (!player.isSneaking() && UpgradeCardInteractionHelper.isUpgradeCard(heldItem)) {
+            if (player.world.isRemote) return true;
+
+            final ItemStack remainder = UpgradeCardInteractionHelper.tryInsertOne(heldItem, this.upgrades);
+            if (remainder != null) {
+                player.setHeldItem(hand, remainder);
+                return true;
+            }
+        }
 
         if (!player.isSneaking() && this.useMemoryCard(player)) return true;
         if (player.isSneaking()) return false;

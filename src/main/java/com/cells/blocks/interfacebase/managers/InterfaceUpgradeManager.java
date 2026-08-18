@@ -7,6 +7,7 @@ import net.minecraft.nbt.NBTTagCompound;
 
 import appeng.api.config.Upgrades;
 import appeng.api.implementations.items.IUpgradeModule;
+import appeng.api.networking.ticking.IGridTickable;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.inv.IAEAppEngInventory;
@@ -37,7 +38,7 @@ public class InterfaceUpgradeManager {
         AENetworkProxy getGridProxy();
 
         /** Get the host's tickable for tick re-registration. */
-        appeng.api.networking.ticking.IGridTickable getTickable();
+        IGridTickable getTickable();
 
         /** Notify that capacity cards changed, triggering filter/storage cleanup. */
         void onCapacityReduction(int oldCount, int newCount);

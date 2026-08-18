@@ -16,6 +16,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [0.6.8-beta] - 2026-??-??
 ### Added
 - Prevent redstone updates from triggering unnecessary capability scans on adjacent tiles for Interfaces, if the actual tiles have not changed.
+- Add right-click to insert compatible upgrades directly into interfaces/subnet proxies.
 
 ### Fixed
 - Fix the Clear Filters button not applying in I/O and Universal Interfaces.

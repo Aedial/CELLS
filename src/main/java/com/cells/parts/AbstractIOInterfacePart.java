@@ -51,6 +51,7 @@ import com.cells.blocks.iointerface.IIOInterfaceHost;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.helpers.InterfaceMemoryCardHelper;
 import com.cells.helpers.InterfaceApiHelper;
+import com.cells.helpers.UpgradeCardInteractionHelper;
 
 
 /**
@@ -491,12 +492,29 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
 
     @Override
     public boolean onPartActivate(final EntityPlayer p, final EnumHand hand, final Vec3d pos) {
+        ItemStack heldItem = p.getHeldItem(hand);
+        if (!p.isSneaking() && UpgradeCardInteractionHelper.isUpgradeCard(heldItem)) {
+            if (p.world.isRemote) return true;
+
+            List<IItemHandler> upgrades = Arrays.asList(
+                this.getImportLogic().getUpgradeInventory(),
+                this.getExportLogic().getUpgradeInventory()
+            );
+
+            ItemStack remainder = UpgradeCardInteractionHelper.tryInsertOne(heldItem, upgrades);
+            if (remainder != null) {
+                p.setHeldItem(hand, remainder);
+                return true;
+            }
+        }
+
         if (!p.isSneaking() && this.useMemoryCard(p)) return true;
         if (p.isSneaking()) return false;
 
         if (!p.world.isRemote) {
             CellsGuiHandler.openPartGui(p, this.getHost().getTile(), this.getSide(), getMainGuiId());
         }
+
         return true;
     }
 

@@ -1,5 +1,7 @@
 package com.cells.blocks.interfacebase;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.Nonnull;
@@ -20,6 +22,7 @@ import net.minecraft.world.World;
 
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
+import net.minecraftforge.items.IItemHandler;
 
 import appeng.block.AEBaseTileBlock;
 import appeng.api.implementations.items.IMemoryCard;
@@ -33,6 +36,7 @@ import com.cells.blocks.combinedinterface.AbstractCombinedInterfaceTile;
 import com.cells.blocks.iointerface.AbstractIOInterfaceTile;
 import com.cells.core.CellsCreativeTab;
 import com.cells.helpers.InterfaceMemoryCardHelper;
+import com.cells.helpers.UpgradeCardInteractionHelper;
 
 
 /**
@@ -100,6 +104,22 @@ public abstract class AbstractResourceInterfaceBlock<T extends AEBaseTile> exten
     public boolean onBlockActivated(World world, BlockPos pos, IBlockState state, EntityPlayer player,
                                     EnumHand hand, EnumFacing facing, float hitX, float hitY, float hitZ) {
         ItemStack heldItem = player.getHeldItem(hand);
+
+        if (!player.isSneaking() && UpgradeCardInteractionHelper.isUpgradeCard(heldItem)) {
+            T tile = this.getTileEntity(world, pos);
+            List<IItemHandler> upgrades = this.getUpgradeInventory(tile);
+
+            if (world.isRemote) return true;
+
+            ItemStack remainder = UpgradeCardInteractionHelper.tryInsertOne(heldItem, upgrades);
+            if (remainder != null) {
+                player.setHeldItem(hand, remainder);
+                return true;
+            }
+
+            return this.onActivated(world, pos, player, hand, heldItem, facing, hitX, hitY, hitZ);
+        }
+
         if (heldItem.isEmpty() || !(heldItem.getItem() instanceof IMemoryCard)) {
             return super.onBlockActivated(world, pos, state, player, hand, facing, hitX, hitY, hitZ);
         }
@@ -194,5 +214,30 @@ public abstract class AbstractResourceInterfaceBlock<T extends AEBaseTile> exten
         }
 
         return null;
+    }
+
+    /**
+     * Resolves the upgrade inventory selected by the normal interface GUI.
+     * IO interfaces keep distinct import/export inventories, whereas combined
+     * interfaces share one inventory across resource tabs.
+     */
+    @Nonnull
+    private List<IItemHandler> getUpgradeInventory(@Nullable T tile) {
+        if (tile instanceof AbstractIOInterfaceTile) {
+            return Arrays.asList(
+                ((AbstractIOInterfaceTile<?>) tile).getExportLogic().getUpgradeInventory(),
+                ((AbstractIOInterfaceTile<?>) tile).getImportLogic().getUpgradeInventory()
+            );
+        }
+
+        if (tile instanceof AbstractCombinedInterfaceTile) {
+            return Collections.singletonList(((AbstractCombinedInterfaceTile) tile).getUpgradeInventory());
+        }
+
+        if (tile instanceof AbstractInterfaceTile) {
+            return Collections.singletonList(((AbstractInterfaceTile<?>) tile).getUpgradeInventory());
+        }
+
+        return Collections.emptyList();
     }
 }

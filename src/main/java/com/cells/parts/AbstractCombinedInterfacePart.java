@@ -59,6 +59,7 @@ import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.helpers.InterfaceMemoryCardHelper;
 import com.cells.helpers.InterfaceApiHelper;
+import com.cells.helpers.UpgradeCardInteractionHelper;
 import com.cells.integration.mekanismenergistics.CombinedInterfaceGasHelper;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.CombinedInterfaceEssentiaHelper;
@@ -431,12 +432,24 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
 
     @Override
     public boolean onPartActivate(final EntityPlayer p, final EnumHand hand, final Vec3d pos) {
+        ItemStack heldItem = p.getHeldItem(hand);
+        if (!p.isSneaking() && UpgradeCardInteractionHelper.isUpgradeCard(heldItem)) {
+            if (p.world.isRemote) return true;
+
+            ItemStack remainder = UpgradeCardInteractionHelper.tryInsertOne(heldItem, this.getUpgradeInventory());
+            if (remainder != null) {
+                p.setHeldItem(hand, remainder);
+                return true;
+            }
+        }
+
         if (!p.isSneaking() && this.useMemoryCard(p)) return true;
         if (p.isSneaking()) return false;
 
         if (!p.world.isRemote) {
             CellsGuiHandler.openPartGui(p, this.getHost().getTile(), this.getSide(), getMainGuiId());
         }
+
         return true;
     }
 
