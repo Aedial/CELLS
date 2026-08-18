@@ -17,6 +17,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Added
 - Prevent redstone updates from triggering unnecessary capability scans on adjacent tiles for Interfaces, if the actual tiles have not changed.
 - Add right-click to insert compatible upgrades directly into interfaces/subnet proxies.
+- Add Ctrl-A/Ctrl-C/Ctrl-V support to the Max Slot Size text field.
+- Add a config to change the default +/- 1/10/100/1000 offset buttons to different values.
+- Add a config to use fixed values instead of offsets for the Max Slot Size buttons.
 
 ### Fixed
 - Fix the Clear Filters button not applying in I/O and Universal Interfaces.

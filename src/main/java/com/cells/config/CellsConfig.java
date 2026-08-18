@@ -33,6 +33,12 @@ public final class CellsConfig {
 
     private static final int[] DEFAULT_EMC_CELL_PARTITION_SLOTS = new int[] {1, 9, 54};
     private static final long DEFAULT_EMC_CELL_REPORTED_AMOUNT = Integer.MAX_VALUE;
+    private static final String[] DEFAULT_INTERFACE_MAX_SLOT_SIZE_OFFSETS = new String[] {
+        "1", "10", "100", "1000"
+    };
+    private static final String[] DEFAULT_INTERFACE_MAX_SLOT_SIZE_FIXED_VALUES = new String[] {
+        "1", "10", "100", "1000", "10000", "100000", "1000000", "10000000"
+    };
 
     private static final String CATEGORY_GENERAL = "general";
     private static final String CATEGORY_CELLS = "cells";
@@ -79,6 +85,8 @@ public final class CellsConfig {
     // are normalized once during sync and then served from cached parsed values.
     private static long emcCellReportedAmountValue = DEFAULT_EMC_CELL_REPORTED_AMOUNT;
     private static long interfaceMaxSlotSizeLimitValue = Long.MAX_VALUE;
+    private static long[] interfaceMaxSlotSizeOffsetsValue = parsePositiveLongArray(DEFAULT_INTERFACE_MAX_SLOT_SIZE_OFFSETS);
+    private static long[] interfaceMaxSlotSizeFixedValuesValue = parsePositiveLongArray(DEFAULT_INTERFACE_MAX_SLOT_SIZE_FIXED_VALUES);
 
     private CellsConfig() {
     }
@@ -122,6 +130,8 @@ public final class CellsConfig {
 
         emcCellReportedAmountValue = normalizedLongValues.emcCellReportedAmount;
         interfaceMaxSlotSizeLimitValue = normalizedLongValues.interfaceMaxSlotSizeLimit;
+        interfaceMaxSlotSizeOffsetsValue = normalizedLongValues.interfaceMaxSlotSizeOffsets;
+        interfaceMaxSlotSizeFixedValuesValue = normalizedLongValues.interfaceMaxSlotSizeFixedValues;
 
         if (normalizedLongValues.changed) {
             ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
@@ -149,10 +159,30 @@ public final class CellsConfig {
             changed = true;
         }
 
+        NormalizedLongArray normalizedOffsets = normalizePositiveLongArray(
+            interfaces.interfaceMaxSlotSizeOffsets,
+            DEFAULT_INTERFACE_MAX_SLOT_SIZE_OFFSETS
+        );
+        if (!Arrays.equals(normalizedOffsets.normalizedValues, interfaces.interfaceMaxSlotSizeOffsets)) {
+            interfaces.interfaceMaxSlotSizeOffsets = normalizedOffsets.normalizedValues;
+            changed = true;
+        }
+
+        NormalizedLongArray normalizedFixedValues = normalizePositiveLongArray(
+            interfaces.interfaceMaxSlotSizeFixedValues,
+            DEFAULT_INTERFACE_MAX_SLOT_SIZE_FIXED_VALUES
+        );
+        if (!Arrays.equals(normalizedFixedValues.normalizedValues, interfaces.interfaceMaxSlotSizeFixedValues)) {
+            interfaces.interfaceMaxSlotSizeFixedValues = normalizedFixedValues.normalizedValues;
+            changed = true;
+        }
+
         return new NormalizedLongConfigValues(
             changed,
             normalizedReportedAmount.parsedValue,
-            normalizedInterfaceLimit.parsedValue
+            normalizedInterfaceLimit.parsedValue,
+            normalizedOffsets.parsedValues,
+            normalizedFixedValues.parsedValues
         );
     }
 
@@ -181,6 +211,20 @@ public final class CellsConfig {
         return interfaceMaxSlotSizeLimitValue;
     }
 
+    /**
+     * @return a copy of the four positive max-slot-size button offsets.
+     */
+    public static long[] getInterfaceMaxSlotSizeOffsets() {
+        return interfaceMaxSlotSizeOffsetsValue.clone();
+    }
+
+    /**
+     * @return a copy of the eight positive fixed max-slot-size button values.
+     */
+    public static long[] getInterfaceMaxSlotSizeFixedValues() {
+        return interfaceMaxSlotSizeFixedValuesValue.clone();
+    }
+
     private static NormalizedLongValue normalizeInterfaceMaxSlotSizeLimit(String rawValue) {
         String trimmedValue = rawValue == null ? "" : rawValue.trim();
 
@@ -195,6 +239,45 @@ public final class CellsConfig {
         }
 
         return new NormalizedLongValue(String.valueOf(Long.MAX_VALUE), Long.MAX_VALUE);
+    }
+
+    /**
+     * Ensures a GUI button array has its expected length and only contains positive longs.
+     * Forge 1.12 cannot expose a long array through {@link Config}, so values are string-backed.
+     */
+    private static NormalizedLongArray normalizePositiveLongArray(String[] configuredValues, String[] defaultValues) {
+        if (configuredValues == null || configuredValues.length != defaultValues.length) {
+            return new NormalizedLongArray(defaultValues.clone(), parsePositiveLongArray(defaultValues));
+        }
+
+        long[] parsedValues = new long[configuredValues.length];
+        String[] normalizedValues = new String[configuredValues.length];
+
+        for (int i = 0; i < configuredValues.length; i++) {
+            String rawValue = configuredValues[i] == null ? "" : configuredValues[i].trim();
+
+            try {
+                long value = Long.parseLong(rawValue);
+                if (value <= 0) throw new NumberFormatException();
+
+                parsedValues[i] = value;
+                normalizedValues[i] = Long.toString(value);
+            } catch (NumberFormatException ignored) {
+                return new NormalizedLongArray(defaultValues.clone(), parsePositiveLongArray(defaultValues));
+            }
+        }
+
+        return new NormalizedLongArray(normalizedValues, parsedValues);
+    }
+
+    private static long[] parsePositiveLongArray(String[] values) {
+        long[] parsedValues = new long[values.length];
+
+        for (int i = 0; i < values.length; i++) {
+            parsedValues[i] = Long.parseLong(values[i]);
+        }
+
+        return parsedValues;
     }
 
     /**
@@ -460,6 +543,20 @@ public final class CellsConfig {
         @Config.Comment("Maximum slot size limit for interfaces. Caps the user-configurable max slot size per slot. Use -1 for unlimited (Long.MAX_VALUE).")
         public String interfaceMaxSlotSizeLimit = String.valueOf(Long.MAX_VALUE);
 
+        @Config.LangKey(Tags.MODID + ".config.interfaceMaxSlotSizeUseFixedValues")
+        @Config.Comment("Use the fixed max-slot-size button values instead of positive/negative offsets. Defaults to false (offsets).")
+        public boolean interfaceMaxSlotSizeUseFixedValues = false;
+
+        // Forge's 1.12 annotation config has no long array adapter, so these values
+        // remain string-backed and are normalized during config sync.
+        @Config.LangKey(Tags.MODID + ".config.interfaceMaxSlotSizeOffsets")
+        @Config.Comment("Max-slot-size button offsets. The GUI shows these as +value and -value. Values must be positive longs.")
+        public String[] interfaceMaxSlotSizeOffsets = DEFAULT_INTERFACE_MAX_SLOT_SIZE_OFFSETS.clone();
+
+        @Config.LangKey(Tags.MODID + ".config.interfaceMaxSlotSizeFixedValues")
+        @Config.Comment("Fixed max-slot-size button values. Used only in fixed values mode. Values must be positive longs.")
+        public String[] interfaceMaxSlotSizeFixedValues = DEFAULT_INTERFACE_MAX_SLOT_SIZE_FIXED_VALUES.clone();
+
         @Config.LangKey(Tags.MODID + ".config.interfaceMinPollingRate")
         @Config.Comment("Minimum polling rate for interfaces in ticks. 0 allows adaptive (AE2-managed tick rates). Higher values force interfaces to poll at least this often, reducing responsiveness but saving performance.")
         @Config.RangeInt(min = 0, max = Integer.MAX_VALUE)
@@ -498,11 +595,32 @@ public final class CellsConfig {
         private final boolean changed;
         private final long emcCellReportedAmount;
         private final long interfaceMaxSlotSizeLimit;
+        private final long[] interfaceMaxSlotSizeOffsets;
+        private final long[] interfaceMaxSlotSizeFixedValues;
 
-        private NormalizedLongConfigValues(boolean changed, long emcCellReportedAmount, long interfaceMaxSlotSizeLimit) {
+        private NormalizedLongConfigValues(
+            boolean changed,
+            long emcCellReportedAmount,
+            long interfaceMaxSlotSizeLimit,
+            long[] interfaceMaxSlotSizeOffsets,
+            long[] interfaceMaxSlotSizeFixedValues
+        ) {
             this.changed = changed;
             this.emcCellReportedAmount = emcCellReportedAmount;
             this.interfaceMaxSlotSizeLimit = interfaceMaxSlotSizeLimit;
+            this.interfaceMaxSlotSizeOffsets = interfaceMaxSlotSizeOffsets;
+            this.interfaceMaxSlotSizeFixedValues = interfaceMaxSlotSizeFixedValues;
+        }
+    }
+
+    private static class NormalizedLongArray {
+
+        private final String[] normalizedValues;
+        private final long[] parsedValues;
+
+        private NormalizedLongArray(String[] normalizedValues, long[] parsedValues) {
+            this.normalizedValues = normalizedValues;
+            this.parsedValues = parsedValues;
         }
     }
 }
