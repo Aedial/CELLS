@@ -7,6 +7,7 @@ import javax.annotation.Nonnull;
 import org.lwjgl.input.Keyboard;
 
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -18,6 +19,7 @@ import appeng.client.gui.widgets.GuiTabButton;
 import appeng.util.ReadableNumberConverter;
 
 import com.cells.Tags;
+import com.cells.config.CellsConfig;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketSetMaxSlotSize;
@@ -43,20 +45,19 @@ public class GuiMaxSlotSize extends AEBaseGui {
     private GuiTabButton originalGuiBtn;
     private long currentMaxSlotSize;
 
-    private GuiButton plus1;
-    private GuiButton plus10;
-    private GuiButton plus100;
-    private GuiButton plus1000;
-    private GuiButton minus1;
-    private GuiButton minus10;
-    private GuiButton minus100;
-    private GuiButton minus1000;
+    private final GuiButton[] sizeButtons = new GuiButton[8];
+    private long[] buttonValues;
+    private boolean useFixedButtonValues;
 
     private final IInterfaceHost host;
 
     // Tracks whether keyTyped pre-skipped a comma so onQtyChanged can decide
     // whether to nudge the cursor past the comma after reformatting.
     private boolean commaSkipped;
+
+    /** Keyboard repeat is normally disabled outside text-entry screens. */
+    private boolean previousKeyboardRepeatEnabled;
+    private boolean keyboardRepeatStateCaptured;
 
     public GuiMaxSlotSize(final InventoryPlayer inventoryPlayer, final IInterfaceHost host) {
         super(new ContainerMaxSlotSize(inventoryPlayer, host));
@@ -83,23 +84,34 @@ public class GuiMaxSlotSize extends AEBaseGui {
     public void initGui() {
         super.initGui();
 
-        // Button increments - using same values as AE2 priority
-        final int a = 1;
-        final int b = 10;
-        final int c = 100;
-        final int d = 1000;
+        if (!this.keyboardRepeatStateCaptured) {
+            this.previousKeyboardRepeatEnabled = Keyboard.areRepeatEventsEnabled();
+            this.keyboardRepeatStateCaptured = true;
+        }
+        Keyboard.enableRepeatEvents(true);
 
-        // Buttons spread out for 200px wide GUI
-        // Gap between buttons: 14px
-        this.buttonList.add(this.plus1 = new GuiButton(0, this.guiLeft + 20, this.guiTop + 32, 22, 20, "+" + a));
-        this.buttonList.add(this.plus10 = new GuiButton(0, this.guiLeft + 56, this.guiTop + 32, 28, 20, "+" + b));
-        this.buttonList.add(this.plus100 = new GuiButton(0, this.guiLeft + 98, this.guiTop + 32, 32, 20, "+" + c));
-        this.buttonList.add(this.plus1000 = new GuiButton(0, this.guiLeft + 144, this.guiTop + 32, 38, 20, "+" + d));
+        this.useFixedButtonValues = CellsConfig.interfaces.interfaceMaxSlotSizeUseFixedValues;
+        this.buttonValues = this.useFixedButtonValues
+            ? CellsConfig.getInterfaceMaxSlotSizeFixedValues()
+            : CellsConfig.getInterfaceMaxSlotSizeOffsets();
 
-        this.buttonList.add(this.minus1 = new GuiButton(0, this.guiLeft + 20, this.guiTop + 69, 22, 20, "-" + a));
-        this.buttonList.add(this.minus10 = new GuiButton(0, this.guiLeft + 56, this.guiTop + 69, 28, 20, "-" + b));
-        this.buttonList.add(this.minus100 = new GuiButton(0, this.guiLeft + 98, this.guiTop + 69, 32, 20, "-" + c));
-        this.buttonList.add(this.minus1000 = new GuiButton(0, this.guiLeft + 144, this.guiTop + 69, 38, 20, "-" + d));
+        // Use a fixed-width layout to stay compact even with formatted
+        // Long.MAX_VALUE-sized configured values within the 28px buttons.
+        for (int i = 0; i < this.sizeButtons.length; i++) {
+            int column = i % 4;
+            int row = i / 4;
+            long value = this.buttonValues[this.useFixedButtonValues ? i : column];
+            String label = this.formatButtonLabel(value, !this.useFixedButtonValues, row == 0);
+
+            this.buttonList.add(this.sizeButtons[i] = new GuiButton(
+                i,
+                this.guiLeft + 15 + column * 36,
+                this.guiTop + (row == 0 ? 32 : 69),
+                30,
+                20,
+                label
+            ));
+        }
 
         // Back button to return to the main Interface GUI (22px from right edge)
         this.buttonList.add(this.originalGuiBtn = new GuiTabButton(
@@ -119,6 +131,16 @@ public class GuiMaxSlotSize extends AEBaseGui {
         this.sizeField.setVisible(true);
         this.sizeField.setFocused(true);
         getContainer().setTextField(this.sizeField);
+    }
+
+    @Override
+    public void onGuiClosed() {
+        super.onGuiClosed();
+
+        if (this.keyboardRepeatStateCaptured) {
+            Keyboard.enableRepeatEvents(this.previousKeyboardRepeatEnabled);
+            this.keyboardRepeatStateCaptured = false;
+        }
     }
 
     @Override
@@ -201,24 +223,24 @@ public class GuiMaxSlotSize extends AEBaseGui {
             return;
         }
 
-        final boolean isPlus = btn == this.plus1 || btn == this.plus10 || btn == this.plus100 || btn == this.plus1000;
-        final boolean isMinus = btn == this.minus1 || btn == this.minus10 || btn == this.minus100 || btn == this.minus1000;
+        for (int i = 0; i < this.sizeButtons.length; i++) {
+            if (btn != this.sizeButtons[i]) continue;
 
-        if (isPlus || isMinus) this.addQty(this.getButtonQty(btn));
+            if (this.useFixedButtonValues) {
+                this.onQtyChanged(this.buttonValues[i]);
+            } else {
+                long offset = this.buttonValues[i % 4];
+                this.addQty(i < 4 ? offset : -offset);
+            }
+
+            return;
+        }
     }
 
-    private int getButtonQty(final GuiButton btn) {
-        if (btn == this.plus1) return 1;
-        if (btn == this.plus10) return 10;
-        if (btn == this.plus100) return 100;
-        if (btn == this.plus1000) return 1000;
+    private String formatButtonLabel(long value, boolean isOffset, boolean isPositive) {
+        if (!isOffset) return ReadableNumberConverter.INSTANCE.toWideReadableForm(value);
 
-        if (btn == this.minus1) return -1;
-        if (btn == this.minus10) return -10;
-        if (btn == this.minus100) return -100;
-        if (btn == this.minus1000) return -1000;
-
-        return 0;
+        return (isPositive ? "+" : "-") + ReadableNumberConverter.INSTANCE.toSlimReadableForm(value);
     }
 
     private void onQtyChanged(long newValue) {
@@ -242,7 +264,7 @@ public class GuiMaxSlotSize extends AEBaseGui {
         CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetMaxSlotSize(value));
     }
 
-    private void addQty(final int delta) {
+    private void addQty(final long delta) {
         long base;
 
         // In per-slot mode with no current override, start from 0 so that
@@ -268,6 +290,21 @@ public class GuiMaxSlotSize extends AEBaseGui {
 
     @Override
     protected void keyTyped(final char character, final int key) throws IOException {
+        if (!this.sizeField.isFocused()) {
+            super.keyTyped(character, key);
+            return;
+        }
+
+        if (GuiScreen.isKeyComboCtrlA(key) || GuiScreen.isKeyComboCtrlC(key)) {
+            this.sizeField.textboxKeyTyped(character, key);
+            return;
+        }
+
+        if (GuiScreen.isKeyComboCtrlV(key)) {
+            this.pasteClipboardValue();
+            return;
+        }
+
         // Commas are virtual (auto-formatted), so we need to skip over them when
         // pressing backspace or delete, otherwise the comma just gets re-added and
         // the user's keypress appears to do nothing.
@@ -295,32 +332,7 @@ public class GuiMaxSlotSize extends AEBaseGui {
             || key == Keyboard.KEY_LEFT || key == Keyboard.KEY_BACK
             || Character.isDigit(character)) && this.sizeField.textboxKeyTyped(character, key)) {
 
-            String out = this.sizeField.getText();
-
-            // Remove commas from thousand separators
-            out = out.replaceAll(",", "");
-
-            // Remove leading zeros
-            while (out.startsWith("0") && out.length() > 1) {
-                out = out.substring(1);
-            }
-
-            if (out.isEmpty()) {
-                if (isOverrideMode()) {
-                    // In per-slot mode, empty field clears the override
-                    this.currentMaxSlotSize = 0;
-                    CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetMaxSlotSize(-1));
-                }
-                // In global mode, empty field is just unsaved (no packet sent)
-            } else {
-                try {
-                    // Parse as long to handle large values
-                    this.onQtyChanged(Long.parseLong(out));
-                } catch (final NumberFormatException e) {
-                    // Parsing failed should mean we exceeded Long.MAX_VALUE, so clamp to max
-                    this.onQtyChanged(Long.MAX_VALUE);
-                }
-            }
+            this.updateValueFromField();
 
             // After all processing (including potential reformat), if we
             // pre-skipped a comma for backspace/delete, nudge the cursor past
@@ -338,6 +350,49 @@ public class GuiMaxSlotSize extends AEBaseGui {
             } 
         } else {
             super.keyTyped(character, key);
+        }
+    }
+
+    /**
+     * Applies a number-only clipboard paste through the text field so selection
+     * replacement and the configured maximum length retain their normal behavior.
+     */
+    private void pasteClipboardValue() {
+        String clipboardValue = GuiScreen.getClipboardString().replace(",", "").trim();
+        if (clipboardValue.isEmpty() || !clipboardValue.chars().allMatch(Character::isDigit)) return;
+
+        this.sizeField.writeText(clipboardValue);
+        this.updateValueFromField();
+    }
+
+    /**
+     * Parses the editable text, sending valid values to the server. An empty
+     * field deliberately remains unformatted, including after Ctrl+A then Backspace.
+     */
+    private void updateValueFromField() {
+        String out = this.sizeField.getText().replace(",", "");
+
+        // Remove leading zeros
+        while (out.startsWith("0") && out.length() > 1) {
+            out = out.substring(1);
+        }
+
+        if (out.isEmpty()) {
+            if (isOverrideMode()) {
+                // In per-slot mode, empty field clears the override
+                this.currentMaxSlotSize = 0;
+                CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetMaxSlotSize(-1));
+            }
+            // In global mode, empty field is just unsaved (no packet sent)
+            return;
+        }
+
+        try {
+            // Parse as long to handle large values
+            this.onQtyChanged(Long.parseLong(out));
+        } catch (final NumberFormatException e) {
+            // Parsing failed should mean we exceeded Long.MAX_VALUE, so clamp to max
+            this.onQtyChanged(Long.MAX_VALUE);
         }
     }
 }

@@ -134,7 +134,9 @@ cells.recipe_component.outputs=JEI §bOutputs§r
 
 # Messages
 message.cells.disassemble_fail_content=Cannot disassemble cell with content! Empty the cell first.
-message.cells.memory_card.filters_saved=Settings and filters saved to memory card.
+message.cells.memory_card.filters_saved=Settings, filters, and upgrades saved to memory card.
+message.cells.memory_card.upgrades_not_found=%d upgrade(s) were not found in your inventory:\n- %s
+message.cells.memory_card.upgrades_not_inserted=%d upgrade(s) could not be inserted (no available upgrade slot):\n- %s
 message.cells.filter_duplicate=This filter already exists in another slot.
 message.cells.not_valid_content=This item does not contain a valid %s.
 message.cells.filters_not_added=%d filter(s) could not be added (no empty slots):\n- %s
@@ -219,6 +221,12 @@ cells.config.enableConfigurableCells.tooltip=Enable Configurable storage cells
 ## Config: Interfaces
 cells.config.interfaceMaxSlotSizeLimit=Interface Max Slot Size Limit
 cells.config.interfaceMaxSlotSizeLimit.tooltip=Maximum slot size limit for interfaces. Caps the user-configurable max slot size per slot. Min: 1, Max: 9.2 quintillion (Long.MAX_VALUE), Default: 9.2 quintillion (Long.MAX_VALUE).
+cells.config.interfaceMaxSlotSizeUseFixedValues=Use Fixed Max Slot Size Values
+cells.config.interfaceMaxSlotSizeUseFixedValues.tooltip=Use the fixed max slot size button values instead of positive/negative offsets. Default: false (offsets).
+cells.config.interfaceMaxSlotSizeOffsets=Max Slot Size Offsets
+cells.config.interfaceMaxSlotSizeOffsets.tooltip=Four positive max slot size button offsets. The GUI shows these as +value and -value. Values must be positive longs.
+cells.config.interfaceMaxSlotSizeFixedValues=Fixed Max Slot Size Values
+cells.config.interfaceMaxSlotSizeFixedValues.tooltip=Eight fixed max slot size button values. Used when fixed values are enabled. Values must be positive longs.
 cells.config.interfaceMinPollingRate=Interface Minimum Polling Rate
 cells.config.interfaceMinPollingRate.tooltip=Minimum polling rate for interfaces in ticks. 0 allows adaptive (AE2-managed tick rates). Higher values force interfaces to poll at least this often.
 cells.config.useFixedInterfaceTextures=Use Fixed Interface Textures

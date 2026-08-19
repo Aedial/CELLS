@@ -50,6 +50,7 @@ import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.helpers.InterfaceMemoryCardHelper;
 import com.cells.helpers.InterfaceApiHelper;
+import com.cells.helpers.UpgradeCardInteractionHelper;
 
 
 /**
@@ -465,6 +466,17 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
 
     @Override
     public boolean onPartActivate(final EntityPlayer p, final EnumHand hand, final Vec3d pos) {
+        ItemStack heldItem = p.getHeldItem(hand);
+        if (!p.isSneaking() && UpgradeCardInteractionHelper.isUpgradeCard(heldItem)) {
+            if (p.world.isRemote) return true;
+
+            ItemStack remainder = UpgradeCardInteractionHelper.tryInsertOne(heldItem, this.getUpgradeInventory());
+            if (remainder != null) {
+                p.setHeldItem(hand, remainder);
+                return true;
+            }
+        }
+
         // Handle memory card (right-click to load settings)
         if (!p.isSneaking() && this.useMemoryCard(p)) return true;
         if (p.isSneaking()) return false;

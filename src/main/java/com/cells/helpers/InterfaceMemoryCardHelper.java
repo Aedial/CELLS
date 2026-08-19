@@ -137,6 +137,8 @@ public final class InterfaceMemoryCardHelper {
                 typeName + "MaxSlotSizeOverrides", "maxSlotSizeOverrides");
             copyFirstPresent(sourceData, remapped, directionPrefix + typeName + "Filters",
                 typeName + "Filters");
+            copyFirstPresent(sourceData, remapped, directionPrefix + "upgrades",
+                "upgrades");
 
             // I/O interfaces expose one shared polling rate in the GUI, so mirror the
             // imported single-direction value into both logic namespaces.
@@ -159,6 +161,8 @@ public final class InterfaceMemoryCardHelper {
             directionPrefix + typeName + "MaxSlotSizeOverrides");
         copyFirstPresent(sourceData, remapped, typeName + "Filters",
             directionPrefix + typeName + "Filters");
+        copyFirstPresent(sourceData, remapped, "upgrades",
+            directionPrefix + "upgrades");
         copyFirstPresent(sourceData, remapped, typeName + "PollingRate",
             directionPrefix + typeName + "PollingRate");
 

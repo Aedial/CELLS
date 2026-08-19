@@ -57,6 +57,18 @@ public class GuiRecipeTransferDirectionButton extends GuiButton implements ITool
         int offset = this.activeStateSupplier.getAsBoolean() ? 2 * HEIGHT : 0;
         int v = offset + (hovered ? HEIGHT : 0);
 
+        // See {@code DynamicTooltipTabButton#drawButton} for blend state rationale
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(
+            GlStateManager.SourceFactor.SRC_ALPHA,
+            GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
+            GlStateManager.SourceFactor.ONE,
+            GlStateManager.DestFactor.ZERO
+        );
+        GlStateManager.blendFunc(
+            GlStateManager.SourceFactor.SRC_ALPHA,
+            GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA
+        );
         mc.getTextureManager().bindTexture(TEXTURE);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
 

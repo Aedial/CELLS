@@ -1283,7 +1283,7 @@ public class ContainerIOInterface extends AEBaseContainer
      * IItemHandler wrapper that delegates to a switchable AppEngInternalInventory.
      * When the direction tab changes, call {@link #switchTo} to update the delegate.
      */
-    static class SwitchableUpgradeInventory implements IItemHandler {
+    static class SwitchableUpgradeInventory implements IItemHandlerModifiable {
 
         private AppEngInternalInventory delegate;
 
@@ -1309,7 +1309,16 @@ public class ContainerIOInterface extends AEBaseContainer
         @Nonnull
         @Override
         public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
+            if (!this.isItemValid(slot, stack)) return stack;
+
             return this.delegate.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+            if (!stack.isEmpty() && !this.isItemValid(slot, stack)) return;
+
+            this.delegate.setStackInSlot(slot, stack);
         }
 
         @Nonnull
@@ -1321,6 +1330,11 @@ public class ContainerIOInterface extends AEBaseContainer
         @Override
         public int getSlotLimit(int slot) {
             return this.delegate.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
+            return this.delegate.isItemValid(slot, stack);
         }
     }
 
@@ -1335,6 +1349,11 @@ public class ContainerIOInterface extends AEBaseContainer
         @Override
         public int getSlotStackLimit() {
             return 1;
+        }
+
+        @Override
+        public hasCalculatedValidness getIsValid() {
+            return hasCalculatedValidness.Valid;
         }
     }
 }

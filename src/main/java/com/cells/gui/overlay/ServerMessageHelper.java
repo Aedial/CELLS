@@ -2,11 +2,13 @@ package com.cells.gui.overlay;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.text.Style;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketOverlayMessage;
+import com.cells.util.TranslatedTextHelper;
 
 
 /**
@@ -58,8 +60,10 @@ public final class ServerMessageHelper {
     }
 
     private static void send(EntityPlayerMP player, String translationKey, MessageType type, TextFormatting chatColor, Object... args) {
-        // Send colored chat message (server-side, uses server locale for translation)
-        TextComponentTranslation chatMessage = new TextComponentTranslation(translationKey, args);
+        TextComponentTranslation translatedMessage = new TextComponentTranslation(translationKey, args);
+        String resolvedText = TranslatedTextHelper.resolveComponentText(translatedMessage);
+
+        TextComponentString chatMessage = new TextComponentString(resolvedText);
         chatMessage.setStyle(new Style().setColor(chatColor));
         player.sendMessage(chatMessage);
 

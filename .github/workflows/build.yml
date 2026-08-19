@@ -75,7 +75,6 @@ jobs:
           echo "Generated release notes:" >&2
           sed 's/^/  /' "$NOTES_FILE" >&2
 
-          # TODO: get "C.E.L.L.S" from gradle
           gh release create "$TAG" build/libs/*.jar \
             --title "$FULL_VERSION" \
             --notes-file "$NOTES_FILE" \

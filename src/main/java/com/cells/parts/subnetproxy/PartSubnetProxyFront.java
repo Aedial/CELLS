@@ -8,7 +8,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -19,6 +18,7 @@ import javax.annotation.Nullable;
 import io.netty.buffer.ByteBuf;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.Fluid;
@@ -97,12 +97,15 @@ import appeng.util.inv.filter.IAEItemFilter;
 import appeng.util.item.AEItemStack;
 
 import com.cells.Cells;
+import com.cells.Tags;
 import com.cells.api.FilterHostUtil;
 import com.cells.api.ISubnetProxy;
 import com.cells.helpers.SubnetProxyMemoryCardHelper;
-import com.cells.Tags;
+import com.cells.helpers.UpgradeCardInteractionHelper;
+import com.cells.helpers.MemoryCardUpgradeHelper;
 import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.items.ItemInsertionCard;
@@ -604,6 +607,18 @@ public class PartSubnetProxyFront extends AEBasePart
     private boolean deltasDirty = false;
 
     /**
+     * A filter, fuzzy/inverter, or capacity change altered the visible storage
+     * surface. Unlike a cell-provider topology change, this must be published
+     * as item deltas against the last proxy snapshot.
+     * <p>
+     * The flag is coalesced and dispatched by the Grid B tick manager. This
+     * keeps bulk actions (Clear, JEI recipe transfer, memory-card import) from
+     * rescanning and publishing once per edited filter slot, without polling
+     * while the proxy is idle.
+     */
+    private boolean filterVisibilityDirty = false;
+
+    /**
     * True while a Grid A source refresh still needs a diff against the
     * previous passthrough snapshot. Lazy source refreshes must preserve the
     * old snapshot baseline until {@link #tickingRequest} reconciles it.
@@ -821,7 +836,7 @@ public class PartSubnetProxyFront extends AEBasePart
     public void setFuzzyMode(FuzzyMode mode) {
         this.fuzzyMode = mode;
         this.filtersDirty = true;
-        this.notifyGridOfChange();
+        this.queueFilterVisibilityRefreshForOwnOrigin();
         this.markHostDirty();
     }
 
@@ -1433,12 +1448,15 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         output.setTag("config", exportedConfig.serializeNBT());
+        this.upgrades.writeToNBT(output, "upgrades");
         return output;
     }
 
     @Override
     public void uploadSettings(final SettingsFrom from, final NBTTagCompound compound, final EntityPlayer player) {
         if (compound == null) return;
+
+        int previousChannels = this.getEnabledChannelsBitmask();
 
         if (compound.hasKey("priority")) this.setPriority(compound.getInteger("priority"));
 
@@ -1461,19 +1479,54 @@ public class PartSubnetProxyFront extends AEBasePart
             this.enabledChannels = importedChannels;
         }
 
+        if (from == SettingsFrom.MEMORY_CARD && player != null) {
+            MemoryCardUpgradeHelper.restoreFromMemoryCard(
+                compound,
+                "upgrades",
+                player,
+                this.upgrades,
+                (slot, stack) -> this.upgrades.setStackInSlot(slot, stack));
+        } else {
+            this.upgrades.readFromNBT(compound, "upgrades");
+        }
+
         AppEngInternalInventory importedConfig = new AppEngInternalInventory(null, this.config.getSlots(), 1);
         importedConfig.readFromNBT(compound, "config");
 
         IAEAppEngInventory configOwner = this.config.getTileEntity();
         this.config.setTileEntity(null);
 
+        List<ItemStack> skippedFilters = new ArrayList<>();
+
         if (from == SettingsFrom.MEMORY_CARD) {
-            // Add new filters into the empty slots without clearing the existing config
+            // Add new filters into the visible empty slots without clearing the existing config.
+            int visibleSlots = this.getFilterSlots();
             for (int slot = 0; slot < importedConfig.getSlots(); slot++) {
                 ItemStack stack = importedConfig.getStackInSlot(slot);
                 if (stack.isEmpty()) continue;
 
-                FilterHostUtil.addFilter(this, stack);
+                ItemStack normalized = FilterHostUtil.normalizeFilter(stack);
+                int emptySlot = -1;
+                boolean duplicate = false;
+
+                for (int targetSlot = 0; targetSlot < visibleSlots; targetSlot++) {
+                    ItemStack existing = this.config.getStackInSlot(targetSlot);
+                    if (FilterHostUtil.matchesFilter(existing, normalized)) {
+                        duplicate = true;
+                        break;
+                    }
+
+                    if (emptySlot < 0 && existing.isEmpty()) emptySlot = targetSlot;
+                }
+
+                if (duplicate) continue;
+
+                if (emptySlot < 0) {
+                    skippedFilters.add(normalized);
+                    continue;
+                }
+
+                this.config.setStackInSlot(emptySlot, normalized);
             }
         } else {
             for (int slot = 0; slot < this.config.getSlots(); slot++) {
@@ -1486,10 +1539,23 @@ public class PartSubnetProxyFront extends AEBasePart
 
         this.setCurrentPage(this.currentPage);
         this.filtersDirty = true;
-        this.notifyGridOfChange();
+        this.queueFilterVisibilityRefreshForOwnOrigin();
+        if (previousChannels != this.getEnabledChannelsBitmask()) this.notifyGridOfChange();
         this.markHostDirty();
 
         this.markHostForUpdate();
+
+        if (player instanceof EntityPlayerMP && !skippedFilters.isEmpty()) {
+            String filters = skippedFilters.stream()
+                .map(ItemStack::getDisplayName)
+                .reduce((a, b) -> a + "\n- " + b)
+                .orElse("");
+            ServerMessageHelper.warning(
+                (EntityPlayerMP) player,
+                "message.cells.filters_not_added",
+                String.valueOf(skippedFilters.size()),
+                filters);
+        }
     }
 
     /**
@@ -1896,7 +1962,6 @@ public class PartSubnetProxyFront extends AEBasePart
             // Clamp current page if capacity cards removed
             setCurrentPage(this.currentPage);
             this.filtersDirty = true;
-            this.notifyGridOfChange();
 
             // If the insertion card was added or removed, rewire local insertion
             // handlers (their monitor points at back-grid). The cell array on
@@ -1905,13 +1970,18 @@ public class PartSubnetProxyFront extends AEBasePart
             boolean addedInsertion = !added.isEmpty() && added.getItem() instanceof ItemInsertionCard;
             if (removedInsertion || addedInsertion) {
                 updateInsertionHandlers();
+                this.notifyGridOfChange();
             }
+
+            this.queueFilterVisibilityRefreshForOwnOrigin();
         }
 
-        // When config changes, filters need rebuilding
+        // Filter edits alter the contents exposed by an existing cell handler.
+        // They are not a cell-array topology change, so publish a coalesced
+        // snapshot delta instead of relying on MENetworkCellArrayUpdate.
         if (inv == this.config) {
             this.filtersDirty = true;
-            this.notifyGridOfChange();
+            this.queueFilterVisibilityRefreshForOwnOrigin();
         }
 
         this.markHostDirty();
@@ -3464,6 +3534,75 @@ public class PartSubnetProxyFront extends AEBasePart
         }
     }
 
+    /**
+     * Queue a one-shot visibility reconciliation for this front and every
+     * direct parallel front that shares its back-grid origin.
+     * <p>
+     * A parallel front may be the elected publisher even when this front owns
+     * the edited filter. Its visible predicate is the union of the parallel
+     * filters, so that publisher must diff its own snapshot. Publishing from
+     * the elected front also lets the normal wrapped monitor event propagate
+     * the change to one-hop downstream proxies without any special traversal.
+     */
+    private void queueFilterVisibilityRefreshForOwnOrigin() {
+        this.queueFilterVisibilityRefresh();
+
+        for (PartSubnetProxyFront sibling : this.getParallelOwnOriginFronts()) {
+            if (sibling != this) sibling.queueFilterVisibilityRefresh();
+        }
+    }
+
+    /**
+     * Queue this front once and wake Grid B without keeping it awake afterward.
+     */
+    private void queueFilterVisibilityRefresh() {
+        if (this.filterVisibilityDirty) return;
+
+        this.filterVisibilityDirty = true;
+        this.alertGridBTick();
+    }
+
+    /**
+     * Rebuild the changed filters and publish their visible-listing delta.
+     * <p>
+     * A filter edit changes the content reported by an already-registered
+     * handler; it does not add or remove that handler. Therefore, posting only
+     * {@link MENetworkCellArrayUpdate} leaves the consumers that depend on
+     * monitor deltas without an add/remove event. The proxy's snapshot diff
+     * supplies that event directly.
+     * <p>
+     * If no prior snapshot is available (initial connection or source churn),
+     * retain AE2's full cell-array bootstrap path instead. In that state a
+     * diff has no trustworthy old listing to compare against.
+     */
+    private void publishQueuedFilterVisibilityChange() {
+        this.filterVisibilityDirty = false;
+
+        if (this.filtersDirty) this.rebuildFilters();
+
+        if (this.sourcesDirty || this.hasMissingVisibleReadSnapshot()) {
+            if (this.hasAnyReadChannelExposed()) {
+                this.awaitingGridBCellArrayBootstrap = true;
+                this.clearPassthroughSnapshots();
+                this.notifyGridOfChange();
+            }
+
+            if (TRACE_UPDATE_FLOW) {
+                this.traceUpdate(
+                    "front.publishFilterVisibility.bootstrap",
+                    "sourcesDirty=" + this.sourcesDirty
+                        + ", missingVisibleSnapshot=" + this.hasMissingVisibleReadSnapshot());
+            }
+            return;
+        }
+
+        if (TRACE_UPDATE_FLOW) {
+            this.traceUpdate("front.publishFilterVisibility.snapshotDiff", "baselineReady=true");
+        }
+
+        this.snapshotDiffAndForward();
+    }
+
     // ========================= IGridTickable (on Grid B) =========================
 
     @Nonnull
@@ -3475,12 +3614,13 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         // Alertable so the Grid A listener's onListUpdate can wake us for
-        // snapshot diff. Normal deltas are forwarded immediately in postChange,
-        // so ticking is only needed for rare full-reset events.
+        // snapshot diff. Filter edits also use this one-shot wake-up to publish
+        // their visibility delta. Normal storage deltas are still forwarded
+        // immediately in postChange, so ticking is never used for polling.
         return new TickingRequest(
             CellsConfig.general.subnetProxyMinTickRate,
             CellsConfig.general.subnetProxyMaxTickRate,
-            !this.deltasDirty, true);
+            !(this.deltasDirty || this.filterVisibilityDirty), true);
     }
 
     @Nonnull
@@ -3492,6 +3632,13 @@ public class PartSubnetProxyFront extends AEBasePart
 
         if (this.retryGridBCellArrayBootstrap("tickingRequest.precheck")) {
             return TickRateModulation.FASTER;
+        }
+
+        if (this.filterVisibilityDirty) {
+            this.publishQueuedFilterVisibilityChange();
+            return this.retryGridBCellArrayBootstrap("tickingRequest.postFilterVisibility")
+                ? TickRateModulation.FASTER
+                : TickRateModulation.SLEEP;
         }
 
         if (!this.deltasDirty) return TickRateModulation.SLEEP;
@@ -4329,6 +4476,17 @@ public class PartSubnetProxyFront extends AEBasePart
         // try the off-hand, which triggers onPartActivate on the just-placed part.
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
         if (te != null && te.getWorld() != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
+
+        final ItemStack heldItem = player.getHeldItem(hand);
+        if (!player.isSneaking() && UpgradeCardInteractionHelper.isUpgradeCard(heldItem)) {
+            if (player.world.isRemote) return true;
+
+            final ItemStack remainder = UpgradeCardInteractionHelper.tryInsertOne(heldItem, this.upgrades);
+            if (remainder != null) {
+                player.setHeldItem(hand, remainder);
+                return true;
+            }
+        }
 
         if (!player.isSneaking() && this.useMemoryCard(player)) return true;
         if (player.isSneaking()) return false;

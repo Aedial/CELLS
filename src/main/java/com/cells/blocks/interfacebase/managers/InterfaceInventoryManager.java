@@ -688,7 +688,8 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
      * @return The slot index, or -1 if no empty slots available
      */
     public int findEmptyFilterSlot() {
-        for (int i = 0; i < FILTER_SLOTS; i++) {
+        int effectiveSlots = Math.max(0, Math.min(FILTER_SLOTS, this.callbacks.getEffectiveFilterSlots()));
+        for (int i = 0; i < effectiveSlots; i++) {
             if (this.filters[i] == null) return i;
         }
 
@@ -735,6 +736,7 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
     public void mergeFilters(List<R> sourceFilters, @Nullable EntityPlayer player) {
         List<R> skippedFilters = new ArrayList<>();
 
+        int effectiveSlots = Math.max(0, Math.min(FILTER_SLOTS, this.callbacks.getEffectiveFilterSlots()));
         int sourceSlotCount = Math.min(sourceFilters.size(), FILTER_SLOTS);
 
         for (int sourceSlot = 0; sourceSlot < sourceSlotCount; sourceSlot++) {
@@ -748,7 +750,9 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
             if (this.filterToSlotMap.containsKey(sourceKey)) continue;
 
             // Restore into the original slot when possible so per-slot settings stay aligned.
-            int targetSlot = this.filters[sourceSlot] == null ? sourceSlot : findEmptyFilterSlot();
+            int targetSlot = sourceSlot < effectiveSlots && this.filters[sourceSlot] == null
+                ? sourceSlot
+                : findEmptyFilterSlot();
             if (targetSlot < 0) {
                 skippedFilters.add(this.ops.copy(sourceFilter));
                 continue;
