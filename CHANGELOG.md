@@ -20,6 +20,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add Ctrl-A/Ctrl-C/Ctrl-V support to the Max Slot Size text field.
 - Add a config to change the default +/- 1/10/100/1000 offset buttons to different values.
 - Add a config to use fixed values instead of offsets for the Max Slot Size buttons.
+- Allow Interfaces and Subnet Proxies to restore upgrades from the player's inventory when restoring from a memory card, if the upgrades are missing from the interface/proxy itself. This allows to copy filters and upgrades from one interface to another without having to manually insert the cards. Pull/Push cards have their settings restored on top of being inserted, meaning you do not need to have the specific configuration in the player's inventory, just the card itself.
 
 ### Fixed
 - Fix the Clear Filters button not applying in I/O and Universal Interfaces.

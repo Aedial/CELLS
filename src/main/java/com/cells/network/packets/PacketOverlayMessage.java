@@ -13,6 +13,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
 import com.cells.gui.overlay.MessageType;
 import com.cells.gui.overlay.OverlayMessageRenderer;
+import com.cells.util.TranslatedTextHelper;
 
 
 /**
@@ -94,10 +95,13 @@ public class PacketOverlayMessage implements IMessage {
                     String translated = I18n.format(arg);
                     // If I18n resolved to something different, use the translation;
                     // otherwise keep the original (it was already a plain string)
-                    translatedArgs[i] = translated.equals(arg) ? arg : translated;
+                    translatedArgs[i] = translated.equals(arg)
+                        ? arg
+                        : TranslatedTextHelper.normalizeEscapedNewlines(translated);
                 }
 
-                String text = I18n.format(message.translationKey, translatedArgs);
+                String text = TranslatedTextHelper.normalizeEscapedNewlines(
+                    I18n.format(message.translationKey, translatedArgs));
                 OverlayMessageRenderer.setMessage(text, message.type);
             });
 

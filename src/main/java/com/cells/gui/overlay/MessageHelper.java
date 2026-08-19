@@ -1,13 +1,14 @@
 package com.cells.gui.overlay;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.I18n;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
+
+import com.cells.util.TranslatedTextHelper;
 
 
 /**
@@ -103,14 +104,14 @@ public final class MessageHelper {
         EntityPlayer player = Minecraft.getMinecraft().player;
         if (player == null) return;
 
-        // Create colored chat message
-        TextComponentTranslation chatMessage = new TextComponentTranslation(translationKey, args);
+        TextComponentTranslation translatedMessage = new TextComponentTranslation(translationKey, args);
+        String resolvedText = TranslatedTextHelper.resolveComponentText(translatedMessage);
+
+        TextComponentString chatMessage = new TextComponentString(resolvedText);
         chatMessage.setStyle(new Style().setColor(chatColor));
         player.sendMessage(chatMessage);
 
-        // Create overlay message using localized text
-        String overlayText = I18n.format(translationKey, args);
-        OverlayMessageRenderer.setMessage(overlayText, type);
+        OverlayMessageRenderer.setMessage(resolvedText, type);
     }
 
     private static void sendRaw(String message, MessageType type, TextFormatting chatColor) {

@@ -18,6 +18,7 @@ import javax.annotation.Nullable;
 import io.netty.buffer.ByteBuf;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.Fluid;
@@ -101,8 +102,10 @@ import com.cells.api.FilterHostUtil;
 import com.cells.api.ISubnetProxy;
 import com.cells.helpers.SubnetProxyMemoryCardHelper;
 import com.cells.helpers.UpgradeCardInteractionHelper;
+import com.cells.helpers.MemoryCardUpgradeHelper;
 import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
+import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.items.ItemInsertionCard;
@@ -1445,6 +1448,7 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         output.setTag("config", exportedConfig.serializeNBT());
+        this.upgrades.writeToNBT(output, "upgrades");
         return output;
     }
 
@@ -1475,19 +1479,54 @@ public class PartSubnetProxyFront extends AEBasePart
             this.enabledChannels = importedChannels;
         }
 
+        if (from == SettingsFrom.MEMORY_CARD && player != null) {
+            MemoryCardUpgradeHelper.restoreFromMemoryCard(
+                compound,
+                "upgrades",
+                player,
+                this.upgrades,
+                (slot, stack) -> this.upgrades.setStackInSlot(slot, stack));
+        } else {
+            this.upgrades.readFromNBT(compound, "upgrades");
+        }
+
         AppEngInternalInventory importedConfig = new AppEngInternalInventory(null, this.config.getSlots(), 1);
         importedConfig.readFromNBT(compound, "config");
 
         IAEAppEngInventory configOwner = this.config.getTileEntity();
         this.config.setTileEntity(null);
 
+        List<ItemStack> skippedFilters = new ArrayList<>();
+
         if (from == SettingsFrom.MEMORY_CARD) {
-            // Add new filters into the empty slots without clearing the existing config
+            // Add new filters into the visible empty slots without clearing the existing config.
+            int visibleSlots = this.getFilterSlots();
             for (int slot = 0; slot < importedConfig.getSlots(); slot++) {
                 ItemStack stack = importedConfig.getStackInSlot(slot);
                 if (stack.isEmpty()) continue;
 
-                FilterHostUtil.addFilter(this, stack);
+                ItemStack normalized = FilterHostUtil.normalizeFilter(stack);
+                int emptySlot = -1;
+                boolean duplicate = false;
+
+                for (int targetSlot = 0; targetSlot < visibleSlots; targetSlot++) {
+                    ItemStack existing = this.config.getStackInSlot(targetSlot);
+                    if (FilterHostUtil.matchesFilter(existing, normalized)) {
+                        duplicate = true;
+                        break;
+                    }
+
+                    if (emptySlot < 0 && existing.isEmpty()) emptySlot = targetSlot;
+                }
+
+                if (duplicate) continue;
+
+                if (emptySlot < 0) {
+                    skippedFilters.add(normalized);
+                    continue;
+                }
+
+                this.config.setStackInSlot(emptySlot, normalized);
             }
         } else {
             for (int slot = 0; slot < this.config.getSlots(); slot++) {
@@ -1505,6 +1544,18 @@ public class PartSubnetProxyFront extends AEBasePart
         this.markHostDirty();
 
         this.markHostForUpdate();
+
+        if (player instanceof EntityPlayerMP && !skippedFilters.isEmpty()) {
+            String filters = skippedFilters.stream()
+                .map(ItemStack::getDisplayName)
+                .reduce((a, b) -> a + "\n- " + b)
+                .orElse("");
+            ServerMessageHelper.warning(
+                (EntityPlayerMP) player,
+                "message.cells.filters_not_added",
+                String.valueOf(skippedFilters.size()),
+                filters);
+        }
     }
 
     /**

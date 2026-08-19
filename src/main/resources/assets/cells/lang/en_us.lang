@@ -134,7 +134,9 @@ cells.recipe_component.outputs=JEI §bOutputs§r
 
 # Messages
 message.cells.disassemble_fail_content=Cannot disassemble cell with content! Empty the cell first.
-message.cells.memory_card.filters_saved=Settings and filters saved to memory card.
+message.cells.memory_card.filters_saved=Settings, filters, and upgrades saved to memory card.
+message.cells.memory_card.upgrades_not_found=%d upgrade(s) were not found in your inventory:\n- %s
+message.cells.memory_card.upgrades_not_inserted=%d upgrade(s) could not be inserted (no available upgrade slot):\n- %s
 message.cells.filter_duplicate=This filter already exists in another slot.
 message.cells.not_valid_content=This item does not contain a valid %s.
 message.cells.filters_not_added=%d filter(s) could not be added (no empty slots):\n- %s

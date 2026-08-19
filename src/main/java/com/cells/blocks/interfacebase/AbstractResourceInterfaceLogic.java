@@ -37,6 +37,7 @@ import com.cells.blocks.interfacebase.managers.InterfaceAdjacentHandler;
 import com.cells.blocks.interfacebase.managers.InterfaceInventoryManager;
 import com.cells.blocks.interfacebase.managers.InterfaceTickScheduler;
 import com.cells.blocks.interfacebase.managers.InterfaceUpgradeManager;
+import com.cells.helpers.MemoryCardUpgradeHelper;
 import com.cells.util.TickManagerHelper;
 
 
@@ -57,6 +58,8 @@ import com.cells.util.TickManagerHelper;
  */
 public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>, K>
         implements IResourceInterfaceLogic<AE, K> {
+
+    private static final String MEMORY_CARD_UPGRADES_FROM_INVENTORY_KEY = "cellsMemoryCardUpgradesFromInventory";
 
     /**
      * Callback interface that the host (tile or part) implements to provide
@@ -1161,20 +1164,25 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     }
 
     /**
-     * Download settings with filters for memory card + keybind.
+     * Download settings with filters and upgrades for memory card filter copy.
+     * The flag explicitly indicates that upgrades should be restored from the
+     * player's inventory instead of from the NBT payload (from "thin air").
      */
     public NBTTagCompound downloadSettingsWithFilter() {
         NBTTagCompound output = downloadSettings();
         this.inventoryManager.writeFiltersToNBT(output, getFiltersNBTKey());
+        this.upgradeManager.writeToNBT(output, getUpgradesNBTKey());
+        output.setBoolean(MEMORY_CARD_UPGRADES_FROM_INVENTORY_KEY, true);
 
         return output;
     }
 
     /**
-     * Download settings with filters AND upgrades for disassembly.
+     * Download settings with filters and upgrades for disassembly.
      */
     public NBTTagCompound downloadSettingsForDismantle() {
-        NBTTagCompound output = downloadSettingsWithFilter();
+        NBTTagCompound output = downloadSettings();
+        this.inventoryManager.writeFiltersToNBT(output, getFiltersNBTKey());
         this.upgradeManager.writeToNBT(output, getUpgradesNBTKey());
 
         return output;
@@ -1203,19 +1211,32 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             this.tickScheduler.readFromNBT(compound, player);
         }
 
-        // Merge upgrades FIRST (capacity cards enable extra pages for filters)
-        this.upgradeManager.readFromNBT(compound, getUpgradesNBTKey());
+        // Merge upgrades FIRST (capacity cards enable extra pages for filters).
+        // Memory-card filter-copy restores source missing cards from the player's
+        // inventory, while dismantle materializes them directly from the saved
+        // NBT payload.
+        if (compound.getBoolean(MEMORY_CARD_UPGRADES_FROM_INVENTORY_KEY) && player != null) {
+            MemoryCardUpgradeHelper.restoreFromMemoryCard(
+                compound,
+                getUpgradesNBTKey(),
+                player,
+                this.upgradeManager.getUpgradeInventory(),
+                (slot, stack) -> this.upgradeManager.getUpgradeInventory().setStackInSlot(slot, stack));
+        } else {
+            this.upgradeManager.readFromNBT(compound, getUpgradesNBTKey());
+        }
+
+        this.upgradeManager.refreshUpgrades();
 
         // Merge filter inventory from memory card instead of replacing
         if (compound.hasKey(getFiltersNBTKey())) {
             mergeFiltersFromNBT(compound, getFiltersNBTKey(), player);
         }
 
-        // Apply the loaded upgrade/filter state to cached fields.
-        // Without this, capacity cards, auto-pull/push cards, and filter maps
-        // remain at default values until manually re-triggered by the user.
+        // Apply the loaded filter state to cached fields.
+        // Without this, filter maps remain at default values until manually
+        // re-triggered by the user.
         this.inventoryManager.refreshFilterMap();
-        this.upgradeManager.refreshUpgrades();
     }
 
     protected void mergeFiltersFromNBT(NBTTagCompound data, String name, @Nullable EntityPlayer player) {

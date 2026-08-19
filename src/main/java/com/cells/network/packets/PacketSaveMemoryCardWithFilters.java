@@ -97,8 +97,9 @@ public class PacketSaveMemoryCardWithFilters implements IMessage {
                 }
 
                 if (interfaceHost != null) {
-                    // Use downloadSettingsWithFilter() to include filters but NOT upgrades
-                    // (upgrades stay in the source interface, we're just copying settings)
+                    // Use downloadSettingsWithFilter() to include filters and the
+                    // upgrades present in the interface. They are saved, but will
+                    // not be magically "created", unlike the dismantling path.
                     data = interfaceHost.downloadSettingsWithFilter();
 
                     if (message.isPart) {

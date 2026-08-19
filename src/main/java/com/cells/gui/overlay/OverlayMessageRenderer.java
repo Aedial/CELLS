@@ -61,15 +61,23 @@ public class OverlayMessageRenderer {
         FontRenderer fontRenderer = mc.fontRenderer;
 
         String text = message.getText();
-        int textWidth = fontRenderer.getStringWidth(text);
+        String[] lines = text.split("\n", -1);
+        int lineSpacing = 1;
+        int lineAdvance = fontRenderer.FONT_HEIGHT + lineSpacing;
+        int textWidth = 0;
+
+        for (String line : lines) {
+            textWidth = Math.max(textWidth, fontRenderer.getStringWidth(line));
+        }
+
+        int textHeight = lines.length * fontRenderer.FONT_HEIGHT + Math.max(0, lines.length - 1) * lineSpacing;
         float alpha = message.getAlpha();
 
         if (alpha <= 0.01f) return;
 
-        // Position: centered horizontally, above the hotbar (similar to action bar)
-        // The vanilla action bar is at screenHeight - 59
+        // Keep the last line anchored at the vanilla action-bar height.
         int x = (screenWidth - textWidth) / 2;
-        int y = screenHeight - 59;
+        int y = screenHeight - 59 - (lines.length - 1) * lineAdvance;
 
         // Get the base color and apply alpha
         int baseColor = message.getType().getColor();
@@ -100,7 +108,7 @@ public class OverlayMessageRenderer {
         int left = x - padding;
         int top = y - padding;
         int right = x + textWidth + padding;
-        int bottom = y + fontRenderer.FONT_HEIGHT + padding;
+        int bottom = y + textHeight + padding;
 
         // Draw border + background
         Gui.drawRect(left - borderWidth, top - borderWidth, right + borderWidth, bottom + borderWidth, borderColor);
@@ -110,8 +118,13 @@ public class OverlayMessageRenderer {
         GlStateManager.enableBlend();
         GlStateManager.enableTexture2D();
 
-        // Draw text with shadow for readability
-        fontRenderer.drawStringWithShadow(text, x, y, colorWithAlpha);
+        // Draw text with shadow for readability.
+        for (int lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            String line = lines[lineIndex];
+            int lineX = (screenWidth - fontRenderer.getStringWidth(line)) / 2;
+            int lineY = y + lineIndex * lineAdvance;
+            fontRenderer.drawStringWithShadow(line, lineX, lineY, colorWithAlpha);
+        }
 
         GlStateManager.enableDepth();
         GlStateManager.disableBlend();
