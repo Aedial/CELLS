@@ -220,7 +220,7 @@ cells.config.enableConfigurableCells.tooltip=启用可配置存储元件
 
 ## Config: Interfaces
 cells.config.interfaceMaxSlotSizeLimit=接口最大槽位容量限制
-cells.config.interfaceMaxSlotSizeLimit.tooltip=接口的最大槽位容量限制，用于限制玩家可配置的单槽位最大容量。最小值：1，最大值：920 亿亿（长整型最大值），默认值：920亿亿（Long.MAX_VALUE）。
+cells.config.interfaceMaxSlotSizeLimit.tooltip=接口的最大槽位容量限制，用于限制玩家可配置的单槽位最大容量。最小值：1，最大值：920亿亿（Long.MAX_VALUE），默认值：21亿（Integer.MAX_VALUE）。
 cells.config.interfaceMaxSlotSizeUseFixedValues=使用固定的最大槽位容量值
 cells.config.interfaceMaxSlotSizeUseFixedValues.tooltip=最大槽位容量按钮会直接设置为预设的固定数值，而非增减。默认值：false（增减模式）。
 cells.config.interfaceMaxSlotSizeOffsets=最大槽位容量增减值
