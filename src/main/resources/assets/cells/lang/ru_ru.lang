@@ -1,20 +1,24 @@
 # Misc
 itemGroup.cells=C.E.L.L.S
 tooltip.cells.wip_do_not_use=§c⚠ В разработке - Не использовать! ⚠
+tooltip.cells.useatyourownrisk=§eМожет вести себя не так, как ожидается. Используйте на свой страх и риск.
 tooltip.cells.card.separator=, 
 tooltip.cells.card.compatible=§8Совместимо с: %s
 tooltip.cells.type.compact=Ячейка уплотнения ME
 tooltip.cells.type.hyperdensity=Гипер-плотная ячейка хранения ME
 tooltip.cells.type.hyperdensity_compact=Гипер-плотная ячейка уплотнения ME
 tooltip.cells.type.import_interface=Интерфейс импорта (все типы)
+tooltip.cells.type.export_interface=Интерфейс экспорта (все типы)
+tooltip.cells.type.emc=EMC ячейка
 tooltip.cells.nbt_size=Размер NBT: §a%s
 tooltip.cells.nbt_size.near_limit=Размер NBT: §e%s
 tooltip.cells.nbt_size.exceeded=Размер NBT: §c%s
-tooltip.cells.nbt_size.warning=§c⚠ Размер NBT превышает безопасный лимит! Это может вызвать лаги или вылеты. Переместите часть содержимого с большим NBT в другой чанк или сеть, чтобы избежать повреждений.
-tooltip.cells.previous_page=Предыдущая страница
-tooltip.cells.next_page=Следующая страница
+tooltip.cells.nbt_size.warning=§c⚠ Размер NBT превышает безопасный лимит! Это может вызвать лаги или вылеты. Переместите часть содержимого с большим NBT в другой чанк или сеть, чтобы избежать повреждений.§r
+tooltip.cells.previous_page=Пред. стр.
+tooltip.cells.next_page=След. стр.
 tooltip.cells.jei_view_contents=§7Нажмите [§b%s§7] для просмотра содержимого
 tooltip.cells.amount=%d/%d %s
+tooltip.cells.click_to_configure=§bПКМ§7 для настройки
 
 # Resource types and units (used in %s placeholders throughout)
 cells.type.item=Предмет
@@ -42,40 +46,117 @@ cells.unit_names.essentia=эссенции
 cells.unit_names.unknown=единицы
 
 # GUI titles and labels
-cells.max_slot_size.title=Максимальный размер слота
-cells.slot_size=Размер слота: §b%d§r %s
-cells.max_slot_size.tooltip=Максимальное количество %s для хранения в слотах.
+cells.max_slot_size.title=Макс. размер слота
+cells.slot_size=Размер слота: §b%s§r %s
+cells.max_slot_size.tooltip=Макс. кол-во %s для хранения в слотах.
+cells.slot_size_override.title=Макс. размер слота (слот %d)
+cells.slot_size_override.clear_hint=Очистить поле для сброса настроек
+cells.slot_size_override.using_global=глобальный
+cells.filter_slot.hint.left_click_1=§bЛКМ с предметом§7 для установки
+cells.filter_slot.hint.left_click_2=§bЛКМ с пустой рукой§7 для очистки
+cells.filter_slot.hint.right_click=§bПКМ§7 для изменения макс. размера слота
 cells.polling_rate.title=Частота опроса
 cells.polling_rate.adaptive=Частота опроса: Адаптивная
 cells.clear_filters=Очистить фильтры
+tooltip.cells.trigger_poll.title=Передать всё сейчас
+tooltip.cells.trigger_poll.desc=Немедленно передаёт всё содержимое для интерфейса
+tooltip.cells.trigger_poll.cards=Включает передачу с картами Тянуть/Толкать.
 
 # Polling rate - direction-specific
 tooltip.cells.polling_rate.import=Фиксированный интервал для импорта (0 = адаптивный, ненулевой = тики)
 tooltip.cells.polling_rate.export=Интервал для экспорта (0 = адаптивный, ненулевой = тики)
-cells.polling_rate.custom.import=Частота опроса: импорт каждые §b%s
-cells.polling_rate.custom.export=Частота опроса: экспорт каждые §b%s
+cells.polling_rate.custom.import=Частота опроса: §rимпорт каждые §b%s
+cells.polling_rate.custom.export=Частота опроса: §rэкспорт каждые §b%s
+tooltip.cells.probe.type_prefix=%s: %s
+
+# WAILA/TOP probe tooltips
+tooltip.cells.probe.network.import.fixed=Импортирует %s содержимого каждые §a%s§r %s
+tooltip.cells.probe.network.import.adaptive=Импортирует %s содержимого: Адаптивно (каждые §a%s§r до §a%s§r) %s
+tooltip.cells.probe.network.export.fixed=Экспортирует %s содержимого каждые §a%s§r %s
+tooltip.cells.probe.network.export.adaptive=Экспортирует %s содержимого: Адаптивно (каждые §a%s§r до §a%s§r) %s
+tooltip.cells.probe.network.io.fixed=Экспортирует/Импортирует %s содержимого каждые §a%s§r %s
+tooltip.cells.probe.network.io.adaptive=Экспортирует/Импортирует %s содержимого: Адаптивно (каждые §a%s§r до §a%s§r) %s
+tooltip.cells.probe.card.pull=Тянет %s из подключённых инвентарей каждые §a%s§r %s
+tooltip.cells.probe.card.push=Толкает %s в подключённые инвентари каждые §a%s§r %s
+tooltip.cells.probe.card.sides.pull=Стороны извлечения для %s: %s
+tooltip.cells.probe.card.sides.push=Стороны передачи для %s: %s
+tooltip.cells.probe.card.sides.io=Стороны  передачи/извлечения для %s: %s
+tooltip.cells.probe.quantity.single=(до §b%s§r)
+tooltip.cells.probe.quantity.io=(§b%s§r внутрь / §b%s§r наружу)
+tooltip.cells.probe.scope.none=нет подключённого инвентаря
+tooltip.cells.probe.scope.adjacent=каждый смежный инвентарь
+tooltip.cells.probe.scope.facing=инвентарь напротив
+tooltip.cells.probe.list_separator=%s, %s
+tooltip.cells.probe.side.north=§aсевер§r
+tooltip.cells.probe.side.south=§aюг§r
+tooltip.cells.probe.side.west=§aзапад§r
+tooltip.cells.probe.side.east=§aвосток§r
+tooltip.cells.probe.side.up=§aвверх§r
+tooltip.cells.probe.side.down=§aвниз§r
+tooltip.cells.probe.filters=Настроены фильтры: §a%s§r / §a%s§r
+tooltip.cells.probe.filters.import=Настроены фильтры импорта %s: §a%s§r / §a%s§r
+tooltip.cells.probe.filters.export=Настроены фильтры экспорта %s: §a%s§r / §a%s§r
+tooltip.cells.probe.state.enabled=включено
+tooltip.cells.probe.state.disabled=отключено
+tooltip.cells.probe.state.installed=установлено
+tooltip.cells.probe.state.not_installed=не установлено
+tooltip.cells.probe.state.none=§cнет§r
+tooltip.cells.probe.interface.behavior.import=Поведение импорта: %s
+tooltip.cells.probe.interface.behavior.export=Поведение экспорта: %s
+tooltip.cells.probe.interface.behavior.overflow=Переполнение
+tooltip.cells.probe.interface.behavior.trash_unselected=Удалить невыбранное
+tooltip.cells.probe.compacting.summary=Доступные шаблоны: §b%s§r, пользовательские множители: §a%s§r
+tooltip.cells.probe.subnet_proxy.unpaired_front=§eПередняя половина не соединена с задней.
+tooltip.cells.probe.subnet_proxy.unpaired_back=§eЗадняя половина не соединена с передней.
+tooltip.cells.probe.subnet_proxy.channels=Доступные каналы: %s
+tooltip.cells.probe.subnet_proxy.behavior=Приоритет: §b%s§r, карта вставки: %s
+tooltip.cells.probe.subnet_proxy.matching=Соответствие: %s
+tooltip.cells.probe.matching.exact=Точное
+tooltip.cells.probe.matching.fuzzy=Нечёткое
+tooltip.cells.probe.matching.whitelist=Белый список
+tooltip.cells.probe.matching.blacklist=Чёрный список
 
 # Clear filters - direction-specific (different behavior)
 tooltip.cells.clear_filters.import=Очистить все слоты фильтров. Фильтры с содержимым будут пропущены.
 tooltip.cells.clear_filters.export=Очистить все фильтры и отправить сохраненное содержимое обратно в сеть.
 tooltip.cells.clear_filters.all=Очистить все слоты фильтров
 
+# Controls help toggle button
+tooltip.cells.controls_help.show=Показать справку по управлению
+tooltip.cells.controls_help.hide=Скрыть справку по управлению
+tooltip.cells.recipe_transfer.title=Передача рецептов JEI
+tooltip.cells.recipe_transfer.mapping1=Интерфейс импорта -> %s
+tooltip.cells.recipe_transfer.mapping2=Интерфейс экспорта -> %s
+tooltip.cells.recipe_transfer.current= §a(Вы здесь)
+tooltip.cells.recipe_transfer.click_to_swap=Определяет, какая часть рецепта попадёт в фильтры при нажатии «+» в JEI, в зависимости от типа интерфейса. Нажмите, чтобы поменять маршрутизацию интерфейса.
+tooltip.cells.recipe_transfer.creative_selection=Нажатие «+» в JEI добавляет %s§7 в этот фильтр.
+tooltip.cells.recipe_transfer.creative_click_to_swap=Нажмите, чтобы переключаться между добавлением входных и выходных компонентов рецепта.
+cells.recipe_component.inputs=JEI §bВходы§r
+cells.recipe_component.outputs=JEI §bВыходы§r
+
 # Messages
 message.cells.disassemble_fail_content=Невозможно разобрать ячейку с содержимым! Сначала опустошите ячейку.
 message.cells.memory_card.filters_saved=Настройки и фильтры сохранены на карту памяти.
+message.cells.memory_card.upgrades_not_found=%d улучшение(я) не найдено в вашем инвентаре:\n- %s
+message.cells.memory_card.upgrades_not_inserted=%d улучшение(я) не удалось вставить (нет свободного слота для улучшения):\n- %s
 message.cells.filter_duplicate=Этот фильтр уже существует в другом слоте.
 message.cells.not_valid_content=Этот предмет не содержит действительный %s.
 message.cells.filters_not_added=%d фильтр(ов) не может быть добавлен (нет свободных слотов):\n- %s
 message.cells.storage_not_empty=Невозможно изменить фильтр, пока слот хранения не пуст.
 message.cells.no_filter_space=Нет свободных слотов фильтров.
 message.cells.creative_cell.not_valid_content=Недействительный %s!
+message.cells.compacting_pattern_exposer.filter_conflict=Этот фильтр создаст конфликтующую цепочку рецептов уплотнения.
 message.cells.polling_rate_delayed=§eЧастота опроса сохранена, но вступит в силу после следующего подключения к сети.§r
 
 # Config (GUI)
+cells.config.title=Конфигурация CELLS
 cells.config.category.general=Основное
+cells.config.category.cells=Ячейки
 cells.config.category.idle_drain=Потребление в простое
 cells.config.category.enabled_cells=Включенные ячейки
+cells.config.category.interfaces=Интерфейсы
 
+## Config: General
 cells.config.hdItemMaxTypes=HD предметные ячейки: макс. типов
 cells.config.hdFluidMaxTypes=HD жидкостные ячейки: макс. типов
 cells.config.hdItemMaxTypes.tooltip=Максимальное количество типов предметов для гипер-плотных предметных ячеек хранения (1-16384). ВНИМАНИЕ: Слишком высокое значение может привести к проблемам с размером NBT и возможным циклическим вылетам.
@@ -94,17 +175,6 @@ cells.config.nbtSizeWarningThresholdKB.tooltip=Порог предупрежде
 cells.config.enableNbtSizeTooltip=Включить подсказку о размере NBT
 cells.config.enableNbtSizeTooltip.tooltip=Включить вычисление и отображение размера NBT в подсказках ячеек. Отключите для повышения производительности ячеек.
 
-cells.config.compactingIdleDrain=Потребление в простое: ячейки уплотнения
-cells.config.hdIdleDrain=Потребление в простое: HD предметные ячейки
-cells.config.hdCompactingIdleDrain=Потребление в простое: HD ячейки уплотнения
-cells.config.fluidHdIdleDrain=Потребление в простое: HD жидкостные ячейки
-cells.config.compactingIdleDrain.tooltip=Потребление в простое для ячеек уплотнения (пассивное потребление AE/t)
-cells.config.hdIdleDrain.tooltip=Потребление в простое для гипер-плотных ячеек (пассивное потребление AE/t)
-cells.config.hdCompactingIdleDrain.tooltip=Потребление в простое для гипер-плотных ячеек уплотнения (пассивное потребление AE/t)
-cells.config.fluidHdIdleDrain.tooltip=Потребление в простое для жидкостных гипер-плотных ячеек (пассивное потребление AE/t)
-cells.config.configurableCellIdleDrain=Потребление в простое: настраиваемые ячейки
-cells.config.configurableCellIdleDrain.tooltip=Потребление в простое для настраиваемых ячеек (пассивное потребление AE/t)
-
 cells.config.compactingCellUpgradeSlots=Слоты улучшений: ячейки уплотнения
 cells.config.compactingCellUpgradeSlots.tooltip=Количество слотов улучшений для ячеек уплотнения (1-16)
 cells.config.hdItemCellUpgradeSlots=Слоты улучшений: HD предметные ячейки
@@ -115,7 +185,30 @@ cells.config.hdFluidCellUpgradeSlots=Слоты улучшений: HD жидк�
 cells.config.hdFluidCellUpgradeSlots.tooltip=Количество слотов улучшений для гипер-плотных жидкостных ячеек (1-16)
 cells.config.configurableCellUpgradeSlots=Слоты улучшений: настраиваемые ячейки
 cells.config.configurableCellUpgradeSlots.tooltip=Количество слотов улучшений для настраиваемых ячеек (1-16)
+cells.config.emcCellSyncIntervalTicks=Интервал синхронизации EMC Ячейки
+cells.config.emcCellSyncIntervalTicks.tooltip=Интервал тиков сервера между сбросами буферизованного EMC в привязанный пул EMC игрока/команды (1–72000)
+cells.config.emcCellReportedAmount=Заявленный объём EMC Ячейки
+cells.config.emcCellReportedAmount.tooltip=Заявленный размер стека для изученных фильтров EMC Ячейки. Используется положительное ненулевое число до 9,2 квинтиллиона (Long.MAX_VALUE). Некорректные значения сбрасываются к значению по умолчанию — 2147483647.
+cells.config.emcCellPartitionSlots=Слоты разделов EMC Ячейки
+cells.config.emcCellPartitionSlots.tooltip=Разблокированные слоты разделов для уровней EMC ячеек. Индекс 0 — базовая ячейка без улучшений. Каждое следующее значение применяется к Улучшению EMC 1, Улучшению EMC 2 и так далее.
 
+## Config: Misc
+cells.config.enableEssentiaCreativeCellFix=Включить исправление для Эссенциальной Творческой Ячейки
+cells.config.enableEssentiaCreativeCellFix.tooltip=Включить исправление для Эссенциальной Творческой Ячейки, чтобы она отображала только Max Int вместо Max Long / 2. Это предотвращает переполнение дельт и некорректное отображение значений. Отключите эту настройку, если в вашей версии Thaumic Energistics поддерживается long.
+
+## Config: Idle Drain
+cells.config.compactingIdleDrain=Потребление в простое: ячейки уплотнения
+cells.config.hdIdleDrain=Потребление в простое: HD предметные ячейки
+cells.config.hdCompactingIdleDrain=Потребление в простое: HD ячейки уплотнения
+cells.config.fluidHdIdleDrain=Потребление в простое: HD жидкостные ячейки
+cells.config.compactingIdleDrain.tooltip=Потребление в простое для ячеек уплотнения (пассивное потребление AE/тик)
+cells.config.hdIdleDrain.tooltip=Потребление в простое для гипер-плотных ячеек (пассивное потребление AE/тик)
+cells.config.hdCompactingIdleDrain.tooltip=Потребление в простое для гипер-плотных ячеек уплотнения (пассивное потребление AE/тик)
+cells.config.fluidHdIdleDrain.tooltip=Потребление в простое для жидкостных гипер-плотных ячеек (пассивное потребление AE/тик)
+cells.config.configurableCellIdleDrain=Потребление в простое: настраиваемые ячейки
+cells.config.configurableCellIdleDrain.tooltip=Потребление в простое для настраиваемых ячеек (пассивное потребление AE/тик)
+
+## Config: Enabled
 cells.config.enableCompactingCell=Включить ячейку уплотнения
 cells.config.enableHDCells=Включить HD ячейку
 cells.config.enableHDCompactingCells=Включить HD ячейку уплотнения
@@ -126,6 +219,23 @@ cells.config.enableHDCompactingCells.tooltip=Включить гипер-пло�
 cells.config.enableFluidHDCells.tooltip=Включить гипер-плотные жидкостные ячейки хранения
 cells.config.enableConfigurableCells=Включить настраиваемую ячейку
 cells.config.enableConfigurableCells.tooltip=Включить настраиваемые ячейки хранения
+
+## Config: Interfaces
+cells.config.interfaceMaxSlotSizeLimit=Максимальный лимит размера слота интерфейса
+cells.config.interfaceMaxSlotSizeLimit.tooltip=Максимальный лимит размера слота для интерфейсов. Ограничивает настраиваемый пользователем максимальный размер слота на слот. Мин: 1, Макс: 9,2 квинтиллиона (Long.MAX_VALUE), По умолчанию: 9,2 квинтиллиона (Integer.MAX_VALUE).
+cells.config.interfaceMaxSlotSizeUseFixedValues=Использовать фиксированные значения максимального размера слота
+cells.config.interfaceMaxSlotSizeUseFixedValues.tooltip=Использовать фиксированные значения кнопок максимального размера слота вместо положительных/отрицательных смещений. По умолчанию: false (смещения).
+cells.config.interfaceMaxSlotSizeOffsets=Смещения максимального размера слота
+cells.config.interfaceMaxSlotSizeOffsets.tooltip=Четыре положительных смещения кнопок максимального размера слота. В интерфейсе они отображаются как +значение и -значение. Значения должны быть положительными long.
+cells.config.interfaceMaxSlotSizeFixedValues=Фиксированные значения максимального размера слота
+cells.config.interfaceMaxSlotSizeFixedValues.tooltip=Восемь фиксированных значений кнопок максимального размера слота. Используются, когда включены фиксированные значения. Значения должны быть положительными long.
+cells.config.interfaceMinPollingRate=Минимальная частота опроса интерфейса
+cells.config.interfaceMinPollingRate.tooltip=Минимальная частота опроса для интерфейсов в тиках. Значение 0 разрешает адаптивную частоту (управляемую AE2). Более высокие значения заставляют интерфейсы опрашивать не реже указанного интервала.
+cells.config.useFixedInterfaceTextures=Использовать фиксированные текстуры интерфейса
+cells.config.useFixedInterfaceTextures.tooltip=Использовать фиксированные (неанимированные) текстуры для блоков и частей интерфейса. Для вступления в силу требуется перезапуск игры.
+cells.config.essentiaContainerBlacklist=Чёрный список контейнеров эссенции
+cells.config.essentiaContainerBlacklist.tooltip=Список ID тайл-сущностей (например, "thaumcraft:thaumatorium"), которые следует игнорировать как контейнеры эссенции. Тайл-сущности из чёрного списка не будут обнаруживаться Интерфейсом эссенции, что предотвращает передачу и извлечение (при этом блок всё ещё может взаимодействовать с нами). Используйте F3 или WAILA/TOP для поиска ID.
+
 
 # Compacting Cells
 item.cells.compacting_cell.1k.name=1k ME Ячейка уплотнения
@@ -161,7 +271,7 @@ tooltip.cells.overflow_card.desc=§7Уничтожает лишние предм
 
 # Ore Dictionary Card
 item.cells.oredict_card.name=Карта рудного словаря
-tooltip.cells.oredict_card.desc=§7Позволяет вставлять эквивалентные предметы из oreDict
+tooltip.cells.oredict_card.desc=§7Позволяет вставлять предметы, эквивалентные по словарю руд (например, медь из разных модов), и преобразовывать их в предмет раздела.
 
 # Trash Unselected Card
 item.cells.trash_unselected_card.name=Карта уничтожения невыбранного
@@ -177,8 +287,8 @@ item.cells.equal_distribution_card.16x.name=Карта равного распр
 item.cells.equal_distribution_card.32x.name=Карта равного распределения (32x)
 item.cells.equal_distribution_card.63x.name=Карта равного распределения (63x)
 item.cells.equal_distribution_card.infinite.name=Карта равного распределения (неограниченная)
-tooltip.cells.equal_distribution_card.desc=§7Ограничивает ячейку %d типами, равномерно распределяя емкость (%d)
-tooltip.cells.equal_distribution_card.desc.infinite=§7Равномерно распределяет емкость между всеми типами. Используйте, если вы увеличили 'макс. типов' в конфиге.
+tooltip.cells.equal_distribution_card.desc=§7Ограничивает ячейку до %d типов, распределяя вместимость поровну (каждый тип ограничен %d от вместимости ячейки). Резервирует накладные расходы на типы (половину ячейки) заранее, а не при добавлении каждого типа.
+tooltip.cells.equal_distribution_card.desc.infinite=§7Распределяет вместимость поровну между всеми типами. Используйте ТОЛЬКО если вы увеличили значение «макс. типов» в конфигурации.
 
 # Compression Tier Card
 item.cells.compression_tier_card.3x.name=Карта уровня сжатия (3x)
@@ -195,6 +305,25 @@ item.cells.decompression_tier_card.9x.name=Карта уровня декомп�
 item.cells.decompression_tier_card.12x.name=Карта уровня декомпрессии (12x)
 item.cells.decompression_tier_card.15x.name=Карта уровня декомпрессии (15x)
 tooltip.cells.decompression_tier_card.desc=§7Включает до %d уровней декомпрессии. Переустановите ячейку после установки, чтобы применить новые уровни декомпрессии.
+
+# EMC Cell
+item.cells.emc_cell.name=EMC ME Ячейка хранения
+item.cells.emc_capacity_card.tier1.name=Усовершенствованная карта улучшения EMC
+item.cells.emc_capacity_card.tier2.name=Сжатая карта улучшения EMC
+tooltip.cells.emc_cell.info=§7Привязанная ячейка хранения EMC. Отображает изученные предметы разделов в фиксированном количестве и преобразует принятые вставки в EMC.
+tooltip.cells.emc_cell.slots=§bСлоты разделов: %d/%d
+tooltip.cells.emc_cell.use_on_link=§bПКМ§7 на ячейку на EMC Link, чтобы скопировать её конфигурацию
+tooltip.cells.emc_cell.owner=§aПривязана к: %s
+tooltip.cells.emc_cell.unbound=§cНе привязана: вставьте её снова, чтобы привязать к игроку
+tooltip.cells.emc_cell.buffered=§6Буферизованный EMC: %,d
+tooltip.cells.emc_cell.unlearned=§cНеизученные фильтры разделов: %d
+tooltip.cells.emc_cell.unlearned_hint=§7Удерживайте §bShift§7, чтобы отобразить список заблокированных фильтров
+message.cells.emc_cell.link_copy=Скопировано %d новых фильтров разделов из EMC Link
+message.cells.emc_cell.link_copy_full=Скопировано %d новых фильтров разделов из EMC Link; ещё %d уникальных фильтров не поместилось
+message.cells.emc_cell.link_copy_full_none=Раздел EMC‑ячейки заполнен; %d уникальных фильтров не поместилось
+message.cells.emc_cell.link_copy_none=Новые фильтры разделов из EMC Link не скопированы
+tooltip.cells.emc_capacity_card.desc=§7Позволяет ячейке предоставлять %d различных разделённых предметов
+
 
 # Hyper-Density Cells (1k-1G max, each displayed byte represents ~2.1B actual storage)
 item.cells.hyper_density_cell.1k.name=1k Гипер-плотная ячейка хранения ME
@@ -293,6 +422,7 @@ tooltip.cells.hyper_density_fluid_component.info=§dГипер-плотный ж
 tooltip.cells.upgrade.overflow_active=§cУничтожает избыток
 tooltip.cells.upgrade.equal_distribution_active=§bРазделено на %d типов
 tooltip.cells.upgrade.equal_distribution_active.infinite=§bАктивно равное распределение
+tooltip.cells.upgrade.per_type=§bЕмкость на тип: %,d (%s)
 tooltip.cells.upgrade.compression_tier_active=§aУровни сжатия: %d
 tooltip.cells.upgrade.decompression_tier_active=§eУровни декомпрессии: %d
 tooltip.cells.upgrade.oredict_active=§dАктивно преобразование по рудному словарю
@@ -302,7 +432,7 @@ item.cells.configurable_cell.name=Настраиваемая ячейка хра
 item.cells.configurable_cell.name_configured=Настраиваемая ячейка хранения ME (%s)
 tooltip.cells.configurable_cell.no_component=§cКомпонент не установлен! Вставьте компонент хранения ME для определения емкости.
 tooltip.cells.configurable_cell.info=§7Принимает любой компонент хранения ME для определения емкости и типа. Имеет встроенное равное распределение.
-tooltip.cells.component.configurable_compatible=§bСовместимо с настраиваемой ячейкой
+tooltip.cells.component.configurable_compatible=§bСовместимо с настраиваемой ячейкой§r
 tooltip.cells.configurable_cell.capacity_per_type=§bЛимит на тип: %s %s
 
 # Configurable Cell GUI
@@ -369,6 +499,13 @@ tile.cells.export_interface.name=Интерфейс экспорта
 tile.cells.export_interface.fluid.name=Интерфейс экспорта жидкостей
 tile.cells.export_interface.gas.name=Интерфейс экспорта газов
 tile.cells.export_interface.essentia.name=Интерфейс экспорта эссенции
+tile.cells.import_interface.combined.name=Универсальный интерфейс импорта
+tile.cells.export_interface.combined.name=Универсальный интерфейс экспорта
+tile.cells.io_interface.name=Интерфейс ввода‑вывода
+tile.cells.io_interface.fluid.name=Жидкостный интерфейс ввода‑вывода
+tile.cells.io_interface.gas.name=Газовый интерфейс ввода‑вывода
+tile.cells.io_interface.essentia.name=Интерфейс ввода‑вывода эссенции
+tile.cells.compacting_pattern_exposer.name=Экспозер шаблонов компактинга
 
 item.cells.part.import_interface.name=Интерфейс импорта
 item.cells.part.import_fluid_interface.name=Интерфейс импорта жидкостей
@@ -378,6 +515,12 @@ item.cells.part.export_interface.name=Интерфейс экспорта
 item.cells.part.export_fluid_interface.name=Интерфейс экспорта жидкостей
 item.cells.part.export_gas_interface.name=Интерфейс экспорта газов
 item.cells.part.export_essentia_interface.name=Интерфейс экспорта эссенции
+item.cells.part.import_combined_interface.name=Универсальный интерфейс импорта
+item.cells.part.export_combined_interface.name=Универсальный интерфейс экспорта
+item.cells.part.io_item_interface.name=Интерфейс ввода-вывода
+item.cells.part.io_fluid_interface.name=Жидкостный интерфейс ввода-вывода
+item.cells.part.io_gas_interface.name=Газовый интерфейс ввода-вывода
+item.cells.part.io_essentia_interface.name=Интерфейс ввода-вывода эссенции
 
 # Interface GUI titles (format: cells.{direction}_interface.{type}.title)
 cells.import_interface.item.title=Интерфейс импорта
@@ -388,23 +531,45 @@ cells.export_interface.item.title=Интерфейс экспорта
 cells.export_interface.fluid.title=Интерфейс экспорта жидкостей
 cells.export_interface.gas.title=Интерфейс экспорта газов
 cells.export_interface.essentia.title=Интерфейс экспорта эссенции
+cells.import_interface.combined.title=Универсальный интерфейс импорта
+cells.export_interface.combined.title=Универсальный интерфейс экспорта
+cells.compacting_pattern_exposer.title=Экспозер шаблонов компактинга
+cells.compacting_pattern_exposer.multiplier.title=Множитель шаблона (слот %d)
+cells.compacting_pattern_exposer.multiplier.applies=Умножает оба шаблона
+cells.compacting_pattern_exposer.multiplier.max=Макс.: %s
+cells.compacting_pattern_exposer.multiplier.tooltip=§7Множитель шаблона: §2%s
+cells.compacting_pattern_exposer.filter.hint.right_click=§bПКМ§7, чтобы отредактировать множитель шаблона
 
 # Info tooltips for block items
 ## Item interfaces (hardcoded in BlockImportInterface/BlockExportInterface)
-tooltip.cells.import_interface.info=§7Импортирует предметы в сеть ME через фильтруемые слоты. Не поддерживает пополнение запасов или крафт.
-tooltip.cells.export_interface.info=§7Экспортирует предметы из сети ME через фильтруемые слоты. Предметы могут извлекаться трубами и воронками.
+tooltip.cells.import_interface.info=§7Импортирует предметы в сеть ME через фильтруемые слоты. Не поддерживает пополнение запасов или крафт. Автоматическое извлечение доступно с помощью карты Тянуть.
+tooltip.cells.export_interface.info=§7Экспортирует предметы из сети ME через фильтруемые слоты. Автоматическая вставка доступна с помощью карты Толкать.
 
 ## Fluid/Gas/Essentia interfaces (from AbstractResourceInterfaceBlock using translationKey.info pattern)
-tooltip.cells.import_interface.fluid.info=§7Импортирует жидкости в сеть ME через фильтруемые слоты.
-tooltip.cells.export_interface.fluid.info=§7Экспортирует жидкости из сети ME через фильтруемые слоты. Жидкости могут извлекаться трубами.
-tooltip.cells.import_interface.gas.info=§7Импортирует газы в сеть ME.
-tooltip.cells.export_interface.gas.info=§7Экспортирует газы из сети ME через фильтруемые слоты. Газы могут извлекаться трубами.
-tooltip.cells.import_interface.essentia.info=§7Импортирует эссенцию в сеть ME.
-tooltip.cells.export_interface.essentia.info=§7Экспортирует эссенцию из сети ME через фильтруемые слоты. Эссенция может извлекаться трубками.
-tooltip.cells.export_interface.essentia.part.info=§7Экспортирует эссенцию из сети ME через фильтруемые слоты.
+tooltip.cells.import_interface.fluid.info=§7Импортирует жидкости в ME‑сеть через отфильтрованные слоты. Автоматическое извлечение доступно с помощью карты Тянуть.
+tooltip.cells.export_interface.fluid.info=§7Предоставляет жидкости из ME‑сети через отфильтрованные слоты. Автоматическая вставка доступна с помощью карты Толкать.
+tooltip.cells.import_interface.gas.info=§7Импортирует газ в ME‑сеть через отфильтрованные слоты. Автоматическое извлечение доступно с помощью карты Тянуть.
+tooltip.cells.export_interface.gas.info=§7Предоставляет газ из ME‑сети через отфильтрованные слоты. Автоматическая вставка доступна с помощью карты Толкать.
+tooltip.cells.import_interface.essentia.info=§7Импортирует эссенцию в ME‑сеть через отфильтрованные слоты. Любое извлечение следует выполнять через карту Тянуть (несовместимо с трубками).
+tooltip.cells.export_interface.essentia.info=§7Предоставляет эссенцию из ME‑сети через отфильтрованные слоты. Совместимо с трубками, инфузией, тауматориумом, люком эссенции и т.д.
+tooltip.cells.export_interface.essentia.part.info=§7Предоставляет эссенцию из ME‑сети через отфильтрованные слоты.
+tooltip.cells.import_interface.combined.info=§7Импортирует предметы, жидкости, газ и эссенцию в ME‑сеть с помощью одного блока. Используйте вкладки для переключения между типами ресурсов.
+tooltip.cells.export_interface.combined.info=§7Предоставляет предметы, жидкости, газ и эссенцию из ME‑сети с помощью одного блока. Используйте вкладки для переключения между типами ресурсов.
+tooltip.cells.io_interface.info=§7Осуществляет импорт/экспорт предметов в/из ME‑сети с помощью одного блока. Не поддерживает крафт. Автоматический ввод‑вывод выполняется через карты Толкать/Тянуть.
+tooltip.cells.io_interface.fluid.info=§7Осуществляет импорт/экспорт жидкостей в/из ME‑сети с помощью одного блока. Автоматический ввод‑вывод выполняется через карты Толкать/Тянуть.
+tooltip.cells.io_interface.gas.info=§7Осуществляет импорт/экспорт газа в/из ME‑сети с помощью одного блока. Автоматический ввод‑вывод выполняется через карты Толкать/Тянуть.
+tooltip.cells.io_interface.essentia.info=§7Осуществляет импорт/экспорт эссенции в/из ME‑сети с помощью одного блока. Автоматический ввод‑вывод выполняется через карты Толкать/Тянуть.
+tooltip.cells.compacting_pattern_exposer.info=§7Отображает преобразования компактинга и декомпактинга как мгновенные шаблоны обработки AE2 с использованием фильтров призрачных предметов.
+
+cells.compacting_pattern_exposer.result.up=Сжимает §b%s§r входных предметов в §a%s§r выходных предметов.
+cells.compacting_pattern_exposer.result.down=Декомпрессирует §b%s§r входных предметов в §a%s§r выходных предметов.
+
+# IO Interface direction tab labels
+cells.direction.import=Импорт
+cells.direction.export=Экспорт
 
 # Essentia part warning (parts cannot participate in tube network)
-tooltip.cells.essentia_part.no_tubes=§eНевозможно взаимодействовать с трубками Thaumcraft/шиной хранения
+tooltip.cells.essentia_part.no_tubes=§eЭта деталь может использоваться только с картой Толкать/Тянуть. Для большего количества взаимодействий используйте полный блок.
 
 # Configurable Cell warnings
 cells.configurable_cell.split_stack=Сначала разделите стек ячеек, прежде чем вставлять компонент.
@@ -417,8 +582,10 @@ cells.configurable_cell.types_capacity_exceeded=Лимит типов превы
 cells.controls.use_settings=Для лучшей производительности установите §bРазмер слота§r и §bЧастоту опроса§r на достаточно высокое значение.
 cells.controls.use_cards=§6Карта уничтожения избытка§r и §6Карта уничтожения невыбранного§r предпочтительнее других решений, таких как мусорные баки.
 cells.controls.capacity_cards=Используйте §6Карты емкости§r для добавления дополнительных страниц фильтров.
-cells.controls.memory_card_sneak=Крадучись + ПКМ: Сохранить настройки.
-cells.controls.memory_card_filter=Крадучись + §b%s§r + ПКМ: Сохранить с фильтрами.
+cells.controls.push_pull_cards=Используйте §6Карты Толкать/Тянуть§r для автоматизации передачи. Для наилучших результатов установите частоту опроса интерфейса как кратную интервалу карты.
+cells.controls.memory_card=Используйте §6Карту памяти§r из AE2:
+cells.controls.memory_card_sneak=- Присесть + ПКМ: Сохранить настройки.
+cells.controls.memory_card_filter=- Присесть + §b%s§r + ПКМ: Сохранить настройки вместе с фильтрами.
 cells.controls.disassemble=Разборка (с помощью ключа) запомнит настройки вместе с фильтрами.
 cells.controls.key_not_set=(не задано)
 cells.controls.quick_add=§b%s§r: Добавить наведенный предмет в первый свободный слот фильтра.
@@ -449,6 +616,8 @@ jei.cells.cellview.tiers=уровней
 jei.cells.cellview.tooltip.stored_units=Хранится: %s %s
 jei.cells.cellview.tooltip.bytes_used=Байт: %s
 jei.cells.cellview.tooltip.virtual_form=§7Сжатая/декомпрессированная форма (виртуальная)
+jei.cells.cellview.tooltip.overhead=  - Зарезервировано: %s
+jei.cells.cellview.tooltip.storage=  - Вместимость: %s
 
 # JEI Cell View - Size Row Tooltips
 jei.cells.cellview.tooltip.size_full=Размер: %s / %s байт
@@ -459,7 +628,7 @@ jei.cells.cellview.tooltip.hd_multiplier=§dКаждый байт хранит ~
 jei.cells.cellview.tooltip.types_info=Каждый хранимый тип резервирует служебные байты
 jei.cells.cellview.tooltip.overhead_info=Байт на тип: %s
 jei.cells.cellview.tooltip.overhead_total=Общий служебный объем типов: %s байт
-jei.cells.cellview.tooltip.equal_distribution_builtin=§6Встроенное равное распределение (Настраиваемая ячейка)
+jei.cells.cellview.tooltip.equal_distribution_builtin=§6Встроенное равное распределение (настраиваемая ячейка)
 jei.cells.cellview.tooltip.equal_distribution_upgrade=§6Активно равное распределение (от карты улучшения)
 jei.cells.cellview.tooltip.equal_distribution_explain=§bОбщая емкость делится поровну между всеми слотами типов
 jei.cells.cellview.tooltip.configurable_types=Равное распределение: емкость разделена между типами
@@ -486,76 +655,56 @@ tooltip.cells.recovery_container.usage=§bПКМ§8 по контейнеру д
 cells.recovery_container.transferred=Перенесено %d %s
 cells.recovery_container.no_transfer=Цель не может принять %s
 
-# ..
-
-tooltip.cells.useatyourownrisk=§eМожет работать не так, как ожидалось. Используйте на свой страх и риск.
-tooltip.cells.type.export_interface=Интерфейс экспорта (все типы)
-tooltip.cells.click_to_configure=§bПКМ§7 для настройки
-cells.slot_size_override.title=Макс. размер слота (слот %d)
-cells.slot_size_override.clear_hint=Очистите поле, чтобы сбросить переопределение
-cells.slot_size_override.using_global=глобальный
-cells.filter_slot.hint.left_click=ЛКМ для установки/очистки
-cells.filter_slot.hint.right_click=§bПКМ§7 для переопределения макс. размера слота
-cells.config.title=Конфигурация CELLS
-cells.config.category.cells=Ячейки
-cells.config.category.interfaces=Интерфейсы
-cells.config.enableEssentiaCreativeCellFix=Включить исправление творческой эссенциальной ячейки
-cells.config.enableEssentiaCreativeCellFix.tooltip=Включает исправление для творческой эссенциальной ячейки, заставляющее её сообщать только Max Int вместо Max Long / 2. Это предотвращает переполнение дельт и неверное отображение количества. Отключите эту настройку, если в вашей версии Thaumic Energistics поддерживает long.
-cells.config.interfaceMaxSlotSizeLimit=Лимит макс. размера слота интерфейса
-cells.config.interfaceMaxSlotSizeLimit.tooltip=Максимальный лимит размера слота для интерфейсов. Ограничивает настраиваемый пользователем макс. размер слота. Мин: 1, Макс: 9,2 квинтиллиона (Long.MAX_VALUE), По умолч.: 9,2 квинтиллиона (Long.MAX_VALUE).
-cells.config.interfaceMinPollingRate=Мин. частота опроса интерфейса
-cells.config.interfaceMinPollingRate.tooltip=Минимальная частота опроса интерфейсов в тактах. 0 включает адаптивный режим (частоты, управляемые AE2). Большие значения заставляют интерфейсы опрашивать не реже указанного.
-cells.config.useFixedInterfaceTextures=Использовать фиксированные текстуры интерфейсов
-cells.config.useFixedInterfaceTextures.tooltip=Использовать фиксированные (неанимированные) текстуры для блоков и частей интерфейсов. Требуется перезапуск игры для применения.
-tooltip.cells.upgrade.per_type=§bЁмкость на тип: %,d (%s)
-tile.cells.import_interface.combined.name=Универсальный интерфейс импорта
-tile.cells.export_interface.combined.name=Универсальный интерфейс экспорта
-item.cells.part.import_combined_interface.name=Универсальный интерфейс импорта
-item.cells.part.export_combined_interface.name=Универсальный интерфейс экспорта
-cells.import_interface.combined.title=Универсальный интерфейс импорта
-cells.export_interface.combined.title=Универсальный интерфейс экспорта
-tooltip.cells.import_interface.combined.info=§7Импортирует предметы, жидкости, газы и эссенцию в ME-сеть через один блок. Используйте вкладки для переключения между типами ресурсов.
-tooltip.cells.export_interface.combined.info=§7Предоставляет предметы, жидкости, газы и эссенцию из ME-сети через один блок. Используйте вкладки для переключения между типами ресурсов.
-cells.controls.push_pull_cards=Используйте §6карты Push/Pull§r для автоматизации перемещений. Для лучшего результата установите частоту опроса интерфейса кратной интервалу карты.
-cells.controls.memory_card=Используйте §6карту памяти§r из AE2:
-jei.cells.cellview.tooltip.overhead=  - Накладные расходы: %s
-jei.cells.cellview.tooltip.storage=  - Хранилище: %s
+# Auto-Pull/Push Cards
 item.cells.pull_card.name=Карта авто-вытягивания
 item.cells.push_card.name=Карта авто-вталкивания
-tooltip.cells.pull_card.desc=§7Позволяет импортным интерфейсам вытягивать §b%s§7 предметов/мВ и т.п. из соседних хранилищ каждые §2%s§r.
-tooltip.cells.push_card.desc=§7Позволяет экспортным интерфейсам вталкивать §b%s§7 предметов/мВ и т.п. в соседние хранилища каждые §2%s§r.
-tooltip.cells.push_pull_card.limit.desc=§7Поддерживает §b%s§7 предметов/мВ и т.п. каждого типа в соседнем хранилище (не больше и не меньше).
-tooltip.cells.push_pull_card.interval_warning=§eИнтервал меньше 1 секунды может вызвать проблемы с производительностью.
-tooltip.cells.push_pull_card.polling_rate_warning=§eДля наилучшего результата установите частоту опроса интерфейса кратной интервалу карты. Несинхронизированные тайминги могут вызывать задержки в работе.
+tooltip.cells.pull_card.desc=§7Позволяет интерфейсам импорта вытягивать §b%s§7 предметов/мБ и т. д. из соседних хранилищ каждые §2%s§r.
+tooltip.cells.push_card.desc=§7Позволяет интерфейсам экспорта вталкивать §b%s§7 предметов/мБ и т. д. в соседние хранилища каждые §2%s§r.
+tooltip.cells.push_pull_card.limit.desc=§7Поддерживает ровно §b%s§7 предметов/мБ и т. д. каждого типа в соседнем хранилище (не больше и не меньше).
+tooltip.cells.push_pull_card.interval_warning=§eИнтервал менее 1 секунды может вызвать проблемы с производительностью.
+tooltip.cells.push_pull_card.polling_rate_warning=§eДля наилучших результатов установите частоту опроса интерфейса как кратную интервалу карты. Несогласованные тайминги могут вызывать задержки.
+tooltip.cells.push_pull_card.only_filtered_slots=§eЭта карта работает §oтолько§r§e с отфильтрованными слотами!
 cells.push_pull_card.interval.title=Интервал времени:
-cells.push_pull_card.interval.tooltip=Как часто карта выполняет операцию перемещения.
-cells.push_pull_card.quantity.title=Количество перемещения:
-cells.push_pull_card.quantity.tooltip=Сколько предметов/мВ и т.п. перемещать за одну операцию.
+cells.push_pull_card.interval.tooltip=Как часто карта выполняет операцию передачи.
+cells.push_pull_card.quantity.title=Количество передачи:
+cells.push_pull_card.quantity.tooltip=Сколько предметов/мБ и т.д. передавать за одну операцию.
 cells.push_pull_card.limit.title=Поддерживать в соседнем хранилище:
-cells.push_pull_card.limit.tooltip=Сколько предметов/мВ и т.п. каждого типа поддерживать в соседнем хранилище (не больше и не меньше).
+cells.push_pull_card.limit.tooltip=Сколько предметов/мБ и т.д. каждого типа поддерживать в соседнем хранилище (не больше и не меньше).
+
+# Insertion Card (Subnet Proxy upgrade)
+item.cells.insertion_card.name=Карта вставки
+tooltip.cells.insertion_card.desc=§7Позволяет вставлять содержимое обратно через прокси подсети (в обратном направлении). Настройте фильтр прокси, чтобы избежать вставки нежелательного содержимого.
+tooltip.cells.type.subnet_proxy=Прокси подсети
+
+# Pull/Push Upgrade Button (interface GUI)
 cells.pull_push_button.disabled=Вставьте %s для взаимодействия
-cells.pull_push_button.enabled.title=Настроить карту Pull/Push
-cells.pull_push_button.enabled.desc=§bНажмите§7, чтобы открыть GUI настройки карты.
+cells.pull_push_button.enabled.title=Настроить карту Толкать/Тянуть
+cells.pull_push_button.enabled.desc=§bНажмите§7, чтобы открыть интерфейс настройки карты.
+cells.pull_push_button.warning.title=§eПредупреждение: буфер слота слишком мал
+cells.pull_push_button.warning.buffer=§7Эта карта может перемещать до §b%s§7 %s между проходами ввода‑вывода интерфейса (§b%s§7 за §a%s§7, ввод‑вывод интерфейса каждые §a%s§7).
+cells.pull_push_button.warning.slot=§7Слот %d страницы %d ограничен значением §b%s§7 %s. Рекомендуется увеличить размер этого слота.
+
+# /inspectSlot Command
 commands.cells.inspect_slots.usage=/inspectSlots [ресурс1] [ресурс2] ...
 commands.cells.inspect_slots.not_player=Эту команду должен выполнять игрок.
-commands.cells.inspect_slots.no_block=Нет блока в поле зрения.
+commands.cells.inspect_slots.no_block=В поле зрения нет блока.
 commands.cells.inspect_slots.no_tile=Нет сущности тайла по координатам [%d, %d, %d].
-commands.cells.inspect_slots.no_capability=У блока нет поддерживаемой инвентарной возможности.
-commands.cells.inspect_slots.header=§6Осмотр блока по координатам [%d, %d, %d]:
-commands.cells.inspect_slots.type.item_repository=§eВозможность: §bРепозиторий предметов §7(безслотовый)
-commands.cells.inspect_slots.type.item_handler=§eВозможность: §bОбработчик предметов §7(слотовый)
-commands.cells.inspect_slots.type.fluid_handler=§eВозможность: §bОбработчик жидкостей §7(ёмкостный)
-commands.cells.inspect_slots.type.gas_handler=§eВозможность: §bОбработчик газов §7(ёмкостный)
-commands.cells.inspect_slots.type.essentia_container=§eВозможность: §bКонтейнер эссенции §7(по аспектам)
+commands.cells.inspect_slots.no_capability=У блока нет поддерживаемой возможности инвентаря.
+commands.cells.inspect_slots.header=§6Проверка блока по координатам [%d, %d, %d]:
+commands.cells.inspect_slots.type.item_repository=§eВозможность: §bРепозиторий предметов §7(без слотов)
+commands.cells.inspect_slots.type.item_handler=§eВозможность: §bОбработчик предметов §7(на основе слотов)
+commands.cells.inspect_slots.type.fluid_handler=§eВозможность: §bОбработчик жидкостей §7(на основе резервуаров)
+commands.cells.inspect_slots.type.gas_handler=§eВозможность: §bОбработчик газа §7(на основе резервуаров)
+commands.cells.inspect_slots.type.essentia_container=§eВозможность: §bКонтейнер эссенции §7(на основе аспектов)
 commands.cells.inspect_slots.empty_inventory=§7  (пусто)
 commands.cells.inspect_slots.slot_empty=§7  Слот %d: §8Пусто §7- 0/%d
 commands.cells.inspect_slots.slot_empty_can_insert=§7  Слот %d: §8Пусто §7- 0/%d §a(можно вставить %s)
 commands.cells.inspect_slots.slot_content=§7  Слот %d: §f%s §7- %d/%d
 commands.cells.inspect_slots.slot_content_can_insert=§7  Слот %d: §f%s §7- %d/%d §a(можно вставить %s)
-commands.cells.inspect_slots.tank_empty=§7  Резервуар %d: §8Пусто §7- 0/%d мВ
-commands.cells.inspect_slots.tank_empty_can_insert=§7  Резервуар %d: §8Пусто §7- 0/%d мВ §a(можно вставить %s)
-commands.cells.inspect_slots.tank_content=§7  Резервуар %d: §b%s §7- %d/%d мВ
-commands.cells.inspect_slots.tank_content_can_insert=§7  Резервуар %d: §b%s §7- %d/%d мВ §a(можно вставить %s)
+commands.cells.inspect_slots.tank_empty=§7  Резервуар %d: §8Пусто §7- 0/%d мБ
+commands.cells.inspect_slots.tank_empty_can_insert=§7  Резервуар %d: §8Пусто §7- 0/%d мБ §a(можно вставить %s)
+commands.cells.inspect_slots.tank_content=§7  Резервуар %d: §b%s §7- %d/%d мБ
+commands.cells.inspect_slots.tank_content_can_insert=§7  Резервуар %d: §b%s §7- %d/%d мБ §a(можно вставить %s)
 commands.cells.inspect_slots.essentia_content=§7  Аспект %d: §d%s §7- %d
 commands.cells.inspect_slots.can_insert_global=§a  Можно вставить: §f%s %s
 commands.cells.inspect_slots.cannot_insert_global=§c  Нельзя вставить: §f%s
@@ -564,163 +713,41 @@ commands.cells.inspect_slots.unknown_fluid=§cНеизвестная жидко�
 commands.cells.inspect_slots.unknown_gas=§cНеизвестный газ: %s
 commands.cells.inspect_slots.unknown_aspect=§cНеизвестный аспект: %s
 
-###
-
-tooltip.cells.type.emc=EMC-ячейка
-cells.filter_slot.hint.left_click_1=§bЛКМ с предметом§7 для установки
-cells.filter_slot.hint.left_click_2=§bЛКМ с пустой рукой§7 для очистки
-tooltip.cells.trigger_poll.title=Переместить всё сейчас
-tooltip.cells.trigger_poll.desc=Немедленно перемещает всё содержимое для интерфейса
-tooltip.cells.trigger_poll.cards=Включает передачи Pull/Push карт.
-tooltip.cells.probe.type_prefix=%s: %s
-tooltip.cells.probe.network.import.fixed=Импортирует содержимое %s каждые §a%s§r %s
-tooltip.cells.probe.network.import.adaptive=Импортирует содержимое %s: адаптивно (каждые §a%s§r до §a%s§r) %s
-tooltip.cells.probe.network.export.fixed=Экспортирует содержимое %s каждые §a%s§r %s
-tooltip.cells.probe.network.export.adaptive=Экспортирует содержимое %s: адаптивно (каждые §a%s§r до §a%s§r) %s
-tooltip.cells.probe.network.io.fixed=Экспортирует/Импортирует содержимое %s каждые §a%s§r %s
-tooltip.cells.probe.network.io.adaptive=Экспортирует/Импортирует содержимое %s: адаптивно (каждые §a%s§r до §a%s§r) %s
-tooltip.cells.probe.card.pull=Извлекает %s из подключённых инвентарей каждые §a%s§r %s
-tooltip.cells.probe.card.push=Помещает %s в подключённые инвентари каждые §a%s§r %s
-tooltip.cells.probe.card.sides.pull=Стороны извлечения для %s: %s
-tooltip.cells.probe.card.sides.push=Стороны помещения для %s: %s
-tooltip.cells.probe.card.sides.io=Стороны помещения/извлечения для %s: %s
-tooltip.cells.probe.quantity.single=(до §b%s§r)
-tooltip.cells.probe.quantity.io=(§b%s§r в / §b%s§r из)
-tooltip.cells.probe.scope.none=нет подключённого инвентаря
-tooltip.cells.probe.scope.adjacent=каждый соседний инвентарь
-tooltip.cells.probe.scope.facing=инвентарь напротив
-tooltip.cells.probe.list_separator=%s, %s
-tooltip.cells.probe.side.north=§aсевер§r
-tooltip.cells.probe.side.south=§aюг§r
-tooltip.cells.probe.side.west=§aзапад§r
-tooltip.cells.probe.side.east=§aвосток§r
-tooltip.cells.probe.side.up=§aверх§r
-tooltip.cells.probe.side.down=§aниз§r
-tooltip.cells.probe.filters=Настроено фильтров: §a%s§r / §a%s§r
-tooltip.cells.probe.filters.import=Настроено фильтров импорта %s: §a%s§r / §a%s§r
-tooltip.cells.probe.filters.export=Настроено фильтров экспорта %s: §a%s§r / §a%s§r
-tooltip.cells.probe.state.enabled=включено
-tooltip.cells.probe.state.disabled=отключено
-tooltip.cells.probe.state.installed=установлено
-tooltip.cells.probe.state.not_installed=не установлено
-tooltip.cells.probe.state.none=§cнет§r
-tooltip.cells.probe.interface.behavior.import=Поведение импорта: %s
-tooltip.cells.probe.interface.behavior.export=Поведение экспорта: %s
-tooltip.cells.probe.interface.behavior.overflow=Переполнение
-tooltip.cells.probe.interface.behavior.trash_unselected=Удалять невыбранное
-tooltip.cells.probe.compacting.summary=Доступные шаблоны: §b%s§r, пользовательские множители: §a%s§r
-tooltip.cells.probe.subnet_proxy.unpaired_front=§eПередняя часть не соединена с задней.
-tooltip.cells.probe.subnet_proxy.unpaired_back=§eЗадняя часть не соединена с передней.
-tooltip.cells.probe.subnet_proxy.channels=Доступные каналы: %s
-tooltip.cells.probe.subnet_proxy.behavior=Приоритет: §b%s§r, карта вставки: %s
-tooltip.cells.probe.subnet_proxy.matching=Сопоставление: %s
-tooltip.cells.probe.matching.exact=Точное
-tooltip.cells.probe.matching.fuzzy=Нечёткое
-tooltip.cells.probe.matching.whitelist=Белый список
-tooltip.cells.probe.matching.blacklist=Чёрный список
-tooltip.cells.controls_help.show=Показать помощь по управлению
-tooltip.cells.controls_help.hide=Скрыть помощь по управлению
-tooltip.cells.recipe_transfer.title=Передача рецепта из JEI
-tooltip.cells.recipe_transfer.mapping1=Интерфейс импорта -> %s
-tooltip.cells.recipe_transfer.mapping2=Интерфейс экспорта -> %s
-tooltip.cells.recipe_transfer.current= §a(Вы здесь)
-tooltip.cells.recipe_transfer.click_to_swap=Определяет, какая часть рецепта попадает в фильтры при нажатии '+' в JEI, в зависимости от типа интерфейса. Нажмите, чтобы переключить маршрутизацию интерфейса.
-tooltip.cells.recipe_transfer.creative_selection=Нажатие '+' в JEI добавляет %s§7 в этот фильтр.
-tooltip.cells.recipe_transfer.creative_click_to_swap=Нажмите, чтобы переключать между добавлением входов и выходов рецепта.
-cells.recipe_component.inputs=JEI §bВходы§r
-cells.recipe_component.outputs=JEI §bВыходы§r
-message.cells.memory_card.upgrades_not_found=%d улучшений не найдено в вашем инвентаре:\n- %s
-message.cells.memory_card.upgrades_not_inserted=%d улучшений не удалось вставить (нет свободных слотов улучшений):\n- %s
-message.cells.compacting_pattern_exposer.filter_conflict=Этот фильтр создаст конфликтующую цепочку рецептов уплотнения.
-cells.config.emcCellSyncIntervalTicks=Интервал синхронизации EMC-ячейки
-cells.config.emcCellSyncIntervalTicks.tooltip=Интервал в тиках сервера между сбросами буферизованной EMC в пул EMC игрока/команды (1-72000)
-cells.config.emcCellReportedAmount=Отображаемое количество EMC-ячейки
-cells.config.emcCellReportedAmount.tooltip=Отображаемый размер стака для изученных фильтров EMC-ячейки. Используйте положительное ненулевое число до 9.2 квинтиллиона (Long.MAX_VALUE). Неверные значения возвращают значение по умолчанию 2147483647.
-cells.config.emcCellPartitionSlots=Слоты разделения EMC-ячейки
-cells.config.emcCellPartitionSlots.tooltip=Количество доступных слотов разделения для уровней EMC-ячеек. Индекс 0 — базовая ячейка без улучшений. Каждое следующее значение применяется к улучшению EMC 1, улучшению EMC 2 и т.д.
-cells.config.interfaceMaxSlotSizeUseFixedValues=Использовать фиксированные значения максимального размера слота
-cells.config.interfaceMaxSlotSizeUseFixedValues.tooltip=Использовать фиксированные значения кнопок максимального размера слота вместо положительных/отрицательных смещений. По умолчанию: false (смещения).
-cells.config.interfaceMaxSlotSizeOffsets=Смещения максимального размера слота
-cells.config.interfaceMaxSlotSizeOffsets.tooltip=Четыре положительных смещения для кнопок максимального размера слота. В GUI они отображаются как +значение и -значение. Значения должны быть положительными long.
-cells.config.interfaceMaxSlotSizeFixedValues=Фиксированные значения максимального размера слота
-cells.config.interfaceMaxSlotSizeFixedValues.tooltip=Восемь фиксированных значений для кнопок максимального размера слота. Используются, когда включены фиксированные значения. Значения должны быть положительными long.
-cells.config.essentiaContainerBlacklist=Чёрный список контейнеров эссенции
-cells.config.essentiaContainerBlacklist.tooltip=Список ID сущностей блоков (например, "thaumcraft:thaumatorium"), которые следует игнорировать как контейнеры эссенции. Заблокированные сущности не будут обнаруживаться интерфейсом эссенции, предотвращая вставку и извлечение (блок всё ещё может взаимодействовать с нами). Используйте F3 или WAILA/TOP, чтобы узнать ID.
-item.cells.emc_cell.name=ME-ячейка хранения EMC
-item.cells.emc_capacity_card.tier1.name=Улучшенная карта EMC (уровень 1)
-item.cells.emc_capacity_card.tier2.name=Сжатая карта EMC (уровень 2)
-tooltip.cells.emc_cell.info=§7Привязанная ячейка хранения EMC. Предоставляет изученные элементы разделения с фиксированным количеством и конвертирует принимаемые вставки в EMC.
-tooltip.cells.emc_cell.slots=§bСлотов разделения: %d/%d
-tooltip.cells.emc_cell.owner=§aПривязана к: %s
-tooltip.cells.emc_cell.unbound=§cНе привязана: вставьте её заново, чтобы привязать к игроку
-tooltip.cells.emc_cell.buffered=§6Буферизовано EMC: %,d
-tooltip.cells.emc_cell.unlearned=§cНеизученные фильтры разделения: %d
-tooltip.cells.emc_cell.unlearned_hint=§7Удерживайте §bShift§7, чтобы увидеть список заблокированных фильтров
-message.cells.emc_cell.link_copy=Скопировано %d новых фильтров разделения из EMC-связи
-message.cells.emc_cell.link_copy_full=Скопировано %d новых фильтров разделения из EMC-связи; ещё %d уникальных фильтров не поместились
-message.cells.emc_cell.link_copy_full_none=Разделение EMC-ячейки заполнено; %d уникальных фильтров не поместились
-message.cells.emc_cell.link_copy_none=Не скопировано новых фильтров разделения из EMC-связи
-tooltip.cells.emc_capacity_card.desc=§7Позволяет ячейке предоставлять %d различных разделённых предметов
-tile.cells.io_interface.name=Интерфейс ввода-вывода
-tile.cells.io_interface.fluid.name=Интерфейс ввода-вывода жидкостей
-tile.cells.io_interface.gas.name=Интерфейс ввода-вывода газов
-tile.cells.io_interface.essentia.name=Интерфейс ввода-вывода эссенции
-tile.cells.compacting_pattern_exposer.name=Экспонер шаблонов уплотнения
-item.cells.part.io_item_interface.name=Интерфейс ввода-вывода
-item.cells.part.io_fluid_interface.name=Интерфейс ввода-вывода жидкостей
-item.cells.part.io_gas_interface.name=Интерфейс ввода-вывода газов
-item.cells.part.io_essentia_interface.name=Интерфейс ввода-вывода эссенции
-cells.compacting_pattern_exposer.title=Экспонер шаблонов уплотнения
-cells.compacting_pattern_exposer.multiplier.title=Множитель шаблона (слот %d)
-cells.compacting_pattern_exposer.multiplier.applies=Применяется к обоим шаблонам
-cells.compacting_pattern_exposer.multiplier.max=Макс: %s
-cells.compacting_pattern_exposer.multiplier.tooltip=§7Множитель шаблона: §2%s
-cells.compacting_pattern_exposer.filter.hint.right_click=§bПКМ§7 для редактирования множителя шаблона
-tooltip.cells.io_interface.info=§7Импортирует/Экспортирует предметы в/из сети ME через один блок. Не поддерживает создание по требованию. Автоматический ввод/вывод осуществляется через карты Push/Pull.
-tooltip.cells.io_interface.fluid.info=§7Импортирует/Экспортирует жидкости в/из сети ME через один блок. Автоматический ввод/вывод осуществляется через карты Push/Pull.
-tooltip.cells.io_interface.gas.info=§7Импортирует/Экспортирует газы в/из сети ME через один блок. Автоматический ввод/вывод осуществляется через карты Push/Pull.
-tooltip.cells.io_interface.essentia.info=§7Импортирует/Экспортирует эссенцию в/из сети ME через один блок. Автоматический ввод/вывод осуществляется через карты Push/Pull.
-tooltip.cells.compacting_pattern_exposer.info=§7Предоставляет преобразования уплотнения и разуплотнения как мгновенные шаблоны обработки AE2 с использованием фильтров-фантомов.
-cells.compacting_pattern_exposer.result.up=Уплотняет §b%s§r входных предметов в §a%s§r выходных предметов.
-cells.compacting_pattern_exposer.result.down=Разуплотняет §b%s§r входных предметов в §a%s§r выходных предметов.
-cells.direction.import=Импорт
-cells.direction.export=Экспорт
-tooltip.cells.push_pull_card.only_filtered_slots=§eЭта карта §oработает только§r§e с отфильтрованными слотами!
-item.cells.insertion_card.name=Карта вставки
-tooltip.cells.insertion_card.desc=§7Позволяет вставлять содержимое обратно через прокси подсети (в обратном направлении). Заполните фильтр прокси, чтобы избежать вставки нежелательного содержимого.
-tooltip.cells.type.subnet_proxy=Прокси подсети
+# /inspectSubnetProxy Command
 commands.cells.inspect_subnet_proxy.usage=/inspectSubnetProxy
-commands.cells.inspect_subnet_proxy.no_proxy=Смотрите на переднюю или заднюю часть прокси подсети.
-commands.cells.inspect_subnet_proxy.no_front=§cЗадняя часть прокси не соединена с передней.
-commands.cells.inspect_subnet_proxy.front_header=§6Передняя часть прокси подсети в [%d, %d, %d] измерение %d (%s) сторона %s
-commands.cells.inspect_subnet_proxy.back_header=§6Задняя часть прокси подсети в [%d, %d, %d] измерение %d (%s) сторона %s
-commands.cells.inspect_subnet_proxy.linked_front=§7Соединённая передняя часть: [%d, %d, %d] сторона %s
-commands.cells.inspect_subnet_proxy.state=§7Состояние: питание=%s активно=%s соединено=%s видимость источника=%s хэш структуры=%s
-commands.cells.inspect_subnet_proxy.channels=§7Каналы: включены=%s приоритет=%d карта вставки=%s вставка доступна=%s режим фильтра=%s нечёткий=%s инвертор=%s
-commands.cells.inspect_subnet_proxy.grids=§7Сети: передняя=%s задняя=%s доступных источников=%d видимых пиров=%d/%d локальных ячеек[предмет=%d жидкость=%d газ=%d эссенция=%d]
-commands.cells.inspect_subnet_proxy.last_fault.none=§7Последняя ошибка: не зафиксировано.
-commands.cells.inspect_subnet_proxy.last_fault=§eПоследняя ошибка: тик=%d повторений=%d канал=%s запрос=%s запрошено=%d извлечено=%d видимых сейчас=%d действие=%s хэш структуры=%s
-item.cells.part.subnet_proxy_back.name=ME Прокси подсети (задняя часть)
-item.cells.part.subnet_proxy_front.name=ME Прокси подсети (передняя часть)
-item.cells.part.subnet_proxy_back.tooltip=Поместите переднюю часть на заднюю, чтобы создать подсеть, позволяющую соединять несколько сетей ME вместе.
-item.cells.part.subnet_proxy_front.tooltip=Поместите заднюю часть на переднюю, чтобы создать подсеть, позволяющую соединять несколько сетей ME вместе.
-item.cells.part.subnet_proxy_direction.tooltip=§7Содержимое перетекает от задней части к передней. Убедитесь, что разместили их в правильной ориентации.
-item.cells.part.subnet_proxy_filters.tooltip=§7Вы можете добавлять фильтры в прокси через клавишу быстрого добавления, перетаскивание из JEI или заполнение рецепта в JEI (кнопка '+').
+commands.cells.inspect_subnet_proxy.no_proxy=Посмотрите на переднюю или заднюю часть прокси подсети.
+commands.cells.inspect_subnet_proxy.no_front=§cВыбранный задний прокси не сопряжён с передней частью.
+commands.cells.inspect_subnet_proxy.front_header=§6Передняя часть прокси подсети по координатам [%d, %d, %d], измерение %d (%s), сторона %s
+commands.cells.inspect_subnet_proxy.back_header=§6Задняя часть прокси подсети по координатам [%d, %d, %d], измерение %d (%s), сторона %s
+commands.cells.inspect_subnet_proxy.linked_front=§7Сопряжённая передняя часть: [%d, %d, %d], сторона %s
+commands.cells.inspect_subnet_proxy.state=§7Состояние: питание=%s, активность=%s, сопряжение=%s, видимость собственного источника=%s, хэш структуры=%s
+commands.cells.inspect_subnet_proxy.channels=§7Каналы: включены=%s, приоритет=%d, карта вставки=%s, экспозиция вставки=%s, режим фильтра=%s, нестрогий поиск=%s, инвертор=%s
+commands.cells.inspect_subnet_proxy.grids=§7Сети: передняя=%s, задняя=%s, экспонированные источники=%d, видимые узлы=%d/%d, локальные ячейки [предметы=%d, жидкости=%d, газ=%d, эссенция=%d]
+commands.cells.inspect_subnet_proxy.last_fault.none=§7Последняя ошибка: не зарегистрирована.
+commands.cells.inspect_subnet_proxy.last_fault=§eПоследняя ошибка: тик=%d, количество случаев=%d, канал=%s, запрос=%s, запрошено=%d, извлечено=%d, видно сейчас=%d, действие=%s, хэш структуры=%s
+
+# Subnet Proxy
+item.cells.part.subnet_proxy_back.name=ME‑прокси подсети (задняя часть)
+item.cells.part.subnet_proxy_front.name=ME‑прокси подсети (передняя часть)
+item.cells.part.subnet_proxy_back.tooltip=Установите переднюю часть на заднюю, чтобы создать подсеть, которая позволяет соединять несколько ME‑сетей.
+item.cells.part.subnet_proxy_front.tooltip=Установите заднюю часть на переднюю, чтобы создать подсеть, которая позволяет соединять несколько ME‑сетей.
+item.cells.part.subnet_proxy_direction.tooltip=Содержимое перемещается от задней части к передней. Убедитесь, что детали установлены в правильной ориентации.
+item.cells.part.subnet_proxy_filters.tooltip=Вы можете добавить фильтры к прокси с помощью клавиши быстрого добавления, перетаскивания из JEI или заполнения рецепта в JEI (кнопка «+»).
 gui.cells.subnet_proxy.title=Прокси подсети
 gui.cells.subnet_proxy.filter_mode=Режим фильтра: %s
 gui.cells.subnet_proxy.filter_mode.description=При добавлении фильтра он будет преобразован в этот тип.
 gui.cells.subnet_proxy.channel_toggle.enabled=%s канал: §aВключён
 gui.cells.subnet_proxy.channel_toggle.disabled=%s канал: §cОтключён
-gui.cells.subnet_proxy.channel_toggle.description=Нажмите, чтобы переключить. Отключённые каналы не доступны для передней сети (нет извлечения, вставки, событий).
-gui.cells.subnet_proxy.no_channels_warning.line1=Ни один канал не включён!
-gui.cells.subnet_proxy.no_channels_warning.line2=Включите хотя бы один канал слева, чтобы открыть содержимое. Прокси подсети ничего не делает без включённого канала.
-chat.cells.subnet_proxy.need_front=Задняя часть должна быть размещена на передней части.
-chat.cells.subnet_proxy.need_back=Передняя часть должна быть размещена на задней части.
+gui.cells.subnet_proxy.channel_toggle.description=Нажмите, чтобы переключить. Отключённые каналы вообще не отображаются в передней сети (нет извлечения, вставки и событий).
+gui.cells.subnet_proxy.no_channels_warning.line1=Каналы не включены!
+gui.cells.subnet_proxy.no_channels_warning.line2=Включите хотя бы один канал слева, чтобы экспонировать содержимое. Прокси подсети ничего не делает, если не включён хотя бы один канал.
+chat.cells.subnet_proxy.need_front=Задняя часть должна быть установлена на переднюю.
+chat.cells.subnet_proxy.need_back=Передняя часть должна быть установлена на заднюю.
 cells.config.subnetProxyUpgradeSlots=Слоты улучшений прокси подсети
-cells.config.subnetProxyUpgradeSlots.tooltip=Количество слотов улучшений для прокси подсети (1-24)
-cells.config.subnetProxyMinTickRate=Минимальная частота тиков прокси подсети
-cells.config.subnetProxyMinTickRate.tooltip=Минимальная частота тиков для прокси подсети (меньше = быстрее отклик, 1-200)
-cells.config.subnetProxyMaxTickRate=Максимальная частота тиков прокси подсети
-cells.config.subnetProxyMaxTickRate.tooltip=Максимальная частота тиков для прокси подсети в простое (1-1200)
-cells.config.subnetProxyReportExtractionFaults=Отчёт об ошибках извлечения прокси подсети
-cells.config.subnetProxyReportExtractionFaults.tooltip=Включить отчётность об ошибках извлечения и предупреждения в логе. Сообщаемая ошибка может исходить от прокси, подключённого инвентаря или самой сети, включая фантомные или неизвлекаемые предметы.
+cells.config.subnetProxyUpgradeSlots.tooltip=Количество слотов улучшений для прокси подсети (1–24)
+cells.config.subnetProxyMinTickRate=Минимальная частота тактов прокси подсети
+cells.config.subnetProxyMinTickRate.tooltip=Минимальная частота тактов для прокси подсети (меньше — более отзывчиво, 1–200)
+cells.config.subnetProxyMaxTickRate=Максимальная частота тактов прокси подсети
+cells.config.subnetProxyMaxTickRate.tooltip=Максимальная частота тактов для прокси подсети в режиме простоя (1–1200)
+cells.config.subnetProxyReportExtractionFaults=Отчётность об ошибках извлечения прокси подсети
+cells.config.subnetProxyReportExtractionFaults.tooltip=Включите отчётность и журналы предупреждений об ошибках извлечения прокси подсети. Зафиксированная ошибка может исходить от прокси, подключённого инвентаря или самой сети, включая призрачные или неэкстрагируемые предметы.
