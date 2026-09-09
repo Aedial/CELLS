@@ -24,4 +24,8 @@ public interface IResourceSyncContainer {
      * @param resources Map of slot index to resource (null values indicate clearing)
      */
     void receiveResourceSlots(ResourceType type, Map<Integer, Object> resources);
+
+    default void receiveResourceSlots(ResourceType type, int directionTab, Map<Integer, Object> resources) {
+        receiveResourceSlots(type, resources);
+    }
 }

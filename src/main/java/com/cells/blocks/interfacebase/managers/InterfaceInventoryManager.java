@@ -1341,11 +1341,10 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
                 long updatedAmount = amount - acceptedAmount;
                 if (updatedAmount <= 0) {
                     this.clearSlot(slot);
-                    didWork = true;
                 } else {
                     this.amounts[slot] = updatedAmount;
-                    didWork = true;
                 }
+                didWork = true;
             }
         } catch (GridAccessException e) {
             // Not connected to grid

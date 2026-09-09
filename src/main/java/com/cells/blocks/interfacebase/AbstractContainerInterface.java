@@ -433,8 +433,14 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
     public void addListener(@Nonnull IContainerListener listener) {
         super.addListener(listener);
 
-        // Send full filter inventory to new listener
         if (!Platform.isServer() || !(listener instanceof EntityPlayerMP)) return;
+        syncCurrentState((EntityPlayerMP) listener);
+    }
+
+    /**
+     * Send the full filter and storage state to a listener.
+     */
+    public void syncCurrentState(EntityPlayerMP listener) {
 
         final int filterSlots = AbstractResourceInterfaceLogic.FILTER_SLOTS;
         final ResourceType type = getResourceType();
@@ -451,15 +457,14 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
             this.serverStorageCache.put(i, copyFilter(storage));
         }
 
-        EntityPlayerMP mp = (EntityPlayerMP) listener;
-        CellsNetworkHandler.INSTANCE.sendTo(new PacketResourceSlot(type, fullFilterMap), mp);
-        CellsNetworkHandler.INSTANCE.sendTo(new PacketStorageSync(type, fullStorageMap), mp);
+        CellsNetworkHandler.INSTANCE.sendTo(new PacketResourceSlot(type, fullFilterMap), listener);
+        CellsNetworkHandler.INSTANCE.sendTo(new PacketStorageSync(type, fullStorageMap), listener);
 
         // Send full size overrides to new listener
         Map<Integer, Long> hostOverrides = this.host.getInterfaceLogic().getmaxSlotSizeOverrides();
         for (Map.Entry<Integer, Long> entry : hostOverrides.entrySet()) {
             CellsNetworkHandler.INSTANCE.sendTo(
-                new PacketSyncSlotSizeOverride(entry.getKey(), entry.getValue()), mp
+                new PacketSyncSlotSizeOverride(entry.getKey(), entry.getValue()), listener
             );
             this.serverSizeOverrideCache.put(entry.getKey(), entry.getValue());
         }

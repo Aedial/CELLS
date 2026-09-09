@@ -399,8 +399,7 @@ public class CompactingHelper {
         if (recipe == null || !recipe.canFit(crafting.getWidth(), crafting.getHeight())) return false;
 
         NonNullList<Ingredient> ingredients = recipe.getIngredients();
-        if (ingredients == null || ingredients.isEmpty()) return false;
-        if (ingredients.size() != crafting.getSizeInventory()) return false;
+        if (ingredients.isEmpty() || ingredients.size() != crafting.getSizeInventory()) return false;
 
         if (recipe instanceof IShapedRecipe) {
             IShapedRecipe shapedRecipe = (IShapedRecipe) recipe;

@@ -38,20 +38,27 @@ public class PacketTriggerPollingAction implements IMessage {
                 Container container = player.openContainer;
 
                 if (container instanceof AbstractContainerInterface) {
-                    ((AbstractContainerInterface<?, ?, ?>) container).triggerImmediatePollingAction();
+                    AbstractContainerInterface<?, ?, ?> interfaceContainer =
+                        (AbstractContainerInterface<?, ?, ?>) container;
+                    interfaceContainer.triggerImmediatePollingAction();
                     container.detectAndSendChanges();
+                    interfaceContainer.syncCurrentState(player);
                     return;
                 }
 
                 if (container instanceof ContainerCombinedInterface) {
-                    ((ContainerCombinedInterface) container).triggerImmediatePollingAction();
+                    ContainerCombinedInterface interfaceContainer = (ContainerCombinedInterface) container;
+                    interfaceContainer.triggerImmediatePollingAction();
                     container.detectAndSendChanges();
+                    interfaceContainer.syncCurrentState(player);
                     return;
                 }
 
                 if (container instanceof ContainerIOInterface) {
-                    ((ContainerIOInterface) container).triggerImmediatePollingAction();
+                    ContainerIOInterface interfaceContainer = (ContainerIOInterface) container;
+                    interfaceContainer.triggerImmediatePollingAction();
                     container.detectAndSendChanges();
+                    interfaceContainer.syncCurrentState(player);
                 }
             });
 

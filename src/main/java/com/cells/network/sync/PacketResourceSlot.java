@@ -31,6 +31,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 public class PacketResourceSlot implements IMessage {
 
     private ResourceType type;
+    private int directionTab = -1;
     private final Map<Integer, Object> resources;
 
     /**
@@ -49,6 +50,11 @@ public class PacketResourceSlot implements IMessage {
         this.resources.put(slot, resource);
     }
 
+    public PacketResourceSlot(ResourceType type, int directionTab, int slot, Object resource) {
+        this(type, slot, resource);
+        this.directionTab = directionTab;
+    }
+
     /**
      * Create a packet with multiple slot updates.
      */
@@ -57,9 +63,15 @@ public class PacketResourceSlot implements IMessage {
         this.resources = new HashMap<>(resources);
     }
 
+    public PacketResourceSlot(ResourceType type, int directionTab, Map<Integer, Object> resources) {
+        this(type, resources);
+        this.directionTab = directionTab;
+    }
+
     @Override
     public void fromBytes(ByteBuf buf) {
         this.type = ResourceType.values()[buf.readByte()];
+        this.directionTab = buf.readByte();
         int count = buf.readInt();
 
         this.resources.clear();
@@ -73,6 +85,7 @@ public class PacketResourceSlot implements IMessage {
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeByte(this.type.ordinal());
+        buf.writeByte(this.directionTab);
         buf.writeInt(this.resources.size());
 
         for (Map.Entry<Integer, Object> entry : this.resources.entrySet()) {
@@ -118,7 +131,7 @@ public class PacketResourceSlot implements IMessage {
             Container container = player.openContainer;
             if (container instanceof IResourceSyncContainer) {
                 ((IResourceSyncContainer) container).receiveResourceSlots(
-                    message.type, message.resources
+                    message.type, message.directionTab, message.resources
                 );
             }
         }
@@ -136,7 +149,7 @@ public class PacketResourceSlot implements IMessage {
                 Container container = ctx.getServerHandler().player.openContainer;
                 if (container instanceof IResourceSyncContainer) {
                     ((IResourceSyncContainer) container).receiveResourceSlots(
-                        message.type, message.resources
+                        message.type, message.directionTab, message.resources
                     );
                 }
             });

@@ -152,9 +152,9 @@ public class ContainerIOInterface extends AEBaseContainer
         );
         this.host = host;
 
-        // Initialize @GuiSync fields from the active tab's state
-        IInterfaceLogic activeLogic = host.getActiveLogic();
         this.activeDirectionTab = host.getActiveDirectionTab();
+        // Initialize @GuiSync fields from the active tab's state
+        IInterfaceLogic activeLogic = getActiveLogic();
         this.maxSlotSize = activeLogic.getMaxSlotSize();
         this.pollingRate = activeLogic.getPollingRate();
         this.currentPage = activeLogic.getCurrentPage();
@@ -249,11 +249,11 @@ public class ContainerIOInterface extends AEBaseContainer
         if (newTab != IIOInterfaceHost.TAB_IMPORT && newTab != IIOInterfaceHost.TAB_EXPORT) return;
         if (this.activeDirectionTab == newTab) return;
 
+        this.activeDirectionTab = newTab;
         this.host.setActiveDirectionTab(newTab);
 
         // Update @GuiSync fields from the new tab's logic
-        IInterfaceLogic logic = this.host.getActiveLogic();
-        this.activeDirectionTab = newTab;
+        IInterfaceLogic logic = getActiveLogic();
         this.maxSlotSize = logic.getMaxSlotSize();
         // Polling rate is shared, no change needed
         this.currentPage = logic.getCurrentPage();
@@ -276,10 +276,8 @@ public class ContainerIOInterface extends AEBaseContainer
      * <p>
      * Updates the container's tab field, switches the upgrade inventory delegate,
      * and ALSO updates the client-side host's {@code activeDirectionTab}. The host
-     * mutation is essential: many GUI/container paths dispatch via
-     * {@code host.getActiveLogic()} / {@code host.isExport()} (slot rendering,
-     * filter/storage sync receivers, title, controls help, polling-rate strings,
-     * etc.).
+     * mutation keeps GUI slot rendering and optional integration helpers on the
+     * selected direction.
      * <p>
      * This is safe even in singleplayer: the integrated server's TileEntity/IPart
      * is a distinct instance from the client's (each side has its own world), so
@@ -288,10 +286,8 @@ public class ContainerIOInterface extends AEBaseContainer
      */
     public void onClientTabSwitch(int newTab) {
         if (newTab != IIOInterfaceHost.TAB_IMPORT && newTab != IIOInterfaceHost.TAB_EXPORT) return;
-        if (this.activeDirectionTab == newTab) return;
-
         this.activeDirectionTab = newTab;
-        // Update host first so getActiveLogicUpgradeInv()/getActiveLogic() return the new tab.
+        // Keep host-based GUI helpers on the selected direction
         this.host.setActiveDirectionTab(newTab);
         this.switchableUpgradeInv.switchTo(getActiveLogicUpgradeInv());
     }
@@ -322,8 +318,9 @@ public class ContainerIOInterface extends AEBaseContainer
     }
 
     @Nonnull
-    private IInterfaceLogic getActiveLogic() {
-        return this.host.getActiveLogic();
+    public IInterfaceLogic getActiveLogic() {
+        IInterfaceLogic logic = this.host.getLogicForTab(this.activeDirectionTab);
+        return logic != null ? logic : this.host.getImportLogic();
     }
 
     private AppEngInternalInventory getActiveLogicUpgradeInv() {
@@ -337,6 +334,10 @@ public class ContainerIOInterface extends AEBaseContainer
             return importLogic.getUpgradeInventory();
         }
         return new AppEngInternalInventory(null, 0);
+    }
+
+    private boolean isActiveTabExport() {
+        return this.activeDirectionTab == IIOInterfaceHost.TAB_EXPORT;
     }
 
     public void setMaxSlotSize(long size) {
@@ -412,9 +413,7 @@ public class ContainerIOInterface extends AEBaseContainer
     @Override
     public void detectAndSendChanges() {
         IInterfaceLogic activeLogic = getActiveLogic();
-        int tab = this.host.getActiveDirectionTab();
 
-        if (this.activeDirectionTab != tab) this.activeDirectionTab = tab;
         if (this.maxSlotSize != activeLogic.getMaxSlotSize()) this.maxSlotSize = activeLogic.getMaxSlotSize();
         if (this.pollingRate != activeLogic.getPollingRate()) this.pollingRate = activeLogic.getPollingRate();
         if (this.currentPage != activeLogic.getCurrentPage()) this.currentPage = activeLogic.getCurrentPage();
@@ -458,7 +457,7 @@ public class ContainerIOInterface extends AEBaseContainer
                 for (IContainerListener listener : this.listeners) {
                     if (listener instanceof EntityPlayerMP) {
                         CellsNetworkHandler.INSTANCE.sendTo(
-                            new PacketResourceSlot(resType, i, current),
+                            new PacketResourceSlot(resType, this.activeDirectionTab, i, current),
                             (EntityPlayerMP) listener
                         );
                     }
@@ -485,7 +484,7 @@ public class ContainerIOInterface extends AEBaseContainer
                 for (IContainerListener listener : this.listeners) {
                     if (listener instanceof EntityPlayerMP) {
                         CellsNetworkHandler.INSTANCE.sendTo(
-                            new PacketStorageSync(resType, i, current),
+                            new PacketStorageSync(resType, this.activeDirectionTab, i, current),
                             (EntityPlayerMP) listener
                         );
                     }
@@ -499,11 +498,11 @@ public class ContainerIOInterface extends AEBaseContainer
         super.addListener(listener);
 
         if (!Platform.isServer() || !(listener instanceof EntityPlayerMP)) return;
-        sendFullSync((EntityPlayerMP) listener);
+        syncCurrentState((EntityPlayerMP) listener);
     }
 
     @SuppressWarnings("rawtypes")
-    private void sendFullSync(EntityPlayerMP listener) {
+    public void syncCurrentState(EntityPlayerMP listener) {
         ResourceType resType = this.host.getResourceType();
         IInterfaceLogic logic = getActiveLogic();
         if (!(logic instanceof IResourceInterfaceLogic)) return;
@@ -523,8 +522,12 @@ public class ContainerIOInterface extends AEBaseContainer
             this.serverStorageCache.put(i, ResourceType.copyStack(storage));
         }
 
-        CellsNetworkHandler.INSTANCE.sendTo(new PacketResourceSlot(resType, fullFilterMap), listener);
-        CellsNetworkHandler.INSTANCE.sendTo(new PacketStorageSync(resType, fullStorageMap), listener);
+        CellsNetworkHandler.INSTANCE.sendTo(
+            new PacketResourceSlot(resType, this.activeDirectionTab, fullFilterMap), listener
+        );
+        CellsNetworkHandler.INSTANCE.sendTo(
+            new PacketStorageSync(resType, this.activeDirectionTab, fullStorageMap), listener
+        );
 
         // Send full size overrides
         Map<Integer, Long> hostOverrides = logic.getmaxSlotSizeOverrides();
@@ -577,12 +580,19 @@ public class ContainerIOInterface extends AEBaseContainer
     // ================================= IResourceSyncContainer =================================
 
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public void receiveResourceSlots(ResourceType type, Map<Integer, Object> resources) {
+        receiveResourceSlots(type, this.activeDirectionTab, resources);
+    }
+
+    @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void receiveResourceSlots(ResourceType type, int directionTab, Map<Integer, Object> resources) {
         ResourceType resType = this.host.getResourceType();
         if (type != resType) return;
 
-        IInterfaceLogic logic = getActiveLogic();
+        int targetTab = directionTab == IIOInterfaceHost.TAB_EXPORT
+            ? IIOInterfaceHost.TAB_EXPORT : IIOInterfaceHost.TAB_IMPORT;
+        IInterfaceLogic logic = this.host.getLogicForTab(targetTab);
         if (!(logic instanceof IResourceInterfaceLogic)) return;
 
         IResourceInterfaceLogic rawLogic = (IResourceInterfaceLogic) logic;
@@ -594,7 +604,11 @@ public class ContainerIOInterface extends AEBaseContainer
             return;
         }
 
-        final boolean isExport = this.host.isExport();
+        logic = getActiveLogic();
+        if (!(logic instanceof IResourceInterfaceLogic)) return;
+        rawLogic = (IResourceInterfaceLogic) logic;
+
+        final boolean isExport = isActiveTabExport();
         EntityPlayer player = getPlayerFromListeners();
 
         for (Map.Entry<Integer, Object> entry : resources.entrySet()) {
@@ -647,13 +661,20 @@ public class ContainerIOInterface extends AEBaseContainer
     // ================================= IStorageSyncContainer =================================
 
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public void receiveStorageSlots(ResourceType type, Map<Integer, Object> resources) {
+        receiveStorageSlots(type, this.activeDirectionTab, resources);
+    }
+
+    @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void receiveStorageSlots(ResourceType type, int directionTab, Map<Integer, Object> resources) {
         ResourceType resType = this.host.getResourceType();
         if (type != resType) return;
         if (this.host.getHostWorld() == null || !this.host.getHostWorld().isRemote) return;
 
-        IInterfaceLogic logic = getActiveLogic();
+        int targetTab = directionTab == IIOInterfaceHost.TAB_EXPORT
+            ? IIOInterfaceHost.TAB_EXPORT : IIOInterfaceHost.TAB_IMPORT;
+        IInterfaceLogic logic = this.host.getLogicForTab(targetTab);
         if (!(logic instanceof IResourceInterfaceLogic)) return;
 
         IResourceInterfaceLogic rawLogic = (IResourceInterfaceLogic) logic;
@@ -694,7 +715,7 @@ public class ContainerIOInterface extends AEBaseContainer
         if (!(logic instanceof IResourceInterfaceLogic)) return false;
 
         IResourceInterfaceLogic rawLogic = (IResourceInterfaceLogic) logic;
-        final boolean isExport = this.host.isExport();
+        final boolean isExport = isActiveTabExport();
 
         if (isResourceInFilter(resource)) {
             if (player instanceof EntityPlayerMP) {
@@ -810,13 +831,13 @@ public class ContainerIOInterface extends AEBaseContainer
                 if (resType == ResourceType.ITEM && handleItemStorageShiftClick(player, actualSlot)) return;
             }
 
-            if (action == InventoryAction.EMPTY_ITEM && !this.host.isExport()) {
+            if (action == InventoryAction.EMPTY_ITEM && !isActiveTabExport()) {
                 if (resType == ResourceType.FLUID && handleFluidEmptyItem(player, actualSlot)) return;
                 if (resType == ResourceType.GAS && handleGasEmptyItem(player, actualSlot)) return;
                 if (resType == ResourceType.ESSENTIA && handleEssentiaEmptyItem(player, actualSlot)) return;
             }
 
-            if (action == InventoryAction.FILL_ITEM && this.host.isExport()) {
+            if (action == InventoryAction.FILL_ITEM && isActiveTabExport()) {
                 if (resType == ResourceType.FLUID && handleFluidFillItem(player, actualSlot)) return;
                 if (resType == ResourceType.GAS && handleGasFillItem(player, actualSlot)) return;
                 if (resType == ResourceType.ESSENTIA && handleEssentiaFillItem(player, actualSlot)) return;
@@ -840,7 +861,7 @@ public class ContainerIOInterface extends AEBaseContainer
 
         ItemStack held = player.inventory.getItemStack();
         ItemStack stored = storage.getStackInSlot(storageSlot);
-        boolean isExport = this.host.isExport();
+        boolean isExport = isActiveTabExport();
 
         if (held.isEmpty()) {
             if (isExport && !stored.isEmpty()) {
@@ -909,7 +930,7 @@ public class ContainerIOInterface extends AEBaseContainer
     }
 
     private boolean handleItemStorageShiftClick(EntityPlayerMP player, int storageSlot) {
-        if (!this.host.isExport()) return true;
+        if (!isActiveTabExport()) return true;
 
         IInterfaceLogic logic = getActiveLogic();
         if (!(logic instanceof ItemInterfaceLogic)) return false;

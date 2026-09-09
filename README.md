@@ -307,6 +307,6 @@ Show developer information about the Subnet Proxy the player is looking at. It i
 
 ## Credits
 - Chinese translation: @ZHAY10086
-- Russian translation: @MrKoteo
+- Russian translation: @MrKoteo, @Konstantin
 - Hyper-Density Item/Fluid Cells'/Cell Components' textures: @ArchEzekiel
 - EMC Cell's, Compacting Pattern Exposer's, insertion card's textures: @NerdySpider

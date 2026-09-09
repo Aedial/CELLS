@@ -21,4 +21,8 @@ public interface IStorageSyncContainer {
      *                  Values are IAEStack instances whose getStackSize() contains the amount.
      */
     void receiveStorageSlots(ResourceType type, Map<Integer, Object> resources);
+
+    default void receiveStorageSlots(ResourceType type, int directionTab, Map<Integer, Object> resources) {
+        receiveStorageSlots(type, resources);
+    }
 }

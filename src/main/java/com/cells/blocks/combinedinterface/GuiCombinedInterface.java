@@ -272,11 +272,12 @@ public class GuiCombinedInterface
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // Detect @GuiSync tab changes from the server and rebuild slots only.
+        // Detect @GuiSync tab changes from the server, align the host, and rebuild slots
         // This handles server-initiated tab changes and the case where the server's sync
         // overwrites our optimistic client-side update (race between packet and @GuiSync).
         if (this.container.activeTabOrdinal != this.lastActiveTabOrdinal) {
             this.lastActiveTabOrdinal = this.container.activeTabOrdinal;
+            this.host.setActiveTab(getActiveTabFromContainer());
             this.guiSlots.clear();
             this.createResourceSlots();
         }

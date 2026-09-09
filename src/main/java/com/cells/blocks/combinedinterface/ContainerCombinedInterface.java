@@ -145,9 +145,9 @@ public class ContainerCombinedInterface extends AEBaseContainer
         );
         this.host = host;
 
+        this.activeTabOrdinal = host.getActiveTab().ordinal();
         // Initialize @GuiSync fields from the active tab's state
         IInterfaceLogic activeLogic = getActiveLogic();
-        this.activeTabOrdinal = host.getActiveTab().ordinal();
         this.maxSlotSize = activeLogic.getMaxSlotSize();
         this.pollingRate = activeLogic.getPollingRate();
         this.currentPage = activeLogic.getCurrentPage();
@@ -234,7 +234,8 @@ public class ContainerCombinedInterface extends AEBaseContainer
      * Get the currently active resource type tab.
      */
     public ResourceType getActiveTab() {
-        return this.host.getActiveTab();
+        ResourceType activeTab = ResourceType.fromOrdinal(this.activeTabOrdinal);
+        return this.host.getAvailableTabs().contains(activeTab) ? activeTab : ResourceType.ITEM;
     }
 
     /**
@@ -242,7 +243,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
      */
     @Nonnull
     private IInterfaceLogic getActiveLogic() {
-        IInterfaceLogic logic = this.host.getLogicForType(this.host.getActiveTab());
+        IInterfaceLogic logic = this.host.getLogicForType(getActiveTab());
         // Fallback to item if somehow null (should never happen)
         return logic != null ? logic : this.host.getItemLogic();
     }
@@ -254,13 +255,13 @@ public class ContainerCombinedInterface extends AEBaseContainer
      */
     public void switchTab(ResourceType newTab) {
         if (!this.host.getAvailableTabs().contains(newTab)) return;
-        if (this.host.getActiveTab() == newTab) return;
+        if (getActiveTab() == newTab) return;
 
+        this.activeTabOrdinal = newTab.ordinal();
         this.host.setActiveTab(newTab);
 
         // Update @GuiSync fields from the new tab's logic
         IInterfaceLogic logic = getActiveLogic();
-        this.activeTabOrdinal = newTab.ordinal();
         this.maxSlotSize = logic.getMaxSlotSize();
         this.pollingRate = logic.getPollingRate();
         this.currentPage = logic.getCurrentPage();
@@ -368,7 +369,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
         // AE2's SyncData sends on first tick (clientVersion == null), so fields must
         // be current before super.detectAndSendChanges().
         IInterfaceLogic activeLogic = getActiveLogic();
-        ResourceType activeTab = this.host.getActiveTab();
+        ResourceType activeTab = getActiveTab();
 
         int tabOrd = activeTab.ordinal();
         if (this.activeTabOrdinal != tabOrd) this.activeTabOrdinal = tabOrd;
@@ -467,15 +468,15 @@ public class ContainerCombinedInterface extends AEBaseContainer
         if (!Platform.isServer() || !(listener instanceof EntityPlayerMP)) return;
 
         // Send full filter and storage state of the active tab to the new listener
-        sendFullSync((EntityPlayerMP) listener);
+        syncCurrentState((EntityPlayerMP) listener);
     }
 
     /**
      * Send all filters and storage for the active tab to a specific listener.
      */
     @SuppressWarnings("rawtypes")
-    private void sendFullSync(EntityPlayerMP listener) {
-        ResourceType activeTab = this.host.getActiveTab();
+    public void syncCurrentState(EntityPlayerMP listener) {
+        ResourceType activeTab = getActiveTab();
         IInterfaceLogic logic = getActiveLogic();
         if (!(logic instanceof IResourceInterfaceLogic)) return;
 
@@ -554,26 +555,31 @@ public class ContainerCombinedInterface extends AEBaseContainer
     // ================================= IResourceSyncContainer =================================
 
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public void receiveResourceSlots(ResourceType type, Map<Integer, Object> resources) {
-        // Only handle the active tab's type
-        ResourceType activeTab = this.host.getActiveTab();
-        if (type != activeTab) return;
+        receiveResourceSlots(type, -1, resources);
+    }
 
-        IInterfaceLogic logic = getActiveLogic();
-        if (!(logic instanceof IResourceInterfaceLogic)) return;
-
-        IResourceInterfaceLogic rawLogic = (IResourceInterfaceLogic) logic;
-
-        // Client-side: update filters directly
+    @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void receiveResourceSlots(ResourceType type, int directionTab, Map<Integer, Object> resources) {
         if (this.host.getHostWorld() != null && this.host.getHostWorld().isRemote) {
+            IInterfaceLogic logic = this.host.getLogicForType(type);
+            if (!(logic instanceof IResourceInterfaceLogic)) return;
+
+            IResourceInterfaceLogic rawLogic = (IResourceInterfaceLogic) logic;
             for (Map.Entry<Integer, Object> entry : resources.entrySet()) {
                 rawLogic.setFilter(entry.getKey(), entry.getValue());
             }
             return;
         }
 
-        // Server-side: validate and apply with duplicate protection
+        if (type != getActiveTab()) return;
+
+        IInterfaceLogic logic = getActiveLogic();
+        if (!(logic instanceof IResourceInterfaceLogic)) return;
+
+        IResourceInterfaceLogic rawLogic = (IResourceInterfaceLogic) logic;
+
         final boolean isExport = this.host.isExport();
         EntityPlayer player = getPlayerFromListeners();
 
@@ -630,14 +636,10 @@ public class ContainerCombinedInterface extends AEBaseContainer
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void receiveStorageSlots(ResourceType type, Map<Integer, Object> resources) {
-        // Only handle the active tab's type
-        ResourceType activeTab = this.host.getActiveTab();
-        if (type != activeTab) return;
-
         // Storage sync is server→client only
         if (this.host.getHostWorld() == null || !this.host.getHostWorld().isRemote) return;
 
-        IInterfaceLogic logic = getActiveLogic();
+        IInterfaceLogic logic = this.host.getLogicForType(type);
         if (!(logic instanceof IResourceInterfaceLogic)) return;
 
         IResourceInterfaceLogic rawLogic = (IResourceInterfaceLogic) logic;
@@ -651,7 +653,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
 
     @Override
     public ResourceType getQuickAddResourceType() {
-        return this.host.getActiveTab();
+        return getActiveTab();
     }
 
     @Override
@@ -725,7 +727,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
 
     @Override
     public String getTypeLocalizationKey() {
-        return this.host.getActiveTab().getTranslationKey();
+        return getActiveTab().getTranslationKey();
     }
 
     @SuppressWarnings("rawtypes")
@@ -820,7 +822,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
      * Fluid/gas/essentia use EMPTY_ITEM/FILL_ITEM actions instead.
      */
     private boolean handleStorageInteraction(EntityPlayerMP player, int storageSlot, boolean halfStack) {
-        ResourceType activeTab = this.host.getActiveTab();
+        ResourceType activeTab = getActiveTab();
 
         // Only items support direct pickup/setdown on storage slots
         if (activeTab != ResourceType.ITEM) return false;
@@ -832,7 +834,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
     }
 
     private boolean handleStorageShiftClick(EntityPlayerMP player, int storageSlot) {
-        ResourceType activeTab = this.host.getActiveTab();
+        ResourceType activeTab = getActiveTab();
         if (activeTab != ResourceType.ITEM) return false;
 
         return CombinedContainerItemHelper.handleStorageShiftClick(
@@ -844,7 +846,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
      * Handle pouring from held item into tank. Only relevant for fluid/gas tabs.
      */
     private boolean handleEmptyItemAction(EntityPlayerMP player, int slot) {
-        ResourceType activeTab = this.host.getActiveTab();
+        ResourceType activeTab = getActiveTab();
 
         if (activeTab == ResourceType.FLUID) {
             return CombinedContainerFluidHelper.handleEmptyItemAction(
@@ -860,7 +862,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
      * Handle filling held item from tank. Only relevant for fluid/gas tabs.
      */
     private boolean handleFillItemAction(EntityPlayerMP player, int slot) {
-        ResourceType activeTab = this.host.getActiveTab();
+        ResourceType activeTab = getActiveTab();
 
         if (activeTab == ResourceType.FLUID) {
             return CombinedContainerFluidHelper.handleFillItemAction(
@@ -917,7 +919,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
 
         // Priority 2: Try to add as filter for the active tab
         // Only item tab supports extracting filters from ItemStacks directly
-        ResourceType activeTab = this.host.getActiveTab();
+        ResourceType activeTab = getActiveTab();
         if (activeTab == ResourceType.ITEM) {
             CombinedContainerItemHelper.tryAddItemFilter(this, this.host, clickedStack, player);
         } else if (activeTab == ResourceType.FLUID) {

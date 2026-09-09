@@ -274,9 +274,10 @@ public class GuiIOInterface
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        // Detect @GuiSync tab changes and rebuild slots
+        // Detect @GuiSync tab changes, align the host, and rebuild slots
         if (this.container.activeDirectionTab != this.lastActiveDirectionTab) {
             this.lastActiveDirectionTab = this.container.activeDirectionTab;
+            this.container.onClientTabSwitch(this.container.activeDirectionTab);
             this.guiSlots.clear();
             this.createResourceSlots();
         }

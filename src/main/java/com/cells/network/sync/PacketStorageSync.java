@@ -25,6 +25,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 public class PacketStorageSync implements IMessage {
 
     private ResourceType type;
+    private int directionTab = -1;
     private final Map<Integer, Object> storageSlots;
 
     /**
@@ -43,6 +44,11 @@ public class PacketStorageSync implements IMessage {
         this.storageSlots.put(slot, stack);
     }
 
+    public PacketStorageSync(ResourceType type, int directionTab, int slot, Object stack) {
+        this(type, slot, stack);
+        this.directionTab = directionTab;
+    }
+
     /**
      * Create a packet with multiple slot updates (bulk sync).
      */
@@ -51,9 +57,15 @@ public class PacketStorageSync implements IMessage {
         this.storageSlots = new HashMap<>(storageSlots);
     }
 
+    public PacketStorageSync(ResourceType type, int directionTab, Map<Integer, Object> storageSlots) {
+        this(type, storageSlots);
+        this.directionTab = directionTab;
+    }
+
     @Override
     public void fromBytes(ByteBuf buf) {
         this.type = ResourceType.values()[buf.readByte()];
+        this.directionTab = buf.readByte();
         int count = buf.readInt();
 
         this.storageSlots.clear();
@@ -67,6 +79,7 @@ public class PacketStorageSync implements IMessage {
     @Override
     public void toBytes(ByteBuf buf) {
         buf.writeByte(this.type.ordinal());
+        buf.writeByte(this.directionTab);
         buf.writeInt(this.storageSlots.size());
 
         for (Map.Entry<Integer, Object> entry : this.storageSlots.entrySet()) {
@@ -98,7 +111,7 @@ public class PacketStorageSync implements IMessage {
             Container container = player.openContainer;
             if (container instanceof IStorageSyncContainer) {
                 ((IStorageSyncContainer) container).receiveStorageSlots(
-                    message.type, message.storageSlots
+                    message.type, message.directionTab, message.storageSlots
                 );
             }
         }

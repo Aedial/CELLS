@@ -296,7 +296,7 @@ public final class CellsConfig {
      * Export uses the shared preference directly and Import receives the opposite side.
      */
     public static boolean interfaceReceivesJeiInputs(boolean isExportInterface) {
-        return isExportInterface ? hidden.jeiTransferInputsToExport : !hidden.jeiTransferInputsToExport;
+        return isExportInterface == hidden.jeiTransferInputsToExport;
     }
 
     /**

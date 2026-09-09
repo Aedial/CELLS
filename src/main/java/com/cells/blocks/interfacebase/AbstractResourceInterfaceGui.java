@@ -341,7 +341,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         // Clear custom AE2 slots to prevent accumulation on GUI rebuild (e.g. window resize, tab switch).
         this.guiSlots.clear();
 
-        String direction = this.host.isExport() ? "export" : "import";
+        String direction = isActiveTabExport() ? "export" : "import";
 
         // Create type-specific resource slots
         createResourceSlots();
@@ -491,7 +491,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
                 this.fontRenderer,
                 this.guiLeft,
                 this.guiTop,
-                !this.host.isExport()
+                !isActiveTabExport()
             );
         }
     }
@@ -656,7 +656,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
                 this.fontRenderer,
                 this.guiLeft,
                 this.guiTop,
-                !this.host.isExport()
+                !isActiveTabExport()
             );
 
             if (controlsBounds.width > 0 && controlsBounds.height > 0) areas.add(controlsBounds);
