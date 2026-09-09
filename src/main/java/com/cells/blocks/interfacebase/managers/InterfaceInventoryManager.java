@@ -276,7 +276,7 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
 
         if (this.callbacks.isExport()) {
             if (oldSize > this.maxSlotSize) this.returnOverflowToNetwork();
-            if (oldSize < this.maxSlotSize) this.callbacks.wakeUpIfAdaptive();
+            if (oldSize != this.maxSlotSize) this.callbacks.wakeUpIfAdaptive();
         }
 
         return this.maxSlotSize;
@@ -312,7 +312,7 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
 
         if (this.callbacks.isExport()) {
             if (oldEffective > validated) this.returnOverflowToNetwork();
-            if (oldEffective < validated) this.callbacks.wakeUpIfAdaptive();
+            if (oldEffective != validated) this.callbacks.wakeUpIfAdaptive();
         }
 
         return validated;
@@ -335,8 +335,15 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
      * @param slot The slot index
      */
     public void clearMaxSlotSizeOverride(int slot) {
-        if (this.maxSlotSizeOverrides.remove(slot) != null) {
-            this.callbacks.markDirtyAndSave();
+        long oldEffective = getEffectiveMaxSlotSize(slot);
+        if (this.maxSlotSizeOverrides.remove(slot) == null) return;
+
+        this.callbacks.markDirtyAndSave();
+
+        if (this.callbacks.isExport()) {
+            long newEffective = getEffectiveMaxSlotSize(slot);
+            if (oldEffective > newEffective) this.returnOverflowToNetwork();
+            if (oldEffective != newEffective) this.callbacks.wakeUpIfAdaptive();
         }
     }
 
@@ -1139,6 +1146,9 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
         Integer slot = this.filterToSlotMap.get(key);
         if (slot == null) return hasTrashUnselectedUpgrade ? inputAmount : 0;
 
+        // Keep the old resource separate until the import tick returns orphaned storage
+        if (this.orphanedSlots.contains(slot) && this.amounts[slot] > 0) return 0;
+
         // Insert into matching slot using parallel amounts array
         long currentAmount = this.amounts[slot];
         long space = getEffectiveMaxSlotSize(slot) - currentAmount;
@@ -1285,7 +1295,7 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
         if (this.callbacks.isExport()) {
             // Check if any configured slot needs resources
             for (int i : this.filterSlotList) {
-                if (this.amounts[i] < getEffectiveMaxSlotSize(i)) return true;
+                if (this.amounts[i] != getEffectiveMaxSlotSize(i)) return true;
             }
         } else {
             // Check if any filtered slot has resources to import
@@ -1316,17 +1326,24 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
                 long amount = this.amounts[slot];
                 if (identity == null || amount <= 0) continue;
 
-                // Create AE stack with identity only - setStackSize will set the actual amount
+                // Create AE stack with identity only - setStackSize will set the request amount
                 AE aeStack = this.ops.toAEStack(this.ops.copyWithAmount(identity, 1));
-                aeStack.setStackSize(Math.min(amount, this.callbacks.getMaxAENetworkRequestSize()));
+                long requestAmount = Math.min(amount, this.callbacks.getMaxAENetworkRequestSize());
+                aeStack.setStackSize(requestAmount);
 
                 AE remaining = inventory.injectItems(aeStack, Actionable.MODULATE, this.callbacks.getActionSource());
+                long remainingAmount = remaining == null ? 0 : this.ops.getAEStackSize(remaining);
+                remainingAmount = Math.max(0, Math.min(requestAmount, remainingAmount));
+                long acceptedAmount = requestAmount - remainingAmount;
 
-                if (remaining == null) {
+                if (acceptedAmount <= 0) continue;
+
+                long updatedAmount = amount - acceptedAmount;
+                if (updatedAmount <= 0) {
                     this.clearSlot(slot);
                     didWork = true;
-                } else if (this.ops.getAEStackSize(remaining) < amount) {
-                    this.amounts[slot] = this.ops.getAEStackSize(remaining);
+                } else {
+                    this.amounts[slot] = updatedAmount;
                     didWork = true;
                 }
             }

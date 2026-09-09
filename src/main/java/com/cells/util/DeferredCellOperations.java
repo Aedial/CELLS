@@ -2,7 +2,7 @@ package com.cells.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,15 +44,15 @@ public final class DeferredCellOperations {
 
     /**
      * Tracks cells that need saveChanges() called at end of tick.
-     * Key is identity hash of the cell inventory instance.
+     * Key uses reference equality for the cell inventory instance.
      */
-    private static final Map<Integer, PendingSave> pendingSaves = new HashMap<>();
+    private static final Map<ICellInventory<?>, PendingSave> pendingSaves = new IdentityHashMap<>();
 
     /**
      * Tracks cells with pending cross-tier notifications.
-     * Key is identity hash of the cell inventory instance.
+     * Key uses reference equality for the cell inventory instance.
      */
-    private static final Map<Integer, PendingNotification<?>> pendingNotifications = new HashMap<>();
+    private static final Map<ICellInventory<?>, PendingNotification<?>> pendingNotifications = new IdentityHashMap<>();
 
     /** Whether the tick callback has been registered for this tick. */
     private static boolean callbackRegistered = false;
@@ -69,8 +69,7 @@ public final class DeferredCellOperations {
     public static void markDirty(ICellInventory<?> cell, @Nullable ISaveProvider container) {
         if (container == null) return;
 
-        int key = System.identityHashCode(cell);
-        if (!pendingSaves.containsKey(key)) pendingSaves.put(key, new PendingSave(cell, container));
+        if (!pendingSaves.containsKey(cell)) pendingSaves.put(cell, new PendingSave(cell, container));
 
         ensureCallbackRegistered();
     }
@@ -96,12 +95,11 @@ public final class DeferredCellOperations {
 
         if (changes == null || changes.isEmpty()) return;
 
-        int key = System.identityHashCode(cell);
-        PendingNotification<T> pending = (PendingNotification<T>) pendingNotifications.get(key);
+        PendingNotification<T> pending = (PendingNotification<T>) pendingNotifications.get(cell);
 
         if (pending == null) {
             pending = new PendingNotification<>(container, channel, src);
-            pendingNotifications.put(key, pending);
+            pendingNotifications.put(cell, pending);
         }
 
         // Merge changes into pending notification
@@ -173,12 +171,10 @@ public final class DeferredCellOperations {
      * @param cell The cell being removed
      */
     public static void flushCell(ICellInventory<?> cell) {
-        int key = System.identityHashCode(cell);
-
-        PendingSave save = pendingSaves.remove(key);
+        PendingSave save = pendingSaves.remove(cell);
         if (save != null) save.execute();
 
-        PendingNotification<?> notification = pendingNotifications.remove(key);
+        PendingNotification<?> notification = pendingNotifications.remove(cell);
         if (notification != null) notification.execute();
     }
 

@@ -15,6 +15,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [0.6.8-beta2] - 2026-09-??
 ### Fixed
+- Fix some edge cases in Essentia Interface handling
 - Fix Essentia Push/Pull blacklist not working if some other mod nulls the tile in the global registry.
 - Fix Import Interface not clearing orphaned slots if they were cleared externally (API).
 - Fix misc Push/Pull card visual issues.
