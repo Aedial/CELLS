@@ -10,7 +10,6 @@ import javax.annotation.Nullable;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.IContainerListener;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.text.TextComponentTranslation;
@@ -166,14 +165,13 @@ public class ContainerSubnetProxy extends AEBaseContainer
         BlockPos pos = this.part.getHostPos();
         if (w == null || pos == null) return;
 
-        final IInventory pi = ip;
-        for (int x = 0; x < pi.getSizeInventory(); x++) {
-            final ItemStack pii = pi.getStackInSlot(x);
-            if (!pii.isEmpty() && pii.getItem() instanceof ToolNetworkTool) {
+        for (int x = 0; x < ip.getSizeInventory(); x++) {
+            final ItemStack ipi = ip.getStackInSlot(x);
+            if (!ipi.isEmpty() && ipi.getItem() instanceof ToolNetworkTool) {
                 this.lockPlayerInventorySlot(x);
                 this.toolboxSlot = x;
-                this.toolboxInventory = (NetworkToolViewer) ((IGuiItem) pii.getItem())
-                    .getGuiObject(pii, w, pos);
+                this.toolboxInventory = (NetworkToolViewer) ((IGuiItem) ipi.getItem())
+                    .getGuiObject(ipi, w, pos);
                 break;
             }
         }
@@ -368,7 +366,7 @@ public class ContainerSubnetProxy extends AEBaseContainer
 
     /**
      * Calls the AEBaseContainer's detectAndSendChanges which handles
-     * @GuiSync field synchronization and slot change detection.
+     * {@link GuiSync} field synchronization and slot change detection.
      */
     protected void standardDetectAndSendChanges() {
         super.detectAndSendChanges();

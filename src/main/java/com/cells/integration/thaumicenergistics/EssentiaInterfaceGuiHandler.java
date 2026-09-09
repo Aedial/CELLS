@@ -74,11 +74,6 @@ public class EssentiaInterfaceGuiHandler implements IGuiHandler {
 
             switch (baseId) {
                 case GUI_PART_ESSENTIA_IMPORT_INTERFACE:
-                    if (part instanceof IEssentiaInterfaceHost) {
-                        return new ContainerEssentiaInterface(player.inventory, part);
-                    }
-                    break;
-
                 case GUI_PART_ESSENTIA_EXPORT_INTERFACE:
                     if (part instanceof IEssentiaInterfaceHost) {
                         return new ContainerEssentiaInterface(player.inventory, part);
@@ -110,11 +105,6 @@ public class EssentiaInterfaceGuiHandler implements IGuiHandler {
         // Handle block-based GUIs
         switch (id) {
             case GUI_ESSENTIA_IMPORT_INTERFACE:
-                if (tile instanceof IEssentiaInterfaceHost) {
-                    return new ContainerEssentiaInterface(player.inventory, tile);
-                }
-                break;
-
             case GUI_ESSENTIA_EXPORT_INTERFACE:
                 if (tile instanceof IEssentiaInterfaceHost) {
                     return new ContainerEssentiaInterface(player.inventory, tile);
@@ -155,11 +145,6 @@ public class EssentiaInterfaceGuiHandler implements IGuiHandler {
 
             switch (baseId) {
                 case GUI_PART_ESSENTIA_IMPORT_INTERFACE:
-                    if (part instanceof IEssentiaInterfaceHost) {
-                        return new GuiEssentiaInterface(player.inventory, part);
-                    }
-                    break;
-
                 case GUI_PART_ESSENTIA_EXPORT_INTERFACE:
                     if (part instanceof IEssentiaInterfaceHost) {
                         return new GuiEssentiaInterface(player.inventory, part);
@@ -191,11 +176,6 @@ public class EssentiaInterfaceGuiHandler implements IGuiHandler {
         // Handle block-based GUIs
         switch (id) {
             case GUI_ESSENTIA_IMPORT_INTERFACE:
-                if (tile instanceof IEssentiaInterfaceHost) {
-                    return new GuiEssentiaInterface(player.inventory, tile);
-                }
-                break;
-
             case GUI_ESSENTIA_EXPORT_INTERFACE:
                 if (tile instanceof IEssentiaInterfaceHost) {
                     return new GuiEssentiaInterface(player.inventory, tile);

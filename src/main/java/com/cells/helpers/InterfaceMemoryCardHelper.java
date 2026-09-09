@@ -187,8 +187,6 @@ public final class InterfaceMemoryCardHelper {
         if (!source.hasKey(sourceKey)) return false;
 
         NBTBase tag = source.getTag(sourceKey);
-        if (tag == null) return false;
-
         target.setTag(targetKey, tag.copy());
         return true;
     }

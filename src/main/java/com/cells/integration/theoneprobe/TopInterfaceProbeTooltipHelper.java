@@ -7,7 +7,6 @@ import javax.annotation.Nullable;
 
 import mcjty.theoneprobe.api.IProbeInfo;
 
-import com.cells.api.IInterfaceProvider;
 import com.cells.util.AbstractProbeTooltipHelper;
 import com.cells.util.LocalizedTooltipText;
 

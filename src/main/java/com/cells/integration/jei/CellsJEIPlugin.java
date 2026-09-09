@@ -218,13 +218,11 @@ public class CellsJEIPlugin implements IModPlugin {
         if (jeiRuntime == null) return null;
 
         IRecipesGui recipesGui = jeiRuntime.getRecipesGui();
-        if (recipesGui != null) {
-            Object ingredient = normalizeHoveredIngredient(recipesGui.getIngredientUnderMouse());
-            if (ingredient != null) return ingredient;
-        }
+        Object ingredient = normalizeHoveredIngredient(recipesGui.getIngredientUnderMouse());
+        if (ingredient != null) return ingredient;
 
         IIngredientListOverlay ingredientList = jeiRuntime.getIngredientListOverlay();
-        Object ingredient = normalizeHoveredIngredient(ingredientList.getIngredientUnderMouse());
+        ingredient = normalizeHoveredIngredient(ingredientList.getIngredientUnderMouse());
         if (ingredient != null) return ingredient;
 
         IBookmarkOverlay bookmarks = jeiRuntime.getBookmarkOverlay();
@@ -410,10 +408,7 @@ public class CellsJEIPlugin implements IModPlugin {
         // Any failure should fall back to the non-JEI path, never crash the GUI.
         try {
             IIngredientRegistry reg = ingredientRegistry;
-            if (reg == null) return null;
-
             IIngredientRenderer renderer = reg.getIngredientRenderer(ingredient);
-            if (renderer == null) return null;
 
             return renderer.getTooltip(Minecraft.getMinecraft(), ingredient, flag);
         } catch (Throwable t) {

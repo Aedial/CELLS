@@ -1,7 +1,6 @@
 package com.cells.util;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -29,7 +28,7 @@ public final class LocalizedTooltipText {
     public static LocalizedTooltipText translated(String key, LocalizedTooltipText... arguments) {
         List<LocalizedTooltipText> args = new ArrayList<>();
         if (arguments != null) {
-            for (LocalizedTooltipText argument : Arrays.asList(arguments)) {
+            for (LocalizedTooltipText argument : arguments) {
                 if (argument != null) args.add(argument);
             }
         }

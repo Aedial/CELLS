@@ -122,10 +122,6 @@ public class ImportInterfaceControlsHelper {
         if (panelWidth < 60) panelWidth = 60;
 
         int textWidth = panelWidth - (PADDING * 2);
-
-        // Guard against non-positive text width which would crash listFormattedStringToWidth
-        if (textWidth <= 0) return new Rectangle(0, 0, 0, 0);
-
         List<String> wrappedLines = computeWrappedLines(fontRenderer, textWidth, cardsHelp);
         if (wrappedLines.isEmpty()) return new Rectangle(0, 0, 0, 0);
 
@@ -133,10 +129,9 @@ public class ImportInterfaceControlsHelper {
 
         // Center against screen height, not guiHeight — the panel lives outside the GUI.
         ScaledResolution sr = new ScaledResolution(Minecraft.getMinecraft());
-        int screenX = LEFT_MARGIN;
         int screenY = Math.max(0, (sr.getScaledHeight() - panelHeight) / 2);
 
-        return new Rectangle(screenX, screenY, panelWidth, panelHeight);
+        return new Rectangle(LEFT_MARGIN, screenY, panelWidth, panelHeight);
     }
 
     /**
@@ -157,10 +152,6 @@ public class ImportInterfaceControlsHelper {
         if (panelWidth < 60) panelWidth = 60;
 
         int textWidth = panelWidth - (PADDING * 2);
-
-        // Guard against non-positive text width which would crash listFormattedStringToWidth
-        if (textWidth <= 0) return;
-
         List<String> wrappedLines = computeWrappedLines(fontRenderer, textWidth, cardsHelp);
         if (wrappedLines.isEmpty()) return;
 

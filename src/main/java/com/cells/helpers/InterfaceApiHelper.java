@@ -636,7 +636,7 @@ public final class InterfaceApiHelper {
         @Nonnull
         @Override
         public List<ResourcePreviewEntry> getPreviewEntries(@Nonnull EnumFacing facing, int limit) {
-            if (facing == null || !this.targetFacings.contains(facing)) return Collections.emptyList();
+            if (!this.targetFacings.contains(facing)) return Collections.emptyList();
 
             return collectAdjacentPreviewEntries(this.owner, this.resourceType, facing, limit);
         }

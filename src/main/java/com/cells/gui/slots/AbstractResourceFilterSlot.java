@@ -241,7 +241,7 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
             ItemStack stack = (ItemStack) ingredient;
             if (!stack.isEmpty()) {
                 List<String> vanilla = getItemStackTooltip(stack);
-                if (vanilla != null && !vanilla.isEmpty()) return vanilla;
+                if (!vanilla.isEmpty()) return vanilla;
             }
         }
 

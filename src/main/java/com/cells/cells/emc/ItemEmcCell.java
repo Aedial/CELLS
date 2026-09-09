@@ -274,9 +274,9 @@ public class ItemEmcCell extends Item implements ICellWorkbenchItem, IItemGroup 
     @SideOnly(Side.CLIENT)
     private static class PartitionTooltipInfo {
 
-        private int unlockedSlots;
-        private int configuredFilters;
-        private List<String> unlearnedFilters;
+        private final int unlockedSlots;
+        private final int configuredFilters;
+        private final List<String> unlearnedFilters;
 
         private PartitionTooltipInfo(int unlockedSlots, int configuredFilters, List<String> unlearnedFilters) {
             this.unlockedSlots = unlockedSlots;
@@ -294,8 +294,7 @@ public class ItemEmcCell extends Item implements ICellWorkbenchItem, IItemGroup 
     private World getTooltipWorld(@Nullable World world) {
         if (world != null) return world;
 
-        Minecraft minecraft = Minecraft.getMinecraft();
-        return minecraft != null ? minecraft.world : null;
+        return Minecraft.getMinecraft().world;
     }
 
     @SideOnly(Side.CLIENT)

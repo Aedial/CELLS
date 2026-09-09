@@ -202,6 +202,7 @@ public class CellsGuiHandler implements IGuiHandler {
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
         // Delegate to gas GUI handler if this is a gas GUI ID
         GasInterfaceGuiHandler gasHandler = getGasGuiHandler();
@@ -244,12 +245,14 @@ public class CellsGuiHandler implements IGuiHandler {
 
             switch (baseId) {
                 case GUI_PART_IMPORT_INTERFACE:
+                case GUI_PART_EXPORT_INTERFACE:
                     if (part instanceof IItemInterfaceHost) {
                         return new ContainerItemInterface(player.inventory, part);
                     }
                     break;
 
                 case GUI_PART_FLUID_IMPORT_INTERFACE:
+                case GUI_PART_FLUID_EXPORT_INTERFACE:
                     if (part instanceof IFluidInterfaceHost) {
                         return new ContainerFluidInterface(player.inventory, part);
                     }
@@ -264,18 +267,6 @@ public class CellsGuiHandler implements IGuiHandler {
                 case GUI_PART_POLLING_RATE:
                     if (part instanceof IInterfaceHost) {
                         return new ContainerPollingRate(player.inventory, (IInterfaceHost) part);
-                    }
-                    break;
-
-                case GUI_PART_EXPORT_INTERFACE:
-                    if (part instanceof IItemInterfaceHost) {
-                        return new ContainerItemInterface(player.inventory, part);
-                    }
-                    break;
-
-                case GUI_PART_FLUID_EXPORT_INTERFACE:
-                    if (part instanceof IFluidInterfaceHost) {
-                        return new ContainerFluidInterface(player.inventory, part);
                     }
                     break;
 
@@ -319,12 +310,14 @@ public class CellsGuiHandler implements IGuiHandler {
         // Handle block-based GUIs
         switch (id) {
             case GUI_IMPORT_INTERFACE:
+            case GUI_EXPORT_INTERFACE:
                 if (tile instanceof IItemInterfaceHost) {
                     return new ContainerItemInterface(player.inventory, tile);
                 }
                 break;
 
             case GUI_FLUID_IMPORT_INTERFACE:
+            case GUI_FLUID_EXPORT_INTERFACE:
                 if (tile instanceof IFluidInterfaceHost) {
                     return new ContainerFluidInterface(player.inventory, tile);
                 }
@@ -364,7 +357,6 @@ public class CellsGuiHandler implements IGuiHandler {
 
             case GUI_PULL_PUSH_CARD_INTERFACE:
                 if (tile instanceof IFilterableInterfaceHost) {
-                    //noinspection rawtypes
                     return new ContainerPullPushCard(player.inventory, (IFilterableInterfaceHost) tile);
                 }
                 if (tile instanceof ICombinedInterfaceHost) {
@@ -372,18 +364,6 @@ public class CellsGuiHandler implements IGuiHandler {
                 }
                 if (tile instanceof IIOInterfaceHost) {
                     return new ContainerPullPushCard(player.inventory, (IIOInterfaceHost) tile);
-                }
-                break;
-
-            case GUI_EXPORT_INTERFACE:
-                if (tile instanceof IItemInterfaceHost) {
-                    return new ContainerItemInterface(player.inventory, tile);
-                }
-                break;
-
-            case GUI_FLUID_EXPORT_INTERFACE:
-                if (tile instanceof IFluidInterfaceHost) {
-                    return new ContainerFluidInterface(player.inventory, tile);
                 }
                 break;
 
@@ -412,6 +392,7 @@ public class CellsGuiHandler implements IGuiHandler {
     }
 
     @Override
+    @SuppressWarnings("rawtypes")
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
         // Delegate to gas GUI handler if this is a gas GUI ID
         GasInterfaceGuiHandler gasHandler = getGasGuiHandler();
@@ -453,12 +434,14 @@ public class CellsGuiHandler implements IGuiHandler {
 
             switch (baseId) {
                 case GUI_PART_IMPORT_INTERFACE:
+                case GUI_PART_EXPORT_INTERFACE:
                     if (part instanceof IItemInterfaceHost) {
                         return new GuiItemInterface(player.inventory, part);
                     }
                     break;
 
                 case GUI_PART_FLUID_IMPORT_INTERFACE:
+                case GUI_PART_FLUID_EXPORT_INTERFACE:
                     if (part instanceof IFluidInterfaceHost) {
                         return new GuiFluidInterface(player.inventory, part);
                     }
@@ -473,18 +456,6 @@ public class CellsGuiHandler implements IGuiHandler {
                 case GUI_PART_POLLING_RATE:
                     if (part instanceof IInterfaceHost) {
                         return new GuiPollingRate(player.inventory, (IInterfaceHost) part);
-                    }
-                    break;
-
-                case GUI_PART_EXPORT_INTERFACE:
-                    if (part instanceof IItemInterfaceHost) {
-                        return new GuiItemInterface(player.inventory, part);
-                    }
-                    break;
-
-                case GUI_PART_FLUID_EXPORT_INTERFACE:
-                    if (part instanceof IFluidInterfaceHost) {
-                        return new GuiFluidInterface(player.inventory, part);
                     }
                     break;
 
@@ -529,12 +500,15 @@ public class CellsGuiHandler implements IGuiHandler {
         // Handle block-based GUIs
         switch (id) {
             case GUI_IMPORT_INTERFACE:
+            case GUI_EXPORT_INTERFACE:
                 if (tile instanceof IItemInterfaceHost) {
                     return new GuiItemInterface(player.inventory, tile);
                 }
                 break;
 
+
             case GUI_FLUID_IMPORT_INTERFACE:
+            case GUI_FLUID_EXPORT_INTERFACE:
                 if (tile instanceof IFluidInterfaceHost) {
                     return new GuiFluidInterface(player.inventory, tile);
                 }
@@ -582,18 +556,6 @@ public class CellsGuiHandler implements IGuiHandler {
                 }
                 if (tile instanceof IIOInterfaceHost) {
                     return new GuiPullPushCard(player.inventory, (IIOInterfaceHost) tile);
-                }
-                break;
-
-            case GUI_EXPORT_INTERFACE:
-                if (tile instanceof IItemInterfaceHost) {
-                    return new GuiItemInterface(player.inventory, tile);
-                }
-                break;
-
-            case GUI_FLUID_EXPORT_INTERFACE:
-                if (tile instanceof IFluidInterfaceHost) {
-                    return new GuiFluidInterface(player.inventory, tile);
                 }
                 break;
 

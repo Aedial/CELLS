@@ -84,7 +84,7 @@ public final class EssentiaSerializationHelper {
         // EssentiaStack constructor takes int, so pass 1 as dummy for identity only.
         // Restore the real long amount on the IAEEssentiaStack.
         IAEEssentiaStack result = AEEssentiaStack.fromEssentiaStack(new EssentiaStack(aspect, 1));
-        if (result != null) result.setStackSize(amount);
+        result.setStackSize(amount);
 
         return result;
     }

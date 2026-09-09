@@ -192,7 +192,7 @@ final class SubnetProxyEssentiaHelper {
         IMEMonitor<IAEEssentiaStack> monitor = sg.getInventory(getChannel());
         if (monitor != null) {
             handler.setRegisteredMonitor(monitor);
-            monitor.addListener((IMEMonitorHandlerReceiver) listener, token);
+            monitor.addListener(listener, token);
         }
     }
 }

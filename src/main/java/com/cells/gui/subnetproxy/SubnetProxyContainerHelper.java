@@ -74,8 +74,6 @@ final class SubnetProxyContainerHelper {
     static IAEItemStack fluidToFilterAEStack(FluidStack fluid) {
         if (fluid == null) return null;
         IAEFluidStack aeFluid = appeng.fluids.util.AEFluidStack.fromFluidStack(fluid);
-        if (aeFluid == null) return null;
-
         ItemStack dummy = fluidToFilterStack(aeFluid);
         if (dummy.isEmpty()) return null;
 

@@ -243,7 +243,7 @@ public enum ResourceType {
         }
 
         IAEFluidStack result = AEFluidStack.fromFluidStack(fluid);
-        if (result != null) result.setStackSize(amount);
+        result.setStackSize(amount);
 
         return result;
     }

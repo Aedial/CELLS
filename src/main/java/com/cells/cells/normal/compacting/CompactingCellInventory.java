@@ -1,5 +1,6 @@
 package com.cells.cells.normal.compacting;
 
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -1366,12 +1367,8 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         // Invalidate derived caches
         cachedChainEmpty = true;
         cachedMaxCapacityInBaseUnits = -1;
-        if (cachedAEStacks != null) {
-            for (int i = 0; i < cachedAEStacks.length; i++) cachedAEStacks[i] = null;
-        }
-        if (cachedProtoKeys != null) {
-            for (int i = 0; i < cachedProtoKeys.length; i++) cachedProtoKeys[i] = null;
-        }
+        if (cachedAEStacks != null) Arrays.fill(cachedAEStacks, null);
+        if (cachedProtoKeys != null) Arrays.fill(cachedProtoKeys, null);
     }
 
     // =====================

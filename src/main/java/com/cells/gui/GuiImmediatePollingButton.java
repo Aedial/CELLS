@@ -4,8 +4,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import org.lwjgl.opengl.GL11;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;

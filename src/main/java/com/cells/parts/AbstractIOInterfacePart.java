@@ -106,7 +106,7 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
         this.importLogic = importLogic;
         this.exportLogic = exportLogic;
         this.allLogicsList = Collections.unmodifiableList(
-            Arrays.asList((IInterfaceLogic) importLogic, (IInterfaceLogic) exportLogic)
+            Arrays.asList(importLogic, (IInterfaceLogic) exportLogic)
         );
     }
 

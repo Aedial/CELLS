@@ -1,5 +1,7 @@
 package com.cells.integration.thaumicenergistics;
 
+import java.util.Optional;
+
 import javax.annotation.Nonnull;
 
 import net.minecraft.item.ItemStack;
@@ -40,16 +42,12 @@ public class EssentiaCellConfig extends CellConfig {
 
         // Extract the first aspect from the container
         AspectList list = ((IEssentiaContainerItem) stack.getItem()).getAspects(stack);
-        if (list == null || list.size() < 1 || !ThEApi.instance().items().dummyAspect().maybeStack(1).isPresent()) {
+        Optional<ItemStack> dummyOpt = ThEApi.instance().items().dummyAspect().maybeStack(1);
+        if (list == null || list.size() < 1 || !dummyOpt.isPresent()) {
             return null;
         }
 
-        ItemStack dummyStack = ThEUtil.setAspect(
-            ThEApi.instance().items().dummyAspect().maybeStack(1).get(),
-            list.getAspects()[0]
-        );
-
-        return dummyStack;
+        return ThEUtil.setAspect(dummyOpt.get(), list.getAspects()[0]);
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.cells.parts.subnetproxy;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -186,7 +185,7 @@ public class PartSubnetProxyFront extends AEBasePart
      * Items represent filters: plain ItemStacks for item filters,
      * FluidDummyItem stacks for fluid filters.
      */
-    private AppEngInternalInventory config;
+    private final AppEngInternalInventory config;
 
     /**
      * Upgrade inventory. Slot count comes from config.
@@ -226,10 +225,10 @@ public class PartSubnetProxyFront extends AEBasePart
     private int clientFlags = 0;
 
     /** Cached item-channel passthrough handler */
-    private SubnetProxyInventoryHandler<IAEItemStack> itemHandler;
+    private final SubnetProxyInventoryHandler<IAEItemStack> itemHandler;
 
     /** Cached fluid-channel passthrough handler */
-    private SubnetProxyInventoryHandler<IAEFluidStack> fluidHandler;
+    private final SubnetProxyInventoryHandler<IAEFluidStack> fluidHandler;
 
     // ========================= Insertion Handlers (front-grid → back-grid) =========================
 
@@ -948,7 +947,7 @@ public class PartSubnetProxyFront extends AEBasePart
         List<Predicate<T>> visibleSiblingFilters = siblingFilters;
 
         return stack -> {
-            if (ownEnabled && (ownFilter == null || ownFilter.test(stack))) return true;
+            if (ownEnabled && ownFilter.test(stack)) return true;
 
             for (Predicate<T> siblingFilter : visibleSiblingFilters) {
                 if (siblingFilter.test(stack)) return true;
@@ -995,6 +994,7 @@ public class PartSubnetProxyFront extends AEBasePart
         else this.enabledChannels.remove(type);
 
         this.markHostDirty();
+        this.prepareGridBCellArrayBootstrap();
         // Cell array on front-grid changed: this channel just appeared/disappeared.
         this.notifyGridOfChange();
     }
@@ -1295,9 +1295,7 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
-        if (te != null && te.getWorld() != null) {
-            this.placedTick = te.getWorld().getTotalWorldTime();
-        }
+        if (te != null) this.placedTick = te.getWorld().getTotalWorldTime();
 
         if (TRACE_UPDATE_FLOW) {
             this.traceUpdate(
@@ -1488,7 +1486,7 @@ public class PartSubnetProxyFront extends AEBasePart
                 "upgrades",
                 player,
                 this.upgrades,
-                (slot, stack) -> this.upgrades.setStackInSlot(slot, stack));
+                this.upgrades::setStackInSlot);
         } else {
             this.upgrades.readFromNBT(compound, "upgrades");
         }
@@ -1543,7 +1541,10 @@ public class PartSubnetProxyFront extends AEBasePart
         this.setCurrentPage(this.currentPage);
         this.filtersDirty = true;
         this.queueFilterVisibilityRefreshForOwnOrigin();
-        if (previousChannels != this.getEnabledChannelsBitmask()) this.notifyGridOfChange();
+        if (previousChannels != this.getEnabledChannelsBitmask()) {
+            this.prepareGridBCellArrayBootstrap();
+            this.notifyGridOfChange();
+        }
         this.markHostDirty();
 
         this.markHostForUpdate();
@@ -1700,7 +1701,7 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     @Override
-    public void writeToStream(final ByteBuf data) throws IOException {
+    public void writeToStream(final ByteBuf data) {
         int flags = this.computeStateFlags();
         this.clientFlags = flags;
 
@@ -1708,7 +1709,7 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     @Override
-    public boolean readFromStream(final ByteBuf data) throws IOException {
+    public boolean readFromStream(final ByteBuf data) {
         final int old = this.clientFlags;
         this.clientFlags = data.readByte();
         return old != this.clientFlags;
@@ -2114,7 +2115,7 @@ public class PartSubnetProxyFront extends AEBasePart
      */
     public PartSubnetProxyBack findBackPart() {
         TileEntity selfTile = this.getHost() != null ? this.getHost().getTile() : null;
-        if (selfTile == null || selfTile.getWorld() == null) return null;
+        if (selfTile == null) return null;
 
         AEPartLocation side = this.getSide();
         if (side == null) return null;
@@ -2394,7 +2395,7 @@ public class PartSubnetProxyFront extends AEBasePart
         if (partHost == null || side == null) return false;
 
         TileEntity selfTile = partHost.getTile();
-        if (selfTile == null || selfTile.getWorld() == null) return false;
+        if (selfTile == null) return false;
 
         EnumFacing facing = side.getFacing();
         BlockPos targetPos = selfTile.getPos().offset(facing);
@@ -2500,7 +2501,7 @@ public class PartSubnetProxyFront extends AEBasePart
         // PartFluidStorageBus which uses FuzzyPriorityList with fuzzyComparison().
         if (!hasFluidFilters && !hasInverter) {
             this.fluidHandler.setFilter(null);
-        } else if (hasFuzzy && fuzzyFluidIndex != null && !fuzzyFluidIndex.isEmpty()) {
+        } else if (hasFuzzy && !fuzzyFluidIndex.isEmpty()) {
             // Fuzzy matching: check fluid type only (ignoring NBT),
             // matching AEFluidStack.fuzzyComparison() semantics.
             this.fluidHandler.setFilter(aeStack -> {
@@ -2725,16 +2726,12 @@ public class PartSubnetProxyFront extends AEBasePart
     /** Notify Grid B that our cell array has changed */
     private void notifyGridOfChange() {
         IGridNode node = this.getProxy().getNode();
-        if (node != null && node.getGrid() != null) {
+        if (node != null) {
             boolean replayedPending = this.pendingGridBNotify;
             this.pendingGridBNotify = false;
 
             if (TRACE_UPDATE_FLOW) {
-                this.traceUpdate(
-                    "front.notifyGridOfChange",
-                    "caller=" + this.findTraceCaller()
-                        + ", posted=true, grid=" + describeGrid(node.getGrid())
-                        + ", replayedPending=" + replayedPending);
+                this.traceUpdate("front.notifyGridOfChange", "caller=" + this.findTraceCaller() + ", posted=true, grid=" + describeGrid(node.getGrid()) + ", replayedPending=" + replayedPending);
             }
             node.getGrid().postEvent(new MENetworkCellArrayUpdate());
             return;
@@ -2745,10 +2742,7 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     private void deferGridBNotify(String reason) {
-        if (this.hasAnyReadChannelExposed()) {
-            this.awaitingGridBCellArrayBootstrap = true;
-            this.clearPassthroughSnapshots();
-        }
+        this.prepareGridBCellArrayBootstrap();
 
         if (this.pendingGridBNotify) return;
 
@@ -2764,11 +2758,19 @@ public class PartSubnetProxyFront extends AEBasePart
         }
     }
 
+    /**
+     * Clear stale read snapshots before Grid B rebuilds this part's cell array.
+     */
+    private void prepareGridBCellArrayBootstrap() {
+        this.clearPassthroughSnapshots();
+        this.awaitingGridBCellArrayBootstrap = this.hasAnyReadChannelExposed();
+    }
+
     private void replayDeferredGridBNotify(String reason) {
         if (!this.pendingGridBNotify) return;
 
         IGridNode node = this.getProxy().getNode();
-        if (node == null || node.getGrid() == null) return;
+        if (node == null) return;
 
         if (TRACE_UPDATE_FLOW) {
             this.traceUpdate(
@@ -2915,7 +2917,7 @@ public class PartSubnetProxyFront extends AEBasePart
             .append(Integer.toHexString(System.identityHashCode(machine)));
 
         IGridNode node = machine.getActionableNode();
-        builder.append(", machineGrid=").append(describeGrid(node != null ? node.getGrid() : null));
+        builder.append(", machineGrid=").append(describeGrid(node.getGrid()));
         builder.append(", knownLocal=").append(this.knownLocalProviderHosts.contains(machine));
 
         return builder.toString();
@@ -3172,19 +3174,11 @@ public class PartSubnetProxyFront extends AEBasePart
                 return;
             }
 
-            // ---- Event-UUID dedup (belt-and-suspenders) ----
             // Reuse the upstream UUID so a single logical event keeps the same
             // identity through the chain; generate a fresh one for new origins.
+            // Accept it only after Grid B and the target channel are available
             UUID eventId = SubnetProxyEventSource.extractEventId(actionSource);
             if (eventId == null) eventId = UUID.randomUUID();
-            if (coord != null && !coord.tryAccept(eventId)) {
-                if (TRACE_UPDATE_FLOW) {
-                    traceUpdate(
-                        "gridA.postChange.skip",
-                        "reason=duplicateEvent, eventId=" + eventId + ", origin=" + describeGrid(origin));
-                }
-                return;
-            }
 
             // Ensure filters are current before testing deltas
             if (filtersDirty) rebuildFilters();
@@ -3199,6 +3193,7 @@ public class PartSubnetProxyFront extends AEBasePart
                         if (TRACE_UPDATE_FLOW) traceUpdate("gridA.postChange.skip", "reason=itemChannelHidden");
                         return;
                     }
+                    if (!tryAcceptForwardedEvent(coord, eventId, origin)) return;
                     IStorageChannel<IAEItemStack> ch = itemChannel();
                     forwardFilteredDeltas(change, itemHandler, ch, gridB, wrapped);
                 } else if (monitor == registeredFluidMonitor) {
@@ -3206,6 +3201,7 @@ public class PartSubnetProxyFront extends AEBasePart
                         if (TRACE_UPDATE_FLOW) traceUpdate("gridA.postChange.skip", "reason=fluidChannelHidden");
                         return;
                     }
+                    if (!tryAcceptForwardedEvent(coord, eventId, origin)) return;
                     IStorageChannel<IAEFluidStack> ch = fluidChannel();
                     forwardFilteredDeltas(change, fluidHandler, ch, gridB, wrapped);
                 } else if (gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()
@@ -3214,6 +3210,7 @@ public class PartSubnetProxyFront extends AEBasePart
                         if (TRACE_UPDATE_FLOW) traceUpdate("gridA.postChange.skip", "reason=gasChannelHidden");
                         return;
                     }
+                    if (!tryAcceptForwardedEvent(coord, eventId, origin)) return;
                     forwardFilteredDeltas(change, gasHandler, SubnetProxyGasHelper.getChannel(), gridB, wrapped);
                 } else if (essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()
                            && monitor == essentiaHandler.getRegisteredMonitor()) {
@@ -3221,6 +3218,7 @@ public class PartSubnetProxyFront extends AEBasePart
                         if (TRACE_UPDATE_FLOW) traceUpdate("gridA.postChange.skip", "reason=essentiaChannelHidden");
                         return;
                     }
+                    if (!tryAcceptForwardedEvent(coord, eventId, origin)) return;
                     forwardFilteredDeltas(change, essentiaHandler, SubnetProxyEssentiaHelper.getChannel(), gridB, wrapped);
                 } else if (TRACE_UPDATE_FLOW) {
                     traceUpdate(
@@ -3228,11 +3226,12 @@ public class PartSubnetProxyFront extends AEBasePart
                         "reason=untrackedMonitor, monitor=" + describeMonitor(monitor));
                 }
             } catch (final GridAccessException e) {
-                // Grid B not available
+                // Retain a bootstrap request so a transient Grid B loss cannot drop this delta
+                deferGridBNotify("gridA.postChange.gridBUnavailable");
                 if (TRACE_UPDATE_FLOW) {
                     traceUpdate(
                         "gridA.postChange.skip",
-                        "reason=gridBUnavailable, exception=" + e.getClass().getSimpleName());
+                        "reason=gridBUnavailable, deferredBootstrap=true, exception=" + e.getClass().getSimpleName());
                 }
             }
         }
@@ -3278,7 +3277,7 @@ public class PartSubnetProxyFront extends AEBasePart
         if (machine instanceof PartSubnetProxyFront) return false;
 
         IGridNode node = machine.getActionableNode();
-        return node != null && node.getGrid() == this.gridA;
+        return node.getGrid() == this.gridA;
     }
 
     /**
@@ -3297,7 +3296,7 @@ public class PartSubnetProxyFront extends AEBasePart
         if (!this.knownLocalProviderHosts.contains(machine)) return false;
 
         IGridNode node = machine.getActionableNode();
-        return node == null || node.getGrid() != this.gridA;
+        return node.getGrid() != this.gridA;
     }
 
     /**
@@ -3370,23 +3369,36 @@ public class PartSubnetProxyFront extends AEBasePart
         gridB.postAlterationOfStoredItems(channel, forwarded, source);
 
         // Update snapshot incrementally so onListUpdate diffs remain accurate
-        updateSnapshotIncremental(handler, channel, forwarded);
+        updateSnapshotIncremental(handler, forwarded);
+    }
+
+    private boolean tryAcceptForwardedEvent(
+            @Nullable SubnetProxyGridCoordinator coord,
+            UUID eventId,
+            IGrid origin) {
+        if (coord == null || coord.tryAccept(eventId)) return true;
+
+        if (TRACE_UPDATE_FLOW) {
+            traceUpdate(
+                "gridA.postChange.skip",
+                "reason=duplicateEvent, eventId=" + eventId + ", origin=" + describeGrid(origin));
+        }
+
+        return false;
     }
 
     /**
-     * Apply forwarded deltas to the handler's snapshot. Creates the snapshot
-     * if it doesn't exist yet (first-run edge case during listener setup).
+     * Apply forwarded deltas to the handler's snapshot. A missing snapshot
+     * stays missing until Grid B rebuilds its cell array or a list reset takes
+     * a complete baseline; initializing it from a single delta would make a
+     * later reset replay every other visible stack.
      */
     private <T extends IAEStack<T>> void updateSnapshotIncremental(
             SubnetProxyInventoryHandler<T> handler,
-            IStorageChannel<T> channel,
             List<T> deltas) {
 
         IItemList<T> snapshot = handler.getLastSnapshot();
-        if (snapshot == null) {
-            snapshot = channel.createList();
-            handler.setLastSnapshot(snapshot);
-        }
+        if (snapshot == null) return;
 
         for (T delta : deltas) snapshot.add(delta);
     }
@@ -3605,8 +3617,7 @@ public class PartSubnetProxyFront extends AEBasePart
 
         if (this.sourcesDirty || this.hasMissingVisibleReadSnapshot()) {
             if (this.hasAnyReadChannelExposed()) {
-                this.awaitingGridBCellArrayBootstrap = true;
-                this.clearPassthroughSnapshots();
+                this.prepareGridBCellArrayBootstrap();
                 this.notifyGridOfChange();
             }
 
@@ -3793,6 +3804,7 @@ public class PartSubnetProxyFront extends AEBasePart
         try {
             gridB = this.getProxy().getStorage();
         } catch (final GridAccessException e) {
+            this.deferGridBNotify("snapshotDiffAndForward.gridBUnavailable");
             return;
         }
 
@@ -3940,7 +3952,7 @@ public class PartSubnetProxyFront extends AEBasePart
 
     /**
      * Resolve the coordinator for the current front-grid.
-     *
+     * <p>
      * Listing and delta forwarding should follow the live per-grid coordinator,
      * not just the cached reference that is normally refreshed during source
      * rebuilds. This lookup stays read-only so monitor callbacks never try to
@@ -4075,8 +4087,6 @@ public class PartSubnetProxyFront extends AEBasePart
      * actually changed.
      */
     void onCoordinatorElectionChanged() {
-        clearPassthroughSnapshots();
-
         if (this.rebuildingPassthroughSources) {
             if (TRACE_UPDATE_FLOW) {
                 this.traceUpdate("front.onCoordinatorElectionChanged.skip", "reason=rebuildingPassthroughSources");
@@ -4094,7 +4104,9 @@ public class PartSubnetProxyFront extends AEBasePart
             return;
         }
 
+        this.prepareGridBCellArrayBootstrap();
         this.lastPublishedStructureHash = currentStructureHash;
+        this.lastPublishedCellArrayHash = this.computePublishedCellArrayHash();
         if (TRACE_UPDATE_FLOW) {
             this.traceUpdate(
                 "front.onCoordinatorElectionChanged.notifyGridB",
@@ -4124,9 +4136,9 @@ public class PartSubnetProxyFront extends AEBasePart
         World world = this.getHostWorld();
         IGrid frontGrid = getFrontGridLive();
         int dimensionId = world != null && world.provider != null ? world.provider.getDimension() : Integer.MIN_VALUE;
-        String dimensionName = world != null && world.provider != null && world.provider.getDimensionType() != null
-                ? world.provider.getDimensionType().getName()
-                : "unknown";
+        String dimensionName = world != null && world.provider != null
+            ? world.provider.getDimensionType().getName()
+            : "unknown";
 
         return new ProxyDiagnosticSnapshot(
             dimensionId,
@@ -4209,9 +4221,9 @@ public class PartSubnetProxyFront extends AEBasePart
         Cells.LOGGER.warn(
             "Subnet Proxy visibility mismatch at dim={} ({}) pos={} side={} channel={} request={} requested={} extracted={} visible_now={} structure_hash={} own_origin_visible={} local_cells={} visible_peers={} action={} occurrences={}",
             world != null && world.provider != null ? world.provider.getDimension() : "unknown",
-            world != null && world.provider != null && world.provider.getDimensionType() != null
-                    ? world.provider.getDimensionType().getName()
-                    : "unknown",
+            world != null && world.provider != null
+                ? world.provider.getDimensionType().getName()
+                : "unknown",
             formatBlockPos(this.getHostPos()),
             this.getSide() != null ? this.getSide().getFacing() : "unknown",
             record.channelName,
@@ -4504,7 +4516,7 @@ public class PartSubnetProxyFront extends AEBasePart
         // AE2's client-side PartPlacement returns PASS, causing Minecraft to
         // try the off-hand, which triggers onPartActivate on the just-placed part.
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
-        if (te != null && te.getWorld() != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
+        if (te != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
 
         final ItemStack heldItem = player.getHeldItem(hand);
         if (!player.isSneaking() && UpgradeCardInteractionHelper.isUpgradeCard(heldItem)) {

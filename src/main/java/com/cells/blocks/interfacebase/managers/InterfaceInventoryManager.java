@@ -908,10 +908,9 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
 
         if (newAmount <= 0) {
             // Slot depleted, clearSlot preserves identity if filter matches
-            long removed = currentAmount;
             this.clearSlot(slot);
             this.callbacks.markDirtyAndSave();
-            return -removed; // Return negative to indicate removal
+            return -currentAmount; // Return negative to indicate removal
         }
 
         // If the slot is already over capacity because the limit was lowered while disconnected,

@@ -10,8 +10,6 @@ import net.minecraft.client.resources.I18n;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
-import com.cells.api.IInterfaceProvider;
-
 
 @SideOnly(Side.CLIENT)
 public final class InterfaceProbeTooltipHelper extends AbstractProbeTooltipHelper<String> {

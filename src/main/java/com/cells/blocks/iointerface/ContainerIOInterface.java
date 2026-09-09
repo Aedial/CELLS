@@ -329,12 +329,12 @@ public class ContainerIOInterface extends AEBaseContainer
     private AppEngInternalInventory getActiveLogicUpgradeInv() {
         IInterfaceLogic logic = getActiveLogic();
         if (logic instanceof AbstractResourceInterfaceLogic) {
-            return ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).getUpgradeInventory();
+            return logic.getUpgradeInventory();
         }
         // Fallback: import logic's upgrade inventory
         IInterfaceLogic importLogic = this.host.getImportLogic();
         if (importLogic instanceof AbstractResourceInterfaceLogic) {
-            return ((AbstractResourceInterfaceLogic<?, ?, ?>) importLogic).getUpgradeInventory();
+            return importLogic.getUpgradeInventory();
         }
         return new AppEngInternalInventory(null, 0);
     }
@@ -1162,10 +1162,7 @@ public class ContainerIOInterface extends AEBaseContainer
     @Optional.Method(modid = "mekeng")
     private boolean handleGasEmptyItem(EntityPlayerMP player, int slot) {
         return com.cells.integration.mekanismenergistics.IOContainerGasHelper.handleGasEmptyItem(
-            player, slot, this.host,
-            () -> this.updateHeld(player),
-            () -> this.detectAndSendChanges()
-        );
+            player, slot, this.host, () -> this.updateHeld(player), this::detectAndSendChanges);
     }
 
     /**
@@ -1175,10 +1172,7 @@ public class ContainerIOInterface extends AEBaseContainer
     @Optional.Method(modid = "mekeng")
     private boolean handleGasFillItem(EntityPlayerMP player, int slot) {
         return com.cells.integration.mekanismenergistics.IOContainerGasHelper.handleGasFillItem(
-            player, slot, this.host,
-            () -> this.updateHeld(player),
-            () -> this.detectAndSendChanges()
-        );
+            player, slot, this.host, () -> this.updateHeld(player), this::detectAndSendChanges);
     }
 
     // ================================= Essentia Storage Interaction =================================
@@ -1190,10 +1184,7 @@ public class ContainerIOInterface extends AEBaseContainer
     @Optional.Method(modid = "thaumicenergistics")
     private boolean handleEssentiaEmptyItem(EntityPlayerMP player, int slot) {
         return com.cells.integration.thaumicenergistics.IOContainerEssentiaHelper.handleEssentiaEmptyItem(
-            player, slot, this.host,
-            () -> this.updateHeld(player),
-            () -> this.detectAndSendChanges()
-        );
+            player, slot, this.host, () -> this.updateHeld(player), this::detectAndSendChanges);
     }
 
     /**
@@ -1203,10 +1194,7 @@ public class ContainerIOInterface extends AEBaseContainer
     @Optional.Method(modid = "thaumicenergistics")
     private boolean handleEssentiaFillItem(EntityPlayerMP player, int slot) {
         return com.cells.integration.thaumicenergistics.IOContainerEssentiaHelper.handleEssentiaFillItem(
-            player, slot, this.host,
-            () -> this.updateHeld(player),
-            () -> this.detectAndSendChanges()
-        );
+            player, slot, this.host, () -> this.updateHeld(player), this::detectAndSendChanges);
     }
 
     // ================================= Shift-Click =================================
@@ -1266,7 +1254,7 @@ public class ContainerIOInterface extends AEBaseContainer
             FluidStack fluid = QuickAddHelper.getFluidFromItemStack(clickedStack);
             if (fluid != null) {
                 AEFluidStack aeFluid = AEFluidStack.fromFluidStack(fluid);
-                if (aeFluid != null) this.quickAddToFilter(aeFluid, player);
+                this.quickAddToFilter(aeFluid, player);
             }
         }
 

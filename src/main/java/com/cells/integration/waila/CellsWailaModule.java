@@ -51,7 +51,7 @@ public final class CellsWailaModule {
 
             TileEntity tile = accessor.getTileEntity();
             RayTraceResult mop = accessor.getMOP();
-            if (tile == null || mop == null) return currentToolTip;
+            if (tile == null) return currentToolTip;
 
             Optional<IPart> maybePart = this.partAccessor.getMaybePart(tile, mop);
             if (!maybePart.isPresent()) return currentToolTip;

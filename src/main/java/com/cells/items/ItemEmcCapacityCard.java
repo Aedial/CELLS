@@ -31,7 +31,7 @@ public class ItemEmcCapacityCard extends AbstractCustomUpgrade {
         int upgradeCount = Math.max(0, configuredSlots.length - 1);
         int[] tierSlots = new int[upgradeCount];
 
-        for (int i = 0; i < upgradeCount; i++) tierSlots[i] = configuredSlots[i + 1];
+        System.arraycopy(configuredSlots, 1, tierSlots, 0, upgradeCount);
 
         return tierSlots;
     }

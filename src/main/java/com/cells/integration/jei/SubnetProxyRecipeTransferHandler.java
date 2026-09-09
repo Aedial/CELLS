@@ -149,12 +149,11 @@ public class SubnetProxyRecipeTransferHandler implements IRecipeTransferHandler<
      */
     private boolean shouldInclude(IGuiIngredient<?> ingredient) {
         switch (this.selection) {
-            case INPUTS:
-                return ingredient.isInput();
             case OUTPUTS:
                 return !ingredient.isInput();
             case BOTH:
                 return true;
+            case INPUTS:
             default:
                 return ingredient.isInput();
         }

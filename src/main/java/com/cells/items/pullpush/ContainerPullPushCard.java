@@ -201,7 +201,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
     /**
      * I/O Interface mode (Item I/O, Fluid I/O, Gas I/O, Essentia I/O).
      * <p>
-     * See {@link ioHost} for all the details.
+     * See {@link #ioHost} for all the details.
      */
     public ContainerPullPushCard(InventoryPlayer playerInv, IIOInterfaceHost host) {
         super(playerInv,
@@ -220,7 +220,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
         AppEngInternalInventory upgradeInv = null;
         IInterfaceLogic active = host.getActiveLogic();
         if (active instanceof AbstractResourceInterfaceLogic) {
-            upgradeInv = ((AbstractResourceInterfaceLogic<?, ?, ?>) active).getUpgradeInventory();
+            upgradeInv = active.getUpgradeInventory();
         }
 
         ItemStack found = ItemStack.EMPTY;

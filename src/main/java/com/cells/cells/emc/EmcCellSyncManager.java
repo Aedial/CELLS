@@ -20,8 +20,7 @@ import com.cells.config.CellsConfig;
 @Mod.EventBusSubscriber(modid = Tags.MODID)
 public final class EmcCellSyncManager {
 
-    private static final Set<EmcCellInventory> trackedInventories =
-        Collections.newSetFromMap(new WeakHashMap<EmcCellInventory, Boolean>());
+    private static final Set<EmcCellInventory> trackedInventories = Collections.newSetFromMap(new WeakHashMap<>());
 
     private static int ticksUntilFlush = 0;
 

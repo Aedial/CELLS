@@ -424,7 +424,7 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
             || Character.isDigit(character);
 
         if (isValidKey && activeField.textboxKeyTyped(character, key)) {
-            String out = activeField.getText().replaceAll(",", "");
+            String out = activeField.getText().replace(",", "");
 
             // Remove leading zeros, unless the full thing is all "0"s (which is valid)
             // This lets users type "5000", remove the "5" and put a "6" to make "6000",

@@ -166,7 +166,7 @@ final class RecipeTransferIngredientCollector {
             RecipeTransferIngredientCollector::convertEssentiaIngredient);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({"rawtypes", "unchecked", "deprecation"})
     private static void collectCustomIngredients(
             IRecipeLayout recipeLayout,
             Class<?> ingredientClass,
@@ -194,12 +194,11 @@ final class RecipeTransferIngredientCollector {
 
     private static boolean shouldInclude(IGuiIngredient<?> ingredient, RecipeComponentSelection selection) {
         switch (selection) {
-            case INPUTS:
-                return ingredient.isInput();
             case OUTPUTS:
                 return !ingredient.isInput();
             case BOTH:
                 return true;
+            case INPUTS:
             default:
                 return ingredient.isInput();
         }

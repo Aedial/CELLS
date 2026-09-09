@@ -21,7 +21,9 @@ import appeng.api.storage.data.IAEFluidStack;
 import appeng.api.storage.data.IAEItemStack;
 import appeng.core.Api;
 import appeng.fluids.items.FluidDummyItem;
+import appeng.fluids.util.AEFluidInventory;
 import appeng.fluids.util.AEFluidStack;
+import appeng.tile.inventory.AppEngInternalAEInventory;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.item.AEItemStack;
 
@@ -125,9 +127,8 @@ public final class SubnetProxyMemoryCardHelper {
 
     private static String getTranslationKey(IItemDefinition definition, String fallback) {
         Optional<ItemStack> stack = definition.maybeStack(1);
-        if (!stack.isPresent()) return fallback;
+        return stack.map(ItemStack::getTranslationKey).orElse(fallback);
 
-        return stack.get().getTranslationKey();
     }
 
     private static NBTTagCompound prepareItemStorageBusUpload(NBTTagCompound sourceData) {

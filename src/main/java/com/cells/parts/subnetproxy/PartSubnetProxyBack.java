@@ -1,7 +1,5 @@
 package com.cells.parts.subnetproxy;
 
-import java.io.IOException;
-
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -128,9 +126,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     public void onPlacement(EntityPlayer player, EnumHand hand, ItemStack held, AEPartLocation side) {
         super.onPlacement(player, hand, held, side);
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
-        if (te != null && te.getWorld() != null) {
-            this.placedTick = te.getWorld().getTotalWorldTime();
-        }
+        if (te != null) this.placedTick = te.getWorld().getTotalWorldTime();
 
         if (TRACE_UPDATE_FLOW) {
             this.traceUpdate("back.onPlacement", "placedTick=" + this.placedTick + ", side=" + side);
@@ -189,7 +185,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     private String getTraceDimension() {
         TileEntity tile = this.getHost() != null ? this.getHost().getTile() : null;
 
-        return tile != null && tile.getWorld() != null
+        return tile != null
             ? Integer.toString(tile.getWorld().provider.getDimension())
             : "<no-dim>";
     }
@@ -197,7 +193,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     private long getObservedWorldTick() {
         TileEntity tile = this.getHost() != null ? this.getHost().getTile() : null;
 
-        return tile != null && tile.getWorld() != null ? tile.getWorld().getTotalWorldTime() : -1L;
+        return tile != null ? tile.getWorld().getTotalWorldTime() : -1L;
     }
 
     @Nullable
@@ -248,15 +244,14 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
      * Layout: [Grid B cable + front(EAST)] | [back(WEST) + Grid A cable]
      * The parts face each other across the block boundary. The back faces
      * WEST (toward the front), the front faces EAST (toward the back).
-     */
-    /**
+     * <p>
      * Public so the front part can locate its counterpart from either side
      * (currently only used internally, but kept public for symmetry).
      */
     @Nullable
     public PartSubnetProxyFront findFrontPart() {
         TileEntity selfTile = this.getHost() != null ? this.getHost().getTile() : null;
-        if (selfTile == null || selfTile.getWorld() == null) return null;
+        if (selfTile == null) return null;
 
         AEPartLocation side = this.getSide();
         if (side == null) return null;
@@ -310,7 +305,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
      */
     private int getStateFlags() {
         TileEntity hostTile = this.getHost() != null ? this.getHost().getTile() : null;
-        if (hostTile != null && hostTile.getWorld() != null && !hostTile.getWorld().isRemote) {
+        if (hostTile != null && !hostTile.getWorld().isRemote) {
             return this.computeStateFlags();
         }
 
@@ -318,7 +313,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     }
 
     @Override
-    public void writeToStream(final ByteBuf data) throws IOException {
+    public void writeToStream(final ByteBuf data) {
         int flags = this.computeStateFlags();
         this.clientFlags = flags;
 
@@ -326,7 +321,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     }
 
     @Override
-    public boolean readFromStream(final ByteBuf data) throws IOException {
+    public boolean readFromStream(final ByteBuf data) {
         final int old = this.clientFlags;
         this.clientFlags = data.readByte();
         return old != this.clientFlags;
@@ -440,7 +435,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
         // AE2's client-side PartPlacement returns PASS, causing Minecraft to
         // try the off-hand, which triggers onPartActivate on the just-placed part.
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
-        if (te != null && te.getWorld() != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
+        if (te != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
 
         // Delegate to the front part in the adjacent block
         PartSubnetProxyFront front = findFrontPart();
@@ -457,7 +452,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     @Override
     public boolean onPartShiftActivate(final EntityPlayer player, final EnumHand hand, final Vec3d pos) {
         TileEntity te = this.getHost() != null ? this.getHost().getTile() : null;
-        if (te != null && te.getWorld() != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
+        if (te != null && te.getWorld().getTotalWorldTime() == this.placedTick) return false;
 
         PartSubnetProxyFront front = findFrontPart();
         if (front != null) return front.onPartShiftActivate(player, hand, pos);

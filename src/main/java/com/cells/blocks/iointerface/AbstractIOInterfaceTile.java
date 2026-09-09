@@ -102,7 +102,7 @@ public abstract class AbstractIOInterfaceTile<L extends IInterfaceLogic>
         this.importLogic = importLogic;
         this.exportLogic = exportLogic;
         this.allLogicsList = Collections.unmodifiableList(
-            Arrays.asList((IInterfaceLogic) importLogic, (IInterfaceLogic) exportLogic)
+            Arrays.asList(importLogic, (IInterfaceLogic) exportLogic)
         );
     }
 
@@ -179,11 +179,6 @@ public abstract class AbstractIOInterfaceTile<L extends IInterfaceLogic>
         @Override
         public IGridTickable getTickable() {
             return AbstractIOInterfaceTile.this;
-        }
-
-        @Override
-        public EnumSet<EnumFacing> getTargetFacings() {
-            return EnumSet.allOf(EnumFacing.class);
         }
 
         // IAEAppEngInventory

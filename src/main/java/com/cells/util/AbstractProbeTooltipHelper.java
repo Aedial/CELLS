@@ -83,7 +83,7 @@ public abstract class AbstractProbeTooltipHelper<T> {
         if (provider == null || sink == null) return;
 
         List<IInterfaceHost> interfaceHosts = provider.getInterfaceHosts();
-        if (interfaceHosts == null || interfaceHosts.isEmpty()) return;
+        if (interfaceHosts.isEmpty()) return;
 
         List<IInterfaceHost> uniqueUpgradeHosts = new ArrayList<>();
         Map<IItemHandler, Boolean> seenUpgradeInventories = new IdentityHashMap<>();
@@ -563,8 +563,7 @@ public abstract class AbstractProbeTooltipHelper<T> {
             return ((IInterfaceTooltipView) interfaceHost).getTooltipAutoTransferFacings();
         }
 
-        Collection<EnumFacing> targetFacings = interfaceHost.getTargetFacings();
-        return targetFacings != null ? targetFacings : Collections.emptyList();
+        return interfaceHost.getTargetFacings();
     }
 
     @Nonnull
@@ -606,7 +605,7 @@ public abstract class AbstractProbeTooltipHelper<T> {
     @Nonnull
     private Scope getInterfaceCardTransferScope(@Nullable Collection<?> targetFacings) {
         if (targetFacings == null || targetFacings.isEmpty()) return Scope.NONE;
-        if (targetFacings != null && targetFacings.size() == 1) return Scope.FACING;
+        if (targetFacings.size() == 1) return Scope.FACING;
 
         return Scope.ADJACENT;
     }
@@ -709,14 +708,13 @@ public abstract class AbstractProbeTooltipHelper<T> {
         if (type == null) return ResourceType.ITEM;
 
         switch (type) {
-            case ITEM:
-                return ResourceType.ITEM;
             case FLUID:
                 return ResourceType.FLUID;
             case GAS:
                 return ResourceType.GAS;
             case ESSENTIA:
                 return ResourceType.ESSENTIA;
+            case ITEM:
             default:
                 return ResourceType.ITEM;
         }

@@ -74,11 +74,6 @@ public class GasInterfaceGuiHandler implements IGuiHandler {
 
             switch (baseId) {
                 case GUI_PART_GAS_IMPORT_INTERFACE:
-                    if (part instanceof IGasInterfaceHost) {
-                        return new ContainerGasInterface(player.inventory, part);
-                    }
-                    break;
-
                 case GUI_PART_GAS_EXPORT_INTERFACE:
                     if (part instanceof IGasInterfaceHost) {
                         return new ContainerGasInterface(player.inventory, part);
@@ -110,11 +105,6 @@ public class GasInterfaceGuiHandler implements IGuiHandler {
         // Handle block-based GUIs
         switch (id) {
             case GUI_GAS_IMPORT_INTERFACE:
-                if (tile instanceof IGasInterfaceHost) {
-                    return new ContainerGasInterface(player.inventory, tile);
-                }
-                break;
-
             case GUI_GAS_EXPORT_INTERFACE:
                 if (tile instanceof IGasInterfaceHost) {
                     return new ContainerGasInterface(player.inventory, tile);
@@ -155,11 +145,6 @@ public class GasInterfaceGuiHandler implements IGuiHandler {
 
             switch (baseId) {
                 case GUI_PART_GAS_IMPORT_INTERFACE:
-                    if (part instanceof IGasInterfaceHost) {
-                        return new GuiGasInterface(player.inventory, part);
-                    }
-                    break;
-
                 case GUI_PART_GAS_EXPORT_INTERFACE:
                     if (part instanceof IGasInterfaceHost) {
                         return new GuiGasInterface(player.inventory, part);
@@ -191,11 +176,6 @@ public class GasInterfaceGuiHandler implements IGuiHandler {
         // Handle block-based GUIs
         switch (id) {
             case GUI_GAS_IMPORT_INTERFACE:
-                if (tile instanceof IGasInterfaceHost) {
-                    return new GuiGasInterface(player.inventory, tile);
-                }
-                break;
-
             case GUI_GAS_EXPORT_INTERFACE:
                 if (tile instanceof IGasInterfaceHost) {
                     return new GuiGasInterface(player.inventory, tile);
