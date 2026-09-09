@@ -13,6 +13,16 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix all Subnet Proxy issues (as if)
 
 
+## [0.6.8-beta2] - 2026-09-??
+### Fixed
+- Fix Essentia Push/Pull blacklist not working if some other mod nulls the tile in the global registry.
+- Fix Import Interface not clearing orphaned slots if they were cleared externally (API).
+- Fix misc Push/Pull card visual issues.
+
+### Changed
+- Add a 5 ticks minimum delay in Subnet Proxy reset to avoid a particularly bad force-update burst from hammering the Proxy every tick, causing expensive rebuilds and network churn.
+
+
 ## [0.6.8-beta] - 2026-09-03
 ### Added
 - Prevent redstone updates from triggering unnecessary capability scans on adjacent tiles for Interfaces, if the actual tiles have not changed.

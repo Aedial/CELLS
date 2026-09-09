@@ -625,6 +625,9 @@ public class PartSubnetProxyFront extends AEBasePart
     */
     private boolean pendingMonitorResetReconcile = false;
 
+    /** Earliest world tick for the queued monitor-reset reconciliation */
+    private long monitorResetReconcileEarliestTick = Long.MIN_VALUE;
+
     /**
      * World tick of the last back-grid cell-array rebuild routed through
      * {@link #markSourcesDirty()}. Storage-bus partition resets emit a direct
@@ -2037,6 +2040,7 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         this.pendingMonitorResetReconcile = false;
+        this.monitorResetReconcileEarliestTick = Long.MIN_VALUE;
         this.deltasDirty = false;
         this.pendingForcedGridBRefresh = false;
         this.inMarkSourcesDirty = true;
@@ -3237,12 +3241,9 @@ public class PartSubnetProxyFront extends AEBasePart
         public void onListUpdate() {
             // Full list reset on Grid A (e.g. power loss/restore or a storage
             // bus rebuild). Preserve the previous snapshot as the diff baseline,
-            // then reconcile against the rebuilt source set on the next Grid B tick.
-            sourcesDirty = true;
-            pendingMonitorResetReconcile = true;
-            deltasDirty = true;
+            // then reconcile against the rebuilt source set after the configured delay.
+            queueMonitorResetReconcile();
             if (TRACE_UPDATE_FLOW) traceUpdate("gridA.onListUpdate", "queuedMonitorResetReconcile=true");
-            alertGridBTick();
         }
 
         @Override
@@ -3424,6 +3425,28 @@ public class PartSubnetProxyFront extends AEBasePart
         if (total > 8) builder.append("; ... total=").append(total);
 
         return "[" + builder + "]";
+    }
+
+    private void queueMonitorResetReconcile() {
+        this.sourcesDirty = true;
+        this.pendingMonitorResetReconcile = true;
+        this.deltasDirty = true;
+
+        if (this.monitorResetReconcileEarliestTick != Long.MIN_VALUE) return;
+
+        long currentTick = this.getObservedWorldTick();
+        if (currentTick >= 0) {
+            this.monitorResetReconcileEarliestTick = currentTick + CellsConfig.general.subnetProxyMinTickRate;
+        }
+
+        this.alertGridBTick();
+    }
+
+    private boolean isMonitorResetReconcileDelayed() {
+        if (this.monitorResetReconcileEarliestTick == Long.MIN_VALUE) return false;
+
+        long currentTick = this.getObservedWorldTick();
+        return currentTick >= 0 && currentTick < this.monitorResetReconcileEarliestTick;
     }
 
     /** Wake up Grid B's tick manager so we compute the snapshot diff. */
@@ -3613,7 +3636,7 @@ public class PartSubnetProxyFront extends AEBasePart
             return new TickingRequest(20, 20, true, false);
         }
 
-        // Alertable so the Grid A listener's onListUpdate can wake us for
+        // Alertable so the Grid A listener's onListUpdate can schedule a delayed
         // snapshot diff. Filter edits also use this one-shot wake-up to publish
         // their visibility delta. Normal storage deltas are still forwarded
         // immediately in postChange, so ticking is never used for polling.
@@ -3639,6 +3662,10 @@ public class PartSubnetProxyFront extends AEBasePart
             return this.retryGridBCellArrayBootstrap("tickingRequest.postFilterVisibility")
                 ? TickRateModulation.FASTER
                 : TickRateModulation.SLEEP;
+        }
+
+        if (this.pendingMonitorResetReconcile && this.isMonitorResetReconcileDelayed()) {
+            return TickRateModulation.SAME;
         }
 
         if (!this.deltasDirty) return TickRateModulation.SLEEP;
@@ -3667,6 +3694,8 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     private void reconcilePendingMonitorReset() {
+        this.monitorResetReconcileEarliestTick = Long.MIN_VALUE;
+
         if (this.sourcesDirty) this.updatePassthroughSources(false);
         if (this.filtersDirty) this.rebuildFilters();
 
