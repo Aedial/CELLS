@@ -163,6 +163,9 @@ public abstract class AbstractProbeTooltipHelper<T> {
         acceptLine(sink, buildFilterCountSummaryLine(countConfiguredFilterSlots(front), front.getFilterSlots()));
         acceptLine(sink, buildSubnetProxyBehaviorLine(front));
         acceptLine(sink, buildSubnetProxyMatchingLine(front));
+        for (LocalizedTooltipText line : buildSubnetMatchingSublines(front)) {
+            acceptLine(sink, line);
+        }
     }
 
     private void appendInterfaceNetworkLines(List<IInterfaceHost> interfaceHosts, Consumer<T> sink) {
@@ -481,6 +484,24 @@ public abstract class AbstractProbeTooltipHelper<T> {
         return translate(
             "tooltip.cells.probe.subnet_proxy.matching",
             joinLocalizedTexts(matchingModes, translate("tooltip.cells.probe.state.none")));
+    }
+
+    @Nonnull
+    private List<LocalizedTooltipText> buildSubnetMatchingSublines(PartSubnetProxyFront front) {
+        List<LocalizedTooltipText> matchingSublines = new ArrayList<>();
+
+        matchingSublines.add(
+            translate(
+                front.getInstalledUpgrades(Upgrades.FUZZY) > 0
+                    ? "tooltip.cells.probe.subnet_proxy.matching_fuzzy"
+                    : "tooltip.cells.probe.subnet_proxy.matching_exact"));
+        matchingSublines.add(
+            translate(
+                front.getInstalledUpgrades(Upgrades.INVERTER) > 0
+                    ? "tooltip.cells.probe.subnet_proxy.matching_blacklist"
+                    : "tooltip.cells.probe.subnet_proxy.matching_whitelist"));
+
+        return matchingSublines;
     }
 
     @Nonnull

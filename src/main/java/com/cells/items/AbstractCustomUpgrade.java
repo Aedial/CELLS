@@ -3,6 +3,7 @@ package com.cells.items;
 import java.util.List;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.client.resources.I18n;
 import net.minecraft.creativetab.CreativeTabs;
@@ -59,16 +60,38 @@ public class AbstractCustomUpgrade extends Item implements IUpgradeModule {
         this.tierNames = tierNames;
     }
 
-    public static void setIntKey(ItemStack stack, String key, int value, int min) {
+    /**
+     * Set an integer value in the item's NBT, with minumum-value clamping and optional default value handling.
+     * Setting the value to default will clean the NBT key, to compact the NBT data.
+     */
+    public static void setIntKey(ItemStack stack, String key, int value, int min, @Nullable Integer defaultValue) {
         NBTTagCompound tag = stack.getTagCompound();
+        value = Math.max(min, value);
+
         if (tag == null) {
+            if (defaultValue != null && value == defaultValue) return;
+
             tag = new NBTTagCompound();
             stack.setTagCompound(tag);
+        } else if (defaultValue != null && value == defaultValue) {
+            tag.removeTag(key);
+            if (tag.isEmpty()) stack.setTagCompound(null);
+            return;
         }
 
-        tag.setInteger(key, Math.max(min, value));
+        tag.setInteger(key, value);
     }
 
+    /**
+     * Set an integer value in the item's NBT with minumum-value clamping.
+     */
+    public static void setIntKey(ItemStack stack, String key, int value, int min) {
+        setIntKey(stack, key, value, min, null);
+    }
+
+    /**
+     * Get an integer value from the item's NBT, with a default value if the key is not present.
+     */
     public static int getIntKey(ItemStack stack, String key, int defaultValue) {
         NBTTagCompound tag = stack.getTagCompound();
         if (tag == null || !tag.hasKey(key)) return defaultValue;

@@ -64,7 +64,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
      * @param interval The pull interval in ticks
      */
     public static void setInterval(ItemStack stack, int interval) {
-        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_INTERVAL, interval, 1);
+        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_INTERVAL, interval, 1, DEFAULT_INTERVAL);
     }
 
     /**
@@ -84,7 +84,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
      * @param quantity The pull quantity
      */
     public static void setQuantity(ItemStack stack, int quantity) {
-        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_QUANTITY, quantity, 0);
+        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_QUANTITY, quantity, 0, DEFAULT_QUANTITY);
     }
 
     /**
@@ -104,7 +104,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
      * @param keepQuantity The keep quantity
      */
     public static void setKeepQuantity(ItemStack stack, int keepQuantity) {
-        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_KEEP, keepQuantity, 0);
+        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_KEEP, keepQuantity, 0, DEFAULT_KEEP);
     }
 
     @Override

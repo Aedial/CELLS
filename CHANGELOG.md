@@ -14,6 +14,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 
 ## [0.6.8-beta2] - 2026-09-??
+### Added
+- Add some Subnet Proxy tooltip info for WAILA/TOP.
+
 ### Fixed
 - Fix some edge cases in Essentia Interface handling
 - Fix Essentia Push/Pull config blacklist not working if some other mod nulls the tile in the global registry.
@@ -23,6 +26,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ### Changed
 - Add a 5 ticks minimum delay in Subnet Proxy reset to avoid particularly bad force-update bursts hammering the Proxy every tick, causing expensive rebuilds and network churn.
+- Clean Pull/Push Card NBT if it is the default value, to make the same card stackable.
 
 
 ## [0.6.8-beta] - 2026-09-03
