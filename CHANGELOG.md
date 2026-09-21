@@ -23,6 +23,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix Import Interface not clearing orphaned slots if they were cleared externally (API).
 - Fix misc Push/Pull card visual issues.
 - Maybe fix some stale client sync issues in Interfaces, by making the "direction" explicit instead of relying on it being implicitly properly synced in the container, and ensuring all data has properly been sent to the client.
+- Fix Hyper-Density Cells not showing the right per-type value for Equal Distribution.
 
 ### Changed
 - Add a 5 ticks minimum delay in Subnet Proxy reset to avoid particularly bad force-update bursts hammering the Proxy every tick, causing expensive rebuilds and network churn.

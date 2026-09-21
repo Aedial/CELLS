@@ -123,8 +123,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
             this.cachedPerTypeCapacity = Long.MAX_VALUE;
         } else {
             int n = equalDistributionLimit;
-            long typeBytesDisplay = (long) n * cachedDisplayBytesPerType;
-            long availableDisplayBytes = cachedDisplayBytes - typeBytesDisplay;
+            long availableDisplayBytes = cachedDisplayBytes / 2;
             this.cachedPerTypeCapacity = (availableDisplayBytes <= 0) ? 0
                 : CellMathHelper.multiplyThenDivide(availableDisplayBytes, cachedUnitsPerByte, cachedMultiplier, n);
         }
@@ -142,15 +141,15 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
      * Get the per-type capacity limit when Equal Distribution is active.
      * Returns Long.MAX_VALUE if Equal Distribution is not active.
      * <p>
-     * When Equal Distribution is active, the total capacity must be divided
-     * among N types, and each type consumes bytesPerType overhead. So:
-     * - Total available = totalBytes - (N * bytesPerType)
+     * When Equal Distribution is active, half the cell holds type overhead and
+     * the other half is divided equally between the permitted types. So:
+     * - Total available = totalBytes / 2
      * - Per-type capacity = (Total available * itemsPerByte * multiplier) / N
      * <p>
      * To avoid overflow while maintaining precision, we use overflow-safe
      * division that handles the case where the numerator would overflow.
      */
-    private long getPerTypeCapacity() {
+    public long getPerTypeCapacity() {
         return cachedPerTypeCapacity;
     }
 
@@ -305,8 +304,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
             return CellMathHelper.multiplyWithOverflowProtection(cachedPerTypeCapacity, equalDistributionLimit);
         }
 
-        // Calculate type overhead in display bytes, then multiply
-        long typeBytesDisplay = (long) typeCount * cachedDisplayBytesPerType;
+        // Calculate aggregate type overhead before dividing so a full cell reserves half
+        long typeBytesDisplay = getTypeOverheadBytes(typeCount);
         long availableDisplayBytes = cachedDisplayBytes - typeBytesDisplay;
 
         if (availableDisplayBytes <= 0) return 0;
@@ -324,6 +323,10 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
      */
     private long getDisplayBytesPerType() {
         return cachedDisplayBytesPerType;
+    }
+
+    private long getTypeOverheadBytes(int typeCount) {
+        return (long) typeCount * cachedDisplayBytes / 2 / getEffectiveMaxTypes();
     }
 
     /**
@@ -625,10 +628,9 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
         if (storedItemCount == 0 && storedTypes == 0) return 0;
 
         long totalBytes = getTotalBytes();
-        long usedForTypes = storedTypes * getDisplayBytesPerType();
 
-        // When Equal Distribution is active, calculate bytes based on the per-type ratio
-        // to ensure each type shows as using exactly 1/n of the available space when full.
+        // Equal Distribution reserves half the cell for all permitted types and divides
+        // the remaining half between them.
         // The formula is: usedBytes = (storedItemCount / perTypeCapacity) * (availableBytes / n)
         // Rewritten to avoid overflow: (storedItemCount * availableBytes) / (perTypeCapacity * n)
         // Which equals: storedItemCount * availableBytes / totalCapacity
@@ -636,8 +638,8 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
         if (equalDistributionLimit > 0) {
             int n = equalDistributionLimit;
             long perType = getPerTypeCapacity();
-            long typeBytesDisplay = (long) n * getDisplayBytesPerType();
-            long availableBytes = totalBytes - typeBytesDisplay;
+            long availableBytes = totalBytes / 2;
+            long usedForTypes = totalBytes - availableBytes;
 
             if (availableBytes <= 0 || perType <= 0) return usedForTypes;
 
@@ -651,6 +653,7 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
             return CellMathHelper.addWithOverflowProtection(usedForItems, usedForTypes);
         }
 
+        long usedForTypes = getTypeOverheadBytes(storedTypes);
         long capacity = getTotalItemCapacity();
         long availableBytes = totalBytes - usedForTypes;
 
@@ -690,7 +693,9 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
 
         // Calculate how many items would round up to the current used bytes
         // usedBytes (for items only) = ceil(storedItemCount / itemsPerDisplayByte)
-        long usedBytesForItems = getUsedBytes() - storedTypes * getDisplayBytesPerType();
+        long usedTypeBytes = equalDistributionLimit > 0 ? getTotalBytes() - getTotalBytes() / 2
+            : getTypeOverheadBytes(storedTypes);
+        long usedBytesForItems = getUsedBytes() - usedTypeBytes;
         if (usedBytesForItems <= 0) return 0;
 
         // Unused = capacity - actual stored

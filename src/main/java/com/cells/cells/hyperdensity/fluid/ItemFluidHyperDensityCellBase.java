@@ -89,8 +89,9 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
                 CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
             }
 
-            if (CellUpgradeHelper.hasEqualDistributionUpgrade(getUpgradesInventory(stack))) {
-                long perType = this.getBytesPerType(stack);
+            if (CellUpgradeHelper.hasEqualDistributionUpgrade(getUpgradesInventory(stack))
+                    && cellInv instanceof FluidHyperDensityCellInventory) {
+                long perType = ((FluidHyperDensityCellInventory) cellInv).getPerTypeCapacity();
                 String perTypeShort = ReadableNumberConverter.INSTANCE.toWideReadableForm(perType);
                 tooltip.add(I18n.format("tooltip.cells.upgrade.per_type", perType, perTypeShort));
             }

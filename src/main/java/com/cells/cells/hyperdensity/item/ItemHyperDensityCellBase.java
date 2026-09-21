@@ -88,8 +88,9 @@ public abstract class ItemHyperDensityCellBase extends AbstractTieredCellItem im
                 CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
             }
 
-            if (CellUpgradeHelper.hasEqualDistributionUpgrade(getUpgradesInventory(stack))) {
-                long perType = this.getBytesPerType(stack);
+            if (CellUpgradeHelper.hasEqualDistributionUpgrade(getUpgradesInventory(stack))
+                    && cellInv instanceof HyperDensityCellInventory) {
+                long perType = ((HyperDensityCellInventory) cellInv).getPerTypeCapacity();
                 String perTypeShort = ReadableNumberConverter.INSTANCE.toWideReadableForm(perType);
                 tooltip.add(I18n.format("tooltip.cells.upgrade.per_type", perType, perTypeShort));
             }
