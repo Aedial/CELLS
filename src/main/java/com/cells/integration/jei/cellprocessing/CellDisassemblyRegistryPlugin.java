@@ -15,7 +15,7 @@ import mezz.jei.api.recipe.IRecipeWrapper;
 
 
 /**
- * Finds CELLS cells that can be disassembled through shift-right-click.
+ * Finds CELLS cells and upgrades that can be disassembled through shift-right-click.
  */
 public class CellDisassemblyRegistryPlugin implements IRecipeRegistryPlugin {
 
@@ -58,7 +58,7 @@ public class CellDisassemblyRegistryPlugin implements IRecipeRegistryPlugin {
         }
 
         List<CellOperationRecipe> recipes = new ArrayList<>();
-        for (ItemStack stack : CellJeiHelper.getAllDisassemblyCells()) {
+        for (ItemStack stack : CellJeiHelper.getAllDisassemblyItems()) {
             CellOperationRecipe recipe = createRecipe(stack);
             if (recipe != null) recipes.add(recipe);
         }

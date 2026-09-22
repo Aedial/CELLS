@@ -1,5 +1,6 @@
 package com.cells.util;
 
+import java.util.List;
 import java.util.function.Function;
 
 import javax.annotation.Nonnull;
@@ -30,7 +31,7 @@ import appeng.util.Platform;
  * Shared utility for cell disassembly (shift-right-click to break down).
  * <p>
  * Consolidates the common logic from all cell base classes to avoid code duplication.
- * Supports different storage channels and optional component/housing returns.
+ * Supports different storage channels and configured base outputs.
  */
 public final class CellDisassemblyHelper {
 
@@ -64,42 +65,25 @@ public final class CellDisassemblyHelper {
         return new ActionResult<>(EnumActionResult.PASS, stack);
     }
 
-    /**
-     * Standard onItemUseFirst handler for cells that support disassembly on block use.
-     *
-     * @param player The player
-     * @param hand The hand holding the cell
-     * @param disassembler The disassembly function (takes ItemStack, returns success)
-     * @return EnumActionResult for the block use
-     */
-    @Nonnull
-    public static EnumActionResult handleUseFirst(
-            @Nonnull EntityPlayer player,
-            @Nonnull EnumHand hand,
-            @Nonnull Function<ItemStack, Boolean> disassembler) {
-        return disassembler.apply(player.getHeldItem(hand)) ? EnumActionResult.SUCCESS : EnumActionResult.PASS;
-    }
-
     // =====================
     // Core disassembly logic
     // =====================
 
     /**
-     * Disassemble a storage cell, returning its components to the player.
+     * Disassemble a storage cell, returning configured outputs to the player.
      * <p>
      * This is the main entry point for standard cells that:
      * - Check if cell is empty via the storage channel
      * - Return upgrades from the cell
-     * - Optionally return housing (AE2 empty storage cell)
-     * - Optionally return a component (via supplier)
+     * - Return the configured base outputs
      *
      * @param <T> The AE stack type
      * @param stack The cell ItemStack to disassemble
      * @param player The player performing the action
      * @param channel The storage channel to check for contents
      * @param cellWorkbenchItem The ICellWorkbenchItem for getting upgrades
-     * @param returnHousing Whether to return an empty AE2 storage cell housing
-     * @param componentSupplier Optional function to get the component ItemStack (may be null)
+     * @param housing The {@code <housing>} output, when available
+     * @param component The {@code <component>} output, when available
      * @return true if disassembly was successful
      */
     public static <T extends IAEStack<T>> boolean disassembleCell(
@@ -107,10 +91,13 @@ public final class CellDisassemblyHelper {
             @Nonnull EntityPlayer player,
             @Nonnull IStorageChannel<T> channel,
             @Nonnull ICellWorkbenchItem cellWorkbenchItem,
-            boolean returnHousing,
-            @Nullable Function<ItemStack, ItemStack> componentSupplier) {
+            @Nullable ItemStack housing,
+            @Nullable ItemStack component) {
         if (!player.isSneaking()) return false;
         if (Platform.isClient()) return false;
+
+        List<ItemStack> outputs = DisassemblyConfig.getOutputs(stack, housing, component);
+        if (outputs.isEmpty()) return false;
 
         // Check if cell has content
         IMEInventoryHandler<T> inv = AEApi.instance().registries().cell()
@@ -132,14 +119,28 @@ public final class CellDisassemblyHelper {
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         returnUpgrades(cellWorkbenchItem.getUpgradesInventory(stack), ia, player);
 
-        // Return housing if requested
-        if (returnHousing) returnStandardHousing(ia, player);
+        for (ItemStack output : outputs) returnItem(output, ia, player);
 
-        // Return component if supplier provided
-        if (componentSupplier != null) {
-            ItemStack component = componentSupplier.apply(stack);
-            returnItem(component, ia, player);
-        }
+        if (player.inventoryContainer != null) player.inventoryContainer.detectAndSendChanges();
+
+        return true;
+    }
+
+    /**
+     * Disassembles a configured upgrade card and returns its configured outputs.
+     */
+    public static boolean disassembleUpgrade(@Nonnull ItemStack stack, @Nonnull EntityPlayer player) {
+        if (!player.isSneaking()) return false;
+        if (Platform.isClient()) return false;
+
+        List<ItemStack> outputs = DisassemblyConfig.getOutputs(stack);
+        if (outputs.isEmpty()) return false;
+
+        InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
+        if (ia == null) return false;
+
+        removeOneFromHand(stack, player);
+        for (ItemStack output : outputs) returnItem(output, ia, player);
 
         if (player.inventoryContainer != null) player.inventoryContainer.detectAndSendChanges();
 

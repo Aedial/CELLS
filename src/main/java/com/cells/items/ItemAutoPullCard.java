@@ -18,6 +18,7 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 import com.cells.Cells;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.items.pullpush.ContainerPullPushCard;
+import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.PollingRateUtils;
 
 
@@ -111,6 +112,10 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
     @Nonnull
     public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, EntityPlayer player, @Nonnull EnumHand hand) {
         ItemStack stack = player.getHeldItem(hand);
+        if (player.isSneaking()) {
+            return CellDisassemblyHelper.handleRightClick(world, player, hand,
+                held -> CellDisassemblyHelper.disassembleUpgrade(held, player));
+        }
 
         // Open configuration GUI
         if (!world.isRemote) {

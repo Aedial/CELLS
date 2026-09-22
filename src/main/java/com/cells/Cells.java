@@ -28,6 +28,7 @@ import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.proxy.CommonProxy;
+import com.cells.util.DisassemblyConfig;
 import com.cells.util.OreDictValidator;
 
 
@@ -70,6 +71,9 @@ public class Cells {
 
         // Load ore dictionary whitelist/blacklist for compacting cells
         OreDictValidator.loadConfig(configDir);
+
+        // Load cell and upgrade disassembly entries
+        DisassemblyConfig.load(configDir);
 
         // Initialize network
         CellsNetworkHandler.init();

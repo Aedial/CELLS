@@ -8,23 +8,21 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import net.minecraft.client.gui.Gui;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import appeng.api.storage.ICellWorkbenchItem;
+
 import mezz.jei.api.IGuiHelper;
 import mezz.jei.api.IJeiHelpers;
 import mezz.jei.api.gui.IDrawable;
-import mezz.jei.api.gui.IDrawableStatic;
 import mezz.jei.api.gui.IGuiItemStackGroup;
 import mezz.jei.api.gui.IRecipeLayout;
 import mezz.jei.api.ingredients.IIngredients;
 import mezz.jei.api.recipe.IRecipeCategory;
-import mezz.jei.config.Constants;
 
 import com.cells.Tags;
 import com.cells.ItemRegistry;
@@ -40,40 +38,41 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
     public static final String DISASSEMBLY_UID = Tags.MODID + ":cell_disassembly";
     public static final String UPGRADE_UID = Tags.MODID + ":cell_upgrade";
 
-    private static final int WIDTH = 218;
-    private static final int SLOT_SIZE = 18;
-    private static final int MIN_GRID_ROWS = 3;
-    private static final int GRID_TOP = 4;
-    private static final int GRID_BOTTOM = 4;
-    private static final int FOOTER_GAP = 2;
-    private static final int FOOTER_HEIGHT = 9;
-    private static final int FOOTER_BOTTOM = 3;
-    private static final int ARROW_X = 98;
-    private static final int GRID_GAP = 8;
-    private static final int HINT_SIZE = 16;
-    private static final int HINT_TEXTURE_SIZE = 32;
-    private static final int HINT_GAP = 2;
-    private static final int HINT_X = ARROW_X - (2 * HINT_SIZE + HINT_GAP - 22) / 2;
-    private static final int RIGHT_CLICK_X = HINT_X + HINT_SIZE + HINT_GAP;
-    private static final ResourceLocation SHIFT_TEXTURE = new ResourceLocation(Tags.MODID,
+    static final int SLOT_SIZE = 18;
+    static final int MIN_GRID_ROWS = 3;
+    static final int GRID_TOP = 4;
+    static final int GRID_BOTTOM = 4;
+    static final int FOOTER_GAP = 2;
+    static final int FOOTER_HEIGHT = 9;
+    static final int FOOTER_BOTTOM = 3;
+    static final int SIDE_PADDING = 4;
+    static final int GRID_GAP = 8;
+    static final int ARROW_TEXTURE_X = 82;
+    static final int ARROW_TEXTURE_Y = 128;
+    static final int ARROW_WIDTH = 24;
+    static final int ARROW_HEIGHT = 17;
+    static final int HINT_SIZE = 16;
+    static final int HINT_TEXTURE_SIZE = 32;
+    static final int HINT_GAP = 2;
+    static final int HINT_VERTICAL_GAP = 4;
+    static final int VANILLA_TEXTURE_SIZE = 256;
+    static final ResourceLocation SLOT_TEXTURE = new ResourceLocation(Tags.MODID, "textures/guis/slot.png");
+    static final ResourceLocation SHIFT_TEXTURE = new ResourceLocation(Tags.MODID,
         "textures/guis/shift.png");
-    private static final ResourceLocation RIGHT_CLICK_TEXTURE = new ResourceLocation(Tags.MODID,
+    static final ResourceLocation RIGHT_CLICK_TEXTURE = new ResourceLocation(Tags.MODID,
         "textures/guis/rightclick.png");
 
     private final String uid;
     private final String titleKey;
     private final boolean showsDisassemblyHints;
+    private final int width;
     private final int gridHeight;
     private final int height;
-    private final int arrowY;
-    private final int hintY;
-    private final int footerY;
+    private final int arrowX;
+    private final int hintX;
+    private final int rightClickX;
     private final IDrawable background;
-    private final IDrawableStatic slotSprite;
-    private final IDrawableStatic arrow;
     private final IDrawable icon;
-    private final List<Point> inputPositions = new ArrayList<>();
-    private final List<Point> outputPositions = new ArrayList<>();
 
     public CellOperationCategory(IJeiHelpers helpers, String uid, String titleKey, boolean showsDisassemblyHints) {
         IGuiHelper guiHelper = helpers.getGuiHelper();
@@ -81,20 +80,25 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         this.uid = uid;
         this.titleKey = titleKey;
         this.showsDisassemblyHints = showsDisassemblyHints;
-        int gridRows = showsDisassemblyHints ? getDisassemblyGridRows() : MIN_GRID_ROWS;
+        int maxInputCount = getMaxInputCount(showsDisassemblyHints);
+        int maxOutputCount = getMaxOutputCount(showsDisassemblyHints);
+        int maxColumns = Math.max(getColumns(maxInputCount), getColumns(maxOutputCount));
+        int gridRows = showsDisassemblyHints ? Math.max(MIN_GRID_ROWS, getRows(maxOutputCount)) : MIN_GRID_ROWS;
+        int sideWidth = maxColumns * SLOT_SIZE;
+        int maxFooterY = GRID_TOP + gridRows * SLOT_SIZE + FOOTER_GAP;
+
+        this.width = 2 * SIDE_PADDING + 2 * sideWidth + 2 * GRID_GAP + ARROW_WIDTH;
         this.gridHeight = gridRows * SLOT_SIZE;
-        this.footerY = GRID_TOP + gridHeight + FOOTER_GAP;
+        // TODO: We might get the height tighter if separate max height with and without footer
+        //       As in max(with footer) + footer < max(without footer) then we can use the smaller height
         this.height = showsDisassemblyHints
-            ? footerY + FOOTER_HEIGHT + FOOTER_BOTTOM
+            ? maxFooterY + FOOTER_HEIGHT + FOOTER_BOTTOM
             : GRID_TOP + gridHeight + GRID_BOTTOM;
-        this.arrowY = (height - 15) / 2;
-        this.hintY = arrowY - HINT_SIZE - 4;
-        this.background = guiHelper.createBlankDrawable(WIDTH, height);
-        this.slotSprite = guiHelper.drawableBuilder(
-            new ResourceLocation(Tags.MODID, "textures/guis/slot.png"), 0, 0, SLOT_SIZE, SLOT_SIZE)
-            .setTextureSize(SLOT_SIZE, SLOT_SIZE)
-            .build();
-        this.arrow = guiHelper.createDrawable(Constants.RECIPE_GUI_VANILLA, 60, 76, 22, 15);
+        this.arrowX = SIDE_PADDING + sideWidth + GRID_GAP;
+        this.hintX = arrowX - (2 * HINT_SIZE + HINT_GAP - ARROW_WIDTH) / 2;
+        this.rightClickX = hintX + HINT_SIZE + HINT_GAP;
+
+        this.background = guiHelper.createBlankDrawable(width, height);
         // TODO: Should we show a crafting table icon instead
         this.icon = guiHelper.drawableBuilder(
             new ResourceLocation(Tags.MODID, "textures/items/cells/cell_preview.png"), 0, 0, 16, 16)
@@ -136,58 +140,47 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
     public void setRecipe(@Nonnull IRecipeLayout recipeLayout, @Nonnull CellOperationRecipe recipe,
                           @Nonnull IIngredients ingredients) {
         IGuiItemStackGroup itemStacks = recipeLayout.getItemStacks();
-
-        inputPositions.clear();
-        inputPositions.addAll(createGrid(recipe.getInputs().size(), true));
-        outputPositions.clear();
-        outputPositions.addAll(createGrid(recipe.getOutputs().size(), false));
+        CellOperationRecipe.Layout layout = createLayout(recipe);
+        recipe.setLayout(layout);
 
         int slot = 0;
-        for (int index = 0; index < inputPositions.size(); index++) {
-            Point position = inputPositions.get(index);
+        for (int index = 0; index < layout.getInputPositions().size(); index++) {
+            Point position = layout.getInputPositions().get(index);
             itemStacks.init(slot, true, position.x, position.y);
             itemStacks.set(slot, recipe.getInputs().get(index));
             slot++;
         }
 
-        for (int index = 0; index < outputPositions.size(); index++) {
-            Point position = outputPositions.get(index);
+        for (int index = 0; index < layout.getOutputPositions().size(); index++) {
+            Point position = layout.getOutputPositions().get(index);
             itemStacks.init(slot, false, position.x, position.y);
             itemStacks.set(slot, recipe.getOutputs().get(index));
             slot++;
         }
     }
 
-    @Override
-    public void drawExtras(@Nonnull Minecraft minecraft) {
-        for (Point position : inputPositions) slotSprite.draw(minecraft, position.x, position.y);
-        for (Point position : outputPositions) slotSprite.draw(minecraft, position.x, position.y);
+    private CellOperationRecipe.Layout createLayout(CellOperationRecipe recipe) {
+        List<Point> inputPositions = createGrid(recipe.getInputs().size(), true);
+        List<Point> outputPositions = createGrid(recipe.getOutputs().size(), false);
 
-        arrow.draw(minecraft, ARROW_X, arrowY);
-        if (!showsDisassemblyHints) return;
+        // Do not show warning for upgrades, as they cannot "have contents" (lol)
+        boolean requiresEmptyCell = showsDisassemblyHints && !recipe.getInputs().isEmpty()
+            && recipe.getInputs().get(0).getItem() instanceof ICellWorkbenchItem;
 
-        drawHint(minecraft, SHIFT_TEXTURE, HINT_X, hintY);
-        drawHint(minecraft, RIGHT_CLICK_TEXTURE, RIGHT_CLICK_X, hintY);
+        int arrowY = GRID_TOP + (gridHeight - ARROW_HEIGHT) / 2;
+        int hintY = arrowY - HINT_SIZE - HINT_VERTICAL_GAP;
+        int footerY = Math.max(getGridBottom(inputPositions), getGridBottom(outputPositions)) + FOOTER_GAP;
+        int contentTop = Math.min(Math.min(getGridTop(inputPositions), getGridTop(outputPositions)), arrowY);
+        int contentBottom = Math.max(Math.max(getGridBottom(inputPositions), getGridBottom(outputPositions)),
+            arrowY + ARROW_HEIGHT);
 
-        FontRenderer font = minecraft.fontRenderer;
-        String text = I18n.format("jei.cells.disassembly.empty");
-        font.drawString(text, (WIDTH - font.getStringWidth(text)) / 2, footerY, 0x000000);
-    }
+        if (showsDisassemblyHints) contentTop = Math.min(contentTop, hintY);
+        if (requiresEmptyCell) contentBottom = footerY + FOOTER_HEIGHT;
 
-    @Override
-    @Nonnull
-    public List<String> getTooltipStrings(int mouseX, int mouseY) {
-        if (!showsDisassemblyHints) return Collections.emptyList();
-
-        if (isInside(mouseX, mouseY, HINT_X, hintY)) {
-            return Collections.singletonList(I18n.format("jei.cells.disassembly.shift"));
-        }
-
-        if (isInside(mouseX, mouseY, RIGHT_CLICK_X, hintY)) {
-            return Collections.singletonList(I18n.format("jei.cells.disassembly.right_click"));
-        }
-
-        return Collections.emptyList();
+        int verticalOffset = (height - (contentBottom - contentTop)) / 2 - contentTop;
+        return new CellOperationRecipe.Layout(width, showsDisassemblyHints, requiresEmptyCell,
+            shiftPoints(inputPositions, verticalOffset), shiftPoints(outputPositions, verticalOffset),
+            arrowX, arrowY + verticalOffset, hintX, hintY + verticalOffset, rightClickX, footerY + verticalOffset);
     }
 
     private List<Point> createGrid(int count, boolean input) {
@@ -197,7 +190,7 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         int rows = (count + columns - 1) / columns;
         int gridWidth = columns * SLOT_SIZE;
         int gridHeight = rows * SLOT_SIZE;
-        int gridX = input ? ARROW_X - GRID_GAP - gridWidth : ARROW_X + 22 + GRID_GAP;
+        int gridX = input ? arrowX - GRID_GAP - gridWidth : arrowX + ARROW_WIDTH + GRID_GAP;
         int gridY = GRID_TOP + (this.gridHeight - gridHeight) / 2;
         List<Point> positions = new ArrayList<>();
 
@@ -215,7 +208,7 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
     }
 
     private static int getColumns(int count) {
-        if (count == 1) return 1;
+        if (count <= 1) return 1;
 
         int columns = 2;
         while (count > columns * (columns + 1)) columns++;
@@ -223,40 +216,72 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         return columns;
     }
 
-    private static int getDisassemblyGridRows() {
-        int maximumUpgrades = 0;
-        if (ItemRegistry.COMPACTING_CELL != null) {
-            maximumUpgrades = CellsConfig.general.compactingCellUpgradeSlots;
-        }
-
-        if (ItemRegistry.HYPER_DENSITY_CELL != null) {
-            maximumUpgrades = Math.max(maximumUpgrades, CellsConfig.general.hdItemCellUpgradeSlots);
-        }
-
-        if (ItemRegistry.FLUID_HYPER_DENSITY_CELL != null) {
-            maximumUpgrades = Math.max(maximumUpgrades, CellsConfig.general.hdFluidCellUpgradeSlots);
-        }
-
-        if (ItemRegistry.HYPER_DENSITY_COMPACTING_CELL != null) {
-            maximumUpgrades = Math.max(maximumUpgrades, CellsConfig.general.hdCompactingCellUpgradeSlots);
-        }
-
-        if (ItemRegistry.CONFIGURABLE_CELL != null) {
-            maximumUpgrades = Math.max(maximumUpgrades, CellsConfig.general.configurableCellUpgradeSlots);
-        }
-
-        int outputs = maximumUpgrades + 2;
-        int columns = getColumns(outputs);
-        return Math.max(MIN_GRID_ROWS, (outputs + columns - 1) / columns);
+    private static int getGridBottom(List<Point> positions) {
+        int bottom = GRID_TOP;
+        for (Point position : positions) bottom = Math.max(bottom, position.y + SLOT_SIZE);
+        return bottom;
     }
 
-    private static void drawHint(Minecraft minecraft, ResourceLocation texture, int x, int y) {
-        minecraft.getTextureManager().bindTexture(texture);
-        Gui.drawScaledCustomSizeModalRect(x, y, 0, 0, HINT_TEXTURE_SIZE, HINT_TEXTURE_SIZE,
-            HINT_SIZE, HINT_SIZE, HINT_TEXTURE_SIZE, HINT_TEXTURE_SIZE);
+    private static int getGridTop(List<Point> positions) {
+        int top = Integer.MAX_VALUE;
+        for (Point position : positions) top = Math.min(top, position.y);
+        return top == Integer.MAX_VALUE ? GRID_TOP : top;
     }
 
-    private static boolean isInside(int mouseX, int mouseY, int x, int y) {
-        return mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16;
+    private static List<Point> shiftPoints(List<Point> positions, int verticalOffset) {
+        if (verticalOffset == 0) return positions;
+
+        List<Point> shiftedPositions = new ArrayList<>(positions.size());
+        for (Point position : positions) shiftedPositions.add(new Point(position.x, position.y + verticalOffset));
+        return shiftedPositions;
+    }
+
+    private static int getRows(int count) {
+        int columns = getColumns(count);
+        return (count + columns - 1) / columns;
+    }
+
+    private static int getMaxInputCount(boolean showsDisassemblyHints) {
+        return showsDisassemblyHints ? 1 : 2;
+    }
+
+    private static int getMaxOutputCount(boolean showsDisassemblyHints) {
+        if (!showsDisassemblyHints) return 2;
+
+        int maxOutputs = 1;
+        for (ItemStack stack : CellJeiHelper.getAllDisassemblyItems()) {
+            if (!CellJeiHelper.canDisassemble(stack)) continue;
+
+            int outputCount = CellJeiHelper.getDisassemblyOutputs(stack).size() + getUpgradeSlotCapacity(stack);
+            maxOutputs = Math.max(maxOutputs, outputCount);
+        }
+
+        return maxOutputs;
+    }
+
+    private static int getUpgradeSlotCapacity(ItemStack stack) {
+        if (stack.isEmpty()) return 0;
+
+        if (stack.getItem() == ItemRegistry.COMPACTING_CELL) {
+            return CellsConfig.general.compactingCellUpgradeSlots;
+        }
+
+        if (stack.getItem() == ItemRegistry.HYPER_DENSITY_CELL) {
+            return CellsConfig.general.hdItemCellUpgradeSlots;
+        }
+
+        if (stack.getItem() == ItemRegistry.FLUID_HYPER_DENSITY_CELL) {
+            return CellsConfig.general.hdFluidCellUpgradeSlots;
+        }
+
+        if (stack.getItem() == ItemRegistry.HYPER_DENSITY_COMPACTING_CELL) {
+            return CellsConfig.general.hdCompactingCellUpgradeSlots;
+        }
+
+        if (stack.getItem() == ItemRegistry.CONFIGURABLE_CELL) {
+            return CellsConfig.general.configurableCellUpgradeSlots;
+        }
+
+        return 0;
     }
 }

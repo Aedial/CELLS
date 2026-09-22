@@ -167,14 +167,6 @@ public abstract class AbstractTieredCellItem extends Item implements ICellWorkbe
                 stack -> disassembleCell(stack, player));
     }
 
-    @Override
-    @Nonnull
-    public EnumActionResult onItemUseFirst(@Nonnull EntityPlayer player, @Nonnull World world,
-                                           @Nonnull BlockPos pos, @Nonnull EnumFacing side,
-                                           float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
-        return CellDisassemblyHelper.handleUseFirst(player, hand, stack -> disassembleCell(stack, player));
-    }
-
     // =====================
     // ICellWorkbenchItem - common implementation
     // =====================

@@ -113,9 +113,7 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
         }
 
         // Add JEI cell view hint if JEI is loaded and cell view is enabled
-        if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) {
-            addJeiCellViewHint(tooltip);
-        }
+        if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) addJeiCellViewHint(tooltip);
 
         tooltip.add("");
         tooltip.add(I18n.format("tooltip.cells.hyper_density_fluid_cell.info"));
@@ -125,8 +123,7 @@ public abstract class ItemFluidHyperDensityCellBase extends AbstractTieredCellIt
     protected boolean disassembleCell(@Nonnull ItemStack stack, @Nonnull EntityPlayer player) {
         IFluidStorageChannel channel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
         return CellDisassemblyHelper.disassembleCell(
-                stack, player, channel, this, true,
-                s -> getCellComponent(s.getMetadata()));
+                stack, player, channel, this, null, getCellComponent(stack.getMetadata()));
     }
 
     /**

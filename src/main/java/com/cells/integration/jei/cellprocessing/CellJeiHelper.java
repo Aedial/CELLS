@@ -10,8 +10,6 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 
-import appeng.api.AEApi;
-import appeng.api.definitions.IMaterials;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.ICellWorkbenchItem;
 import appeng.api.storage.IStorageChannel;
@@ -29,6 +27,8 @@ import com.cells.cells.hyperdensity.item.ItemHyperDensityComponent;
 import com.cells.cells.normal.compacting.ItemCompactingCell;
 import com.cells.cells.normal.compacting.ItemCompactingComponent;
 import com.cells.integration.jei.cellview.CellViewHelper;
+import com.cells.items.AbstractCustomUpgrade;
+import com.cells.util.DisassemblyConfig;
 
 
 /**
@@ -41,13 +41,13 @@ final class CellJeiHelper {
     static List<ItemStack> getAllDisassemblyCells() {
         List<ItemStack> cells = new ArrayList<>();
 
-        addTieredCells(cells, ItemRegistry.COMPACTING_CELL,
+        addTieredItems(cells, ItemRegistry.COMPACTING_CELL,
             ItemCompactingCell.getTierNames().length);
-        addTieredCells(cells, ItemRegistry.HYPER_DENSITY_CELL,
+        addTieredItems(cells, ItemRegistry.HYPER_DENSITY_CELL,
             ItemHyperDensityCell.getTierNames().length);
-        addTieredCells(cells, ItemRegistry.FLUID_HYPER_DENSITY_CELL,
+        addTieredItems(cells, ItemRegistry.FLUID_HYPER_DENSITY_CELL,
             ItemFluidHyperDensityCell.getTierNames().length);
-        addTieredCells(cells, ItemRegistry.HYPER_DENSITY_COMPACTING_CELL,
+        addTieredItems(cells, ItemRegistry.HYPER_DENSITY_COMPACTING_CELL,
             ItemHyperDensityCompactingCell.getTierNames().length);
 
         if (ItemRegistry.CONFIGURABLE_CELL != null) {
@@ -61,8 +61,40 @@ final class CellJeiHelper {
         return cells;
     }
 
+    static List<ItemStack> getAllDisassemblyItems() {
+        List<ItemStack> items = new ArrayList<>();
+
+        // Cells
+        items.addAll(getAllDisassemblyCells());
+
+        // Upgrades
+        addTieredItems(items, ItemRegistry.OVERFLOW_CARD, 1);
+        addTieredItems(items, ItemRegistry.OREDICT_CARD, 1);
+        addTieredItems(items, ItemRegistry.TRASH_UNSELECTED_CARD, 1);
+        addTieredItems(items, ItemRegistry.INSERTION_CARD, 1);
+        addTieredItems(items, ItemRegistry.PULL_CARD, 1);
+        addTieredItems(items, ItemRegistry.PUSH_CARD, 1);
+        addTieredItems(items, ItemRegistry.EQUAL_DISTRIBUTION_CARD,
+            ItemRegistry.EQUAL_DISTRIBUTION_CARD.getTierNames().length);
+        addTieredItems(items, ItemRegistry.COMPRESSION_TIER_CARD,
+            ItemRegistry.COMPRESSION_TIER_CARD.getTierNames().length);
+        addTieredItems(items, ItemRegistry.DECOMPRESSION_TIER_CARD,
+            ItemRegistry.DECOMPRESSION_TIER_CARD.getTierNames().length);
+
+        if (ItemRegistry.EMC_CAPACITY_CARD != null) {
+            addTieredItems(items, ItemRegistry.EMC_CAPACITY_CARD,
+                ItemRegistry.EMC_CAPACITY_CARD.getTierNames().length);
+        }
+
+        return items;
+    }
+
     static boolean canDisassemble(ItemStack stack) {
-        if (!isDisassemblableCell(stack)) return false;
+        if (!isDisassemblableCell(stack) && !isDisassemblableUpgrade(stack)) return false;
+        if (getConfiguredOutputs(stack).isEmpty()) return false;
+
+        if (isDisassemblableUpgrade(stack)) return true;
+
         if (stack.getItem() == ItemRegistry.CONFIGURABLE_CELL) {
             if (ComponentHelper.hasContent(stack)) return false;
             if (CellViewHelper.getCellInfo(stack) != null && !hasNoStoredContent(stack)) return false;
@@ -75,17 +107,22 @@ final class CellJeiHelper {
 
     static List<ItemStack> getDisassemblyOutputs(ItemStack stack) {
         List<ItemStack> outputs = new ArrayList<>();
-        outputs.addAll(getUpgrades(stack));
+        if (isDisassemblableCell(stack)) outputs.addAll(getUpgrades(stack));
+        outputs.addAll(getConfiguredOutputs(stack));
+        return outputs;
+    }
 
+    private static List<ItemStack> getConfiguredOutputs(ItemStack stack) {
+        @Nullable ItemStack housing = null;
+        ItemStack component;
         if (stack.getItem() == ItemRegistry.CONFIGURABLE_CELL) {
-            addIfPresent(outputs, ComponentHelper.getInstalledComponent(stack));
-            addIfPresent(outputs, createConfigurableHousing(stack));
-            return outputs;
+            housing = createConfigurableHousing(stack);
+            component = ComponentHelper.getInstalledComponent(stack);
+        } else {
+            component = getCellComponent(stack);
         }
 
-        addIfPresent(outputs, getStandardHousing());
-        addIfPresent(outputs, getCellComponent(stack));
-        return outputs;
+        return DisassemblyConfig.getOutputs(stack, housing, component);
     }
 
     static List<ItemStack> getSwapComponents(ItemStack stack) {
@@ -98,18 +135,18 @@ final class CellJeiHelper {
             return components;
         }
 
-        addTieredCells(components, ItemRegistry.COMPACTING_COMPONENT,
+        addTieredItems(components, ItemRegistry.COMPACTING_COMPONENT,
             ItemCompactingComponent.getTierNames().length);
-        addTieredCells(components, ItemRegistry.HYPER_DENSITY_COMPONENT,
+        addTieredItems(components, ItemRegistry.HYPER_DENSITY_COMPONENT,
             ItemHyperDensityComponent.getTierNames().length);
-        addTieredCells(components, ItemRegistry.FLUID_HYPER_DENSITY_COMPONENT,
+        addTieredItems(components, ItemRegistry.FLUID_HYPER_DENSITY_COMPONENT,
             ItemFluidHyperDensityComponent.getTierNames().length);
-        addTieredCells(components, ItemRegistry.HYPER_DENSITY_COMPACTING_COMPONENT,
+        addTieredItems(components, ItemRegistry.HYPER_DENSITY_COMPACTING_COMPONENT,
             ItemHyperDensityCompactingComponent.getTierNames().length);
         return components;
     }
 
-    private static void addTieredCells(List<ItemStack> cells, @Nullable Item item, int tiers) {
+    private static void addTieredItems(List<ItemStack> cells, @Nullable Item item, int tiers) {
         if (item == null) return;
 
         for (int tier = 0; tier < tiers; tier++) cells.add(new ItemStack(item, 1, tier));
@@ -123,6 +160,11 @@ final class CellJeiHelper {
             || stack.getItem() == ItemRegistry.FLUID_HYPER_DENSITY_CELL
             || stack.getItem() == ItemRegistry.HYPER_DENSITY_COMPACTING_CELL
             || stack.getItem() == ItemRegistry.CONFIGURABLE_CELL;
+        // TODO: add support for EMC Cell?
+    }
+
+    private static boolean isDisassemblableUpgrade(ItemStack stack) {
+        return !stack.isEmpty() && stack.getItem() instanceof AbstractCustomUpgrade;
     }
 
     private static boolean isUpgradeableCell(ItemStack stack) {
@@ -181,11 +223,6 @@ final class CellJeiHelper {
         }
 
         return housing;
-    }
-
-    private static ItemStack getStandardHousing() {
-        IMaterials materials = AEApi.instance().definitions().materials();
-        return materials.emptyStorageCell().maybeStack(1).orElse(ItemStack.EMPTY);
     }
 
     private static ItemStack getCellComponent(ItemStack stack) {

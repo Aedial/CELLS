@@ -168,6 +168,10 @@ To spare performance, accumulated EMC is only flushed to the player's network on
 You can copy the partition filters from an EMC Link to an EMC Cell by shift-right-clicking the EMC Link with the EMC Cell in hand, to allow for easy migration of setups. No existing filter will be overwritten.
 
 
+### Disassembly
+All (empty) cells and upgrade cards can be disassembled to recover their components, via Shift + Right-Click. The recovered components are dictated by the disassembly configuration in config/cells/disassembly.cfg. :warning: **If you modify the recipe for a cell or upgrade card, be sure to update the disassembly config accordingly (update or remove the line), to ensure the user is not short-changed.**
+
+
 ### Upgrades
 
 #### Void Overflow Card

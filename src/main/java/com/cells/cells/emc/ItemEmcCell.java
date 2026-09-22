@@ -158,6 +158,7 @@ public class ItemEmcCell extends Item implements ICellWorkbenchItem, IItemGroup 
                                            float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
         if (!player.isSneaking()) return EnumActionResult.PASS;
 
+        // Handle partition copying from link (hence onItemUseFirst, to catch the click)
         TileEntity tileEntity = world.getTileEntity(pos);
         if (!(tileEntity instanceof TileLink)) return EnumActionResult.PASS;
 

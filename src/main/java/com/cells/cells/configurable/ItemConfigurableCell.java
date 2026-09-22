@@ -52,6 +52,7 @@ import com.cells.mixin.MixinState;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
+import com.cells.util.DisassemblyConfig;
 import com.cells.util.NBTSizeHelper;
 
 
@@ -63,7 +64,7 @@ import com.cells.util.NBTSizeHelper;
  * limit via a GUI text field, and the cell has equal distribution built in.
  * <p>
  * Right-click opens the configuration GUI.
- * Shift-right-click disassembles the cell (returns housing, component, upgrades).
+ * Shift-right-click returns the configured disassembly outputs and installed upgrades.
  * <p>
  * The cell supports a shapeless crafting recipe: empty housing + any valid
  * component from the whitelist = configured cell with that component installed.
@@ -207,9 +208,7 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         CellUpgradeHelper.addUpgradeTooltips(getUpgradesInventory(stack), tooltip);
 
         // Add JEI cell view hint if JEI is loaded and cell view is enabled
-        if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) {
-            addJeiCellViewHint(tooltip);
-        }
+        if (Loader.isModLoaded("jei") && isJeiCellViewEnabled()) addJeiCellViewHint(tooltip);
 
         // Show cell description
         tooltip.add("");
@@ -242,33 +241,10 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         return new ActionResult<>(EnumActionResult.SUCCESS, player.getHeldItem(hand));
     }
 
-    @Override
-    @Nonnull
-    public EnumActionResult onItemUseFirst(EntityPlayer player, @Nonnull World world,
-                                           @Nonnull BlockPos pos, @Nonnull EnumFacing side,
-                                           float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
-        if (player.isSneaking()) {
-            // Must return SUCCESS on both client and server so the client doesn't
-            // fire a redundant onItemRightClick, which would disassemble a second time.
-            if (!world.isRemote) disassembleDrive(player.getHeldItem(hand), world, player, hand);
-
-            return EnumActionResult.SUCCESS;
-        }
-
-        // Open GUI on block right-click too (non-sneaking)
-        if (!world.isRemote) {
-            player.openGui(Cells.instance, CellsGuiHandler.GUI_CONFIGURABLE_CELL,
-                world, hand.ordinal(), 0, 0);
-        }
-
-        return EnumActionResult.SUCCESS;
-    }
-
     /**
-     * Disassemble a single configurable cell, returning its components.
+     * Disassemble a configurable cell and return its configured outputs.
      * <p>
-     * Unlike standard cells, the configurable cell returns a stripped empty housing
-     * (with user configs preserved) plus the component and upgrades separately.
+     * The <housing> output keeps user settings while removing the component and upgrades.
      *
      * @param stack The single cell to disassemble (stack size should be 1)
      * @param world The world
@@ -280,6 +256,11 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
         if (ia == null) return false;
 
+        ItemStack housing = createDisassemblyHousing(stack);
+        ItemStack component = ComponentHelper.getInstalledComponent(stack);
+        List<ItemStack> outputs = DisassemblyConfig.getOutputs(stack, housing, component);
+        if (outputs.isEmpty()) return false;
+
         if (ComponentHelper.hasContent(stack)) {
             // Don't allow disassembly if the cell still has content in it
             TextComponentTranslation msg = new TextComponentTranslation("message.cells.disassemble_fail_content");
@@ -290,34 +271,35 @@ public class ItemConfigurableCell extends Item implements ICellWorkbenchItem, II
 
         // Check if there's anything to disassemble (component or upgrades)
         // If nothing to disassemble, this cell is already empty - do nothing
-        ItemStack component = ComponentHelper.getInstalledComponent(stack);
         IItemHandler upgrades = getUpgradesInventory(stack);
         if (component.isEmpty() && !CellDisassemblyHelper.hasUpgrades(upgrades)) return false;
 
-        // Create a stripped housing: no component, no upgrades, but user configs intact.
-        // Copy first so we preserve all NBT (maxPerType, FuzzyMode, etc.)
-        ItemStack housing = stack.copy();
-        housing.setCount(1);
-
-        // Extract and return upgrades from the housing copy
-        CellDisassemblyHelper.extractAndReturnUpgrades(getUpgradesInventory(housing), ia, player);
-
-        // Extract and return the component from the housing copy
-        ItemStack housingComponent = ComponentHelper.getInstalledComponent(housing);
-        if (!housingComponent.isEmpty()) {
-            ComponentHelper.setInstalledComponent(housing, ItemStack.EMPTY);
-            CellDisassemblyHelper.returnItem(housingComponent, ia, player);
-        }
+        // Return installed upgrades before removing the cell
+        CellDisassemblyHelper.extractAndReturnUpgrades(upgrades, ia, player);
 
         // Remove one cell from the player's hand
         CellDisassemblyHelper.removeOneFromHand(stack, player);
 
-        // Return the stripped housing to the player's inventory
-        CellDisassemblyHelper.returnItem(housing, ia, player);
+        // Return the configured base outputs
+        for (ItemStack output : outputs) CellDisassemblyHelper.returnItem(output, ia, player);
 
         if (player.inventoryContainer != null) player.inventoryContainer.detectAndSendChanges();
 
         return true;
+    }
+
+    @Nonnull
+    private ItemStack createDisassemblyHousing(@Nonnull ItemStack stack) {
+        ItemStack housing = stack.copy();
+        housing.setCount(1);
+        ComponentHelper.setInstalledComponent(housing, ItemStack.EMPTY);
+
+        IItemHandler housingUpgrades = getUpgradesInventory(housing);
+        for (int slot = 0; slot < housingUpgrades.getSlots(); slot++) {
+            housingUpgrades.extractItem(slot, Integer.MAX_VALUE, false);
+        }
+
+        return housing;
     }
 
     // =====================

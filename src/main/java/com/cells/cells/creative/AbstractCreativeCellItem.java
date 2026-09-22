@@ -71,23 +71,6 @@ public abstract class AbstractCreativeCellItem<T, H extends AbstractCreativeCell
         return new ActionResult<>(EnumActionResult.SUCCESS, stack);
     }
 
-    @Override
-    @Nonnull
-    public EnumActionResult onItemUseFirst(EntityPlayer player, @Nonnull World world,
-                                           @Nonnull BlockPos pos, @Nonnull EnumFacing side,
-                                           float hitX, float hitY, float hitZ, @Nonnull EnumHand hand) {
-        if (!player.isCreative()) return EnumActionResult.PASS;
-
-        // If not sneaking, let the block handle the interaction (e.g., open chest/machine GUI)
-        if (!player.isSneaking()) return EnumActionResult.PASS;
-
-        if (!world.isRemote) {
-            player.openGui(Cells.instance, this.guiId, world, hand.ordinal(), 0, 0);
-        }
-
-        return EnumActionResult.SUCCESS;
-    }
-
     /**
      * JEI hint helper (available for subclasses to call from their tooltip code).
      */
