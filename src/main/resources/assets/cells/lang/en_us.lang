@@ -506,6 +506,7 @@ tile.cells.export_interface.essentia.name=Essentia Export Interface
 tile.cells.import_interface.combined.name=Universal Import Interface
 tile.cells.export_interface.combined.name=Universal Export Interface
 tile.cells.io_interface.name=I/O Interface
+tile.cells.io_interface.item.name=I/O Interface
 tile.cells.io_interface.fluid.name=Fluid I/O Interface
 tile.cells.io_interface.gas.name=Gas I/O Interface
 tile.cells.io_interface.essentia.name=Essentia I/O Interface

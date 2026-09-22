@@ -502,6 +502,7 @@ tile.cells.export_interface.essentia.name=Интерфейс экспорта э
 tile.cells.import_interface.combined.name=Универсальный интерфейс импорта
 tile.cells.export_interface.combined.name=Универсальный интерфейс экспорта
 tile.cells.io_interface.name=Интерфейс ввода‑вывода
+tile.cells.io_interface.item.name=Интерфейс ввода‑вывода
 tile.cells.io_interface.fluid.name=Жидкостный интерфейс ввода‑вывода
 tile.cells.io_interface.gas.name=Газовый интерфейс ввода‑вывода
 tile.cells.io_interface.essentia.name=Интерфейс ввода‑вывода эссенции

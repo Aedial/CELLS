@@ -506,6 +506,7 @@ tile.cells.export_interface.essentia.name=源质输出接口
 tile.cells.import_interface.combined.name=通用输入接口
 tile.cells.export_interface.combined.name=通用输出接口
 tile.cells.io_interface.name=I/O接口
+tile.cells.io_interface.item.name=I/O接口
 tile.cells.io_interface.fluid.name=流体I/O接口
 tile.cells.io_interface.gas.name=气体I/O接口
 tile.cells.io_interface.essentia.name=源质I/O接口
