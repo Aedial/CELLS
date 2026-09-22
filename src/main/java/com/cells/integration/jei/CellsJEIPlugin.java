@@ -37,6 +37,9 @@ import com.cells.gui.QuickAddHelper;
 import com.cells.integration.jei.InterfaceRecipeTransferHandler.TransferMode;
 import com.cells.integration.jei.cellview.CellViewCategory;
 import com.cells.integration.jei.cellview.CellViewRegistryPlugin;
+import com.cells.integration.jei.cellprocessing.CellDisassemblyRegistryPlugin;
+import com.cells.integration.jei.cellprocessing.CellOperationCategory;
+import com.cells.integration.jei.cellprocessing.CellUpgradeRegistryPlugin;
 import com.cells.network.sync.ResourceType;
 
 
@@ -45,6 +48,8 @@ import com.cells.network.sync.ResourceType;
  * <p>
  * Registers dynamic recipe plugins for:
  * - Configurable cell assembly (empty cell + component = filled cell)
+ * - Cell disassembly (empty cell = returned components)
+ * - Cell upgrades (cell + component = upgraded cell + returned component)
  * <p>
  * Also provides ingredient lookup for quick-add functionality.
  */
@@ -72,6 +77,12 @@ public class CellsJEIPlugin implements IModPlugin {
         if (enableCellView) {
             registry.addRecipeCategories(new CellViewCategory(registry.getJeiHelpers()));
         }
+
+        registry.addRecipeCategories(
+            new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.DISASSEMBLY_UID,
+                "jei.cells.disassembly.title", true),
+            new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.UPGRADE_UID,
+                "jei.cells.upgrade.title", false));
     }
 
     @Override
@@ -87,6 +98,9 @@ public class CellsJEIPlugin implements IModPlugin {
 
         // Register cell view feature
         if (enableCellView) registry.addRecipeRegistryPlugin(new CellViewRegistryPlugin());
+
+        registry.addRecipeRegistryPlugin(new CellDisassemblyRegistryPlugin());
+        registry.addRecipeRegistryPlugin(new CellUpgradeRegistryPlugin());
 
         registerInterfaceRecipeTransferHandlers(registry);
         registerCreativeCellRecipeTransferHandlers(registry);

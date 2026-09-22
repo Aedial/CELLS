@@ -123,6 +123,23 @@ public class CellComponentSwapRecipe extends IForgeRegistryEntry.Impl<IRecipe> i
 
         if (sourceCell.isEmpty() || newComponent.isEmpty()) return null;
 
+        CellComponentSwapResult result = getSwapResult(sourceCell, newComponent);
+        if (result == null) return null;
+
+        return new SwapMatch(result.result, result.oldComponent, cellSlot);
+    }
+
+    /**
+     * Resolve a cell/component swap without a crafting inventory.
+     * JEI uses this to show only swaps the actual recipe accepts for the cell's
+     * current contents and installed upgrades.
+     *
+     * @param sourceCell The cell being changed
+     * @param newComponent The replacement storage component
+     * @return The crafted cell and returned component, or null when the recipe rejects the swap
+     */
+    @Nullable
+    public CellComponentSwapResult getSwapResult(@Nonnull ItemStack sourceCell, @Nonnull ItemStack newComponent) {
         CellDescriptor sourceDescriptor = describeSourceCell(sourceCell);
         CellDescriptor targetDescriptor = describeTargetFromComponent(newComponent);
         if (sourceDescriptor == null || targetDescriptor == null) return null;
@@ -139,7 +156,7 @@ public class CellComponentSwapRecipe extends IForgeRegistryEntry.Impl<IRecipe> i
 
         if (!sourceEmpty && !fitsExistingContents(result, targetDescriptor)) return null;
 
-        return new SwapMatch(result, singleCopy(sourceDescriptor.component), cellSlot);
+        return new CellComponentSwapResult(result, singleCopy(sourceDescriptor.component));
     }
 
     @Nullable
@@ -418,6 +435,30 @@ public class CellComponentSwapRecipe extends IForgeRegistryEntry.Impl<IRecipe> i
             this.result = result;
             this.oldComponent = oldComponent;
             this.cellSlot = cellSlot;
+        }
+    }
+
+    /**
+     * Carries the crafted cell and the component returned by an accepted swap.
+     */
+    public static final class CellComponentSwapResult {
+
+        private final ItemStack result;
+        private final ItemStack oldComponent;
+
+        private CellComponentSwapResult(ItemStack result, ItemStack oldComponent) {
+            this.result = result;
+            this.oldComponent = oldComponent;
+        }
+
+        @Nonnull
+        public ItemStack getResult() {
+            return result.copy();
+        }
+
+        @Nonnull
+        public ItemStack getOldComponent() {
+            return oldComponent.copy();
         }
     }
 }
