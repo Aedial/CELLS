@@ -1,6 +1,5 @@
 package com.cells.parts.subnetproxy;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -8,9 +7,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import appeng.api.AEApi;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridHost;
-import appeng.api.networking.IGridNode;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
 import appeng.api.storage.IMEInventoryHandler;
@@ -80,33 +76,15 @@ final class SubnetProxyEssentiaHelper {
         insertion.setPriority(priority);
     }
 
-    /**
-     * Collect local cell handlers from Grid A for the essentia channel,
-     * and update the handler's sources from the grid.
-     */
-    @SuppressWarnings("unchecked")
-    static void updateSources(
-            SubnetProxyInventoryHandler<IAEEssentiaStack> handler,
-            IGrid gridA,
-            IStorageGrid sg) {
+    /** Append essentia handlers from a local cell provider. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    static void appendLocalCells(
+            List<IMEInventoryHandler> localEssentiaCells,
+            ICellProvider provider) {
 
-        IStorageChannel<IAEEssentiaStack> essentiaChannel = getChannel();
-        List<IMEInventoryHandler<IAEEssentiaStack>> localEssentiaCells = new ArrayList<>();
-
-        for (IGridNode node : gridA.getNodes()) {
-            IGridHost host = node.getMachine();
-            if (!PartSubnetProxyFront.isActiveCellProviderNode(node, host)) continue;
-            if (!(host instanceof ICellProvider)) continue;
-            if (host instanceof PartSubnetProxyFront) continue;
-            if (PartSubnetProxyFront.isPassthroughBusStatic(host)) continue;
-
-            ICellProvider provider = (ICellProvider) host;
-            for (IMEInventoryHandler<?> h : provider.getCellArray(essentiaChannel)) {
-                localEssentiaCells.add((IMEInventoryHandler<IAEEssentiaStack>) h);
-            }
+        for (IMEInventoryHandler<?> h : provider.getCellArray(getChannel())) {
+            localEssentiaCells.add((IMEInventoryHandler<IAEEssentiaStack>) h);
         }
-
-        handler.setLocalCells(localEssentiaCells);
     }
 
     /**

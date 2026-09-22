@@ -1,6 +1,5 @@
 package com.cells.parts.subnetproxy;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -10,9 +9,6 @@ import java.util.function.Predicate;
 import net.minecraft.item.ItemStack;
 
 import appeng.api.AEApi;
-import appeng.api.networking.IGrid;
-import appeng.api.networking.IGridHost;
-import appeng.api.networking.IGridNode;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.ICellProvider;
 import appeng.api.storage.IMEInventoryHandler;
@@ -80,33 +76,15 @@ final class SubnetProxyGasHelper {
         insertion.setPriority(priority);
     }
 
-    /**
-     * Collect local cell handlers from Grid A for the gas channel,
-     * and update the handler's sources from the grid.
-     */
-    @SuppressWarnings("unchecked")
-    static void updateSources(
-            SubnetProxyInventoryHandler<IAEGasStack> handler,
-            IGrid gridA,
-            IStorageGrid sg) {
+    /** Append gas handlers from a local cell provider. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    static void appendLocalCells(
+            List<IMEInventoryHandler> localGasCells,
+            ICellProvider provider) {
 
-        IStorageChannel<IAEGasStack> gasChannel = getChannel();
-        List<IMEInventoryHandler<IAEGasStack>> localGasCells = new ArrayList<>();
-
-        for (IGridNode node : gridA.getNodes()) {
-            IGridHost host = node.getMachine();
-            if (!PartSubnetProxyFront.isActiveCellProviderNode(node, host)) continue;
-            if (!(host instanceof ICellProvider)) continue;
-            if (host instanceof PartSubnetProxyFront) continue;
-            if (PartSubnetProxyFront.isPassthroughBusStatic(host)) continue;
-
-            ICellProvider provider = (ICellProvider) host;
-            for (IMEInventoryHandler<?> h : provider.getCellArray(gasChannel)) {
-                localGasCells.add((IMEInventoryHandler<IAEGasStack>) h);
-            }
+        for (IMEInventoryHandler<?> h : provider.getCellArray(getChannel())) {
+            localGasCells.add((IMEInventoryHandler<IAEGasStack>) h);
         }
-
-        handler.setLocalCells(localGasCells);
     }
 
     /**

@@ -2146,7 +2146,7 @@ public class PartSubnetProxyFront extends AEBasePart
         this.updatePassthroughSources(true);
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void updatePassthroughSources(boolean refreshSnapshots) {
         if (TRACE_UPDATE_FLOW) {
             this.traceUpdate(
@@ -2201,19 +2201,23 @@ public class PartSubnetProxyFront extends AEBasePart
                 IItemStorageChannel itemChannel = AEApi.instance().storage().getStorageChannel(IItemStorageChannel.class);
                 IFluidStorageChannel fluidChannel = AEApi.instance().storage().getStorageChannel(IFluidStorageChannel.class);
 
-                // Collect cell handlers from non-passthrough providers only.
+                // Collect item, fluid, gas, and essentia handlers from non-passthrough providers
                 // Also collect peer subnet-proxy fronts on the back-grid: their
                 // back-grids become candidate origins we may publish on our
                 // front-grid (subject to election in the front-grid coordinator).
                 List<IMEInventoryHandler<IAEItemStack>> localItemCells = new ArrayList<>();
                 List<IMEInventoryHandler<IAEFluidStack>> localFluidCells = new ArrayList<>();
+                boolean collectGasCells = this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded();
+                boolean collectEssentiaCells = this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded();
+                List<IMEInventoryHandler> localGasCells = collectGasCells ? new ArrayList<>() : null;
+                List<IMEInventoryHandler> localEssentiaCells = collectEssentiaCells ? new ArrayList<>() : null;
                 List<PartSubnetProxyFront> newPeers = new ArrayList<>();
                 Set<IActionHost> newKnownLocalProviders = Collections.newSetFromMap(new IdentityHashMap<>());
 
                 for (IGridNode node : gridA.getNodes()) {
                     IGridHost host = node.getMachine();
-                    if (!isActiveCellProviderNode(node, host)) continue;
                     if (!(host instanceof ICellProvider)) continue;
+                    if (!isActiveCellProviderNode(node, host)) continue;
 
                     // Skip our own proxy to prevent proxy-to-proxy chains.
                     // Other PartSubnetProxyFront on this back-grid are PEERS:
@@ -2249,6 +2253,9 @@ public class PartSubnetProxyFront extends AEBasePart
                     for (IMEInventoryHandler<?> h : provider.getCellArray(fluidChannel)) {
                         localFluidCells.add((IMEInventoryHandler<IAEFluidStack>) h);
                     }
+
+                    if (collectGasCells) SubnetProxyGasHelper.appendLocalCells(localGasCells, provider);
+                    if (collectEssentiaCells) SubnetProxyEssentiaHelper.appendLocalCells(localEssentiaCells, provider);
                 }
 
                 // Publish updated peer/origin sets BEFORE refreshing the coordinator
@@ -2261,15 +2268,11 @@ public class PartSubnetProxyFront extends AEBasePart
                 this.itemHandler.setLocalCells(localItemCells);
                 this.fluidHandler.setLocalCells(localFluidCells);
 
-                // Gas channel (MekanismEnergistics)
-                if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-                    SubnetProxyGasHelper.updateSources(this.gasHandler, gridA, sg);
-                }
+                // Gas channel (MekanismEnergistics), collected in the shared node traversal
+                if (collectGasCells) this.gasHandler.setLocalCells(localGasCells);
 
-                // Essentia channel (ThaumicEnergistics)
-                if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-                    SubnetProxyEssentiaHelper.updateSources(this.essentiaHandler, gridA, sg);
-                }
+                // Essentia channel (ThaumicEnergistics), collected in the shared node traversal
+                if (collectEssentiaCells) this.essentiaHandler.setLocalCells(localEssentiaCells);
 
                 // Register on Grid A's monitors for immediate delta forwarding.
                 // The listener checks source grid membership and forwards local

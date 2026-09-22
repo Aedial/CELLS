@@ -16,6 +16,8 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [0.6.8-beta2] - 2026-09-??
 ### Added
 - Add some Subnet Proxy tooltip info for WAILA/TOP.
+- Add Cell Upgrade and Disassembly JEI categories.
+- Add a registry for disassembly of cells and upgrades, so that modpack makers can tweak the disassembly recipes to their liking. The default recipes are the same as the crafting ones.
 
 ### Fixed
 - Fix some edge cases in Essentia Interface handling
@@ -24,10 +26,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Fix misc Push/Pull card visual issues.
 - Maybe fix some stale client sync issues in Interfaces, by making the "direction" explicit instead of relying on it being implicitly properly synced in the container, and ensuring all data has properly been sent to the client.
 - Fix Hyper-Density Cells not showing the right per-type value for Equal Distribution.
+- Clean up right-click interactions. Everything that doesn't need priority will give priority to the interacted block.
 
 ### Changed
 - Add a 5 ticks minimum delay in Subnet Proxy reset to avoid particularly bad force-update bursts hammering the Proxy every tick, causing expensive rebuilds and network churn.
 - Clean Pull/Push Card NBT if it is the default value, to make the same card stackable.
+- Optimize some Subnet Proxy code paths in optional integrations (essentia, gas).
 
 
 ## [0.6.8-beta] - 2026-09-03
