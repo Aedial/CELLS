@@ -19,6 +19,8 @@ tooltip.cells.next_page=下一页
 tooltip.cells.jei_view_contents=§7按[§b%s§7]查看内容
 tooltip.cells.amount=%d/%d %s
 tooltip.cells.click_to_configure=§b右键点击§7进行配置
+tooltip.cells.shift=按住Shift
+tooltip.cells.right_click=右键点击物品
 
 # Resource types and units (used in %s placeholders throughout)
 cells.type.item=物品
@@ -604,9 +606,7 @@ key.cells.quick_add_to_filter.desc=快速添加到过滤项
 # JEI Cell View
 jei.cells.cellview.title=元件内容
 jei.cells.disassembly.title=分解
-jei.cells.disassembly.shift=按住Shift
-jei.cells.disassembly.right_click=右键点击物品
-jei.cells.disassembly.empty=元件必须为空
+jei.cells.disassembly.footer=元件必须为空
 jei.cells.upgrade.title=元件升级
 jei.cells.cellview.size=大小：
 jei.cells.cellview.types=类型：

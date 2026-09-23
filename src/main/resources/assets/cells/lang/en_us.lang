@@ -19,6 +19,8 @@ tooltip.cells.next_page=Next page
 tooltip.cells.jei_view_contents=§7Press [§b%s§7] to view contents
 tooltip.cells.amount=%d/%d %s
 tooltip.cells.click_to_configure=§bRight-click§7 to configure
+tooltip.cells.shift=Hold Shift
+tooltip.cells.right_click=Right-click the item
 
 # Resource types and units (used in %s placeholders throughout)
 cells.type.item=Item
@@ -604,9 +606,7 @@ key.cells.quick_add_to_filter.desc=Quick Add to Filter
 # JEI Cell View
 jei.cells.cellview.title=Cell Contents
 jei.cells.disassembly.title=Disassembly
-jei.cells.disassembly.shift=Hold Shift
-jei.cells.disassembly.right_click=Right-click the item
-jei.cells.disassembly.empty=Cell must be empty
+jei.cells.disassembly.footer=Cell must be empty
 jei.cells.upgrade.title=Cell Upgrade
 jei.cells.cellview.size=Size:
 jei.cells.cellview.types=Types:

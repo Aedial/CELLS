@@ -2,6 +2,7 @@ package com.cells.integration.jei.cellprocessing;
 
 import java.awt.Point;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -9,6 +10,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.resources.I18n;
+import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
@@ -35,6 +37,95 @@ import com.cells.config.CellsConfig;
 @SideOnly(Side.CLIENT)
 public class CellOperationCategory implements IRecipeCategory<CellOperationRecipe> {
 
+    static final ResourceLocation SHIFT_TEXTURE = new ResourceLocation(Tags.MODID,
+        "textures/guis/shift.png");
+    static final ResourceLocation RIGHT_CLICK_TEXTURE = new ResourceLocation(Tags.MODID,
+        "textures/guis/rightclick.png");
+    static final ResourceLocation CELL_PREVIEW_TEXTURE = new ResourceLocation(Tags.MODID,
+        "textures/items/cells/cell_preview.png");
+
+    public static enum Hint {
+        SHIFT(SHIFT_TEXTURE, "tooltip.cells.shift"),
+        RIGHT_CLICK(RIGHT_CLICK_TEXTURE, "tooltip.cells.right_click");
+
+        private final ResourceLocation texture;
+        private final String translationKey;
+
+        Hint(ResourceLocation texture, String translationKey) {
+            this.texture = texture;
+            this.translationKey = translationKey;
+        }
+
+        public ResourceLocation getTexture() {
+            return texture;
+        }
+
+        public String getTranslationKey() {
+            return translationKey;
+        }
+    }
+
+    public static enum OperationType {
+        DISASSEMBLY(
+            CELL_PREVIEW_TEXTURE,
+            Arrays.asList(Hint.SHIFT, Hint.RIGHT_CLICK),
+            "jei.cells.disassembly.footer"),
+        UPGRADE(
+            new ItemStack(Blocks.CRAFTING_TABLE),
+            Collections.emptyList(),
+            "");
+
+        @Nullable
+        private final ResourceLocation iconTexture;
+        @Nullable
+        private final ItemStack iconStack;
+
+        private final List<Hint> hints;
+        private final String footer;
+
+        OperationType(ResourceLocation iconTexture, List<Hint> hints, String footer) {
+            this.iconTexture = iconTexture;
+            this.iconStack = null;
+            this.hints = hints;
+            this.footer = footer;
+        }
+
+        OperationType(ItemStack iconStack, List<Hint> hints, String footer) {
+            this.iconTexture = null;
+            this.iconStack = iconStack;
+            this.hints = hints;
+            this.footer = footer;
+        }
+
+        public List<Hint> getHints() {
+            return hints;
+        }
+
+        public boolean showsHints() {
+            return !hints.isEmpty();
+        }
+
+        public String getFooter() {
+            return footer;
+        }
+
+        public boolean hasFooter() {
+            return footer != null && !footer.isEmpty();
+        }
+
+        public IDrawable getIcon(IGuiHelper guiHelper) {
+            if (iconTexture != null) {
+                return guiHelper.drawableBuilder(iconTexture, 0, 0, 16, 16)
+                                .setTextureSize(16, 16)
+                                .build();
+            } else if (iconStack != null) {
+                return guiHelper.createDrawableIngredient(iconStack);
+            }
+
+            return null;
+        }
+    }
+
     public static final String DISASSEMBLY_UID = Tags.MODID + ":cell_disassembly";
     public static final String UPGRADE_UID = Tags.MODID + ":cell_upgrade";
 
@@ -45,10 +136,11 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
     static final int FOOTER_GAP = 2;
     static final int FOOTER_HEIGHT = 9;
     static final int FOOTER_BOTTOM = 3;
+    static final int CONTENT_PADDING = 2;
     static final int SIDE_PADDING = 4;
     static final int GRID_GAP = 8;
-    static final int ARROW_TEXTURE_X = 82;
-    static final int ARROW_TEXTURE_Y = 128;
+    static final int ARROW_TEXTURE_X = 24;
+    static final int ARROW_TEXTURE_Y = 132;
     static final int ARROW_WIDTH = 24;
     static final int ARROW_HEIGHT = 17;
     static final int HINT_SIZE = 16;
@@ -57,53 +149,41 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
     static final int HINT_VERTICAL_GAP = 4;
     static final int VANILLA_TEXTURE_SIZE = 256;
     static final ResourceLocation SLOT_TEXTURE = new ResourceLocation(Tags.MODID, "textures/guis/slot.png");
-    static final ResourceLocation SHIFT_TEXTURE = new ResourceLocation(Tags.MODID,
-        "textures/guis/shift.png");
-    static final ResourceLocation RIGHT_CLICK_TEXTURE = new ResourceLocation(Tags.MODID,
-        "textures/guis/rightclick.png");
 
     private final String uid;
     private final String titleKey;
-    private final boolean showsDisassemblyHints;
+    private final OperationType operationType;
     private final int width;
-    private final int gridHeight;
-    private final int height;
+    private int gridHeight;
+    private int height;
     private final int arrowX;
-    private final int hintX;
-    private final int rightClickX;
-    private final IDrawable background;
+    private final IGuiHelper guiHelper;
+    private IDrawable background;
     private final IDrawable icon;
 
-    public CellOperationCategory(IJeiHelpers helpers, String uid, String titleKey, boolean showsDisassemblyHints) {
-        IGuiHelper guiHelper = helpers.getGuiHelper();
+    public CellOperationCategory(IJeiHelpers helpers, String uid, String titleKey, OperationType operationType) {
+        this.guiHelper = helpers.getGuiHelper();
 
         this.uid = uid;
         this.titleKey = titleKey;
-        this.showsDisassemblyHints = showsDisassemblyHints;
-        int maxInputCount = getMaxInputCount(showsDisassemblyHints);
-        int maxOutputCount = getMaxOutputCount(showsDisassemblyHints);
+        this.operationType = operationType;
+
+        int maxInputCount = getMaxInputCount(this.operationType.showsHints());
+        int maxOutputCount = getMaxOutputCount(this.operationType.showsHints());
         int maxColumns = Math.max(getColumns(maxInputCount), getColumns(maxOutputCount));
-        int gridRows = showsDisassemblyHints ? Math.max(MIN_GRID_ROWS, getRows(maxOutputCount)) : MIN_GRID_ROWS;
+        int gridRows =  Math.max(MIN_GRID_ROWS, getRows(maxOutputCount));
         int sideWidth = maxColumns * SLOT_SIZE;
         int maxFooterY = GRID_TOP + gridRows * SLOT_SIZE + FOOTER_GAP;
 
         this.width = 2 * SIDE_PADDING + 2 * sideWidth + 2 * GRID_GAP + ARROW_WIDTH;
         this.gridHeight = gridRows * SLOT_SIZE;
-        // TODO: We might get the height tighter if separate max height with and without footer
-        //       As in max(with footer) + footer < max(without footer) then we can use the smaller height
-        this.height = showsDisassemblyHints
+        this.height = this.operationType.hasFooter()
             ? maxFooterY + FOOTER_HEIGHT + FOOTER_BOTTOM
             : GRID_TOP + gridHeight + GRID_BOTTOM;
         this.arrowX = SIDE_PADDING + sideWidth + GRID_GAP;
-        this.hintX = arrowX - (2 * HINT_SIZE + HINT_GAP - ARROW_WIDTH) / 2;
-        this.rightClickX = hintX + HINT_SIZE + HINT_GAP;
 
         this.background = guiHelper.createBlankDrawable(width, height);
-        // TODO: Should we show a crafting table icon instead
-        this.icon = guiHelper.drawableBuilder(
-            new ResourceLocation(Tags.MODID, "textures/items/cells/cell_preview.png"), 0, 0, 16, 16)
-            .setTextureSize(16, 16)
-            .build();
+        this.icon = operationType.getIcon(guiHelper);
     }
 
     @Override
@@ -136,6 +216,33 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         return icon;
     }
 
+    void setMatchingRecipes(List<CellOperationRecipe> recipes) {
+        if (operationType != OperationType.DISASSEMBLY || recipes.isEmpty()) return;
+
+        int maxRows = 1;
+        for (CellOperationRecipe recipe : recipes) {
+            maxRows = Math.max(maxRows, getRows(recipe.getInputs().size()));
+            maxRows = Math.max(maxRows, getRows(recipe.getOutputs().size()));
+        }
+
+        this.gridHeight = maxRows * SLOT_SIZE;
+
+        int maxFooterHeight = 0;
+        int maxNoFooterHeight = 0;
+        for (CellOperationRecipe recipe : recipes) {
+            boolean recipeRequiresFooter = requiresFooter(recipe);
+            int contentHeight = getContentHeight(recipe, recipeRequiresFooter);
+            if (recipeRequiresFooter) {
+                maxFooterHeight = Math.max(maxFooterHeight, contentHeight + FOOTER_BOTTOM + CONTENT_PADDING);
+            } else {
+                maxNoFooterHeight = Math.max(maxNoFooterHeight, contentHeight + GRID_BOTTOM + CONTENT_PADDING);
+            }
+        }
+
+        this.height = Math.max(maxFooterHeight, maxNoFooterHeight);
+        this.background = guiHelper.createBlankDrawable(width, height);
+    }
+
     @Override
     public void setRecipe(@Nonnull IRecipeLayout recipeLayout, @Nonnull CellOperationRecipe recipe,
                           @Nonnull IIngredients ingredients) {
@@ -143,17 +250,19 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         CellOperationRecipe.Layout layout = createLayout(recipe);
         recipe.setLayout(layout);
 
+        int verticalOffset = layout.getVerticalOffset();
+
         int slot = 0;
         for (int index = 0; index < layout.getInputPositions().size(); index++) {
             Point position = layout.getInputPositions().get(index);
-            itemStacks.init(slot, true, position.x, position.y);
+            itemStacks.init(slot, true, position.x, position.y + verticalOffset);
             itemStacks.set(slot, recipe.getInputs().get(index));
             slot++;
         }
 
         for (int index = 0; index < layout.getOutputPositions().size(); index++) {
             Point position = layout.getOutputPositions().get(index);
-            itemStacks.init(slot, false, position.x, position.y);
+            itemStacks.init(slot, false, position.x, position.y + verticalOffset);
             itemStacks.set(slot, recipe.getOutputs().get(index));
             slot++;
         }
@@ -163,24 +272,57 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         List<Point> inputPositions = createGrid(recipe.getInputs().size(), true);
         List<Point> outputPositions = createGrid(recipe.getOutputs().size(), false);
 
-        // Do not show warning for upgrades, as they cannot "have contents" (lol)
-        boolean requiresEmptyCell = showsDisassemblyHints && !recipe.getInputs().isEmpty()
-            && recipe.getInputs().get(0).getItem() instanceof ICellWorkbenchItem;
-
         int arrowY = GRID_TOP + (gridHeight - ARROW_HEIGHT) / 2;
         int hintY = arrowY - HINT_SIZE - HINT_VERTICAL_GAP;
-        int footerY = Math.max(getGridBottom(inputPositions), getGridBottom(outputPositions)) + FOOTER_GAP;
-        int contentTop = Math.min(Math.min(getGridTop(inputPositions), getGridTop(outputPositions)), arrowY);
-        int contentBottom = Math.max(Math.max(getGridBottom(inputPositions), getGridBottom(outputPositions)),
-            arrowY + ARROW_HEIGHT);
+        int contentBottom = Math.max(getGridBottom(inputPositions), getGridBottom(outputPositions));
+        int footerY = contentBottom + FOOTER_GAP;
+        int contentTop = Math.min(getGridTop(inputPositions), getGridTop(outputPositions));
 
-        if (showsDisassemblyHints) contentTop = Math.min(contentTop, hintY);
-        if (requiresEmptyCell) contentBottom = footerY + FOOTER_HEIGHT;
+        String footer = "";
+        if (operationType.showsHints()) contentTop = Math.min(contentTop, hintY);
+        if (requiresFooter(recipe)) footer = operationType.getFooter();
+        if (!footer.isEmpty()) contentBottom = footerY + FOOTER_HEIGHT;
+
+        List<Hint> hints = operationType.getHints();
+        List<Point> hintPositions = new ArrayList<>();
+        if (!hints.isEmpty()) {
+            int middleX = arrowX + CellOperationCategory.ARROW_WIDTH / 2;
+            int hintSize = hints.size() * CellOperationCategory.HINT_SIZE;
+            int hintGap = (hints.size() - 1) * CellOperationCategory.HINT_GAP;
+            int hintX = middleX - (hintSize + hintGap) / 2;
+
+            for (int i = 0; i < hints.size(); i++) {
+                hintPositions.add(new Point(hintX, hintY));
+                hintX += CellOperationCategory.HINT_SIZE + CellOperationCategory.HINT_GAP;
+            }
+        }
 
         int verticalOffset = (height - (contentBottom - contentTop)) / 2 - contentTop;
-        return new CellOperationRecipe.Layout(width, showsDisassemblyHints, requiresEmptyCell,
-            shiftPoints(inputPositions, verticalOffset), shiftPoints(outputPositions, verticalOffset),
-            arrowX, arrowY + verticalOffset, hintX, hintY + verticalOffset, rightClickX, footerY + verticalOffset);
+        return new CellOperationRecipe.Layout(width, hints, hintPositions,
+            verticalOffset, inputPositions, outputPositions, arrowX, arrowY,
+            footer, footerY);
+    }
+
+    private int getContentHeight(CellOperationRecipe recipe, boolean requiresFooter) {
+        List<Point> inputPositions = createGrid(recipe.getInputs().size(), true);
+        List<Point> outputPositions = createGrid(recipe.getOutputs().size(), false);
+        int contentTop = Math.min(getGridTop(inputPositions), getGridTop(outputPositions));
+        int contentBottom = Math.max(getGridBottom(inputPositions), getGridBottom(outputPositions));
+
+        if (operationType.showsHints()) {
+            int arrowY = GRID_TOP + (gridHeight - ARROW_HEIGHT) / 2;
+            contentTop = Math.min(contentTop, arrowY - HINT_SIZE - HINT_VERTICAL_GAP);
+        }
+
+        if (requiresFooter) contentBottom += FOOTER_GAP + FOOTER_HEIGHT;
+        return contentBottom - contentTop;
+    }
+
+    private boolean requiresFooter(CellOperationRecipe recipe) {
+        // Do not show warning for upgrades, as they cannot "have contents" (lol)
+        return operationType == OperationType.DISASSEMBLY
+            && !recipe.getInputs().isEmpty()
+            && recipe.getInputs().get(0).getItem() instanceof ICellWorkbenchItem;
     }
 
     private List<Point> createGrid(int count, boolean input) {
@@ -228,25 +370,17 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         return top == Integer.MAX_VALUE ? GRID_TOP : top;
     }
 
-    private static List<Point> shiftPoints(List<Point> positions, int verticalOffset) {
-        if (verticalOffset == 0) return positions;
-
-        List<Point> shiftedPositions = new ArrayList<>(positions.size());
-        for (Point position : positions) shiftedPositions.add(new Point(position.x, position.y + verticalOffset));
-        return shiftedPositions;
-    }
-
     private static int getRows(int count) {
         int columns = getColumns(count);
         return (count + columns - 1) / columns;
     }
 
-    private static int getMaxInputCount(boolean showsDisassemblyHints) {
-        return showsDisassemblyHints ? 1 : 2;
+    private static int getMaxInputCount(boolean showsHints) {
+        return showsHints ? 1 : 2;
     }
 
-    private static int getMaxOutputCount(boolean showsDisassemblyHints) {
-        if (!showsDisassemblyHints) return 2;
+    private static int getMaxOutputCount(boolean showsHints) {
+        if (!showsHints) return 2;
 
         int maxOutputs = 1;
         for (ItemStack stack : CellJeiHelper.getAllDisassemblyItems()) {

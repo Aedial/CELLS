@@ -80,9 +80,9 @@ public class CellsJEIPlugin implements IModPlugin {
 
         registry.addRecipeCategories(
             new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.DISASSEMBLY_UID,
-                "jei.cells.disassembly.title", true),
+                "jei.cells.disassembly.title", CellOperationCategory.OperationType.DISASSEMBLY),
             new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.UPGRADE_UID,
-                "jei.cells.upgrade.title", false));
+                "jei.cells.upgrade.title", CellOperationCategory.OperationType.UPGRADE));
     }
 
     @Override

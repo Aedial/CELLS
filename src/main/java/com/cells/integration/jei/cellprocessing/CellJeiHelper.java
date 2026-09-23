@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.storage.ICellInventoryHandler;
@@ -103,6 +104,19 @@ final class CellJeiHelper {
         }
 
         return hasNoStoredContent(stack);
+    }
+
+    static boolean canShowDisassembly(ItemStack stack) {
+        if (!isDisassemblableCell(stack) && !isDisassemblableUpgrade(stack)) return false;
+        if (getConfiguredOutputs(stack).isEmpty()) return false;
+
+        if (isDisassemblableUpgrade(stack)) return true;
+
+        if (stack.getItem() != ItemRegistry.CONFIGURABLE_CELL) {
+            return CellViewHelper.getCellInfo(stack) != null;
+        }
+
+        return !ComponentHelper.getInstalledComponent(stack).isEmpty() || hasUpgrades(stack);
     }
 
     static List<ItemStack> getDisassemblyOutputs(ItemStack stack) {
@@ -220,6 +234,14 @@ final class CellJeiHelper {
         IItemHandler upgrades = cell.getUpgradesInventory(housing);
         for (int slot = 0; slot < upgrades.getSlots(); slot++) {
             upgrades.extractItem(slot, Integer.MAX_VALUE, false);
+        }
+
+        NBTTagCompound data = housing.getTagCompound();
+        if (data != null) {
+            data.removeTag("itemType");
+            data.removeTag("fluidType");
+            data.removeTag("gasType");
+            data.removeTag("essentiaType");
         }
 
         return housing;

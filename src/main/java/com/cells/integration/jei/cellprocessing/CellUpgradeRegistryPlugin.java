@@ -14,6 +14,8 @@ import mezz.jei.api.recipe.IRecipeCategory;
 import mezz.jei.api.recipe.IRecipeRegistryPlugin;
 import mezz.jei.api.recipe.IRecipeWrapper;
 
+import com.cells.cells.configurable.ComponentHelper;
+import com.cells.cells.configurable.ComponentInfo;
 import com.cells.recipes.CellComponentSwapRecipe;
 import com.cells.recipes.CellComponentSwapRecipe.CellComponentSwapResult;
 
@@ -71,6 +73,7 @@ public class CellUpgradeRegistryPlugin implements IRecipeRegistryPlugin {
         for (ItemStack component : CellJeiHelper.getSwapComponents(stack)) {
             CellComponentSwapResult result = swapRecipe.getSwapResult(stack, component);
             if (result == null) continue;
+            if (!shouldShowSwap(stack, component, result)) continue;
 
             recipes.add(new CellOperationRecipe(
                 Arrays.asList(singleCopy(stack), singleCopy(component)),
@@ -84,5 +87,16 @@ public class CellUpgradeRegistryPlugin implements IRecipeRegistryPlugin {
         ItemStack copy = stack.copy();
         copy.setCount(1);
         return copy;
+    }
+
+    private static boolean shouldShowSwap(ItemStack sourceCell, ItemStack newComponent,
+                                          CellComponentSwapResult result) {
+        if (sourceCell.getItem() != result.getResult().getItem()) return false;
+
+        ComponentInfo sourceInfo = ComponentHelper.getComponentInfo(result.getOldComponent());
+        if (sourceInfo == null) return true;
+
+        ComponentInfo targetInfo = ComponentHelper.getComponentInfo(newComponent);
+        return targetInfo != null && sourceInfo.getChannelType() == targetInfo.getChannelType();
     }
 }

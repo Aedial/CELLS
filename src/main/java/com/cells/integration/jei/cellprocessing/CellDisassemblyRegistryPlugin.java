@@ -26,7 +26,7 @@ public class CellDisassemblyRegistryPlugin implements IRecipeRegistryPlugin {
         if (!(focus.getValue() instanceof ItemStack)) return Collections.emptyList();
 
         ItemStack stack = (ItemStack) focus.getValue();
-        if (!CellJeiHelper.canDisassemble(stack)) return Collections.emptyList();
+        if (!CellJeiHelper.canShowDisassembly(stack)) return Collections.emptyList();
 
         return Collections.singletonList(CellOperationCategory.DISASSEMBLY_UID);
     }
@@ -43,9 +43,12 @@ public class CellDisassemblyRegistryPlugin implements IRecipeRegistryPlugin {
         if (focus.getMode() != IFocus.Mode.INPUT) return Collections.emptyList();
         if (!(focus.getValue() instanceof ItemStack)) return Collections.emptyList();
 
-        CellOperationRecipe recipe = createRecipe((ItemStack) focus.getValue());
-        if (recipe == null) return Collections.emptyList();
+        ItemStack stack = (ItemStack) focus.getValue();
+        if (!CellJeiHelper.canShowDisassembly(stack)) return Collections.emptyList();
 
+        CellOperationRecipe recipe = createRecipe(stack);
+
+        setMatchingRecipes(recipeCategory, Collections.singletonList(recipe));
         return Collections.singletonList((T) recipe);
     }
 
@@ -59,16 +62,23 @@ public class CellDisassemblyRegistryPlugin implements IRecipeRegistryPlugin {
 
         List<CellOperationRecipe> recipes = new ArrayList<>();
         for (ItemStack stack : CellJeiHelper.getAllDisassemblyItems()) {
-            CellOperationRecipe recipe = createRecipe(stack);
-            if (recipe != null) recipes.add(recipe);
+            if (!CellJeiHelper.canDisassemble(stack)) continue;
+
+            recipes.add(createRecipe(stack));
         }
 
+        setMatchingRecipes(recipeCategory, recipes);
         return (List<T>) recipes;
     }
 
-    private static CellOperationRecipe createRecipe(ItemStack stack) {
-        if (!CellJeiHelper.canDisassemble(stack)) return null;
+    private static void setMatchingRecipes(IRecipeCategory<?> recipeCategory,
+                                           List<CellOperationRecipe> recipes) {
+        if (recipeCategory instanceof CellOperationCategory) {
+            ((CellOperationCategory) recipeCategory).setMatchingRecipes(recipes);
+        }
+    }
 
+    private static CellOperationRecipe createRecipe(ItemStack stack) {
         return new CellOperationRecipe(Collections.singletonList(singleCopy(stack)),
             CellJeiHelper.getDisassemblyOutputs(stack));
     }
