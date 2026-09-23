@@ -603,6 +603,11 @@ key.cells.quick_add_to_filter.desc=快速添加到过滤项
 
 # JEI Cell View
 jei.cells.cellview.title=元件内容
+jei.cells.disassembly.title=分解
+jei.cells.disassembly.shift=按住Shift
+jei.cells.disassembly.right_click=右键点击物品
+jei.cells.disassembly.empty=元件必须为空
+jei.cells.upgrade.title=元件升级
 jei.cells.cellview.size=大小：
 jei.cells.cellview.types=类型：
 jei.cells.cellview.per_type=每种类型
