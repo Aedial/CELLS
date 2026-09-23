@@ -7,7 +7,6 @@ tooltip.cells.card.compatible=§8兼容：%s
 tooltip.cells.type.compact=ME压缩元件
 tooltip.cells.type.hyperdensity=超高密度ME存储元件
 tooltip.cells.type.hyperdensity_compact=超高密度ME压缩元件
-tooltip.cells.type.configurable=可配置ME存储元件
 tooltip.cells.type.import_interface=输入接口（所有类型）
 tooltip.cells.type.export_interface=输出接口（所有类型）
 tooltip.cells.type.emc=EMC元件
@@ -20,8 +19,6 @@ tooltip.cells.next_page=下一页
 tooltip.cells.jei_view_contents=§7按[§b%s§7]查看内容
 tooltip.cells.amount=%d/%d %s
 tooltip.cells.click_to_configure=§b右键点击§7进行配置
-tooltip.cells.shift=按住Shift
-tooltip.cells.right_click=右键点击物品
 
 # Resource types and units (used in %s placeholders throughout)
 cells.type.item=物品
@@ -605,16 +602,12 @@ key.cells.memory_card_include_filters.desc=将设置与过滤项保存至内存�
 key.cells.quick_add_to_filter.desc=快速添加到过滤项
 
 # JEI Cell View
-jei.cells.memory_card.title=内存卡
-jei.cells.memory_card.copy_filters_and_upgrades=复制设置。使用 §3%s§r 还可复制过滤项与升级
-jei.cells.memory_card.copy_bus_settings=复制总线设置
-jei.cells.memory_card.copy_proxy_settings=复制设置、过滤项与升级
 jei.cells.cellview.title=元件内容
 jei.cells.disassembly.title=分解
-jei.cells.disassembly.footer=元件必须为空
+jei.cells.disassembly.shift=按住Shift
+jei.cells.disassembly.right_click=右键点击物品
+jei.cells.disassembly.empty=元件必须为空
 jei.cells.upgrade.title=元件升级
-jei.cells.workbench.title=升级卡
-jei.cells.workbench.footer=仅兼容这些升级卡
 jei.cells.cellview.size=大小：
 jei.cells.cellview.types=类型：
 jei.cells.cellview.per_type=每种类型
