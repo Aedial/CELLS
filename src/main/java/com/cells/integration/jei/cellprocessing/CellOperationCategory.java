@@ -168,9 +168,8 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         this.titleKey = titleKey;
         this.operationType = operationType;
 
-        int maxInputCount = getMaxInputCount(this.operationType.showsHints());
-        int maxOutputCount = getMaxOutputCount(this.operationType.showsHints());
-        int maxColumns = Math.max(getColumns(maxInputCount), getColumns(maxOutputCount));
+        int maxOutputCount = getMaxOutputCount(operationType);
+        int maxColumns = getColumns(maxOutputCount);
         int gridRows =  Math.max(MIN_GRID_ROWS, getRows(maxOutputCount));
         int sideWidth = maxColumns * SLOT_SIZE;
         int maxFooterY = GRID_TOP + gridRows * SLOT_SIZE + FOOTER_GAP;
@@ -375,47 +374,17 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         return (count + columns - 1) / columns;
     }
 
-    private static int getMaxInputCount(boolean showsHints) {
-        return showsHints ? 1 : 2;
-    }
-
-    private static int getMaxOutputCount(boolean showsHints) {
-        if (!showsHints) return 2;
+    private static int getMaxOutputCount(OperationType operationType) {
+        if (operationType != OperationType.DISASSEMBLY) return 2;
 
         int maxOutputs = 1;
         for (ItemStack stack : CellJeiHelper.getAllDisassemblyItems()) {
             if (!CellJeiHelper.canDisassemble(stack)) continue;
 
-            int outputCount = CellJeiHelper.getDisassemblyOutputs(stack).size() + getUpgradeSlotCapacity(stack);
+            int outputCount = CellJeiHelper.getDisassemblyOutputs(stack).size();
             maxOutputs = Math.max(maxOutputs, outputCount);
         }
 
         return maxOutputs;
-    }
-
-    private static int getUpgradeSlotCapacity(ItemStack stack) {
-        if (stack.isEmpty()) return 0;
-
-        if (stack.getItem() == ItemRegistry.COMPACTING_CELL) {
-            return CellsConfig.general.compactingCellUpgradeSlots;
-        }
-
-        if (stack.getItem() == ItemRegistry.HYPER_DENSITY_CELL) {
-            return CellsConfig.general.hdItemCellUpgradeSlots;
-        }
-
-        if (stack.getItem() == ItemRegistry.FLUID_HYPER_DENSITY_CELL) {
-            return CellsConfig.general.hdFluidCellUpgradeSlots;
-        }
-
-        if (stack.getItem() == ItemRegistry.HYPER_DENSITY_COMPACTING_CELL) {
-            return CellsConfig.general.hdCompactingCellUpgradeSlots;
-        }
-
-        if (stack.getItem() == ItemRegistry.CONFIGURABLE_CELL) {
-            return CellsConfig.general.configurableCellUpgradeSlots;
-        }
-
-        return 0;
     }
 }
