@@ -7,6 +7,7 @@ tooltip.cells.card.compatible=§8Совместимо с: %s
 tooltip.cells.type.compact=Ячейка уплотнения ME
 tooltip.cells.type.hyperdensity=Гипер-плотная ячейка хранения ME
 tooltip.cells.type.hyperdensity_compact=Гипер-плотная ячейка уплотнения ME
+tooltip.cells.type.configurable=Настраиваемая ячейка хранения ME
 tooltip.cells.type.import_interface=Интерфейс импорта (все типы)
 tooltip.cells.type.export_interface=Интерфейс экспорта (все типы)
 tooltip.cells.type.emc=EMC ячейка

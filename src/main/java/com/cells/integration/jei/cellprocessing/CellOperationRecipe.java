@@ -2,6 +2,7 @@ package com.cells.integration.jei.cellprocessing;
 
 import java.awt.Point;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,11 +28,22 @@ public class CellOperationRecipe implements IRecipeWrapper {
 
     private final List<ItemStack> inputs;
     private final List<ItemStack> outputs;
+    private final List<List<ItemStack>> outputLists;
     private Layout layout;
 
     public CellOperationRecipe(List<ItemStack> inputs, List<ItemStack> outputs) {
+        this(inputs, singleOutputs(outputs));
+    }
+
+    private CellOperationRecipe(List<ItemStack> inputs, Collection<List<ItemStack>> outputs) {
         this.inputs = copyStacks(inputs);
-        this.outputs = copyStacks(outputs);
+        this.outputLists = copyStackLists(outputs);
+        this.outputs = firstStacks(this.outputLists);
+    }
+
+    static CellOperationRecipe withAlternatingOutputs(List<ItemStack> inputs,
+                                                       List<List<ItemStack>> outputs) {
+        return new CellOperationRecipe(inputs, outputs);
     }
 
     @Override
@@ -40,7 +52,7 @@ public class CellOperationRecipe implements IRecipeWrapper {
         for (ItemStack input : inputs) inputLists.add(Collections.singletonList(input));
 
         ingredients.setInputLists(VanillaTypes.ITEM, inputLists);
-        ingredients.setOutputs(VanillaTypes.ITEM, outputs);
+        ingredients.setOutputLists(VanillaTypes.ITEM, outputLists);
     }
 
     @Override
@@ -96,6 +108,16 @@ public class CellOperationRecipe implements IRecipeWrapper {
         return outputs;
     }
 
+    public List<List<ItemStack>> getOutputLists() {
+        return outputLists;
+    }
+
+    private static List<List<ItemStack>> singleOutputs(List<ItemStack> outputs) {
+        List<List<ItemStack>> outputLists = new ArrayList<>();
+        for (ItemStack output : outputs) outputLists.add(Collections.singletonList(output));
+        return outputLists;
+    }
+
     void setLayout(Layout layout) {
         this.layout = layout;
     }
@@ -136,6 +158,23 @@ public class CellOperationRecipe implements IRecipeWrapper {
         }
 
         return Collections.unmodifiableList(copies);
+    }
+
+    private static List<List<ItemStack>> copyStackLists(Collection<List<ItemStack>> stacks) {
+        List<List<ItemStack>> copies = new ArrayList<>();
+        for (List<ItemStack> stackList : stacks) {
+            List<ItemStack> stackCopies = copyStacks(stackList);
+            if (!stackCopies.isEmpty()) copies.add(stackCopies);
+        }
+
+        return Collections.unmodifiableList(copies);
+    }
+
+    private static List<ItemStack> firstStacks(List<List<ItemStack>> stacks) {
+        List<ItemStack> firstStacks = new ArrayList<>();
+        for (List<ItemStack> stackList : stacks) firstStacks.add(stackList.get(0));
+
+        return Collections.unmodifiableList(firstStacks);
     }
 
     static final class Layout {

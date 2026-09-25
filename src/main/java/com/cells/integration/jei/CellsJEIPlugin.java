@@ -40,6 +40,7 @@ import com.cells.integration.jei.cellview.CellViewRegistryPlugin;
 import com.cells.integration.jei.cellprocessing.CellDisassemblyRegistryPlugin;
 import com.cells.integration.jei.cellprocessing.CellOperationCategory;
 import com.cells.integration.jei.cellprocessing.CellUpgradeRegistryPlugin;
+import com.cells.integration.jei.cellprocessing.CellWorkbenchUpgradeRegistryPlugin;
 import com.cells.network.sync.ResourceType;
 
 
@@ -50,6 +51,7 @@ import com.cells.network.sync.ResourceType;
  * - Configurable cell assembly (empty cell + component = filled cell)
  * - Cell disassembly (empty cell = returned components)
  * - Cell upgrades (cell + component = upgraded cell + returned component)
+ * - Cell Workbench upgrade compatibility
  * <p>
  * Also provides ingredient lookup for quick-add functionality.
  */
@@ -82,7 +84,9 @@ public class CellsJEIPlugin implements IModPlugin {
             new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.DISASSEMBLY_UID,
                 "jei.cells.disassembly.title", CellOperationCategory.OperationType.DISASSEMBLY),
             new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.UPGRADE_UID,
-                "jei.cells.upgrade.title", CellOperationCategory.OperationType.UPGRADE));
+                "jei.cells.upgrade.title", CellOperationCategory.OperationType.UPGRADE),
+            new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.WORKBENCH_UID,
+                "jei.cells.workbench.title", CellOperationCategory.OperationType.WORKBENCH));
     }
 
     @Override
@@ -101,6 +105,7 @@ public class CellsJEIPlugin implements IModPlugin {
 
         registry.addRecipeRegistryPlugin(new CellDisassemblyRegistryPlugin());
         registry.addRecipeRegistryPlugin(new CellUpgradeRegistryPlugin());
+        registry.addRecipeRegistryPlugin(new CellWorkbenchUpgradeRegistryPlugin());
 
         registerInterfaceRecipeTransferHandlers(registry);
         registerCreativeCellRecipeTransferHandlers(registry);

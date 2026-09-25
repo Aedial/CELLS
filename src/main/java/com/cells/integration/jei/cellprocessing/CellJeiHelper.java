@@ -28,7 +28,7 @@ import com.cells.cells.hyperdensity.item.ItemHyperDensityComponent;
 import com.cells.cells.normal.compacting.ItemCompactingCell;
 import com.cells.cells.normal.compacting.ItemCompactingComponent;
 import com.cells.integration.jei.cellview.CellViewHelper;
-import com.cells.items.AbstractCustomUpgrade;
+import com.cells.items.upgrades.AbstractCustomUpgrade;
 import com.cells.util.DisassemblyConfig;
 
 

@@ -26,11 +26,11 @@ import com.cells.api.IInterfaceProvider;
 import com.cells.api.ResourceType;
 import com.cells.blocks.compactingpatternexposer.TileCompactingPatternExposer;
 import com.cells.blocks.interfacebase.managers.InterfaceTickScheduler;
-import com.cells.items.ItemAutoPullCard;
-import com.cells.items.ItemAutoPushCard;
-import com.cells.items.ItemOverflowCard;
-import com.cells.items.ItemTrashUnselectedCard;
-import com.cells.items.pullpush.ContainerPullPushCard;
+import com.cells.items.upgrades.ItemAutoPullCard;
+import com.cells.items.upgrades.ItemAutoPushCard;
+import com.cells.items.upgrades.ItemOverflowCard;
+import com.cells.items.upgrades.ItemTrashUnselectedCard;
+import com.cells.items.upgrades.pullpush.ContainerPullPushCard;
 import com.cells.parts.subnetproxy.PartSubnetProxyBack;
 import com.cells.parts.subnetproxy.PartSubnetProxyFront;
 

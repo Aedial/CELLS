@@ -1,4 +1,4 @@
-package com.cells.items;
+package com.cells.items.upgrades;
 
 import java.util.List;
 
@@ -17,72 +17,72 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 import com.cells.Cells;
 import com.cells.gui.CellsGuiHandler;
-import com.cells.items.pullpush.ContainerPullPushCard;
+import com.cells.items.upgrades.pullpush.ContainerPullPushCard;
 import com.cells.util.CellDisassemblyHelper;
 import com.cells.util.PollingRateUtils;
 
 
 /**
- * Auto-Pull Card - an upgrade card for Import Interfaces.
+ * Auto-Push Card - an upgrade card for Export Interfaces.
  * <p>
- * When installed in an Import Interface's upgrade slot, the interface will
- * automatically pull items/fluids/etc. from adjacent inventories at the
+ * When installed in an Export Interface's upgrade slot, the interface will
+ * automatically push items/fluids/etc. to adjacent inventories at the
  * configured interval.
  * <p>
- * Right-click to configure the pull interval. Each card can have a different
+ * Right-click to configure the push interval. Each card can have a different
  * interval stored in its NBT.
  * <p>
- * <b>Compatibility:</b> Only works with Import Interfaces (all types: item,
+ * <b>Compatibility:</b> Only works with Export Interfaces (all types: item,
  * fluid, gas, essentia).
  */
-public class ItemAutoPullCard extends AbstractCustomUpgrade {
+public class ItemAutoPushCard extends AbstractCustomUpgrade {
 
-    private static final String NBT_KEY_INTERVAL = "PullInterval";
-    private static final String NBT_KEY_QUANTITY = "PullQuantity";
-    private static final String NBT_KEY_KEEP = "PullKeepQuantity";
+    private static final String NBT_KEY_INTERVAL = "PushInterval";
+    private static final String NBT_KEY_QUANTITY = "PushQuantity";
+    private static final String NBT_KEY_KEEP = "PushKeep";
     private static final int DEFAULT_INTERVAL = ContainerPullPushCard.DEFAULT_INTERVAL;
     private static final int DEFAULT_QUANTITY = ContainerPullPushCard.MINIMUM_QUANTITY;
     private static final int DEFAULT_KEEP = ContainerPullPushCard.MINIMUM_KEEP_QUANTITY;
 
-    public ItemAutoPullCard() {
-        super("pull_card");
+    public ItemAutoPushCard() {
+        super("push_card");
     }
 
     /**
-     * Get the pull interval from the card's NBT.
+     * Get the push interval from the card's NBT.
      *
      * @param stack The card ItemStack
-     * @return The pull interval in ticks
+     * @return The push interval in ticks
      */
     public static int getInterval(ItemStack stack) {
         return AbstractCustomUpgrade.getIntKey(stack, NBT_KEY_INTERVAL, DEFAULT_INTERVAL);
     }
 
     /**
-     * Set the pull interval in the card's NBT.
+     * Set the push interval in the card's NBT.
      *
      * @param stack The card ItemStack
-     * @param interval The pull interval in ticks
+     * @param interval The push interval in ticks
      */
     public static void setInterval(ItemStack stack, int interval) {
         AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_INTERVAL, interval, 1, DEFAULT_INTERVAL);
     }
 
     /**
-     * Get the pull quantity from the card's NBT.
+     * Get the push quantity from the card's NBT.
      *
      * @param stack The card ItemStack
-     * @return The pull quantity
+     * @return The push quantity
      */
     public static int getQuantity(ItemStack stack) {
         return AbstractCustomUpgrade.getIntKey(stack, NBT_KEY_QUANTITY, DEFAULT_QUANTITY);
     }
 
     /**
-     * Set the pull quantity in the card's NBT.
+     * Set the push quantity in the card's NBT.
      *
      * @param stack The card ItemStack
-     * @param quantity The pull quantity
+     * @param quantity The push quantity
      */
     public static void setQuantity(ItemStack stack, int quantity) {
         AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_QUANTITY, quantity, 0, DEFAULT_QUANTITY);
@@ -140,7 +140,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
         int keep = getKeepQuantity(stack);
         String keepStr = String.format("%,d", keep);
 
-        tooltip.add(I18n.format("tooltip.cells.pull_card.desc", quantityStr, timeStr));
+        tooltip.add(I18n.format("tooltip.cells.push_card.desc", quantityStr, timeStr));
 
         if (keep > 0) {
             tooltip.add(I18n.format("tooltip.cells.push_pull_card.limit.desc", keepStr));
@@ -155,6 +155,6 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
             tooltip.add(I18n.format("tooltip.cells.push_pull_card.interval_warning"));
         }
 
-        addCompatibilityTooltip(tooltip, "import_interface");
+        addCompatibilityTooltip(tooltip, "export_interface");
     }
 }

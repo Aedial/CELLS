@@ -48,8 +48,8 @@ import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.CreativeEssentiaCellGuiHandler;
 import com.cells.integration.thaumicenergistics.EssentiaInterfaceGuiHandler;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
-import com.cells.items.pullpush.ContainerPullPushCard;
-import com.cells.items.pullpush.GuiPullPushCard;
+import com.cells.items.upgrades.pullpush.ContainerPullPushCard;
+import com.cells.items.upgrades.pullpush.GuiPullPushCard;
 import com.cells.parts.subnetproxy.PartSubnetProxyFront;
 
 

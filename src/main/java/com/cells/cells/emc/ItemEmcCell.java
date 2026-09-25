@@ -49,7 +49,7 @@ import moze_intel.projecte.api.capabilities.IKnowledgeProvider;
 import com.cells.ItemRegistry;
 import com.cells.Tags;
 import com.cells.core.CellsCreativeTab;
-import com.cells.items.ItemEmcCapacityCard;
+import com.cells.items.upgrades.ItemEmcCapacityCard;
 import com.cells.util.CellMathHelper;
 import com.cells.util.ItemStackKey;
 

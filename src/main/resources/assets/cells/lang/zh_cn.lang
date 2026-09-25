@@ -7,6 +7,7 @@ tooltip.cells.card.compatible=§8兼容：%s
 tooltip.cells.type.compact=ME压缩元件
 tooltip.cells.type.hyperdensity=超高密度ME存储元件
 tooltip.cells.type.hyperdensity_compact=超高密度ME压缩元件
+tooltip.cells.type.configurable=可配置ME存储元件
 tooltip.cells.type.import_interface=输入接口（所有类型）
 tooltip.cells.type.export_interface=输出接口（所有类型）
 tooltip.cells.type.emc=EMC元件

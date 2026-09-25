@@ -1,4 +1,4 @@
-package com.cells.items.pullpush;
+package com.cells.items.upgrades.pullpush;
 
 import java.io.IOException;
 import java.util.Collections;

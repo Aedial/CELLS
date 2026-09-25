@@ -12,10 +12,10 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.inv.IAEAppEngInventory;
 
-import com.cells.items.ItemAutoPullCard;
-import com.cells.items.ItemAutoPushCard;
-import com.cells.items.ItemOverflowCard;
-import com.cells.items.ItemTrashUnselectedCard;
+import com.cells.items.upgrades.ItemAutoPullCard;
+import com.cells.items.upgrades.ItemAutoPushCard;
+import com.cells.items.upgrades.ItemOverflowCard;
+import com.cells.items.upgrades.ItemTrashUnselectedCard;
 import com.cells.util.TickManagerHelper;
 
 

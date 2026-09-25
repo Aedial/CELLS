@@ -107,7 +107,7 @@ import com.cells.gui.CellsGuiHandler;
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
-import com.cells.items.ItemInsertionCard;
+import com.cells.items.upgrades.ItemInsertionCard;
 import com.cells.network.sync.ResourceType;
 import com.cells.parts.CellsPartType;
 import com.cells.parts.ItemCellsPart;

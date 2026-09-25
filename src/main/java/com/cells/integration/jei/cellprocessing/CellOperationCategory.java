@@ -16,6 +16,7 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 
+import appeng.api.AEApi;
 import appeng.api.storage.ICellWorkbenchItem;
 
 import mezz.jei.api.IGuiHelper;
@@ -73,7 +74,10 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         UPGRADE(
             new ItemStack(Blocks.CRAFTING_TABLE),
             Collections.emptyList(),
-            "");
+            ""),
+        WORKBENCH(
+            Collections.emptyList(),
+            "jei.cells.workbench.footer");
 
         @Nullable
         private final ResourceLocation iconTexture;
@@ -97,6 +101,13 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
             this.footer = footer;
         }
 
+        OperationType(List<Hint> hints, String footer) {
+            this.iconTexture = null;
+            this.iconStack = null;
+            this.hints = hints;
+            this.footer = footer;
+        }
+
         public List<Hint> getHints() {
             return hints;
         }
@@ -114,6 +125,13 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         }
 
         public IDrawable getIcon(IGuiHelper guiHelper) {
+            ItemStack iconStack = this.iconStack;
+            if (this == WORKBENCH) {
+                ItemStack workbench = AEApi.instance().definitions().blocks().cellWorkbench()
+                    .maybeStack(1).orElse(ItemStack.EMPTY);
+                if (!workbench.isEmpty()) iconStack = workbench;
+            }
+
             if (iconTexture != null) {
                 return guiHelper.drawableBuilder(iconTexture, 0, 0, 16, 16)
                                 .setTextureSize(16, 16)
@@ -128,6 +146,7 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
 
     public static final String DISASSEMBLY_UID = Tags.MODID + ":cell_disassembly";
     public static final String UPGRADE_UID = Tags.MODID + ":cell_upgrade";
+    public static final String WORKBENCH_UID = Tags.MODID + ":cell_workbench_upgrade";
 
     static final int SLOT_SIZE = 18;
     static final int MIN_GRID_ROWS = 3;
@@ -168,9 +187,9 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         this.titleKey = titleKey;
         this.operationType = operationType;
 
-        int maxOutputCount = getMaxOutputCount(operationType);
-        int maxColumns = getColumns(maxOutputCount);
-        int gridRows =  Math.max(MIN_GRID_ROWS, getRows(maxOutputCount));
+        int maxStackCount = getMaxStackCount(operationType);
+        int maxColumns = getColumns(maxStackCount);
+        int gridRows =  Math.max(MIN_GRID_ROWS, getRows(maxStackCount));
         int sideWidth = maxColumns * SLOT_SIZE;
         int maxFooterY = GRID_TOP + gridRows * SLOT_SIZE + FOOTER_GAP;
 
@@ -216,12 +235,12 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
     }
 
     void setMatchingRecipes(List<CellOperationRecipe> recipes) {
-        if (operationType != OperationType.DISASSEMBLY || recipes.isEmpty()) return;
+        if (operationType == OperationType.UPGRADE || recipes.isEmpty()) return;
 
         int maxRows = 1;
         for (CellOperationRecipe recipe : recipes) {
             maxRows = Math.max(maxRows, getRows(recipe.getInputs().size()));
-            maxRows = Math.max(maxRows, getRows(recipe.getOutputs().size()));
+            maxRows = Math.max(maxRows, getRows(recipe.getOutputLists().size()));
         }
 
         this.gridHeight = maxRows * SLOT_SIZE;
@@ -262,14 +281,14 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         for (int index = 0; index < layout.getOutputPositions().size(); index++) {
             Point position = layout.getOutputPositions().get(index);
             itemStacks.init(slot, false, position.x, position.y + verticalOffset);
-            itemStacks.set(slot, recipe.getOutputs().get(index));
+            itemStacks.set(slot, recipe.getOutputLists().get(index));
             slot++;
         }
     }
 
     private CellOperationRecipe.Layout createLayout(CellOperationRecipe recipe) {
         List<Point> inputPositions = createGrid(recipe.getInputs().size(), true);
-        List<Point> outputPositions = createGrid(recipe.getOutputs().size(), false);
+        List<Point> outputPositions = createGrid(recipe.getOutputLists().size(), false);
 
         int arrowY = GRID_TOP + (gridHeight - ARROW_HEIGHT) / 2;
         int hintY = arrowY - HINT_SIZE - HINT_VERTICAL_GAP;
@@ -304,7 +323,7 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
 
     private int getContentHeight(CellOperationRecipe recipe, boolean requiresFooter) {
         List<Point> inputPositions = createGrid(recipe.getInputs().size(), true);
-        List<Point> outputPositions = createGrid(recipe.getOutputs().size(), false);
+        List<Point> outputPositions = createGrid(recipe.getOutputLists().size(), false);
         int contentTop = Math.min(getGridTop(inputPositions), getGridTop(outputPositions));
         int contentBottom = Math.max(getGridBottom(inputPositions), getGridBottom(outputPositions));
 
@@ -318,10 +337,16 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
     }
 
     private boolean requiresFooter(CellOperationRecipe recipe) {
+        if (operationType == OperationType.WORKBENCH) return true;
+
         // Do not show warning for upgrades, as they cannot "have contents" (lol)
-        return operationType == OperationType.DISASSEMBLY
+        if (operationType == OperationType.DISASSEMBLY
             && !recipe.getInputs().isEmpty()
-            && recipe.getInputs().get(0).getItem() instanceof ICellWorkbenchItem;
+            && recipe.getInputs().get(0).getItem() instanceof ICellWorkbenchItem) {
+            return true;
+        }
+
+        return false;
     }
 
     private List<Point> createGrid(int count, boolean input) {
@@ -374,17 +399,21 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         return (count + columns - 1) / columns;
     }
 
-    private static int getMaxOutputCount(OperationType operationType) {
-        if (operationType != OperationType.DISASSEMBLY) return 2;
+    private static int getMaxStackCount(OperationType operationType) {
+        if (operationType == OperationType.WORKBENCH) {
+            return CellWorkbenchUpgradeRegistryPlugin.getMaxWorkbenchStackCount();
+        }
 
-        int maxOutputs = 1;
+        if (operationType == OperationType.UPGRADE) return 2;
+
+        // TODO: Refactor it into a separate method for clarity
+        int maxStacks = 1;
         for (ItemStack stack : CellJeiHelper.getAllDisassemblyItems()) {
             if (!CellJeiHelper.canDisassemble(stack)) continue;
 
-            int outputCount = CellJeiHelper.getDisassemblyOutputs(stack).size();
-            maxOutputs = Math.max(maxOutputs, outputCount);
+            maxStacks = Math.max(maxStacks, CellJeiHelper.getDisassemblyOutputs(stack).size());
         }
 
-        return maxOutputs;
+        return maxStacks;
     }
 }

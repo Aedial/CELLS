@@ -1,4 +1,4 @@
-package com.cells.items;
+package com.cells.items.upgrades;
 
 import java.util.List;
 

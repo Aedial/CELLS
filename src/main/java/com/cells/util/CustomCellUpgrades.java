@@ -22,11 +22,11 @@ import appeng.util.inv.filter.IAEItemFilter;
 
 import com.cells.Cells;
 import com.cells.ItemRegistry;
-import com.cells.items.ItemCompressionTierCard;
-import com.cells.items.ItemDecompressionTierCard;
-import com.cells.items.ItemEqualDistributionCard;
-import com.cells.items.ItemOreDictCard;
-import com.cells.items.ItemOverflowCard;
+import com.cells.items.upgrades.ItemCompressionTierCard;
+import com.cells.items.upgrades.ItemDecompressionTierCard;
+import com.cells.items.upgrades.ItemEqualDistributionCard;
+import com.cells.items.upgrades.ItemOreDictCard;
+import com.cells.items.upgrades.ItemOverflowCard;
 
 
 /**

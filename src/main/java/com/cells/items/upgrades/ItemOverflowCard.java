@@ -1,4 +1,4 @@
-package com.cells.items;
+package com.cells.items.upgrades;
 
 import java.util.List;
 
@@ -41,6 +41,7 @@ public class ItemOverflowCard extends AbstractCustomUpgrade {
     public void addInformation(@Nonnull ItemStack stack, World world, @Nonnull List<String> tooltip,
                                @Nonnull ITooltipFlag flag) {
         tooltip.add(I18n.format("tooltip.cells.overflow_card.desc"));
-        addCompatibilityTooltip(tooltip, "compact", "hyperdensity", "hyperdensity_compact", "import_interface");
+        addCompatibilityTooltip(tooltip, "compact", "hyperdensity", "hyperdensity_compact", "configurable",
+                                         "import_interface");
     }
 }

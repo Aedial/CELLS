@@ -1,4 +1,4 @@
-package com.cells.items.pullpush;
+package com.cells.items.upgrades.pullpush;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.InventoryPlayer;
@@ -21,8 +21,8 @@ import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IFilterableInterfaceHost;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.iointerface.IIOInterfaceHost;
-import com.cells.items.ItemAutoPullCard;
-import com.cells.items.ItemAutoPushCard;
+import com.cells.items.upgrades.ItemAutoPullCard;
+import com.cells.items.upgrades.ItemAutoPushCard;
 
 
 /**

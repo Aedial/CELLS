@@ -8,7 +8,7 @@ import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessageHandler;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 
-import com.cells.items.pullpush.ContainerPullPushCard;
+import com.cells.items.upgrades.pullpush.ContainerPullPushCard;
 
 
 /**
