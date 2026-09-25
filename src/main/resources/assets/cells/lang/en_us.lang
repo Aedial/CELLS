@@ -605,12 +605,16 @@ key.cells.memory_card_include_filters.desc=Save Memory Card With Filters
 key.cells.quick_add_to_filter.desc=Quick Add to Filter
 
 # JEI Cell View
+jei.cells.memory_card.title=Memory Card
+jei.cells.memory_card.copy_filters_and_upgrades=Copies settings. Use §3%s§r to copy filters and upgrades too
+jei.cells.memory_card.copy_bus_settings=Copies bus filters
+jei.cells.memory_card.copy_proxy_settings=Copies settings, filters, and upgrades
 jei.cells.cellview.title=Cell Contents
 jei.cells.disassembly.title=Disassembly
 jei.cells.disassembly.footer=Cell must be empty
 jei.cells.upgrade.title=Cell Upgrade
-jei.cells.workbench.title=Cell Workbench
-jei.cells.workbench.footer=The Cells/Blocks are only compatible with these upgrades
+jei.cells.workbench.title=Upgrade Cards
+jei.cells.workbench.footer=ONLY compatible with these Upgrade Cards
 jei.cells.cellview.size=Size:
 jei.cells.cellview.types=Types:
 jei.cells.cellview.per_type=per type

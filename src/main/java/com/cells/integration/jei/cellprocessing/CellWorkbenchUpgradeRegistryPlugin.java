@@ -93,7 +93,8 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
     private static List<CellOperationRecipe> getMatchingRecipes(ItemStack stack) {
         List<CellOperationRecipe> matchingRecipes = new ArrayList<>();
         for (CellOperationRecipe recipe : createRecipes()) {
-            if (contains(recipe.getInputs(), stack) || containsOutputs(recipe.getOutputLists(), stack)) {
+            if (containsAlternatives(recipe.getInputLists(), stack)
+                || containsAlternatives(recipe.getOutputLists(), stack)) {
                 matchingRecipes.add(recipe);
             }
         }
@@ -114,7 +115,7 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
         return false;
     }
 
-    private static boolean containsOutputs(List<List<ItemStack>> stacks, ItemStack target) {
+    private static boolean containsAlternatives(List<List<ItemStack>> stacks, ItemStack target) {
         for (List<ItemStack> stackList : stacks) {
             if (contains(stackList, target)) return true;
         }
@@ -132,14 +133,14 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
     private static List<CellOperationRecipe> createRecipes() {
         List<CellOperationRecipe> recipes = new ArrayList<>();
 
-        List<ItemStack> configurableUpgrades = ae2CellUpgrades();
+        List<List<ItemStack>> configurableUpgrades = ae2CellUpgrades();
         addCard(configurableUpgrades, ItemRegistry.OVERFLOW_CARD);
         addRecipe(recipes, configurableUpgrades, configurableCells(ChannelType.ITEM));
         addRecipe(recipes, configurableUpgrades, configurableCells(ChannelType.FLUID));
         addRecipe(recipes, configurableUpgrades, configurableCells(ChannelType.GAS));
         addRecipe(recipes, configurableUpgrades, configurableCells(ChannelType.ESSENTIA));
 
-        List<ItemStack> hyperDensityUpgrades = ae2CellUpgrades();
+        List<List<ItemStack>> hyperDensityUpgrades = ae2CellUpgrades();
         addCard(hyperDensityUpgrades, ItemRegistry.OVERFLOW_CARD);
         addCards(hyperDensityUpgrades, ItemRegistry.EQUAL_DISTRIBUTION_CARD);
         addRecipe(recipes, hyperDensityUpgrades,
@@ -147,7 +148,7 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
         addRecipe(recipes, hyperDensityUpgrades,
             tieredCells(ItemRegistry.FLUID_HYPER_DENSITY_CELL, ItemFluidHyperDensityCell.getTierNames()));
 
-        List<ItemStack> compactingUpgrades = ae2CellUpgrades();
+        List<List<ItemStack>> compactingUpgrades = ae2CellUpgrades();
         addCard(compactingUpgrades, ItemRegistry.OVERFLOW_CARD);
         addCard(compactingUpgrades, ItemRegistry.OREDICT_CARD);
         addCards(compactingUpgrades, ItemRegistry.COMPRESSION_TIER_CARD);
@@ -157,25 +158,25 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
         addRecipe(recipes, compactingUpgrades,
             tieredCells(ItemRegistry.HYPER_DENSITY_COMPACTING_CELL, ItemHyperDensityCompactingCell.getTierNames()));
 
-        List<ItemStack> emcUpgrades = new ArrayList<>();
+        List<List<ItemStack>> emcUpgrades = new ArrayList<>();
         addCards(emcUpgrades, ItemRegistry.EMC_CAPACITY_CARD);
         addRecipe(recipes, emcUpgrades, single(ItemRegistry.EMC_CELL));
 
-        List<ItemStack> subnetProxyUpgrades = new ArrayList<>();
+        List<List<ItemStack>> subnetProxyUpgrades = new ArrayList<>();
         addCard(subnetProxyUpgrades, aeCapacityCard());
         addCard(subnetProxyUpgrades, aeFuzzyCard());
         addCard(subnetProxyUpgrades, aeInverterCard());
         addCard(subnetProxyUpgrades, ItemRegistry.INSERTION_CARD);
         addRecipe(recipes, subnetProxyUpgrades, singlePart(CellsPartType.SUBNET_PROXY_FRONT));
 
-        List<ItemStack> importUpgrades = new ArrayList<>();
+        List<List<ItemStack>> importUpgrades = new ArrayList<>();
         addCard(importUpgrades, aeCapacityCard());
         addCard(importUpgrades, ItemRegistry.OVERFLOW_CARD);
         addCard(importUpgrades, ItemRegistry.TRASH_UNSELECTED_CARD);
         addCard(importUpgrades, ItemRegistry.PULL_CARD);
         addAlternativeRecipe(recipes, importUpgrades, importInterfaces());
 
-        List<ItemStack> exportUpgrades = new ArrayList<>();
+        List<List<ItemStack>> exportUpgrades = new ArrayList<>();
         addCard(exportUpgrades, aeCapacityCard());
         addCard(exportUpgrades, ItemRegistry.PUSH_CARD);
         addAlternativeRecipe(recipes, exportUpgrades, exportInterfaces());
@@ -183,8 +184,8 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
         return recipes;
     }
 
-    private static List<ItemStack> ae2CellUpgrades() {
-        List<ItemStack> upgrades = new ArrayList<>();
+    private static List<List<ItemStack>> ae2CellUpgrades() {
+        List<List<ItemStack>> upgrades = new ArrayList<>();
         addCard(upgrades, aeFuzzyCard());
         addCard(upgrades, aeInverterCard());
         addCard(upgrades, aeStickyCard());
@@ -235,46 +236,49 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
 
     private static List<List<ItemStack>> importInterfaces() {
         List<List<ItemStack>> interfaces = new ArrayList<>();
-        addInterface(interfaces, "import_interface", CellsPartType.IMPORT_INTERFACE);
-        addInterface(interfaces, "import_fluid_interface", CellsPartType.FLUID_IMPORT_INTERFACE);
-        addInterface(interfaces, "import_combined_interface", CellsPartType.COMBINED_IMPORT_INTERFACE);
-        addInterface(interfaces, "io_item_interface", CellsPartType.ITEM_IO_INTERFACE);
-        addInterface(interfaces, "io_fluid_interface", CellsPartType.FLUID_IO_INTERFACE);
-        addOptionalInterface(interfaces, "import_gas_interface", "gas_part", 0);
-        addOptionalInterface(interfaces, "io_gas_interface", "gas_part", 2);
-        addOptionalInterface(interfaces, "import_essentia_interface", "essentia_part", 0);
-        addOptionalInterface(interfaces, "io_essentia_interface", "essentia_part", 2);
+        singleItem(interfaces, "import_interface");
+        singleItem(interfaces, "import_fluid_interface");
+        singleItem(interfaces, "import_combined_interface");
+        singleItem(interfaces, "io_item_interface");
+        singleItem(interfaces, "io_fluid_interface");
+        singleOptionalItem(interfaces, "import_gas_interface");
+        singleOptionalItem(interfaces, "io_gas_interface");
+        singleOptionalItem(interfaces, "import_essentia_interface");
+        singleOptionalItem(interfaces, "io_essentia_interface");
+
         return interfaces;
     }
 
     private static List<List<ItemStack>> exportInterfaces() {
         List<List<ItemStack>> interfaces = new ArrayList<>();
-        addInterface(interfaces, "export_interface", CellsPartType.EXPORT_INTERFACE);
-        addInterface(interfaces, "export_fluid_interface", CellsPartType.FLUID_EXPORT_INTERFACE);
-        addInterface(interfaces, "export_combined_interface", CellsPartType.COMBINED_EXPORT_INTERFACE);
-        addInterface(interfaces, "io_item_interface", CellsPartType.ITEM_IO_INTERFACE);
-        addInterface(interfaces, "io_fluid_interface", CellsPartType.FLUID_IO_INTERFACE);
-        addOptionalInterface(interfaces, "export_gas_interface", "gas_part", 1);
-        addOptionalInterface(interfaces, "io_gas_interface", "gas_part", 2);
-        addOptionalInterface(interfaces, "export_essentia_interface", "essentia_part", 1);
-        addOptionalInterface(interfaces, "io_essentia_interface", "essentia_part", 2);
+
+        singleItem(interfaces, "export_interface");
+        singleItem(interfaces, "export_fluid_interface");
+        singleItem(interfaces, "export_combined_interface");
+        singleItem(interfaces, "io_item_interface");
+        singleItem(interfaces, "io_fluid_interface");
+        singleOptionalItem(interfaces, "export_gas_interface");
+        singleOptionalItem(interfaces, "io_gas_interface");
+        singleOptionalItem(interfaces, "export_essentia_interface");
+        singleOptionalItem(interfaces, "io_essentia_interface");
+
         return interfaces;
     }
 
-    private static void addInterface(List<List<ItemStack>> interfaces, String blockId,
-                                     CellsPartType partType) {
-        List<ItemStack> forms = new ArrayList<>();
-        addItem(forms, blockId, 0);
-        addPart(forms, "part", partType.getBaseDamage());
-        if (!forms.isEmpty()) interfaces.add(forms);
+    private static List<ItemStack> singleItem(String itemId) {
+        List<ItemStack> stacks = new ArrayList<>();
+        addItem(stacks, itemId, 0);
+        return stacks;
     }
 
-    private static void addOptionalInterface(List<List<ItemStack>> interfaces, String blockId,
-                                             String partId, int partMetadata) {
-        List<ItemStack> forms = new ArrayList<>();
-        addItem(forms, blockId, 0);
-        addPart(forms, partId, partMetadata);
-        if (!forms.isEmpty()) interfaces.add(forms);
+    private static void singleItem(List<List<ItemStack>> interfaces, String itemId) {
+        List<ItemStack> stacks = singleItem(itemId);
+        if (!stacks.isEmpty()) interfaces.add(stacks);
+    }
+
+    private static void singleOptionalItem(List<List<ItemStack>> interfaces, String itemId) {
+        List<ItemStack> stacks = singleItem(itemId);
+        if (!stacks.isEmpty()) interfaces.add(stacks);
     }
 
     private static List<ItemStack> singlePart(CellsPartType partType) {
@@ -298,35 +302,38 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
         return Collections.singletonList(new ItemStack(item));
     }
 
-    private static void addRecipe(List<CellOperationRecipe> recipes, List<ItemStack> upgrades,
+    private static void addRecipe(List<CellOperationRecipe> recipes, List<List<ItemStack>> upgrades,
                                   List<ItemStack> targets) {
         if (upgrades.isEmpty() || targets.isEmpty()) return;
 
-        recipes.add(new CellOperationRecipe(upgrades, targets));
+        recipes.add(CellOperationRecipe.withAlternatingInputs(upgrades, targets));
     }
 
     private static void addAlternativeRecipe(List<CellOperationRecipe> recipes,
-                                             List<ItemStack> upgrades,
+                                             List<List<ItemStack>> upgrades,
                                              List<List<ItemStack>> targets) {
         if (upgrades.isEmpty() || targets.isEmpty()) return;
 
         recipes.add(CellOperationRecipe.withAlternatingOutputs(upgrades, targets));
     }
 
-    private static void addCards(List<ItemStack> stacks, AbstractCustomUpgrade card) {
+    private static void addCards(List<List<ItemStack>> stacks, AbstractCustomUpgrade card) {
         if (card == null) return;
 
+        List<ItemStack> variants = new ArrayList<>();
         for (int tier = 0; tier < card.getTierNames().length; tier++) {
-            stacks.add(new ItemStack(card, 1, tier));
+            variants.add(new ItemStack(card, 1, tier));
         }
+
+        if (!variants.isEmpty()) stacks.add(variants);
     }
 
-    private static void addCard(List<ItemStack> stacks, Item item) {
-        if (item != null) stacks.add(new ItemStack(item));
+    private static void addCard(List<List<ItemStack>> stacks, Item item) {
+        if (item != null) stacks.add(Collections.singletonList(new ItemStack(item)));
     }
 
-    private static void addCard(List<ItemStack> stacks, ItemStack stack) {
-        if (!stack.isEmpty()) stacks.add(stack);
+    private static void addCard(List<List<ItemStack>> stacks, ItemStack stack) {
+        if (!stack.isEmpty()) stacks.add(Collections.singletonList(stack));
     }
 
     private static ItemStack aeCapacityCard() {

@@ -18,6 +18,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add some Subnet Proxy tooltip info for WAILA/TOP.
 - Add Cell Upgrade and Disassembly JEI categories.
 - Add a registry for disassembly of cells and upgrades, so that modpack makers can tweak the disassembly recipes to their liking. The default recipes are the same as the crafting ones.
+- Add JEI categories for:
+  - Cell Upgrade: Showing which components can be used to upgrade a cell
+  - Disassembly: Showing what disassembling a cell or upgrade yields back
+  - Upgrade Cards: Showing which cards are compatible with which cells/blocks/parts
+  - Memory Card: Showing which blocks/parts are compatible with which for Memory Card copying
 
 ### Fixed
 - Fix some edge cases in Essentia Interface handling

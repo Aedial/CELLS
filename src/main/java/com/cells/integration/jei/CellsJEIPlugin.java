@@ -41,6 +41,7 @@ import com.cells.integration.jei.cellprocessing.CellDisassemblyRegistryPlugin;
 import com.cells.integration.jei.cellprocessing.CellOperationCategory;
 import com.cells.integration.jei.cellprocessing.CellUpgradeRegistryPlugin;
 import com.cells.integration.jei.cellprocessing.CellWorkbenchUpgradeRegistryPlugin;
+import com.cells.integration.jei.cellprocessing.MemoryCardRegistryPlugin;
 import com.cells.network.sync.ResourceType;
 
 
@@ -51,7 +52,8 @@ import com.cells.network.sync.ResourceType;
  * - Configurable cell assembly (empty cell + component = filled cell)
  * - Cell disassembly (empty cell = returned components)
  * - Cell upgrades (cell + component = upgraded cell + returned component)
- * - Cell Workbench upgrade compatibility
+ * - Cell Upgrade Cards compatibility
+ * - Memory Card transfers between compatible devices
  * <p>
  * Also provides ingredient lookup for quick-add functionality.
  */
@@ -86,7 +88,9 @@ public class CellsJEIPlugin implements IModPlugin {
             new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.UPGRADE_UID,
                 "jei.cells.upgrade.title", CellOperationCategory.OperationType.UPGRADE),
             new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.WORKBENCH_UID,
-                "jei.cells.workbench.title", CellOperationCategory.OperationType.WORKBENCH));
+                "jei.cells.workbench.title", CellOperationCategory.OperationType.WORKBENCH),
+            new CellOperationCategory(registry.getJeiHelpers(), CellOperationCategory.MEMORY_CARD_UID,
+                "jei.cells.memory_card.title", CellOperationCategory.OperationType.MEMORY_CARD));
     }
 
     @Override
@@ -106,6 +110,7 @@ public class CellsJEIPlugin implements IModPlugin {
         registry.addRecipeRegistryPlugin(new CellDisassemblyRegistryPlugin());
         registry.addRecipeRegistryPlugin(new CellUpgradeRegistryPlugin());
         registry.addRecipeRegistryPlugin(new CellWorkbenchUpgradeRegistryPlugin());
+        registry.addRecipeRegistryPlugin(new MemoryCardRegistryPlugin());
 
         registerInterfaceRecipeTransferHandlers(registry);
         registerCreativeCellRecipeTransferHandlers(registry);

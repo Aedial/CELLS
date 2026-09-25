@@ -26,30 +26,44 @@ import mezz.jei.config.Constants;
  */
 public class CellOperationRecipe implements IRecipeWrapper {
 
+    static final int DEFAULT_FOOTER_COLOR = 0x000000;
+    static final int WARNING_FOOTER_COLOR = 0xCC3C00;
+
+    private final ItemStack headerInput;
     private final List<ItemStack> inputs;
+    private final List<List<ItemStack>> inputLists;
     private final List<ItemStack> outputs;
     private final List<List<ItemStack>> outputLists;
     private Layout layout;
 
     public CellOperationRecipe(List<ItemStack> inputs, List<ItemStack> outputs) {
-        this(inputs, singleOutputs(outputs));
+        this(ItemStack.EMPTY, singleStacks(inputs), singleStacks(outputs));
     }
 
-    private CellOperationRecipe(List<ItemStack> inputs, Collection<List<ItemStack>> outputs) {
-        this.inputs = copyStacks(inputs);
+    protected CellOperationRecipe(ItemStack headerInput, Collection<List<ItemStack>> inputs,
+                                  Collection<List<ItemStack>> outputs) {
+        this.headerInput = headerInput.isEmpty() ? ItemStack.EMPTY : headerInput.copy();
+        this.inputLists = copyStackLists(inputs);
+        this.inputs = firstStacks(this.inputLists);
         this.outputLists = copyStackLists(outputs);
         this.outputs = firstStacks(this.outputLists);
     }
 
-    static CellOperationRecipe withAlternatingOutputs(List<ItemStack> inputs,
-                                                       List<List<ItemStack>> outputs) {
-        return new CellOperationRecipe(inputs, outputs);
+    static CellOperationRecipe withAlternatingInputs(List<List<ItemStack>> inputs,
+                                                     List<ItemStack> outputs) {
+        return new CellOperationRecipe(ItemStack.EMPTY, inputs, singleStacks(outputs));
+    }
+
+    static CellOperationRecipe withAlternatingOutputs(List<List<ItemStack>> inputs,
+                                                      List<List<ItemStack>> outputs) {
+        return new CellOperationRecipe(ItemStack.EMPTY, inputs, outputs);
     }
 
     @Override
     public void getIngredients(IIngredients ingredients) {
         List<List<ItemStack>> inputLists = new ArrayList<>();
-        for (ItemStack input : inputs) inputLists.add(Collections.singletonList(input));
+        if (!headerInput.isEmpty()) inputLists.add(Collections.singletonList(headerInput));
+        inputLists.addAll(this.inputLists);
 
         ingredients.setInputLists(VanillaTypes.ITEM, inputLists);
         ingredients.setOutputLists(VanillaTypes.ITEM, outputLists);
@@ -60,6 +74,8 @@ public class CellOperationRecipe implements IRecipeWrapper {
         if (layout == null) return;
 
         int verticalOffset = layout.getVerticalOffset();
+        Point headerPosition = layout.getHeaderPosition();
+        if (headerPosition != null) drawSlot(minecraft, headerPosition, verticalOffset);
         drawSlots(minecraft, layout.getInputPositions(), verticalOffset);
         drawSlots(minecraft, layout.getOutputPositions(), verticalOffset);
         drawArrow(minecraft, layout.getArrowX(), layout.getArrowY(), verticalOffset);
@@ -72,11 +88,16 @@ public class CellOperationRecipe implements IRecipeWrapper {
             drawHint(minecraft, hint.getTexture(), hintPosition.x, hintPosition.y, verticalOffset);
         }
 
-        if (layout.getFooter() != null && !layout.getFooter().isEmpty()) {
+        String footer = layout.getFooter();
+        if (footer != null && !footer.isEmpty()) {
             FontRenderer font = minecraft.fontRenderer;
-            String text = I18n.format(layout.getFooter());
             int footerY = layout.getFooterY() + verticalOffset;
-            font.drawString(text, (layout.getWidth() - font.getStringWidth(text)) / 2, footerY, 0x000000);
+            List<String> lines = font.listFormattedStringToWidth(footer, layout.getWidth() + 2);
+            for (String line : lines) {
+                font.drawString(line, (layout.getWidth() - font.getStringWidth(line)) / 2,
+                    footerY, layout.getFooterColor());
+                footerY += font.FONT_HEIGHT + 1;
+            }
         }
     }
 
@@ -104,6 +125,14 @@ public class CellOperationRecipe implements IRecipeWrapper {
         return inputs;
     }
 
+    public List<List<ItemStack>> getInputLists() {
+        return inputLists;
+    }
+
+    public ItemStack getHeaderInput() {
+        return headerInput;
+    }
+
     public List<ItemStack> getOutputs() {
         return outputs;
     }
@@ -112,10 +141,10 @@ public class CellOperationRecipe implements IRecipeWrapper {
         return outputLists;
     }
 
-    private static List<List<ItemStack>> singleOutputs(List<ItemStack> outputs) {
-        List<List<ItemStack>> outputLists = new ArrayList<>();
-        for (ItemStack output : outputs) outputLists.add(Collections.singletonList(output));
-        return outputLists;
+    private static List<List<ItemStack>> singleStacks(List<ItemStack> stacks) {
+        List<List<ItemStack>> stackLists = new ArrayList<>();
+        for (ItemStack stack : stacks) stackLists.add(Collections.singletonList(stack));
+        return stackLists;
     }
 
     void setLayout(Layout layout) {
@@ -123,14 +152,16 @@ public class CellOperationRecipe implements IRecipeWrapper {
     }
 
     private static void drawSlots(Minecraft minecraft, List<Point> positions, int verticalOffset) {
+        for (Point position : positions) drawSlot(minecraft, position, verticalOffset);
+    }
+
+    private static void drawSlot(Minecraft minecraft, Point position, int verticalOffset) {
         minecraft.getTextureManager().bindTexture(CellOperationCategory.SLOT_TEXTURE);
-        for (Point position : positions) {
-            Gui.drawScaledCustomSizeModalRect(position.x, position.y + verticalOffset,
-                0, 0,
-                CellOperationCategory.SLOT_SIZE, CellOperationCategory.SLOT_SIZE,
-                CellOperationCategory.SLOT_SIZE, CellOperationCategory.SLOT_SIZE,
-                CellOperationCategory.SLOT_SIZE, CellOperationCategory.SLOT_SIZE);
-        }
+        Gui.drawScaledCustomSizeModalRect(position.x, position.y + verticalOffset,
+            0, 0,
+            CellOperationCategory.SLOT_SIZE, CellOperationCategory.SLOT_SIZE,
+            CellOperationCategory.SLOT_SIZE, CellOperationCategory.SLOT_SIZE,
+            CellOperationCategory.SLOT_SIZE, CellOperationCategory.SLOT_SIZE);
     }
 
     private static void drawArrow(Minecraft minecraft, int x, int y, int verticalOffset) {
@@ -183,26 +214,31 @@ public class CellOperationRecipe implements IRecipeWrapper {
         private final int verticalOffset;
         private final List<CellOperationCategory.Hint> hints;
         private final List<Point> hintPositions;
+        private final Point headerPosition;
         private final List<Point> inputPositions;
         private final List<Point> outputPositions;
         private final int arrowX;
         private final int arrowY;
         private final String footer;
+        private final int footerColor;
         private final int footerY;
 
         Layout(int width, List<CellOperationCategory.Hint> hints, List<Point> hintPositions,
-            int verticalOffset, List<Point> inputPositions, List<Point> outputPositions,
-            int arrowX, int arrowY, String footer, int footerY) {
+            int verticalOffset, Point headerPosition, List<Point> inputPositions,
+            List<Point> outputPositions, int arrowX, int arrowY, String footer,
+            int footerColor, int footerY) {
 
             this.width = width;
             this.verticalOffset = verticalOffset;
             this.hints = Collections.unmodifiableList(new ArrayList<>(hints));
             this.hintPositions = Collections.unmodifiableList(new ArrayList<>(hintPositions));
+            this.headerPosition = headerPosition == null ? null : new Point(headerPosition);
             this.inputPositions = Collections.unmodifiableList(new ArrayList<>(inputPositions));
             this.outputPositions = Collections.unmodifiableList(new ArrayList<>(outputPositions));
             this.arrowX = arrowX;
             this.arrowY = arrowY;
             this.footer = footer;
+            this.footerColor = footerColor;
             this.footerY = footerY;
         }
 
@@ -220,6 +256,10 @@ public class CellOperationRecipe implements IRecipeWrapper {
 
         List<Point> getHintPositions() {
             return hintPositions;
+        }
+
+        Point getHeaderPosition() {
+            return headerPosition;
         }
 
         List<Point> getInputPositions() {
@@ -240,6 +280,10 @@ public class CellOperationRecipe implements IRecipeWrapper {
 
         String getFooter() {
             return footer;
+        }
+
+        int getFooterColor() {
+            return footerColor;
         }
 
         int getFooterY() {
