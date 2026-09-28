@@ -605,10 +605,16 @@ key.cells.memory_card_include_filters.desc=将设置与过滤项保存至内存�
 key.cells.quick_add_to_filter.desc=快速添加到过滤项
 
 # JEI Cell View
+jei.cells.memory_card.title=内存卡
+jei.cells.memory_card.copy_filters_and_upgrades=复制设置。使用 §3%s§r 还可复制过滤项与升级
+jei.cells.memory_card.copy_bus_settings=复制总线设置
+jei.cells.memory_card.copy_proxy_settings=复制设置、过滤项与升级
 jei.cells.cellview.title=元件内容
 jei.cells.disassembly.title=分解
 jei.cells.disassembly.footer=元件必须为空
 jei.cells.upgrade.title=元件升级
+jei.cells.workbench.title=升级卡
+jei.cells.workbench.footer=仅兼容这些升级卡
 jei.cells.cellview.size=大小：
 jei.cells.cellview.types=类型：
 jei.cells.cellview.per_type=每种类型
