@@ -475,6 +475,15 @@ public final class CellsConfig {
         @Config.LangKey(Tags.MODID + ".config.subnetProxyReportExtractionFaults")
         @Config.Comment("Enable Subnet Proxy extraction-fault reporting and warning logs. A reported fault can originate from the proxy, a connected inventory, or the network itself.")
         public boolean subnetProxyReportExtractionFaults = false;
+
+        @Config.LangKey(Tags.MODID + ".config.subnetProxyReportUpdateChurn")
+        @Config.Comment("Enable Subnet Proxy update-churn counters and throttled warning logs. Disabling clears counters when the proxy next receives an update.")
+        public boolean subnetProxyReportUpdateChurn = false;
+
+        @Config.LangKey(Tags.MODID + ".config.subnetProxyUpdateChurnLogDelay")
+        @Config.Comment("Minimum time (in minutes) between Subnet Proxy update-churn warning logs (1-1440)")
+        @Config.RangeInt(min = 1, max = 1440)
+        public int subnetProxyUpdateChurnLogDelay = 5;
     }
 
     public static class CellsCategory {

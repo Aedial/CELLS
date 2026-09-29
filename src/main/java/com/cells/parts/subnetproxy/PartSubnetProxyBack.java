@@ -40,6 +40,7 @@ import appeng.parts.PartModel;
 import com.cells.Cells;
 import com.cells.api.ISubnetProxy;
 import com.cells.Tags;
+import com.cells.config.CellsConfig;
 import com.cells.parts.CellsPartType;
 import com.cells.parts.ItemCellsPart;
 import com.cells.util.PowerStateHelper;
@@ -215,18 +216,35 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     // methods here receive Grid A events. We forward cell-array changes to
     // the front part so it can invalidate its cached passthrough sources.
 
+    private void markFrontSourcesDirty(
+            PartSubnetProxyFront front,
+            PartSubnetProxyFront.BackGridSignal signal) {
+        if (!CellsConfig.general.subnetProxyReportUpdateChurn) {
+            front.markSourcesDirty();
+            return;
+        }
+
+        if (signal != PartSubnetProxyFront.BackGridSignal.POWER) {
+            front.markSourcesDirty(signal, false, false);
+            return;
+        }
+
+        IGridNode node = this.getProxy().getNode();
+        front.markSourcesDirty(signal, node != null, node != null && node.isActive());
+    }
+
     @MENetworkEventSubscribe
     public void cellUpdate(final MENetworkCellArrayUpdate ev) {
         PartSubnetProxyFront front = findFrontPart();
         if (TRACE_UPDATE_FLOW) this.traceUpdate("back.cellUpdate", "frontFound=" + (front != null));
-        if (front != null) front.markSourcesDirty();
+        if (front != null) this.markFrontSourcesDirty(front, PartSubnetProxyFront.BackGridSignal.CELL_ARRAY);
     }
 
     @MENetworkEventSubscribe
     public void stateChange(final MENetworkChannelsChanged c) {
         PartSubnetProxyFront front = findFrontPart();
         if (TRACE_UPDATE_FLOW) this.traceUpdate("back.stateChange.channels", "frontFound=" + (front != null));
-        if (front != null) front.markSourcesDirty();
+        if (front != null) this.markFrontSourcesDirty(front, PartSubnetProxyFront.BackGridSignal.CHANNELS);
         this.markHostForUpdate();
     }
 
@@ -234,7 +252,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     public void stateChange(final MENetworkPowerStatusChange c) {
         PartSubnetProxyFront front = findFrontPart();
         if (TRACE_UPDATE_FLOW) this.traceUpdate("back.stateChange.power", "frontFound=" + (front != null));
-        if (front != null) front.markSourcesDirty();
+        if (front != null) this.markFrontSourcesDirty(front, PartSubnetProxyFront.BackGridSignal.POWER);
         this.markHostForUpdate();
     }
 

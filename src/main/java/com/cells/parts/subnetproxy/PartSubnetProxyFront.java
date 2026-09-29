@@ -1,6 +1,7 @@
 package com.cells.parts.subnetproxy;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -324,10 +325,31 @@ public class PartSubnetProxyFront extends AEBasePart
 
     private static final long FAULT_LOG_COOLDOWN_TICKS = 100L;
 
+    @Nullable
+    private ProxyChurnDiagnostics updateChurnDiagnostics;
+
+    private static final long NANOS_PER_MILLI = 1_000_000L;
+
+    /** Number of ticks for the update churn window (10 seconds). */
+    private static final long UPDATE_CHURN_WINDOW_TICKS = 10L * 20L;
+    private static final long TICKS_PER_MINUTE = 60L * 20L;
+    /** Minimum number of signals required to consider update churn. */
+    private static final int UPDATE_CHURN_MIN_SIGNALS = 10;
+    /** Minimum work time in nanoseconds to consider update churn (over the window). */
+    private static final long UPDATE_CHURN_MIN_WORK_NANOS = 100 * NANOS_PER_MILLI;
+    /** Minimum reconcile time in nanoseconds to consider slow update churn. */
+    private static final long UPDATE_CHURN_SLOW_RECONCILE_NANOS = 50 * NANOS_PER_MILLI;
+
     /**
      * Trace switch for Subnet Proxy update flow diagnostics.
      */
     private static final boolean TRACE_UPDATE_FLOW = Boolean.parseBoolean(System.getProperty("cells.trace.subnetproxy.updateflow", "false"));
+
+    enum BackGridSignal {
+        CELL_ARRAY,
+        CHANNELS,
+        POWER
+    }
 
     public static class FaultRecord {
 
@@ -412,6 +434,271 @@ public class PartSubnetProxyFront extends AEBasePart
                 this.localCellCount,
                 this.visiblePeerCount,
                 this.fingerprint);
+        }
+    }
+
+    /** Counters for a fixed update-churn window or a group of completed windows. */
+    private static class ChurnWindow {
+
+        private long startTick = Long.MIN_VALUE;
+        private long lastObservedTick = Long.MIN_VALUE;
+        private int cellArrayEvents;
+        private int channelEvents;
+        private int powerEvents;
+        private int powerActiveStateChanges;
+        private int monitorResets;
+        private int coalescedMonitorResets;
+        private int providerSurfaceDeltas;
+        private int storageSurfaceResets;
+        private int sourceRefreshes;
+        private int itemSnapshotScans;
+        private int fluidSnapshotScans;
+        private int gasSnapshotScans;
+        private int essentiaSnapshotScans;
+        private int gridBRefreshes;
+        private int gridBNotifications;
+        private int bootstrapRetries;
+        private int reconciliations;
+        private int recursiveDirtyCalls;
+        private long sourceRefreshNanos;
+        private long itemSnapshotNanos;
+        private long fluidSnapshotNanos;
+        private long gasSnapshotNanos;
+        private long essentiaSnapshotNanos;
+        private long gridBNotificationNanos;
+        private long longestReconcileNanos;
+
+        private void observeTick(long tick) {
+            if (tick < 0) return;
+
+            if (this.startTick == Long.MIN_VALUE) this.startTick = tick;
+            this.lastObservedTick = tick;
+        }
+
+        private void recordBackGridSignal(BackGridSignal signal) {
+            switch (signal) {
+                case CELL_ARRAY:
+                    this.cellArrayEvents++;
+                    return;
+                case CHANNELS:
+                    this.channelEvents++;
+                    return;
+                case POWER:
+                    this.powerEvents++;
+                    return;
+                default:
+                    return;
+            }
+        }
+
+        private void recordSnapshotScan(ResourceType type, long elapsedNanos) {
+            switch (type) {
+                case ITEM:
+                    this.itemSnapshotScans++;
+                    this.itemSnapshotNanos += elapsedNanos;
+                    return;
+                case FLUID:
+                    this.fluidSnapshotScans++;
+                    this.fluidSnapshotNanos += elapsedNanos;
+                    return;
+                case GAS:
+                    this.gasSnapshotScans++;
+                    this.gasSnapshotNanos += elapsedNanos;
+                    return;
+                case ESSENTIA:
+                    this.essentiaSnapshotScans++;
+                    this.essentiaSnapshotNanos += elapsedNanos;
+                    return;
+                default:
+                    return;
+            }
+        }
+
+        private int getSignalCount() {
+            return this.cellArrayEvents
+                + this.channelEvents
+                + this.powerEvents
+                + this.monitorResets
+                + this.providerSurfaceDeltas;
+        }
+
+        private long getMeasuredWorkNanos() {
+            return this.sourceRefreshNanos
+                + this.itemSnapshotNanos
+                + this.fluidSnapshotNanos
+                + this.gasSnapshotNanos
+                + this.essentiaSnapshotNanos
+                + this.gridBNotificationNanos;
+        }
+
+        private boolean hasEnoughChurn() {
+            return (this.getSignalCount() >= UPDATE_CHURN_MIN_SIGNALS
+                    && this.getMeasuredWorkNanos() >= UPDATE_CHURN_MIN_WORK_NANOS)
+                || this.longestReconcileNanos >= UPDATE_CHURN_SLOW_RECONCILE_NANOS;
+        }
+
+        private void add(ChurnWindow other) {
+            this.cellArrayEvents += other.cellArrayEvents;
+            this.channelEvents += other.channelEvents;
+            this.powerEvents += other.powerEvents;
+            this.powerActiveStateChanges += other.powerActiveStateChanges;
+            this.monitorResets += other.monitorResets;
+            this.coalescedMonitorResets += other.coalescedMonitorResets;
+            this.providerSurfaceDeltas += other.providerSurfaceDeltas;
+            this.storageSurfaceResets += other.storageSurfaceResets;
+            this.sourceRefreshes += other.sourceRefreshes;
+            this.itemSnapshotScans += other.itemSnapshotScans;
+            this.fluidSnapshotScans += other.fluidSnapshotScans;
+            this.gasSnapshotScans += other.gasSnapshotScans;
+            this.essentiaSnapshotScans += other.essentiaSnapshotScans;
+            this.gridBRefreshes += other.gridBRefreshes;
+            this.gridBNotifications += other.gridBNotifications;
+            this.bootstrapRetries += other.bootstrapRetries;
+            this.reconciliations += other.reconciliations;
+            this.recursiveDirtyCalls += other.recursiveDirtyCalls;
+            this.sourceRefreshNanos += other.sourceRefreshNanos;
+            this.itemSnapshotNanos += other.itemSnapshotNanos;
+            this.fluidSnapshotNanos += other.fluidSnapshotNanos;
+            this.gasSnapshotNanos += other.gasSnapshotNanos;
+            this.essentiaSnapshotNanos += other.essentiaSnapshotNanos;
+            this.gridBNotificationNanos += other.gridBNotificationNanos;
+            this.longestReconcileNanos = Math.max(
+                this.longestReconcileNanos,
+                other.longestReconcileNanos);
+            this.lastObservedTick = Math.max(this.lastObservedTick, other.lastObservedTick);
+        }
+
+        private void reset(long startTick) {
+            this.startTick = startTick;
+            this.lastObservedTick = Long.MIN_VALUE;
+            this.cellArrayEvents = 0;
+            this.channelEvents = 0;
+            this.powerEvents = 0;
+            this.powerActiveStateChanges = 0;
+            this.monitorResets = 0;
+            this.coalescedMonitorResets = 0;
+            this.providerSurfaceDeltas = 0;
+            this.storageSurfaceResets = 0;
+            this.sourceRefreshes = 0;
+            this.itemSnapshotScans = 0;
+            this.fluidSnapshotScans = 0;
+            this.gasSnapshotScans = 0;
+            this.essentiaSnapshotScans = 0;
+            this.gridBRefreshes = 0;
+            this.gridBNotifications = 0;
+            this.bootstrapRetries = 0;
+            this.reconciliations = 0;
+            this.recursiveDirtyCalls = 0;
+            this.sourceRefreshNanos = 0L;
+            this.itemSnapshotNanos = 0L;
+            this.fluidSnapshotNanos = 0L;
+            this.gasSnapshotNanos = 0L;
+            this.essentiaSnapshotNanos = 0L;
+            this.gridBNotificationNanos = 0L;
+            this.longestReconcileNanos = 0L;
+        }
+    }
+
+    /** Runtime-only counters for throttled update-churn diagnostics. */
+    private static class ProxyChurnDiagnostics {
+
+        private final ChurnWindow currentWindow = new ChurnWindow();
+        private final ChurnWindow completedWindows = new ChurnWindow();
+        private long lastLogTick = Long.MIN_VALUE;
+        private long completedWindowCount;
+        private long qualifyingWindowCount;
+        private long emptyWindowCount;
+        private long completedWindowStartTick = Long.MIN_VALUE;
+        private long completedWindowEndTick = Long.MIN_VALUE;
+        private long largestWindowWorkNanos;
+        private int largestWindowSignalCount;
+        private boolean backGridActiveKnown;
+        private boolean lastBackGridActive;
+
+        private void observeTick(long tick) {
+            this.currentWindow.observeTick(tick);
+        }
+
+        private void recordBackGridSignal(
+                BackGridSignal signal,
+                boolean activeKnown,
+                boolean active) {
+            this.currentWindow.recordBackGridSignal(signal);
+            if (signal != BackGridSignal.POWER || !activeKnown) return;
+
+            if (this.backGridActiveKnown && this.lastBackGridActive != active) {
+                this.currentWindow.powerActiveStateChanges++;
+            }
+
+            this.backGridActiveKnown = true;
+            this.lastBackGridActive = active;
+        }
+
+        private void recordSnapshotScan(ResourceType type, long elapsedNanos) {
+            this.currentWindow.recordSnapshotScan(type, elapsedNanos);
+        }
+
+        private void rotateCompletedWindows(long currentTick) {
+            if (currentTick < 0 || this.currentWindow.startTick == Long.MIN_VALUE) return;
+
+            long elapsedWindows = (currentTick - this.currentWindow.startTick)
+                / UPDATE_CHURN_WINDOW_TICKS;
+            if (elapsedWindows <= 0L) return;
+
+            this.addCompletedWindow(this.currentWindow, this.currentWindow.startTick
+                + UPDATE_CHURN_WINDOW_TICKS);
+            if (elapsedWindows > 1L) {
+                long emptyWindows = elapsedWindows - 1L;
+                this.completedWindowCount += emptyWindows;
+                this.emptyWindowCount += emptyWindows;
+            }
+
+            this.completedWindowEndTick = this.currentWindow.startTick
+                + elapsedWindows * UPDATE_CHURN_WINDOW_TICKS;
+            this.currentWindow.reset(this.completedWindowEndTick);
+        }
+
+        private void addCompletedWindow(ChurnWindow window, long endTick) {
+            if (this.completedWindowStartTick == Long.MIN_VALUE) {
+                this.completedWindowStartTick = window.startTick;
+            }
+
+            this.completedWindows.add(window);
+            this.completedWindowCount++;
+            if (window.hasEnoughChurn()) this.qualifyingWindowCount++;
+            this.largestWindowWorkNanos = Math.max(this.largestWindowWorkNanos,
+                window.getMeasuredWorkNanos());
+            this.largestWindowSignalCount = Math.max(this.largestWindowSignalCount,
+                window.getSignalCount());
+            this.completedWindowEndTick = endTick;
+        }
+
+        private boolean hasQualifyingWindow() {
+            return this.qualifyingWindowCount > 0L;
+        }
+
+        private void clearCompletedWindows() {
+            this.completedWindows.reset(Long.MIN_VALUE);
+            this.completedWindowCount = 0L;
+            this.qualifyingWindowCount = 0L;
+            this.emptyWindowCount = 0L;
+            this.completedWindowStartTick = Long.MIN_VALUE;
+            this.completedWindowEndTick = Long.MIN_VALUE;
+            this.largestWindowWorkNanos = 0L;
+            this.largestWindowSignalCount = 0;
+        }
+    }
+
+    private static class UpdateChurnWork {
+
+        private final String category;
+        private final int calls;
+        private final long nanos;
+
+        private UpdateChurnWork(String category, int calls, long nanos) {
+            this.category = category;
+            this.calls = calls;
+            this.nanos = nanos;
         }
     }
 
@@ -2028,7 +2315,19 @@ public class PartSubnetProxyFront extends AEBasePart
      * insertion-active flip path may still fan out.
      */
     public void markSourcesDirty() {
+        this.markSourcesDirty(null, false, false);
+    }
+
+    void markSourcesDirty(
+            @Nullable BackGridSignal signal,
+            boolean backGridActiveKnown,
+            boolean backGridActive) {
+        if (signal != null) {
+            this.recordBackGridSignal(signal, backGridActiveKnown, backGridActive);
+        }
+
         if (this.inMarkSourcesDirty) {
+            this.recordRecursiveDirtyCall();
             if (TRACE_UPDATE_FLOW) this.traceUpdate("front.markSourcesDirty.skip", "reason=recursive");
             return;
         }
@@ -2080,6 +2379,7 @@ public class PartSubnetProxyFront extends AEBasePart
                             + ", currentCellArrayHash=" + formatHash(currentCellArrayHash));
                 }
                 this.refreshAllSnapshots();
+                this.recordGridBRefresh();
                 this.notifyGridOfChange();
                 return;
             }
@@ -2153,6 +2453,9 @@ public class PartSubnetProxyFront extends AEBasePart
                 "front.updatePassthroughSources.enter",
                 "refreshSnapshots=" + refreshSnapshots + ", inMarkSourcesDirty=" + this.inMarkSourcesDirty);
         }
+
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        long startNanos = diagnostics != null ? System.nanoTime() : 0L;
 
         this.sourcesDirty = false;
         this.rebuildingPassthroughSources = true;
@@ -2336,16 +2639,29 @@ public class PartSubnetProxyFront extends AEBasePart
                 this.lastPublishedStructureHash = this.computePublishedStructureHash();
                 this.lastPublishedCellArrayHash = this.computePublishedCellArrayHash();
             }
+
+            if (diagnostics != null) {
+                this.recordSourceRefresh(diagnostics, System.nanoTime() - startNanos);
+            }
         }
     }
 
     /** Take a snapshot of the handler's current listing for delta comparison. */
     private <T extends IAEStack<T>> void takeSnapshot(
             SubnetProxyInventoryHandler<T> handler,
-            IStorageChannel<T> channel) {
-        IItemList<T> snapshot = channel.createList();
-        handler.getAvailableItems(snapshot);
-        handler.setLastSnapshot(snapshot);
+            IStorageChannel<T> channel,
+            ResourceType type) {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        long startNanos = diagnostics != null ? System.nanoTime() : 0L;
+        try {
+            IItemList<T> snapshot = channel.createList();
+            handler.getAvailableItems(snapshot);
+            handler.setLastSnapshot(snapshot);
+        } finally {
+            if (diagnostics != null) {
+                this.recordSnapshotScan(diagnostics, type, startNanos);
+            }
+        }
     }
 
     /**
@@ -2355,20 +2671,23 @@ public class PartSubnetProxyFront extends AEBasePart
      * corresponding helper.
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private void takeSnapshotRaw(SubnetProxyInventoryHandler handler, IStorageChannel channel) {
-        takeSnapshot(handler, channel);
+    private void takeSnapshotRaw(
+            SubnetProxyInventoryHandler handler,
+            IStorageChannel channel,
+            ResourceType type) {
+        takeSnapshot(handler, channel, type);
     }
 
     private void refreshAllSnapshots() {
-        takeSnapshot(this.itemHandler, itemChannel());
-        takeSnapshot(this.fluidHandler, fluidChannel());
+        takeSnapshot(this.itemHandler, itemChannel(), ResourceType.ITEM);
+        takeSnapshot(this.fluidHandler, fluidChannel(), ResourceType.FLUID);
 
         if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-            takeSnapshotRaw(this.gasHandler, SubnetProxyGasHelper.getChannel());
+            takeSnapshotRaw(this.gasHandler, SubnetProxyGasHelper.getChannel(), ResourceType.GAS);
         }
 
         if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-            takeSnapshotRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel());
+            takeSnapshotRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel(), ResourceType.ESSENTIA);
         }
     }
 
@@ -2730,6 +3049,8 @@ public class PartSubnetProxyFront extends AEBasePart
     private void notifyGridOfChange() {
         IGridNode node = this.getProxy().getNode();
         if (node != null) {
+            ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+            long startNanos = diagnostics != null ? System.nanoTime() : 0L;
             boolean replayedPending = this.pendingGridBNotify;
             this.pendingGridBNotify = false;
 
@@ -2737,6 +3058,9 @@ public class PartSubnetProxyFront extends AEBasePart
                 this.traceUpdate("front.notifyGridOfChange", "caller=" + this.findTraceCaller() + ", posted=true, grid=" + describeGrid(node.getGrid()) + ", replayedPending=" + replayedPending);
             }
             node.getGrid().postEvent(new MENetworkCellArrayUpdate());
+            if (diagnostics != null) {
+                this.recordGridBNotification(diagnostics, System.nanoTime() - startNanos);
+            }
             return;
         }
 
@@ -2797,6 +3121,7 @@ public class PartSubnetProxyFront extends AEBasePart
                 "reason=" + reason + ", frontGrid=" + describeGrid(this.getFrontGridLive()));
         }
 
+        this.recordBootstrapRetry();
         this.notifyGridOfChange();
         return true;
     }
@@ -3078,6 +3403,7 @@ public class PartSubnetProxyFront extends AEBasePart
             }
 
             if (refreshSources) {
+                recordProviderSurfaceDelta(forceGridBRefresh);
                 if (forceGridBRefresh) pendingForcedGridBRefresh = true;
 
                 // Storage-surface providers can emit self-sourced monitor events
@@ -3443,6 +3769,7 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     private void queueMonitorResetReconcile() {
+        this.recordMonitorReset(this.monitorResetReconcileEarliestTick != Long.MIN_VALUE);
         this.sourcesDirty = true;
         this.pendingMonitorResetReconcile = true;
         this.deltasDirty = true;
@@ -3708,6 +4035,8 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     private void reconcilePendingMonitorReset() {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        long startNanos = diagnostics != null ? System.nanoTime() : 0L;
         this.monitorResetReconcileEarliestTick = Long.MIN_VALUE;
 
         if (this.sourcesDirty) this.updatePassthroughSources(false);
@@ -3746,7 +4075,9 @@ public class PartSubnetProxyFront extends AEBasePart
             } else {
                 this.refreshAllSnapshots();
             }
+            this.recordGridBRefresh();
             this.notifyGridOfChange();
+            this.recordReconcile(diagnostics, startNanos);
             return;
         }
 
@@ -3765,6 +4096,7 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         snapshotDiffAndForward();
+        this.recordReconcile(diagnostics, startNanos);
     }
 
     private boolean hasMissingVisibleReadSnapshot() {
@@ -3812,19 +4144,19 @@ public class PartSubnetProxyFront extends AEBasePart
         }
 
         // Item channel delta
-        snapshotDiffChannel(this.itemHandler, itemChannel(), gridB);
+        snapshotDiffChannel(this.itemHandler, itemChannel(), gridB, ResourceType.ITEM);
 
         // Fluid channel delta
-        snapshotDiffChannel(this.fluidHandler, fluidChannel(), gridB);
+        snapshotDiffChannel(this.fluidHandler, fluidChannel(), gridB, ResourceType.FLUID);
 
         // Gas channel (MekanismEnergistics)
         if (this.gasHandler != null && MekanismEnergisticsIntegration.isModLoaded()) {
-            snapshotDiffChannelRaw(this.gasHandler, SubnetProxyGasHelper.getChannel(), gridB);
+            snapshotDiffChannelRaw(this.gasHandler, SubnetProxyGasHelper.getChannel(), gridB, ResourceType.GAS);
         }
 
         // Essentia channel (ThaumicEnergistics)
         if (this.essentiaHandler != null && ThaumicEnergisticsIntegration.isModLoaded()) {
-            snapshotDiffChannelRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel(), gridB);
+            snapshotDiffChannelRaw(this.essentiaHandler, SubnetProxyEssentiaHelper.getChannel(), gridB, ResourceType.ESSENTIA);
         }
     }
 
@@ -3839,8 +4171,9 @@ public class PartSubnetProxyFront extends AEBasePart
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void snapshotDiffChannelRaw(SubnetProxyInventoryHandler handler,
                                         IStorageChannel channel,
-                                        IStorageGrid gridB) {
-        snapshotDiffChannel(handler, channel, gridB);
+                                        IStorageGrid gridB,
+                                        ResourceType type) {
+        snapshotDiffChannel(handler, channel, gridB, type);
     }
 
     /**
@@ -3855,7 +4188,10 @@ public class PartSubnetProxyFront extends AEBasePart
     private <T extends IAEStack<T>> void snapshotDiffChannel(
             SubnetProxyInventoryHandler<T> handler,
             IStorageChannel<T> channel,
-            IStorageGrid gridB) {
+            IStorageGrid gridB,
+            ResourceType type) {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        long startNanos = diagnostics != null ? System.nanoTime() : 0L;
 
         // Take current snapshot from the handler (reads local cells + filter only)
         IItemList<T> current = channel.createList();
@@ -3869,18 +4205,21 @@ public class PartSubnetProxyFront extends AEBasePart
                         "front.snapshotDiffChannel.skipBootstrap",
                         "channel=" + this.describeChannel(channel) + ", reason=awaitingCellArrayBootstrap");
                 }
+                this.recordSnapshotScan(diagnostics, type, startNanos);
                 return;
             }
 
             // First snapshot: no delta to forward, just establish baseline.
             // Grid B already got the full listing via getCellArray → getAvailableItems.
             handler.setLastSnapshot(current);
+            this.recordSnapshotScan(diagnostics, type, startNanos);
             return;
         }
 
         this.postSnapshotDelta(previous, current, channel, gridB);
 
         handler.setLastSnapshot(current);
+        this.recordSnapshotScan(diagnostics, type, startNanos);
     }
 
     private <T extends IAEStack<T>> void postSnapshotDelta(
@@ -4127,6 +4466,280 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     // ========================= Diagnostics =========================
+
+    @Nullable
+    private ProxyChurnDiagnostics getUpdateChurnDiagnostics() {
+        if (!CellsConfig.general.subnetProxyReportUpdateChurn) {
+            this.updateChurnDiagnostics = null;
+            return null;
+        }
+
+        if (this.updateChurnDiagnostics == null) {
+            this.updateChurnDiagnostics = new ProxyChurnDiagnostics();
+        }
+
+        return this.updateChurnDiagnostics;
+    }
+
+    private boolean isCurrentUpdateChurnDiagnostics(@Nullable ProxyChurnDiagnostics diagnostics) {
+        if (!CellsConfig.general.subnetProxyReportUpdateChurn) {
+            this.updateChurnDiagnostics = null;
+            return false;
+        }
+
+        return diagnostics != null && diagnostics == this.updateChurnDiagnostics;
+    }
+
+    private void recordBackGridSignal(
+            BackGridSignal signal,
+            boolean backGridActiveKnown,
+            boolean backGridActive) {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        if (diagnostics == null) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.recordBackGridSignal(signal, backGridActiveKnown, backGridActive);
+    }
+
+    private void recordMonitorReset(boolean coalesced) {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        if (diagnostics == null) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.currentWindow.monitorResets++;
+        if (coalesced) diagnostics.currentWindow.coalescedMonitorResets++;
+    }
+
+    private void recordProviderSurfaceDelta(boolean storageSurfaceReset) {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        if (diagnostics == null) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.currentWindow.providerSurfaceDeltas++;
+        if (storageSurfaceReset) diagnostics.currentWindow.storageSurfaceResets++;
+    }
+
+    private void recordRecursiveDirtyCall() {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        if (diagnostics == null) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.currentWindow.recursiveDirtyCalls++;
+    }
+
+    private void recordSourceRefresh(@Nullable ProxyChurnDiagnostics diagnostics, long elapsedNanos) {
+        if (!this.isCurrentUpdateChurnDiagnostics(diagnostics)) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.currentWindow.sourceRefreshes++;
+        diagnostics.currentWindow.sourceRefreshNanos += elapsedNanos;
+    }
+
+    private void recordSnapshotScan(
+            @Nullable ProxyChurnDiagnostics diagnostics,
+            ResourceType type,
+            long startNanos) {
+        if (!this.isCurrentUpdateChurnDiagnostics(diagnostics)) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.recordSnapshotScan(type, System.nanoTime() - startNanos);
+    }
+
+    private void recordGridBRefresh() {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        if (diagnostics == null) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.currentWindow.gridBRefreshes++;
+    }
+
+    private void recordGridBNotification(@Nullable ProxyChurnDiagnostics diagnostics, long elapsedNanos) {
+        if (!this.isCurrentUpdateChurnDiagnostics(diagnostics)) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.currentWindow.gridBNotifications++;
+        diagnostics.currentWindow.gridBNotificationNanos += elapsedNanos;
+    }
+
+    private void recordBootstrapRetry() {
+        ProxyChurnDiagnostics diagnostics = this.getUpdateChurnDiagnostics();
+        if (diagnostics == null) return;
+
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.currentWindow.bootstrapRetries++;
+    }
+
+    private void recordReconcile(@Nullable ProxyChurnDiagnostics diagnostics, long startNanos) {
+        if (!this.isCurrentUpdateChurnDiagnostics(diagnostics)) return;
+
+        long elapsedNanos = System.nanoTime() - startNanos;
+        this.beginUpdateChurnObservation(diagnostics);
+        diagnostics.currentWindow.reconciliations++;
+        diagnostics.currentWindow.longestReconcileNanos = Math.max(
+            diagnostics.currentWindow.longestReconcileNanos,
+            elapsedNanos);
+    }
+
+    private void beginUpdateChurnObservation(ProxyChurnDiagnostics diagnostics) {
+        long currentTick = this.getObservedWorldTick();
+        diagnostics.rotateCompletedWindows(currentTick);
+        this.maybeLogUpdateChurn(diagnostics, currentTick);
+        diagnostics.observeTick(currentTick);
+    }
+
+    private void maybeLogUpdateChurn(ProxyChurnDiagnostics diagnostics, long currentTick) {
+        if (!this.isCurrentUpdateChurnDiagnostics(diagnostics)) return;
+
+        if (currentTick < 0 || !diagnostics.hasQualifyingWindow()) return;
+
+        if (diagnostics.lastLogTick != Long.MIN_VALUE
+                && currentTick - diagnostics.lastLogTick < this.getUpdateChurnLogCooldownTicks()) {
+            return;
+        }
+
+        this.logUpdateChurn(diagnostics);
+        diagnostics.lastLogTick = currentTick;
+        diagnostics.clearCompletedWindows();
+    }
+
+    private void logUpdateChurn(ProxyChurnDiagnostics diagnostics) {
+        World world = this.getHostWorld();
+        int dimensionId = world != null && world.provider != null
+            ? world.provider.getDimension()
+            : Integer.MIN_VALUE;
+        String dimensionName = world != null && world.provider != null
+            ? world.provider.getDimensionType().getName()
+            : "unknown";
+        ChurnWindow windows = diagnostics.completedWindows;
+        long windowTicks = diagnostics.completedWindowEndTick
+            - diagnostics.completedWindowStartTick;
+
+        Cells.LOGGER.warn("Subnet Proxy churn observed");
+        Cells.LOGGER.warn(
+            " - Location: dim={} ({}) pos={} side={}",
+            dimensionId,
+            dimensionName,
+            formatBlockPos(this.getHostPos()),
+            this.getSide() != null ? this.getSide().getFacing() : "unknown");
+        Cells.LOGGER.warn(
+            " - Windows since previous report: ticks={}..{} duration={} ticks latest update={}",
+            diagnostics.completedWindowStartTick,
+            diagnostics.completedWindowEndTick,
+            windowTicks,
+            windows.lastObservedTick);
+        Cells.LOGGER.warn(
+            " - Completed windows: {} qualifying: {} below threshold: {} ({} empty)",
+            diagnostics.completedWindowCount,
+            diagnostics.qualifyingWindowCount,
+            diagnostics.completedWindowCount - diagnostics.qualifyingWindowCount,
+            diagnostics.emptyWindowCount);
+        Cells.LOGGER.warn(
+            " - Signals: {} total, {} peak per window",
+            windows.getSignalCount(),
+            diagnostics.largestWindowSignalCount);
+        Cells.LOGGER.warn(
+            " - Measured work: {} ms total, {} ms peak per window",
+            nanosToMillis(windows.getMeasuredWorkNanos()),
+            nanosToMillis(diagnostics.largestWindowWorkNanos));
+        Cells.LOGGER.warn(" - Cell-array updates: {}", windows.cellArrayEvents);
+        Cells.LOGGER.warn(" - Channel updates: {}", windows.channelEvents);
+        Cells.LOGGER.warn(
+            " - Power events: {} active-state changes: {}",
+            windows.powerEvents,
+            windows.powerActiveStateChanges);
+        Cells.LOGGER.warn(
+            " - Monitor list resets: {} coalesced: {}",
+            windows.monitorResets,
+            windows.coalescedMonitorResets);
+        Cells.LOGGER.warn(
+            " - Provider-surface deltas: {} storage-surface resets: {}",
+            windows.providerSurfaceDeltas,
+            windows.storageSurfaceResets);
+        Cells.LOGGER.warn(
+            " - Grid B refreshes: {} notifications: {} bootstrap retries: {}",
+            windows.gridBRefreshes,
+            windows.gridBNotifications,
+            windows.bootstrapRetries);
+        Cells.LOGGER.warn(
+            " - Reconciliations: {} longest={} ms recursive dirty calls={}",
+            windows.reconciliations,
+            nanosToMillis(windows.longestReconcileNanos),
+            windows.recursiveDirtyCalls);
+        this.logUpdateChurnWork(windows);
+        Cells.LOGGER.warn(" - Observed pattern: {}", this.describeUpdateChurn(windows));
+    }
+
+    private void logUpdateChurnWork(ChurnWindow windows) {
+        UpdateChurnWork[] work = {
+            new UpdateChurnWork(
+                "Source refreshes",
+                windows.sourceRefreshes,
+                windows.sourceRefreshNanos),
+            new UpdateChurnWork(
+                "Item snapshot scans",
+                windows.itemSnapshotScans,
+                windows.itemSnapshotNanos),
+            new UpdateChurnWork(
+                "Fluid snapshot scans",
+                windows.fluidSnapshotScans,
+                windows.fluidSnapshotNanos),
+            new UpdateChurnWork(
+                "Gas snapshot scans",
+                windows.gasSnapshotScans,
+                windows.gasSnapshotNanos),
+            new UpdateChurnWork(
+                "Essentia snapshot scans",
+                windows.essentiaSnapshotScans,
+                windows.essentiaSnapshotNanos),
+            new UpdateChurnWork(
+                "Grid B notifications",
+                windows.gridBNotifications,
+                windows.gridBNotificationNanos)
+        };
+        Arrays.sort(work, (left, right) -> Long.compare(right.nanos, left.nanos));
+
+        Cells.LOGGER.warn(" - Measured work by recorded time:");
+        for (UpdateChurnWork category : work) {
+            Cells.LOGGER.warn(
+                " -   {}: {} calls, {} ms",
+                category.category,
+                category.calls,
+                nanosToMillis(category.nanos));
+        }
+        Cells.LOGGER.warn(" - Source refresh time can include snapshot scan time");
+    }
+
+    private String describeUpdateChurn(ChurnWindow windows) {
+        if (windows.storageSurfaceResets > 0) return "storage-surface reset deltas";
+        if (windows.providerSurfaceDeltas > 0) return "provider-surface change deltas";
+
+        if (windows.cellArrayEvents >= windows.channelEvents
+                && windows.cellArrayEvents >= windows.powerEvents
+                && windows.cellArrayEvents > 0) {
+            return "cell-array update churn";
+        }
+
+        if (windows.channelEvents >= windows.powerEvents && windows.channelEvents > 0) {
+            return "channel update churn";
+        }
+
+        if (windows.powerActiveStateChanges > 0) {
+            return "power events with active-state changes";
+        }
+
+        if (windows.powerEvents > 0) return "power events without observed active-state changes";
+        if (windows.monitorResets > 0) return "monitor list resets without an exposed AE2 cause";
+
+        return "reconciliation work without a recorded Grid A signal";
+    }
+
+    private long getUpdateChurnLogCooldownTicks() {
+        return CellsConfig.general.subnetProxyUpdateChurnLogDelay * TICKS_PER_MINUTE;
+    }
+
+    private static double nanosToMillis(long nanos) {
+        return nanos / (double) NANOS_PER_MILLI;
+    }
 
     public void refreshDiagnosticsState() {
         this.ensureSourcesCurrent();

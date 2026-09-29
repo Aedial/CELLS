@@ -8,15 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.6.9] - 2077-05-01
-### Fixed
-- Fix all Subnet Proxy issues (as if)
-
-
-## [0.6.8-beta2] - 2026-09-??
+## [0.6.9] - 2026-09-30
 ### Added
 - Add some Subnet Proxy tooltip info for WAILA/TOP.
-- Add Cell Upgrade and Disassembly JEI categories.
+- Add some Subnet Proxy churn logging for better debugging. This should give an idea of what is going wrong with a specific Proxy. Enabled via config.
+- Add Cell Upgrade and Cell/Upgrade Disassembly JEI categories.
 - Add a registry for disassembly of cells and upgrades, so that modpack makers can tweak the disassembly recipes to their liking. The default recipes are the same as the crafting ones.
 - Add JEI categories for:
   - Cell Upgrade: Showing which components can be used to upgrade a cell
@@ -25,11 +21,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   - Memory Card: Showing which blocks/parts are compatible with which for Memory Card copying
 
 ### Fixed
-- Fix some edge cases in Essentia Interface handling
+- Fix some edge cases in Essentia Interface handling.
 - Fix Essentia Push/Pull config blacklist not working if some other mod nulls the tile in the global registry.
-- Fix Import Interface not clearing orphaned slots if they were cleared externally (API).
+- Fix Import Interface not clearing orphaned slots if they were cleared externally (via API).
 - Fix misc Push/Pull card visual issues.
-- Maybe fix some stale client sync issues in Interfaces, by making the "direction" explicit instead of relying on it being implicitly properly synced in the container, and ensuring all data has properly been sent to the client.
+- Maybe fix some stale client sync issues in Interfaces, by making the "direction" explicit instead of relying on it being implicitly properly synced in the container, and ensuring all data has been properly sent to the client.
 - Fix Hyper-Density Cells not showing the right per-type value for Equal Distribution.
 - Clean up right-click interactions. Everything that doesn't need priority will give priority to the interacted block.
 

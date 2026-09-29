@@ -288,6 +288,15 @@ Enable or disable entire cell categories:
 Enable or disable the NBT Size tooltip for all cells. This tooltip shows an upper bound estimation of the NBT size of the cell's content, to help with realizing when to move NBT-heavy content somewhere else, to avoid chunkbanning or AE2's network kick.
 This setting may take some performance away if your cells have items with large NBT data flickering in and out of them, but this should be rare in practice and is generally not a problem for most use cases.
 
+### Subnet Proxy Debug
+Subnet Proxies are are an incredibly complex feature, due to how AE2 is organized and how different network interact with each others (in a Chaotic manner). Debugging can be used for 2 purposes :
+- Understanding why a Subnet Proxy is being weirdly laggy (alongside a Spark).
+- Monitoring for abnormal behavior of a subnet (power reset, force-update, etc).
+
+For this purpose, there are 2 config options :
+- `Subnet Proxy Fault Reporting`: Reports when something failed to be extracted from a Subnet Proxy. Usually implies the caches are out of sync and the network is seeing "ghost" items, or that a storage medium (e.g., a cell) is misbehaving. Such things can be the cause of Force Updates. Sadly, timing issues and race conditions make ghost items an inevitable occurrence in complex networks, after some time. The ultimate goal is to reduce these to be as rare as possible.
+- `Subnet Proxy Update Churn Reporting`: Logs detailed information about the internal operations of Subnet Proxies, useful for diagnosing performance issues and unexpected behavior, like Force Updates or Power resets. After the logging delay elapses, the first egregously bad update will be logged + a summary of updates that happened since the last log.
+
 
 ## Commands
 
@@ -306,7 +315,7 @@ Show the available slots from the block the player is looking at.
 - Additional arguments can be passed to simulate insertions against these slots. Autocompletion is offered for these arguments.
 
 ### /inspectSubnetProxy
-Show developer information about the Subnet Proxy the player is looking at. It is intended for debugging of the Subnet Proxy's behavior and is not meant for general use.
+Show developer information about the Subnet Proxy the player is looking at. It is intended for debugging of the Subnet Proxy's behavior and is not meant for general use. See `Subnet Proxy Fault Reporting` in the Subnet Proxy Debug section for more details.
 
 
 ## Credits

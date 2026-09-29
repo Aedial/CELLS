@@ -768,3 +768,7 @@ cells.config.subnetProxyMaxTickRate=Subnet Proxy Max Tick Rate
 cells.config.subnetProxyMaxTickRate.tooltip=Maximum tick rate for the Subnet Proxy when idle (1-1200)
 cells.config.subnetProxyReportExtractionFaults=Subnet Proxy Fault Reporting
 cells.config.subnetProxyReportExtractionFaults.tooltip=Enable Subnet Proxy extraction-fault reporting and warning logs. A reported fault may come from the proxy, a connected inventory, or the network itself, including ghost or unextractable items.
+cells.config.subnetProxyReportUpdateChurn=Subnet Proxy Update Churn Reporting
+cells.config.subnetProxyReportUpdateChurn.tooltip=Enable Subnet Proxy update-churn counters and throttled warning logs. Disabling clears counters when the proxy next receives an update.
+cells.config.subnetProxyUpdateChurnLogDelay=Subnet Proxy Update Churn Log Delay
+cells.config.subnetProxyUpdateChurnLogDelay.tooltip=Minimum time (in minutes) between Subnet Proxy update-churn warning logs, if enabled (1-1440)
