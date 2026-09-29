@@ -768,3 +768,7 @@ cells.config.subnetProxyMaxTickRate=子网络代理最大刷新速率
 cells.config.subnetProxyMaxTickRate.tooltip=子网络代理待机时的最大刷新速率（1-1200）
 cells.config.subnetProxyReportExtractionFaults=子网络代理故障报告
 cells.config.subnetProxyReportExtractionFaults.tooltip=启用子网络代理的提取故障报告与警告日志。报告的故障可能来源于代理、所连接的容器或网络本身，包括幽灵物品或无法提取的物品。
+cells.config.subnetProxyReportUpdateChurn=子网络代理更新频繁报告
+cells.config.subnetProxyReportUpdateChurn.tooltip=启用子网络代理的更新频繁计数器与限流警告日志。禁用后，代理下次收到更新时将清空计数器。
+cells.config.subnetProxyUpdateChurnLogDelay=子网络代理更新频繁日志延迟
+cells.config.subnetProxyUpdateChurnLogDelay.tooltip=启用子网络代理更新频繁报告时，警告日志之间的最短时间（分钟），范围：1-1440
