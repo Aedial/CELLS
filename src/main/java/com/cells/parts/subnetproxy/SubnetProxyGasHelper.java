@@ -77,14 +77,10 @@ final class SubnetProxyGasHelper {
     }
 
     /** Append gas handlers from a local cell provider. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static void appendLocalCells(
-            List<IMEInventoryHandler> localGasCells,
+    @SuppressWarnings({ "rawtypes"})
+    static void appendLocalCells(List<IMEInventoryHandler> localGasCells,
             ICellProvider provider) {
-
-        for (IMEInventoryHandler<?> h : provider.getCellArray(getChannel())) {
-            localGasCells.add((IMEInventoryHandler<IAEGasStack>) h);
-        }
+        localGasCells.addAll(provider.getCellArray(getChannel()));
     }
 
     /**

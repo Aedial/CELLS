@@ -2,6 +2,7 @@ package com.cells.items.upgrades;
 
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.resources.I18n;
@@ -34,7 +35,8 @@ public class ItemInsertionCard extends AbstractCustomUpgrade {
 
     @Override
     @SideOnly(Side.CLIENT)
-    public void addInformation(ItemStack stack, @Nullable World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
+    public void addInformation(@Nonnull ItemStack stack, @Nullable World worldIn, List<String> tooltip,
+            @Nonnull ITooltipFlag flagIn) {
         tooltip.add(I18n.format("tooltip.cells.insertion_card.desc"));
         addCompatibilityTooltip(tooltip, "subnet_proxy");
     }

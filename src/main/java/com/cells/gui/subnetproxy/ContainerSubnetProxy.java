@@ -466,6 +466,7 @@ public class ContainerSubnetProxy extends AEBaseContainer
      * shift-clicked into/out of upgrade slots normally.
      */
     @Override
+    @Nonnull
     public ItemStack transferStackInSlot(final EntityPlayer player, final int idx) {
         if (idx < 0 || idx >= this.inventorySlots.size()) return super.transferStackInSlot(player, idx);
 

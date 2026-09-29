@@ -367,6 +367,7 @@ public class PartSubnetProxyBack extends AEBasePart implements IPowerChannelStat
     }
 
     @Override
+    @Nonnull
     public AECableType getCableConnectionType(final AEPartLocation dir) {
         return AECableType.SMART;
     }

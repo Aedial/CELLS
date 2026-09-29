@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -64,6 +65,7 @@ public class SubnetProxyRecipeTransferHandler implements IRecipeTransferHandler<
     }
 
     @Override
+    @Nonnull
     public Class<ContainerSubnetProxy> getContainerClass() {
         return ContainerSubnetProxy.class;
     }
@@ -71,9 +73,9 @@ public class SubnetProxyRecipeTransferHandler implements IRecipeTransferHandler<
     @Nullable
     @Override
     public IRecipeTransferError transferRecipe(
-            ContainerSubnetProxy container,
+            @Nonnull ContainerSubnetProxy container,
             IRecipeLayout recipeLayout,
-            EntityPlayer player,
+            @Nonnull EntityPlayer player,
             boolean maxTransfer,
             boolean doTransfer) {
 

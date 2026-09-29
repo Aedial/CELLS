@@ -1,5 +1,6 @@
 package com.cells.integration.mekanismenergistics;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.util.EnumFacing;
@@ -110,6 +111,7 @@ public class TileGasIOInterface extends AbstractIOInterfaceTile<GasInterfaceLogi
         }
 
         @Override
+        @Nonnull
         public GasTankInfo[] getTankInfo() {
             // Combine tank info from both handlers
             GasTankInfo[] importInfo = this.importHandler.getTankInfo();

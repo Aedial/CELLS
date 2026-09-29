@@ -292,7 +292,7 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
     }
 
     private void addInterval(final int delta) {
-        long result = this.currentInterval + delta;
+        long result = (long) this.currentInterval + delta;
         result = Math.max(1, Math.min(Integer.MAX_VALUE, result));
         this.currentInterval = (int) result;
         CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetPullPushRate(this.currentInterval));

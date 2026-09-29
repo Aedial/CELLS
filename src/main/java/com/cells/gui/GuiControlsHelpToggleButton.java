@@ -36,7 +36,7 @@ import com.cells.config.CellsConfig;
  * a 0.5x GL scale, same technique as GuiIOInterface.
  * <p>
  * The visibility state is persisted across sessions via
- * {@link CellsConfig#showControlsHelp} (hidden config category).
+ * {@link CellsConfig.HiddenCategory#showControlsHelp} (hidden config category).
  */
 public class GuiControlsHelpToggleButton extends GuiButton implements ITooltip {
 

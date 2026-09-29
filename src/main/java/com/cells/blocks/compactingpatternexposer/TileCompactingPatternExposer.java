@@ -186,6 +186,7 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
     }
 
     @Override
+    @Nonnull
     public NBTTagCompound writeToNBT(final NBTTagCompound data) {
         super.writeToNBT(data);
 

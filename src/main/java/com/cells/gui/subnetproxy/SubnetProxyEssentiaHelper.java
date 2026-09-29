@@ -154,7 +154,6 @@ final class SubnetProxyEssentiaHelper {
     }
 
     @Optional.Method(modid = "thaumicenergistics")
-    @Nullable
     private static String getEssentiaNameInternal(ItemStack stack) {
         return stack.getDisplayName();
     }

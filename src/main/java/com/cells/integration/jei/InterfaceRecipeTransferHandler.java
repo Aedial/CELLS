@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -50,6 +51,7 @@ public class InterfaceRecipeTransferHandler<C extends Container> implements IRec
     }
 
     @Override
+    @Nonnull
     public Class<C> getContainerClass() {
         return this.containerClass;
     }
@@ -57,9 +59,9 @@ public class InterfaceRecipeTransferHandler<C extends Container> implements IRec
     @Nullable
     @Override
     public IRecipeTransferError transferRecipe(
-            C container,
+            @Nonnull C container,
             IRecipeLayout recipeLayout,
-            EntityPlayer player,
+            @Nonnull EntityPlayer player,
             boolean maxTransfer,
             boolean doTransfer) {
         String recipeType = recipeLayout.getRecipeCategory().getUid();

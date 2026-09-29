@@ -1,5 +1,6 @@
 package com.cells.gui;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.lwjgl.input.Mouse;
@@ -121,20 +122,21 @@ public abstract class AbstractFakeSlotAwareGui extends AEBaseGui {
         }
 
         @Override
-        public boolean canTakeStack(EntityPlayer player) {
+        public boolean canTakeStack(@Nonnull EntityPlayer player) {
             return false;
         }
 
         @Override
-        public boolean isItemValid(ItemStack stack) {
+        public boolean isItemValid(@Nonnull ItemStack stack) {
             return false;
         }
 
         @Override
-        public void putStack(ItemStack stack) {
+        public void putStack(@Nonnull ItemStack stack) {
         }
 
         @Override
+        @Nonnull
         public ItemStack decrStackSize(int amount) {
             return ItemStack.EMPTY;
         }
@@ -150,6 +152,7 @@ public abstract class AbstractFakeSlotAwareGui extends AEBaseGui {
         }
 
         @Override
+        @Nonnull
         public ItemStack getStack() {
             Object ingredient = this.getIngredient();
             if (!(ingredient instanceof ItemStack)) return ItemStack.EMPTY;

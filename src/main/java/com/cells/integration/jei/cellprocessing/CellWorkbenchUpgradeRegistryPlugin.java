@@ -210,7 +210,7 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
         Set<String> tiers = new HashSet<>();
         for (ItemStack component : components) {
             ComponentInfo info = ComponentHelper.getComponentInfo(component);
-            if (!tiers.add(info.getTierName())) continue;
+            if (info == null || !tiers.add(info.getTierName())) continue;
 
             ItemStack cell = new ItemStack(ItemRegistry.CONFIGURABLE_CELL);
             ComponentHelper.setInstalledComponent(cell, component.copy());

@@ -181,6 +181,7 @@ public abstract class AbstractResourceInterfaceBlock<T extends AEBaseTile> exten
      * Handle neighbor block changes to invalidate capability caches for auto-pull/push cards.
      * Delegates to the tile entity's logic to update the specific facing direction.
      */
+    @SuppressWarnings("deprecation")
     @Override
     public void neighborChanged(@Nonnull IBlockState state, @Nonnull World world, @Nonnull BlockPos pos,
                                 @Nonnull Block blockIn, @Nonnull BlockPos fromPos) {

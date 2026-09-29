@@ -82,7 +82,7 @@ public final class NoChannelsWarningRenderer {
         // Full screen width is used for centering. HORIZONTAL_PADDING constrains
         // the panel's max width and the clamped position so it never touches the
         // very edge of the window.
-        int fullScreenWidth = mc.currentScreen.width;
+        int fullScreenWidth = mc.currentScreen != null ? mc.currentScreen.width : res.getScaledWidth();
         int usableWidth = fullScreenWidth - 2 * HORIZONTAL_PADDING;
         int guiHeight = gui.getYSize();
 

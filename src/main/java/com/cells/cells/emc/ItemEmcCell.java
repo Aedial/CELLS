@@ -139,12 +139,13 @@ public class ItemEmcCell extends Item implements ICellWorkbenchItem, IItemGroup 
     }
 
     @Override
-    public void onCreated(ItemStack stack, World world, EntityPlayer player) {
+    public void onCreated(@Nonnull ItemStack stack, World world, @Nonnull EntityPlayer player) {
         if (!world.isRemote) ensureOwner(stack, player);
     }
 
     @Override
-    public void onUpdate(ItemStack stack, World world, Entity entity, int itemSlot, boolean isSelected) {
+    public void onUpdate(@Nonnull ItemStack stack, World world, @Nonnull Entity entity, int itemSlot,
+            boolean isSelected) {
         if (world.isRemote) return;
         if (!(entity instanceof EntityPlayer)) return;
 

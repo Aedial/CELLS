@@ -1,5 +1,7 @@
 package com.cells.integration.mekanismenergistics;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.capabilities.Capability;
 
@@ -130,6 +132,7 @@ public class PartGasIOInterface extends AbstractIOInterfacePart<GasInterfaceLogi
         }
 
         @Override
+        @Nonnull
         public GasTankInfo[] getTankInfo() {
             GasTankInfo[] importInfo = this.importHandler.getTankInfo();
             GasTankInfo[] exportInfo = this.exportHandler.getTankInfo();

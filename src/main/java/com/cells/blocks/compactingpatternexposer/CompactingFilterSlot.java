@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.LongSupplier;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.minecraft.client.Minecraft;
@@ -66,7 +67,7 @@ public class CompactingFilterSlot extends ItemFilterSlot {
 
     @Override
     @Nullable
-    protected Object getTooltipIngredient(IAEItemStack resource) {
+    protected Object getTooltipIngredient(@Nonnull IAEItemStack resource) {
         return super.getTooltipIngredient(resource);
     }
 }

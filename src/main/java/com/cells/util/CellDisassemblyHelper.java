@@ -137,7 +137,6 @@ public final class CellDisassemblyHelper {
         if (outputs.isEmpty()) return false;
 
         InventoryAdaptor ia = InventoryAdaptor.getAdaptor(player);
-        if (ia == null) return false;
 
         removeOneFromHand(stack, player);
         for (ItemStack output : outputs) returnItem(output, ia, player);

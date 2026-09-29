@@ -110,7 +110,8 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
 
     @Override
     @Nonnull
-    public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, EntityPlayer player, @Nonnull EnumHand hand) {
+    public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, @Nonnull EntityPlayer player,
+            @Nonnull EnumHand hand) {
         ItemStack stack = player.getHeldItem(hand);
         if (player.isSneaking()) {
             return CellDisassemblyHelper.handleRightClick(world, player, hand,

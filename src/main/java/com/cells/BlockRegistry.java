@@ -1,5 +1,7 @@
 package com.cells;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
@@ -207,7 +209,8 @@ public class BlockRegistry {
             // Redirect the in-world block state to use the fixed model
             ModelLoader.setCustomStateMapper(block, new StateMapperBase() {
                 @Override
-                protected ModelResourceLocation getModelResourceLocation(IBlockState state) {
+                @Nonnull
+                protected ModelResourceLocation getModelResourceLocation(@Nonnull IBlockState state) {
                     return new ModelResourceLocation(fixedModel, "normal");
                 }
             });

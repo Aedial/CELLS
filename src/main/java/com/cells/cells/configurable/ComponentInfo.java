@@ -1,6 +1,8 @@
 package com.cells.cells.configurable;
 
 
+import javax.annotation.Nonnull;
+
 /**
  * Immutable data class holding the properties of a recognized ME Storage Component.
  * Determines the base capacity and storage channel of a Configurable Storage Cell.
@@ -8,10 +10,10 @@ package com.cells.cells.configurable;
 public final class ComponentInfo {
 
     private final long bytes;
-    private final ChannelType channelType;
-    private final String tierName;
+    @Nonnull private final ChannelType channelType;
+    @Nonnull private final String tierName;
 
-    public ComponentInfo(long bytes, ChannelType channelType, String tierName) {
+    public ComponentInfo(long bytes, @Nonnull ChannelType channelType, @Nonnull String tierName) {
         this.bytes = bytes;
         this.channelType = channelType;
         this.tierName = tierName;
@@ -30,6 +32,7 @@ public final class ComponentInfo {
     /**
      * The storage channel type of this component.
      */
+    @Nonnull
     public ChannelType getChannelType() {
         return channelType;
     }
@@ -38,6 +41,7 @@ public final class ComponentInfo {
      * Tier name for texture/model selection (e.g., "1k", "64k", "1g").
      * Also used in the tooltip display.
      */
+    @Nonnull
     public String getTierName() {
         return tierName;
     }

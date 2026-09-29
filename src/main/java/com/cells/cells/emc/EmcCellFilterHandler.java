@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -55,6 +56,7 @@ public class EmcCellFilterHandler extends AbstractCreativeCellFilterHandler<Item
     }
 
     @Override
+    @Nonnull
     protected ItemStack createGhostCopy(@Nonnull ItemStack stack) {
         ItemStack copy = stack.copy();
         copy.setCount(1);
@@ -81,9 +83,9 @@ public class EmcCellFilterHandler extends AbstractCreativeCellFilterHandler<Item
     }
 
     @Override
-    public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+    public void setStackInSlot(int slot, @Nullable ItemStack stack) {
         if (slot >= getUnlockedSlots()) return;
-        if (!stack.isEmpty() && !isItemValid(slot, stack)) return;
+        if (stack == null || !stack.isEmpty() && !isItemValid(slot, stack)) return;
 
         super.setStackInSlot(slot, stack.isEmpty() ? ItemStack.EMPTY : ProjectEXUtils.fixOutput(stack));
     }

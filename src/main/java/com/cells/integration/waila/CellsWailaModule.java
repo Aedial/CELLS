@@ -3,6 +3,8 @@ package com.cells.integration.waila;
 import java.util.List;
 import java.util.Optional;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.item.ItemStack;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.math.RayTraceResult;
@@ -40,6 +42,7 @@ public final class CellsWailaModule {
         private final PartAccessor partAccessor = new PartAccessor();
 
         @Override
+        @Nonnull
         public List<String> getWailaBody(ItemStack itemStack,
                                          List<String> currentToolTip,
                                          IWailaDataAccessor accessor,

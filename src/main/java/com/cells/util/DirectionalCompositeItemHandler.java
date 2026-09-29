@@ -1,5 +1,7 @@
 package com.cells.util;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.items.IItemHandler;
 
@@ -27,6 +29,7 @@ public class DirectionalCompositeItemHandler implements IItemHandler {
     }
 
     @Override
+    @Nonnull
     public ItemStack getStackInSlot(int slot) {
         if (slot < 0) return ItemStack.EMPTY;
 
@@ -48,6 +51,7 @@ public class DirectionalCompositeItemHandler implements IItemHandler {
     }
 
     @Override
+    @Nonnull
     public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
         if (stack.isEmpty() || this.importSlotCount <= 0) return stack;
 
@@ -56,6 +60,7 @@ public class DirectionalCompositeItemHandler implements IItemHandler {
     }
 
     @Override
+    @Nonnull
     public ItemStack extractItem(int slot, int amount, boolean simulate) {
         if (amount <= 0 || slot < this.importSlotCount) return ItemStack.EMPTY;
 

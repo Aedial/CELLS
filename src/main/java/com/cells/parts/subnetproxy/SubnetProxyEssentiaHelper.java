@@ -77,14 +77,10 @@ final class SubnetProxyEssentiaHelper {
     }
 
     /** Append essentia handlers from a local cell provider. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static void appendLocalCells(
-            List<IMEInventoryHandler> localEssentiaCells,
+    @SuppressWarnings("rawtypes")
+    static void appendLocalCells(List<IMEInventoryHandler> localEssentiaCells,
             ICellProvider provider) {
-
-        for (IMEInventoryHandler<?> h : provider.getCellArray(getChannel())) {
-            localEssentiaCells.add((IMEInventoryHandler<IAEEssentiaStack>) h);
-        }
+        localEssentiaCells.addAll(provider.getCellArray(getChannel()));
     }
 
     /**

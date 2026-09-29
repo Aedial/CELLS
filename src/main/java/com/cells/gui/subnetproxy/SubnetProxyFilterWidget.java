@@ -185,7 +185,7 @@ public class SubnetProxyFilterWidget extends AbstractResourceFilterSlot<IAEItemS
      * Resolve the underlying real ingredient for the current filter content.
      * <p>
      * Filter contents are stored as {@link IAEItemStack}, but for non-item
-     * types the {@link ItemStack#getDefinition} is a dummy item (FluidDummyItem,
+     * types the {@link IAEItemStack#getDefinition} is a dummy item (FluidDummyItem,
      * ItemDummyGas, ItemDummyAspect) standing in for a fluid / gas / aspect.
      * To get a JEI-style tooltip matching what JEI itself shows on hover, we
      * unwrap the dummy here and hand the real ingredient (FluidStack /

@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.awt.Rectangle;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.block.Block;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.resources.I18n;
@@ -261,7 +263,7 @@ public class GuiSubnetProxy extends AbstractFakeSlotAwareGui implements IJEIGhos
 
         if (upgradeCount <= 8) {
             // Single column
-            int rows = Math.min(upgradeCount, 8);
+            int rows = upgradeCount;
             this.drawTexturedModalRect(offsetX + 177, offsetY + colY, 177, colY, 35, 7 + rows * 18 - 1);
             this.drawTexturedModalRect(offsetX + 177, offsetY + colY + 7 + rows * 18 - 1, 177, capTexY, 35, 7);
         } else if (upgradeCount <= 16) {
@@ -321,7 +323,7 @@ public class GuiSubnetProxy extends AbstractFakeSlotAwareGui implements IJEIGhos
     }
 
     @Override
-    protected void actionPerformed(final GuiButton btn) throws IOException {
+    protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
         super.actionPerformed(btn);
 
         if (btn == this.clearBtn) {

@@ -871,7 +871,7 @@ public class PartSubnetProxyFront extends AEBasePart
 
     /**
      * Grid A reference, stored when listeners are registered.
-     * Used by {@link #isLocalSource} to distinguish local cell changes from
+     * Used by {@link #isPlainLocalSource} to distinguish local cell changes from
      * passthrough-forwarded changes (storage bus → ME Interface → remote grid).
      */
     private IGrid gridA;
@@ -2306,11 +2306,11 @@ public class PartSubnetProxyFront extends AEBasePart
      * <p>
      * Sources are refreshed eagerly (not deferred via the {@code sourcesDirty}
      * flag) precisely because we no longer rely on a Grid B cell-array
-     * refresh to drive a {@link #getCellArray()} call back into
+     * refresh to drive a {@link #getCellArray} call back into
      * {@link #updatePassthroughSources}; without that pull, Grid A listener
      * subscriptions would go stale.
      * <p>
-     * Guarded against recursion: even though we no longer notify on every
+     * Guarded against recursion: even though we do not notify on every
      * call, {@link #updatePassthroughSources} touches grid caches and the
      * insertion-active flip path may still fan out.
      */
@@ -3370,7 +3370,7 @@ public class PartSubnetProxyFront extends AEBasePart
      * <b>Anti-loop guarantee:</b> Changes from passthrough storage buses arrive
      * with a {@link MachineSource} whose machine is on a <em>remote</em> grid
      * (the original source is preserved through {@code MEMonitorPassThrough}).
-     * Our {@link #isLocalSource} check rejects these because the machine's
+     * {@link #isPlainLocalSource} check rejects these because the machine's
      * {@link IGridNode#getGrid()} differs from Grid A. Changes from other
      * {@link PartSubnetProxyFront} instances are also rejected, preventing
      * A↔B bidirectional loops. Only changes originating from machines physically
@@ -3810,7 +3810,7 @@ public class PartSubnetProxyFront extends AEBasePart
      * Register the Grid A listener on the given monitors.
      * Previous listeners must already have been detached by the caller.
      *
-     * @param gridA       Grid A's grid reference, stored for {@link #isLocalSource}
+     * @param gridA       Grid A's grid reference, stored for {@link #isPlainLocalSource}
      * @param itemMonitor Grid A's item monitor
      * @param fluidMonitor Grid A's fluid monitor
      */
@@ -5109,6 +5109,7 @@ public class PartSubnetProxyFront extends AEBasePart
     }
 
     @Override
+    @Nonnull
     public AECableType getCableConnectionType(final AEPartLocation dir) {
         return AECableType.SMART;
     }

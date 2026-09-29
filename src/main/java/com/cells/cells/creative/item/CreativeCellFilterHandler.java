@@ -1,6 +1,7 @@
 package com.cells.cells.creative.item;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -70,9 +71,9 @@ public class CreativeCellFilterHandler
     }
 
     @Override
-    public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
+    public void setStackInSlot(int slot, @Nullable ItemStack stack) {
         // Reject invalid stacks (e.g., storage cells)
-        if (!stack.isEmpty() && !isItemValid(slot, stack)) return;
+        if (stack == null || !stack.isEmpty() && !isItemValid(slot, stack)) return;
 
         super.setStackInSlot(slot, stack);
     }

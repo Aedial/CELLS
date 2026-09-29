@@ -6,6 +6,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
@@ -60,7 +62,7 @@ public class CellOperationRecipe implements IRecipeWrapper {
     }
 
     @Override
-    public void getIngredients(IIngredients ingredients) {
+    public void getIngredients(@Nonnull IIngredients ingredients) {
         List<List<ItemStack>> inputLists = new ArrayList<>();
         if (!headerInput.isEmpty()) inputLists.add(Collections.singletonList(headerInput));
         inputLists.addAll(this.inputLists);
@@ -70,7 +72,8 @@ public class CellOperationRecipe implements IRecipeWrapper {
     }
 
     @Override
-    public void drawInfo(Minecraft minecraft, int recipeWidth, int recipeHeight, int mouseX, int mouseY) {
+    public void drawInfo(@Nonnull Minecraft minecraft, int recipeWidth, int recipeHeight,
+            int mouseX, int mouseY) {
         if (layout == null) return;
 
         int verticalOffset = layout.getVerticalOffset();
@@ -102,6 +105,7 @@ public class CellOperationRecipe implements IRecipeWrapper {
     }
 
     @Override
+    @Nonnull
     public List<String> getTooltipStrings(int mouseX, int mouseY) {
         if (layout == null) return Collections.emptyList();
 

@@ -229,6 +229,7 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     // These methods are shared by all interface parts (Item, Fluid, Gas).
     // They satisfy the interface contracts of IItemInterfaceHost, IFluidInterfaceHost, IGasInterfaceHost.
 
+    @Nonnull
     public AppEngInternalInventory getUpgradeInventory() {
         return this.logic.getUpgradeInventory();
     }

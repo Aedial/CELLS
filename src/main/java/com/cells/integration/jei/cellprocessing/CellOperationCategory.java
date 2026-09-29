@@ -44,7 +44,7 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
     static final ResourceLocation CELL_PREVIEW_TEXTURE = new ResourceLocation(Tags.MODID,
         "textures/items/cells/cell_preview.png");
 
-    public static enum Hint {
+    public enum Hint {
         SHIFT(SHIFT_TEXTURE, "tooltip.cells.shift"),
         RIGHT_CLICK(RIGHT_CLICK_TEXTURE, "tooltip.cells.right_click");
 
@@ -65,7 +65,7 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         }
     }
 
-    public static enum OperationType {
+    public enum OperationType {
         DISASSEMBLY(
             CELL_PREVIEW_TEXTURE,
             Arrays.asList(Hint.SHIFT, Hint.RIGHT_CLICK),
@@ -92,8 +92,7 @@ public class CellOperationCategory implements IRecipeCategory<CellOperationRecip
         @Nullable
         private final Function<CellOperationRecipe, String> footerDispatch;
 
-        private OperationType(@Nullable ResourceLocation iconTexture, @Nullable ItemStack iconStack,
-                              List<Hint> hints, @Nullable Function<CellOperationRecipe, String> footerDispatch) {
+        OperationType(@Nullable ResourceLocation iconTexture, @Nullable ItemStack iconStack, List<Hint> hints, @Nullable Function<CellOperationRecipe, String> footerDispatch) {
             this.iconTexture = iconTexture;
             this.iconStack = iconStack;
             this.hints = hints;

@@ -159,16 +159,17 @@ public final class DisassemblyConfig {
 
                 int separator = line.indexOf('=');
                 if (separator < 1) {
-                    Cells.LOGGER.warn("Malformed disassembly entry at line {}: {}", lineNumber, line);
+                    Cells.LOGGER.warn("Malformed disassembly entry at line {}: '{}'", lineNumber, line);
                     continue;
                 }
 
                 EntryKey entryKey = EntryKey.parse(unquote(line.substring(0, separator).trim()));
                 String outputValue = line.substring(separator + 1).trim();
+                StringBuilder builder = new StringBuilder(outputValue);
                 if (!outputValue.startsWith("[")) {
                     EntryKey aliasKey = EntryKey.parse(unquote(outputValue));
                     if (entryKey == null || aliasKey == null) {
-                        Cells.LOGGER.warn("Malformed disassembly alias at line {}: {}", lineNumber, line);
+                        Cells.LOGGER.warn("Malformed disassembly alias at line {}: '{}'", lineNumber, line);
                         continue;
                     }
 
@@ -178,11 +179,12 @@ public final class DisassemblyConfig {
                         continue;
                     }
 
-                    ENTRIES.put(entryKey.toString(), new ArrayList<>(aliasedOutputs));
+                    putEntry(entryKey, new ArrayList<>(aliasedOutputs));
                     continue;
                 }
 
-                while (!outputValue.endsWith("]")) {
+                int endBracketIndex = outputValue.indexOf(']');
+                while (endBracketIndex < 0) {
                     String continuation = reader.readLine();
                     if (continuation == null) {
                         Cells.LOGGER.warn("Unterminated disassembly outputs at line {}", lineNumber);
@@ -194,23 +196,38 @@ public final class DisassemblyConfig {
                     continuation = continuation.trim();
                     if (continuation.isEmpty() || continuation.startsWith("#")) continue;
 
-                    outputValue += continuation;
+                    commentIndex = continuation.indexOf('#');
+                    if (commentIndex >= 0) continuation = continuation.substring(0, commentIndex).trim();
+
+                    builder.append(continuation);
+                    endBracketIndex = continuation.indexOf(']');
                 }
 
                 if (outputValue == null) continue;
 
-                List<OutputSpec> outputs = parseOutputs(outputValue, lineNumber);
+                List<OutputSpec> outputs = parseOutputs(builder.toString(), lineNumber);
                 if (entryKey == null || outputs == null) continue;
 
-                ENTRIES.put(entryKey.toString(), outputs);
+                putEntry(entryKey, outputs);
             }
         }
+    }
+
+    private static void putEntry(EntryKey entryKey, List<OutputSpec> outputs) {
+        String sourceKey = entryKey.toString();
+        if (ENTRIES.containsKey(sourceKey)) {
+            Cells.LOGGER.warn(
+                "Duplicate disassembly entry for {}. Overwriting previous entry.",
+                sourceKey);
+        }
+
+        ENTRIES.put(sourceKey, outputs);
     }
 
     @Nullable
     private static List<OutputSpec> parseOutputs(String value, int lineNumber) {
         if (!value.startsWith("[") || !value.endsWith("]")) {
-            Cells.LOGGER.warn("Malformed disassembly outputs at line {}: {}", lineNumber, value);
+            Cells.LOGGER.warn("Malformed disassembly outputs at line {}: '{}'", lineNumber, value);
             return null;
         }
 
@@ -220,8 +237,8 @@ public final class DisassemblyConfig {
         List<OutputSpec> outputs = new ArrayList<>();
         for (String valuePart : content.split(",")) {
             OutputSpec output = OutputSpec.parse(unquote(valuePart.trim()));
-            if (output == null) {
-                Cells.LOGGER.warn("Malformed disassembly output at line {}: {}", lineNumber, valuePart.trim());
+            if (output == null || output.itemName.isEmpty()) {
+                Cells.LOGGER.warn("Malformed disassembly output at line {}: '{}'", lineNumber, valuePart.trim());
                 return null;
             }
 
