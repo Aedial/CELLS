@@ -25,7 +25,6 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IItemList;
 import appeng.util.Platform;
 
-import com.latmod.mods.projectex.ProjectEXUtils;
 import com.latmod.mods.projectex.integration.PersonalEMC;
 
 import moze_intel.projecte.api.ProjectEAPI;
@@ -208,7 +207,8 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
     public IAEItemStack injectItems(IAEItemStack input, Actionable mode, IActionSource src) {
         if (input == null) return null;
 
-        FilterEntry filterEntry = getFilterEntry(normalizeDefinition(input));
+        ItemStack normalizedInput = normalizeExactDefinition(input);
+        FilterEntry filterEntry = getFilterEntry(normalizedInput);
 
         if (filterEntry == null) return input;
         if (!ensureRuntimeState(src)) return input;
@@ -238,7 +238,8 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
         // so we cannot assume we can reuse the IAEItemStack from the request.
         // Instead, we copy the cached IAEItemStack prototype from the filter entry,
         // which was built from the normalized ItemStack.
-        FilterEntry filterEntry = getFilterEntry(normalizeDefinition(request));
+        ItemStack normalizedRequest = normalizeExactDefinition(request);
+        FilterEntry filterEntry = getFilterEntry(normalizedRequest);
 
         if (filterEntry == null) return null;
         if (!ensureRuntimeState(src)) return null;
@@ -358,8 +359,18 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
         return this.channel.createStack(filterEntry.prototype);
     }
 
-    private ItemStack normalizeDefinition(IAEItemStack stack) {
-        return normalizeStack(stack.getDefinition());
+    /**
+     * Reject any stack whose exact AE2 identity changes under ProjectE normalization.
+     * Otherwise AE2 can request one stack, while the EMC cell matches and returns a
+     * different canonical ProjectE stack for the same count.
+     * @param stack The stack to normalize
+     * @return The original definition if it is already the exact ProjectE identity, otherwise empty
+     */
+    private ItemStack normalizeExactDefinition(IAEItemStack stack) {
+        ItemStack definition = stack.getDefinition();
+        if (definition.isEmpty()) return ItemStack.EMPTY;
+
+        return EmcCellProjectEHelper.isExactProjectEIdentity(definition) ? definition : ItemStack.EMPTY;
     }
 
     /**
@@ -369,13 +380,7 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
      * @return The normalized stack
      */
     private ItemStack normalizeStack(ItemStack stack) {
-        // fixOutput() handles normalizing the stack to be like what is in knowledge,
-        // e.g. by removing NBT, which could be used to trade between items that rely
-        // on NBT tag to dispatch their types (e.g. Enchanted Books or Vis Crystals).
-        ItemStack normalized = ProjectEXUtils.fixOutput(stack);
-        if (normalized.isEmpty()) return ItemStack.EMPTY;
-
-        return normalized;
+        return EmcCellProjectEHelper.normalizeStack(stack);
     }
 
     /**

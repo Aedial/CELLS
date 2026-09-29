@@ -28,6 +28,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Maybe fix some stale client sync issues in Interfaces, by making the "direction" explicit instead of relying on it being implicitly properly synced in the container, and ensuring all data has been properly sent to the client.
 - Fix Hyper-Density Cells not showing the right per-type value for Equal Distribution.
 - Clean up right-click interactions. Everything that doesn't need priority will give priority to the interacted block.
+- Fix EMC Cell allowing insertion of items that match the filter but are not the same once normalized by ProjectEX (e.g., inventories with contents).
 
 ### Changed
 - Add a 5 ticks minimum delay in Subnet Proxy reset to avoid particularly bad force-update bursts hammering the Proxy every tick, causing expensive rebuilds and network churn.

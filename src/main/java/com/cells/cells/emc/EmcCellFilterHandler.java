@@ -12,8 +12,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
-import com.latmod.mods.projectex.ProjectEXUtils;
-
 import moze_intel.projecte.api.ProjectEAPI;
 
 import com.cells.ItemRegistry;
@@ -85,9 +83,16 @@ public class EmcCellFilterHandler extends AbstractCreativeCellFilterHandler<Item
     @Override
     public void setStackInSlot(int slot, @Nullable ItemStack stack) {
         if (slot >= getUnlockedSlots()) return;
-        if (stack == null || !stack.isEmpty() && !isItemValid(slot, stack)) return;
+        if (stack.isEmpty()) {
+            super.setStackInSlot(slot, ItemStack.EMPTY);
+            return;
+        }
+        if (CellViewHelper.isCell(stack)) return;
 
-        super.setStackInSlot(slot, stack.isEmpty() ? ItemStack.EMPTY : ProjectEXUtils.fixOutput(stack));
+        ItemStack normalized = EmcCellProjectEHelper.normalizeStack(stack);
+        if (!hasEmcValue(normalized)) return;
+
+        super.setStackInSlot(slot, normalized);
     }
 
     @Override
@@ -127,7 +132,12 @@ public class EmcCellFilterHandler extends AbstractCreativeCellFilterHandler<Item
 
         // Only allow items with EMC value, to prevent confusion
         // The specific knowledge of the player cannot be checked here, as we have no world
-        return ProjectEAPI.getEMCProxy().hasValue(ProjectEXUtils.fixOutput(stack));
+        ItemStack normalized = EmcCellProjectEHelper.normalizeStack(stack);
+        return hasEmcValue(normalized);
+    }
+
+    private boolean hasEmcValue(@Nonnull ItemStack stack) {
+        return !stack.isEmpty() && ProjectEAPI.getEMCProxy().hasValue(stack);
     }
 
     public int getUnlockedSlots() {
@@ -174,9 +184,9 @@ public class EmcCellFilterHandler extends AbstractCreativeCellFilterHandler<Item
         for (ItemStack stack : stacks) {
             if (stack.isEmpty()) continue;
 
-            ItemStack normalized = ProjectEXUtils.fixOutput(stack);
+            ItemStack normalized = EmcCellProjectEHelper.normalizeStack(stack);
             if (normalized.isEmpty()) continue;
-            if (!isItemValid(0, normalized)) continue;
+            if (!hasEmcValue(normalized)) continue;
 
             ItemStackKey key = ItemStackKey.of(normalized);
             if (key == null || !knownFilters.add(key)) continue;
