@@ -690,7 +690,7 @@ cells.push_pull_card.limit.tooltip=在相邻容器中为每种物品/流体等�
 
 # Insertion Card (Subnet Proxy upgrade)
 item.cells.insertion_card.name=传入卡
-tooltip.cells.insertion_card.desc=§7允许通过子网络代理回传内容（相反方向）。填充代理的过滤项以避免回传不需要的内容。
+tooltip.cells.insertion_card.desc=§7允许通过子网络代理回传内容（§e确保§7正确配置代理的过滤项！）。此功能用于将内容返回到其存储位置。
 tooltip.cells.type.subnet_proxy=子网络代理
 
 # Pull/Push Upgrade Button (interface GUI)
