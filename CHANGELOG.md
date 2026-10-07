@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.6.10] - 2026-??-??
+### Fixed
+- Fix performance issues with the Compacting Pattern Exposer.
+
+
 ## [0.6.9] - 2026-09-30
 ### Added
 - Add some Subnet Proxy tooltip info for WAILA/TOP.

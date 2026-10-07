@@ -84,6 +84,7 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
     private final long[] patternMultipliers = new long[FILTER_SLOTS];
     private final long[] cachedPatternMultiplierLimits = new long[FILTER_SLOTS];
     private final SlotPatterns[] slotPatterns = new SlotPatterns[FILTER_SLOTS];
+    private final SlotConversions[] slotConversions = new SlotConversions[FILTER_SLOTS];
     private final PatternPreview[] upwardPreviews = new PatternPreview[FILTER_SLOTS];
     private final PatternPreview[] downwardPreviews = new PatternPreview[FILTER_SLOTS];
     private final Map<PatternSignature, IAEItemStack> validatedPatternOutputs =
@@ -94,9 +95,9 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
             }
         };
 
-    private boolean patternsDirty = true;
-    private boolean previewsDirty = true;
-    private boolean multiplierLimitsDirty = true;
+    private final boolean[] patternsDirty = new boolean[FILTER_SLOTS];
+    private final boolean[] previewsDirty = new boolean[FILTER_SLOTS];
+    private final boolean[] multiplierLimitsDirty = new boolean[FILTER_SLOTS];
     private boolean loadingFilters = false;
 
     public TileCompactingPatternExposer() {
@@ -113,13 +114,6 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
     @Override
     public void onReady() {
         super.onReady();
-
-        this.multiplierLimitsDirty = true;
-        boolean multipliersChanged = this.validateAllPatternMultipliers();
-        this.patternsDirty = true;
-        this.previewsDirty = true;
-
-        if (multipliersChanged && !this.world.isRemote) this.markDirty();
 
         this.notifyPatternsChanged();
         this.updateTickState();
@@ -178,11 +172,9 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
         }
 
         this.refreshAllFilterCaches();
-        this.multiplierLimitsDirty = true;
+        this.invalidateAllSlots();
         this.validateAllPatternMultipliers();
         this.validatedPatternOutputs.clear();
-        this.patternsDirty = true;
-        this.previewsDirty = true;
     }
 
     @Override
@@ -226,12 +218,12 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
         if (inv != this.filterInventory) return;
 
         this.refreshFilterCache(slot);
-        this.multiplierLimitsDirty = true;
-        this.clampStoredPatternMultiplier(slot);
-        this.patternsDirty = true;
-        this.previewsDirty = true;
+        if (this.loadingFilters) return;
 
-        if (this.loadingFilters || this.world == null || this.world.isRemote) return;
+        this.invalidateSlot(slot);
+        this.clampStoredPatternMultiplier(slot);
+
+        if (this.world == null || this.world.isRemote) return;
 
         this.markDirty();
         this.notifyPatternsChanged();
@@ -335,7 +327,7 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
     public long getPatternMultiplierLimit(int slot) {
         if (slot < 0 || slot >= FILTER_SLOTS) return MAX_PATTERN_MULTIPLIER;
 
-        this.rebuildPatternMultiplierLimitsIfNeeded();
+        this.rebuildPatternMultiplierLimitIfNeeded(slot);
         return this.cachedPatternMultiplierLimits[slot];
     }
 
@@ -355,8 +347,7 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
         if (this.patternMultipliers[slot] == validated) return;
 
         this.patternMultipliers[slot] = validated;
-        this.patternsDirty = true;
-        this.previewsDirty = true;
+        this.markSlotPatternsDirty(slot);
 
         if (this.world == null || this.world.isRemote) return;
 
@@ -464,107 +455,127 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
     private PatternPreview getPreview(int slot, boolean upward) {
         if (slot < 0 || slot >= FILTER_SLOTS) return null;
 
-        this.rebuildPreviewsIfNeeded();
+        this.rebuildPreviewIfNeeded(slot);
         return upward ? this.upwardPreviews[slot] : this.downwardPreviews[slot];
     }
 
     private void rebuildPatternsIfNeeded() {
-        if (!this.patternsDirty || this.world == null) return;
-
-        this.patternsDirty = false;
-        this.validatedPatternOutputs.clear();
-
-        for (int slot = 0; slot < FILTER_SLOTS; slot++) this.slotPatterns[slot] = null;
-
-        CompactingHelper helper = new CompactingHelper(this.world);
+        if (this.world == null) return;
 
         for (int slot = 0; slot < FILTER_SLOTS; slot++) {
-            IAEItemStack filter = this.cachedFilterStacks[slot];
-            if (filter == null) continue;
+            if (!this.patternsDirty[slot]) continue;
 
-            this.slotPatterns[slot] = new SlotPatterns(
-                this.buildUpwardPattern(helper, slot, filter),
-                this.buildDownwardPattern(helper, slot, filter)
-            );
-
-            this.cacheCurrentPattern(this.slotPatterns[slot].upward);
-            this.cacheCurrentPattern(this.slotPatterns[slot].downward);
+            this.rebuildPatternIfNeeded(slot);
         }
     }
 
-    private void rebuildPreviewsIfNeeded() {
-        if (!this.previewsDirty || this.world == null) return;
+    private void rebuildPatternIfNeeded(int slot) {
+        if (!this.patternsDirty[slot] || this.world == null) return;
 
-        this.previewsDirty = false;
-        Arrays.fill(this.upwardPreviews, null);
-        Arrays.fill(this.downwardPreviews, null);
+        this.patternsDirty[slot] = false;
+        this.removeCachedPatterns(this.slotPatterns[slot]);
+        this.slotPatterns[slot] = null;
+
+        IAEItemStack filter = this.cachedFilterStacks[slot];
+        if (filter == null) return;
+
+        SlotConversions conversions = this.getSlotConversions(slot);
+        this.slotPatterns[slot] = new SlotPatterns(
+            this.buildUpwardPattern(slot, filter, conversions.upward),
+            this.buildDownwardPattern(slot, filter, conversions.downward)
+        );
+
+        this.cacheCurrentPattern(this.slotPatterns[slot].upward);
+        this.cacheCurrentPattern(this.slotPatterns[slot].downward);
+    }
+
+    private void rebuildPreviewIfNeeded(int slot) {
+        if (!this.previewsDirty[slot] || this.world == null) return;
+
+        this.previewsDirty[slot] = false;
+        this.upwardPreviews[slot] = null;
+        this.downwardPreviews[slot] = null;
+
+        IAEItemStack filter = this.cachedFilterStacks[slot];
+        if (filter == null) return;
+
+        SlotConversions conversions = this.getSlotConversions(slot);
+        this.upwardPreviews[slot] = this.buildUpwardPreview(slot, conversions.upward);
+        this.downwardPreviews[slot] = this.buildDownwardPreview(slot, conversions.downward);
+    }
+
+    @Nonnull
+    private SlotConversions getSlotConversions(int slot) {
+        SlotConversions conversions = this.slotConversions[slot];
+        if (conversions != null) return conversions;
+
+        IAEItemStack filter = this.cachedFilterStacks[slot];
+        if (filter == null || this.world == null) return SlotConversions.EMPTY;
 
         CompactingHelper helper = new CompactingHelper(this.world);
-
-        for (int slot = 0; slot < FILTER_SLOTS; slot++) {
-            IAEItemStack filter = this.cachedFilterStacks[slot];
-            if (filter == null) continue;
-
-            this.upwardPreviews[slot] = this.buildUpwardPreview(helper, slot, filter);
-            this.downwardPreviews[slot] = this.buildDownwardPreview(helper, slot, filter);
-        }
-    }
-
-    @Nullable
-    private PatternPreview buildUpwardPreview(CompactingHelper helper, int slot, IAEItemStack filter) {
-        CompactingHelper.Result result = helper.findHigherTier(filter.getDefinition().copy());
-        if (result.getStack().isEmpty()) return null;
-
-        long multiplier = this.getValidatedPatternMultiplier(slot);
-        long inputCount = (long) result.getConversionRate() * multiplier;
-        long outputCount = (long) result.getStack().getCount() * multiplier;
-
-        return this.createPatternPreview(true, result.getStack(), inputCount, outputCount, multiplier);
-    }
-
-    @Nullable
-    private PatternPreview buildDownwardPreview(CompactingHelper helper, int slot, IAEItemStack filter) {
         ItemStack normalizedFilter = filter.getDefinition().copy();
-        CompactingHelper.Result result = helper.findLowerTier(normalizedFilter);
-        if (result.getStack().isEmpty()) return null;
+        normalizedFilter.setCount(1);
 
-        ItemStack output = this.resolveDownwardPatternOutput(normalizedFilter, result);
-        if (output.isEmpty()) return null;
+        CompactingHelper.Result higher = helper.findHigherTier(normalizedFilter.copy());
+        SlotConversion upward = higher.getStack().isEmpty()
+            ? null
+            : new SlotConversion(higher.getStack(), higher.getConversionRate(), higher.getStack().getCount());
 
-        long multiplier = this.getValidatedPatternMultiplier(slot);
-        long inputCount = DEFAULT_PATTERN_MULTIPLIER * multiplier;
-        long outputCount = (long) output.getCount() * multiplier;
+        CompactingHelper.Result lower = helper.findLowerTier(normalizedFilter.copy());
+        ItemStack downwardOutput = lower.getStack().isEmpty()
+            ? ItemStack.EMPTY
+            : this.resolveDownwardPatternOutput(normalizedFilter.copy(), lower);
+        SlotConversion downward = downwardOutput.isEmpty()
+            ? null
+            : new SlotConversion(downwardOutput, DEFAULT_PATTERN_MULTIPLIER, downwardOutput.getCount());
 
-        return this.createPatternPreview(false, output, inputCount, outputCount, multiplier);
+        conversions = new SlotConversions(upward, downward);
+        this.slotConversions[slot] = conversions;
+        return conversions;
     }
 
     @Nullable
-    private ExposedPattern buildUpwardPattern(CompactingHelper helper, int slot, IAEItemStack filter) {
-        CompactingHelper.Result result = helper.findHigherTier(filter.getDefinition().copy());
-        if (result.getStack().isEmpty()) return null;
+    private PatternPreview buildUpwardPreview(int slot, @Nullable SlotConversion conversion) {
+        if (conversion == null) return null;
 
         long multiplier = this.getValidatedPatternMultiplier(slot);
-        ItemStack output = result.getStack().copy();
-        long inputCount = (long) result.getConversionRate() * multiplier;
-        long outputCount = (long) output.getCount() * multiplier;
+        long inputCount = conversion.inputCount * multiplier;
+        long outputCount = conversion.outputCount * multiplier;
 
-        return this.createExposedPattern(true, filter, inputCount, output, outputCount, multiplier);
+        return this.createPatternPreview(true, conversion.output, inputCount, outputCount, multiplier);
     }
 
     @Nullable
-    private ExposedPattern buildDownwardPattern(CompactingHelper helper, int slot, IAEItemStack filter) {
-        ItemStack normalizedFilter = filter.getDefinition().copy();
-        CompactingHelper.Result result = helper.findLowerTier(normalizedFilter);
-        if (result.getStack().isEmpty()) return null;
-
-        ItemStack output = this.resolveDownwardPatternOutput(normalizedFilter, result);
-        if (output.isEmpty()) return null;
+    private PatternPreview buildDownwardPreview(int slot, @Nullable SlotConversion conversion) {
+        if (conversion == null) return null;
 
         long multiplier = this.getValidatedPatternMultiplier(slot);
-        long inputCount = DEFAULT_PATTERN_MULTIPLIER * multiplier;
-        long outputCount = (long) output.getCount() * multiplier;
+        long inputCount = conversion.inputCount * multiplier;
+        long outputCount = conversion.outputCount * multiplier;
 
-        return this.createExposedPattern(false, filter, inputCount, output, outputCount, multiplier);
+        return this.createPatternPreview(false, conversion.output, inputCount, outputCount, multiplier);
+    }
+
+    @Nullable
+    private ExposedPattern buildUpwardPattern(int slot, IAEItemStack filter, @Nullable SlotConversion conversion) {
+        if (conversion == null) return null;
+
+        long multiplier = this.getValidatedPatternMultiplier(slot);
+        long inputCount = conversion.inputCount * multiplier;
+        long outputCount = conversion.outputCount * multiplier;
+
+        return this.createExposedPattern(true, filter, inputCount, conversion.output, outputCount, multiplier);
+    }
+
+    @Nullable
+    private ExposedPattern buildDownwardPattern(int slot, IAEItemStack filter, @Nullable SlotConversion conversion) {
+        if (conversion == null) return null;
+
+        long multiplier = this.getValidatedPatternMultiplier(slot);
+        long inputCount = conversion.inputCount * multiplier;
+        long outputCount = conversion.outputCount * multiplier;
+
+        return this.createExposedPattern(false, filter, inputCount, conversion.output, outputCount, multiplier);
     }
 
     @Nonnull
@@ -765,7 +776,7 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
     }
 
     private long getValidatedPatternMultiplier(int slot) {
-        this.rebuildPatternMultiplierLimitsIfNeeded();
+        this.rebuildPatternMultiplierLimitIfNeeded(slot);
         return this.getValidatedPatternMultiplierFromCache(slot);
     }
 
@@ -795,8 +806,8 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
     }
 
     private boolean clampStoredPatternMultiplier(int slot) {
-        this.rebuildPatternMultiplierLimitsIfNeeded();
-        return this.clampStoredPatternMultiplierFromCache(slot);
+        return this.rebuildPatternMultiplierLimitIfNeeded(slot)
+            || this.clampStoredPatternMultiplierFromCache(slot);
     }
 
     private boolean clampStoredPatternMultiplierFromCache(int slot) {
@@ -806,66 +817,69 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
         if (this.patternMultipliers[slot] == validated) return false;
 
         this.patternMultipliers[slot] = validated;
-        this.patternsDirty = true;
-        this.previewsDirty = true;
+        this.markSlotPatternsDirty(slot);
         return true;
     }
 
     private boolean validateAllPatternMultipliers() {
-        this.rebuildPatternMultiplierLimitsIfNeeded();
-        return this.validateAllPatternMultipliersFromCache();
-    }
-
-    private boolean validateAllPatternMultipliersFromCache() {
         boolean changed = false;
 
         for (int slot = 0; slot < FILTER_SLOTS; slot++) {
-            changed |= this.clampStoredPatternMultiplierFromCache(slot);
+            changed |= this.clampStoredPatternMultiplier(slot);
         }
 
         return changed;
     }
 
-    private void rebuildPatternMultiplierLimitsIfNeeded() {
-        if (!this.multiplierLimitsDirty) return;
+    private boolean rebuildPatternMultiplierLimitIfNeeded(int slot) {
+        if (!this.multiplierLimitsDirty[slot]) return false;
 
-        this.multiplierLimitsDirty = false;
-        Arrays.fill(this.cachedPatternMultiplierLimits, MAX_PATTERN_MULTIPLIER);
+        this.multiplierLimitsDirty[slot] = false;
+        this.cachedPatternMultiplierLimits[slot] = MAX_PATTERN_MULTIPLIER;
 
-        if (this.world == null) return;
+        if (this.world == null || this.cachedFilterStacks[slot] == null) return false;
 
-        CompactingHelper helper = new CompactingHelper(this.world);
-        for (int slot = 0; slot < FILTER_SLOTS; slot++) {
-            IAEItemStack filter = this.cachedFilterStacks[slot];
-            if (filter == null) continue;
+        this.cachedPatternMultiplierLimits[slot] = this.computePatternMultiplierLimit(this.getSlotConversions(slot));
 
-            this.cachedPatternMultiplierLimits[slot] = this.computePatternMultiplierLimit(helper, filter.getDefinition().copy());
-        }
-
-        boolean multipliersChanged = this.validateAllPatternMultipliersFromCache();
-        if (!multipliersChanged || this.world.isRemote) return;
+        boolean multiplierChanged = this.clampStoredPatternMultiplierFromCache(slot);
+        if (!multiplierChanged || this.world.isRemote) return multiplierChanged;
 
         this.markDirty();
+        return true;
     }
 
-    private long computePatternMultiplierLimit(CompactingHelper helper, ItemStack normalizedFilter) {
+    private long computePatternMultiplierLimit(SlotConversions conversions) {
         long limit = MAX_PATTERN_MULTIPLIER;
-        normalizedFilter.setCount(1);
 
-        CompactingHelper.Result higher = helper.findHigherTier(normalizedFilter.copy());
-        if (!higher.getStack().isEmpty()) {
-            limit = Math.min(limit, this.getPatternEncodingLimit(higher.getConversionRate(), higher.getStack().getCount()));
+        if (conversions.upward != null) {
+            limit = Math.min(limit, this.getPatternEncodingLimit(conversions.upward.inputCount,
+                conversions.upward.outputCount));
         }
 
-        CompactingHelper.Result lower = helper.findLowerTier(normalizedFilter.copy());
-        if (!lower.getStack().isEmpty()) {
-            ItemStack output = this.resolveDownwardPatternOutput(normalizedFilter.copy(), lower);
-            if (!output.isEmpty()) {
-                limit = Math.min(limit, this.getPatternEncodingLimit(DEFAULT_PATTERN_MULTIPLIER, output.getCount()));
-            }
+        if (conversions.downward != null) {
+            limit = Math.min(limit, this.getPatternEncodingLimit(conversions.downward.inputCount,
+                conversions.downward.outputCount));
         }
 
         return Math.max(DEFAULT_PATTERN_MULTIPLIER, limit);
+    }
+
+    private void invalidateAllSlots() {
+        Arrays.fill(this.slotConversions, null);
+        Arrays.fill(this.patternsDirty, true);
+        Arrays.fill(this.previewsDirty, true);
+        Arrays.fill(this.multiplierLimitsDirty, true);
+    }
+
+    private void invalidateSlot(int slot) {
+        this.slotConversions[slot] = null;
+        this.multiplierLimitsDirty[slot] = true;
+        this.markSlotPatternsDirty(slot);
+    }
+
+    private void markSlotPatternsDirty(int slot) {
+        this.patternsDirty[slot] = true;
+        this.previewsDirty[slot] = true;
     }
 
     private void refreshAllFilterCaches() {
@@ -888,6 +902,19 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
         if (pattern == null || pattern.signature == null || pattern.cachedOutput == null) return;
 
         this.cacheValidatedPatternOutput(pattern.signature, pattern.cachedOutput);
+    }
+
+    private void removeCachedPatterns(@Nullable SlotPatterns patterns) {
+        if (patterns == null) return;
+
+        this.removeCachedPattern(patterns.upward);
+        this.removeCachedPattern(patterns.downward);
+    }
+
+    private void removeCachedPattern(@Nullable ExposedPattern pattern) {
+        if (pattern == null || pattern.signature == null) return;
+
+        this.validatedPatternOutputs.remove(pattern.signature);
     }
 
     private void cacheValidatedPatternOutput(@Nonnull PatternSignature signature, @Nonnull IAEItemStack output) {
@@ -1031,6 +1058,34 @@ public class TileCompactingPatternExposer extends AENetworkInvTile implements IC
         ItemStack normalized = stack.copy();
         normalized.setCount(1);
         return normalized;
+    }
+
+    private static final class SlotConversions {
+
+        private static final SlotConversions EMPTY = new SlotConversions(null, null);
+
+        @Nullable
+        private final SlotConversion upward;
+        @Nullable
+        private final SlotConversion downward;
+
+        private SlotConversions(@Nullable SlotConversion upward, @Nullable SlotConversion downward) {
+            this.upward = upward;
+            this.downward = downward;
+        }
+    }
+
+    private static final class SlotConversion {
+
+        private final ItemStack output;
+        private final long inputCount;
+        private final long outputCount;
+
+        private SlotConversion(ItemStack output, long inputCount, long outputCount) {
+            this.output = output.copy();
+            this.inputCount = inputCount;
+            this.outputCount = outputCount;
+        }
     }
 
     public static final class PatternPreview {
