@@ -527,7 +527,8 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
         long warningThreshold = NBTSizeHelper.kbToBytes(CellsConfig.general.nbtSizeWarningThresholdKB);
         String formattedNbtSize = NBTSizeHelper.formatSize(nbtSize);
         String nbtLabelKey = NBTSizeHelper.getSizeTooltipTranslationKey(nbtSize, warningThreshold);
-        String nbtLabel = I18n.format(nbtLabelKey, formattedNbtSize);
+        String nbtLimit = NBTSizeHelper.formatSize(warningThreshold);
+        String nbtLabel = I18n.format(nbtLabelKey, formattedNbtSize, nbtLimit);
 
         // replace colors for dark background -> light background
         nbtLabel = nbtLabel.replace("§c", "§4").replace("§e", "§6").replace("§a", "§2");
@@ -536,7 +537,7 @@ public class CellViewCategory implements IRecipeCategory<CellViewRecipe>, IRecip
 
         // Draw warning icon if NBT size exceeds threshold
         if (NBTSizeHelper.exceedsThreshold(nbtSize, warningThreshold)) {
-            int nbtLabelWidth = font.getStringWidth(I18n.format(nbtLabelKey, formattedNbtSize));
+            int nbtLabelWidth = font.getStringWidth(I18n.format(nbtLabelKey, formattedNbtSize, nbtLimit));
             GlStateManager.color(1f, 1f, 1f, 1f);
             warningIcon.draw(minecraft, leftMargin + nbtLabelWidth + 2, y);
         }

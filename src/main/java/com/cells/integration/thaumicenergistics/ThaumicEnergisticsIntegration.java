@@ -153,7 +153,7 @@ public final class ThaumicEnergisticsIntegration {
                         tooltip.add("");
                         tooltip.add(I18n.format(
                             NBTSizeHelper.getSizeTooltipTranslationKey(nbtSize, warningThreshold),
-                            NBTSizeHelper.formatSize(nbtSize)));
+                            NBTSizeHelper.formatSize(nbtSize), NBTSizeHelper.formatSize(warningThreshold)));
 
                         if (NBTSizeHelper.exceedsThreshold(nbtSize, warningThreshold)) {
                             tooltip.add(I18n.format("tooltip.cells.nbt_size.warning"));
