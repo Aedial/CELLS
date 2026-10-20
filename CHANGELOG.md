@@ -11,6 +11,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ## [0.6.10] - 2026-??-??
 ### Fixed
 - Fix performance issues with the Compacting Pattern Exposer.
+- Fix cards dropping when the Subnet Proxy is disassembled with a wrench, duplicating the cards (disassembly saves the block state, including the cards).
 
 
 ## [0.6.9] - 2026-09-30

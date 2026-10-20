@@ -5216,6 +5216,8 @@ public class PartSubnetProxyFront extends AEBasePart
 
     @Override
     public void getDrops(final List<ItemStack> drops, final boolean wrenched) {
+        if (wrenched) return;
+
         for (int i = 0; i < this.upgrades.getSlots(); i++) {
             ItemStack stack = this.upgrades.getStackInSlot(i);
             if (!stack.isEmpty()) drops.add(stack);
