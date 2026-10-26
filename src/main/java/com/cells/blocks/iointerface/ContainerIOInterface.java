@@ -171,7 +171,8 @@ public class ContainerIOInterface extends AEBaseContainer
         // Add upgrade slots (backed by the switchable inventory)
         int upgradeSlots = this.switchableUpgradeInv.getSlots();
         for (int i = 0; i < upgradeSlots; i++) {
-            this.addSlotToContainer(new SlotUpgrade(this.switchableUpgradeInv, i, 186, 25 + i * 18));
+            this.addSlotToContainer(new SlotUpgrade(this.switchableUpgradeInv, i,
+                186 + i / 4 * 20, 25 + i % 4 * 18));
         }
 
         // Bind player inventory

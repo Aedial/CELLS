@@ -18,6 +18,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
 import net.minecraftforge.fml.relauncher.Side;
@@ -175,6 +176,12 @@ public abstract class AbstractResourceInterfaceBlock<T extends AEBaseTile> exten
         }
 
         return true;
+    }
+
+    @Override
+    public boolean canConnectRedstone(IBlockState state, IBlockAccess world, BlockPos pos,
+                                      @Nullable EnumFacing side) {
+        return side != null;
     }
 
     /**

@@ -12,6 +12,7 @@ import appeng.me.helpers.AENetworkProxy;
 import appeng.tile.inventory.AppEngInternalInventory;
 import appeng.util.inv.IAEAppEngInventory;
 
+import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.items.upgrades.ItemAutoPullCard;
 import com.cells.items.upgrades.ItemAutoPushCard;
 import com.cells.items.upgrades.ItemOverflowCard;
@@ -21,12 +22,12 @@ import com.cells.util.TickManagerHelper;
 
 /**
  * Manages upgrade cards installed in an interface: overflow, trash unselected,
- * auto-pull/push, and capacity cards. Reads card NBT for interval/quantity
+ * auto-pull/push, capacity, redstone, and inverter cards. Reads card NBT for interval/quantity
  * settings and notifies the parent logic when card state changes.
  */
 public class InterfaceUpgradeManager {
 
-    public static final int UPGRADE_SLOTS = 4;
+    public static final int UPGRADE_SLOTS = 8;
 
     /**
      * Callback interface for the parent logic to receive upgrade change notifications.
@@ -68,6 +69,9 @@ public class InterfaceUpgradeManager {
     /** Whether trash unselected upgrade is installed (import only). */
     private boolean installedTrashUnselectedUpgrade = false;
 
+    private boolean installedRedstoneUpgrade = false;
+    private boolean installedInverterUpgrade = false;
+
     /** Whether auto-pull/push upgrade is installed. */
     private boolean installedAutoPushPullUpgrade = false;
 
@@ -90,6 +94,14 @@ public class InterfaceUpgradeManager {
             @Override
             public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
                 return InterfaceUpgradeManager.this.isValidUpgrade(stack);
+            }
+
+            @Nonnull
+            @Override
+            public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate) {
+                if (!this.isItemValid(slot, stack)) return stack;
+
+                return super.insertItem(slot, stack, simulate);
             }
         };
     }
@@ -126,6 +138,14 @@ public class InterfaceUpgradeManager {
         return this.installedAutoPushPullUpgrade;
     }
 
+    public boolean hasRedstoneUpgrade() {
+        return this.installedRedstoneUpgrade;
+    }
+
+    public boolean hasInverterUpgrade() {
+        return this.installedInverterUpgrade;
+    }
+
     public int getAutoPullPushInterval() {
         return this.autoPullPushInterval;
     }
@@ -150,6 +170,9 @@ public class InterfaceUpgradeManager {
      * updates the capability cache and re-registers the tick rate.
      */
     public void refreshUpgrades() {
+        this.installedRedstoneUpgrade = countUpgrade(Upgrades.REDSTONE) > 0;
+        this.installedInverterUpgrade = countUpgrade(Upgrades.INVERTER) > 0;
+
         if (!this.isExport) {
             this.installedOverflowUpgrade = countUpgrade(ItemOverflowCard.class) > 0;
             this.installedTrashUnselectedUpgrade = countUpgrade(ItemTrashUnselectedCard.class) > 0;
@@ -183,7 +206,7 @@ public class InterfaceUpgradeManager {
         }
 
         int oldCapacityCount = this.installedCapacityUpgrades;
-        this.installedCapacityUpgrades = countCapacityUpgrades();
+        this.installedCapacityUpgrades = countUpgrade(Upgrades.CAPACITY);
 
         // Handle capacity card removal
         if (this.installedCapacityUpgrades < oldCapacityCount) {
@@ -196,7 +219,7 @@ public class InterfaceUpgradeManager {
 
     /**
      * Re-register with the AE2 tick manager to apply changed tick rate bounds.
-     * Called when the card is installed, removed, or its interval changes.
+     * Called when the auto-pull/push card is installed, removed, or its interval changes.
      */
     private void reRegisterTickRate() {
         AENetworkProxy proxy = this.callbacks.getGridProxy();
@@ -220,7 +243,7 @@ public class InterfaceUpgradeManager {
         return count;
     }
 
-    private int countCapacityUpgrades() {
+    private int countUpgrade(Upgrades upgrade) {
         int count = 0;
         for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
             ItemStack stack = this.upgradeInventory.getStackInSlot(i);
@@ -228,7 +251,7 @@ public class InterfaceUpgradeManager {
             if (!(stack.getItem() instanceof IUpgradeModule)) continue;
 
             IUpgradeModule module = (IUpgradeModule) stack.getItem();
-            if (module.getType(stack) == Upgrades.CAPACITY) count++;
+            if (module.getType(stack) == upgrade) count++;
         }
 
         return count;
@@ -282,10 +305,17 @@ public class InterfaceUpgradeManager {
             return countUpgrade(ItemAutoPushCard.class) < 1;
         }
 
-        // Capacity card (both import and export)
+        // Capacity, redstone, and inverter cards support both import and export
         if (stack.getItem() instanceof IUpgradeModule) {
             IUpgradeModule module = (IUpgradeModule) stack.getItem();
-            if (module.getType(stack) == Upgrades.CAPACITY) return true;
+            Upgrades upgrade = module.getType(stack);
+            if (upgrade == Upgrades.CAPACITY) {
+                return countUpgrade(upgrade) < AbstractResourceInterfaceLogic.MAX_CAPACITY_CARDS;
+            }
+
+            if (upgrade == Upgrades.REDSTONE || upgrade == Upgrades.INVERTER) {
+                return countUpgrade(upgrade) < 1;
+            }
         }
 
         return false;

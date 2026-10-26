@@ -17,6 +17,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraftforge.items.IItemHandler;
 
 import appeng.api.config.Upgrades;
+import appeng.api.implementations.items.IUpgradeModule;
 import appeng.core.settings.TickRates;
 import appeng.util.ReadableNumberConverter;
 
@@ -265,6 +266,7 @@ public abstract class AbstractProbeTooltipHelper<T> {
             if (interfaceHost == null) continue;
 
             acceptLine(sink, buildInterfaceBehaviorLine(interfaceHost));
+            acceptLine(sink, buildInterfaceRedstoneLine(interfaceHost));
         }
     }
 
@@ -418,6 +420,22 @@ public abstract class AbstractProbeTooltipHelper<T> {
             "tooltip.cells.probe.filters",
             literal(Integer.toString(Math.max(configuredFilters, 0))),
             literal(Integer.toString(Math.max(totalFilters, 0))));
+    }
+
+    @Nullable
+    private LocalizedTooltipText buildInterfaceRedstoneLine(IInterfaceHost interfaceHost) {
+        if (!(interfaceHost instanceof IInterfaceTooltipView)) return null;
+        if (!hasInterfaceUpgradeCard(interfaceHost, Upgrades.REDSTONE)) return null;
+
+        boolean inverted = hasInterfaceUpgradeCard(interfaceHost, Upgrades.INVERTER);
+        boolean active = ((IInterfaceTooltipView) interfaceHost).isTooltipRedstonePowered() != inverted;
+        String key = "tooltip.cells.probe.interface.redstone";
+
+        if (interfaceHost.isDirectionalView()) key += interfaceHost.isExport() ? ".export" : ".import";
+        if (inverted) key += ".inverted";
+
+        return translate(key, translate(active
+            ? "tooltip.cells.probe.state.active" : "tooltip.cells.probe.state.inactive"));
     }
 
     @Nullable
@@ -651,6 +669,21 @@ public abstract class AbstractProbeTooltipHelper<T> {
         }
 
         return fallback;
+    }
+
+    private boolean hasInterfaceUpgradeCard(IInterfaceHost interfaceHost, Upgrades upgrade) {
+        IItemHandler upgradeInventory = interfaceHost.getUpgradeInventory();
+        if (upgradeInventory == null) return false;
+
+        for (int slot = 0; slot < upgradeInventory.getSlots(); slot++) {
+            ItemStack stack = upgradeInventory.getStackInSlot(slot);
+            if (stack.isEmpty() || !(stack.getItem() instanceof IUpgradeModule)) continue;
+
+            IUpgradeModule module = (IUpgradeModule) stack.getItem();
+            if (module.getType(stack) == upgrade) return true;
+        }
+
+        return false;
     }
 
     private boolean hasInterfaceUpgradeCard(IInterfaceHost interfaceHost, Class<?> cardType) {

@@ -161,7 +161,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
         // Add upgrade slots (shared inventory across all logics)
         AppEngInternalInventory upgradeInv = host.getItemLogic().getUpgradeInventory();
         for (int i = 0; i < upgradeInv.getSlots(); i++) {
-            this.addSlotToContainer(new SlotUpgrade(upgradeInv, i, 186, 25 + i * 18));
+            this.addSlotToContainer(new SlotUpgrade(upgradeInv, i, 186 + i / 4 * 20, 25 + i % 4 * 18));
         }
 
         // Bind player inventory

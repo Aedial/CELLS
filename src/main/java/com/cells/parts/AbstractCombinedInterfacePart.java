@@ -472,6 +472,11 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
     // ============================== Neighbor ==============================
 
     @Override
+    public boolean canConnectRedstone() {
+        return true;
+    }
+
+    @Override
     public void onNeighborChanged(IBlockAccess w, BlockPos pos, BlockPos neighbor) {
         for (IInterfaceLogic logic : this.allLogics) {
             if (logic instanceof AbstractResourceInterfaceLogic) {

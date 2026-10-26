@@ -248,6 +248,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             @Override public boolean performNetworkIO() { return host.isExport() ? inventoryManager.exportResources() : inventoryManager.importResources(); }
             @Override public boolean performAutoPullPush() { return AbstractResourceInterfaceLogic.this.performAutoPullPush(); }
             @Override public boolean hasWorkToDo() { return inventoryManager.hasWorkToDo(); }
+            @Override public boolean isRedstoneEnabled() { return AbstractResourceInterfaceLogic.this.isRedstoneEnabled(); }
         };
     }
 
@@ -1302,6 +1303,15 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     }
 
     // ============================== Tick handling ==============================
+
+    private boolean isRedstoneEnabled() {
+        if (!this.upgradeManager.hasRedstoneUpgrade()) return true;
+
+        World world = this.host.getHostWorld();
+        if (world == null) return false;
+
+        return world.isBlockPowered(this.host.getHostPos()) != this.upgradeManager.hasInverterUpgrade();
+    }
 
     /**
      * Create a TickingRequest based on current configuration.

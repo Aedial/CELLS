@@ -54,6 +54,8 @@ public class InterfaceTickScheduler {
 
         /** Check if there's work to do (import has resources, export needs resources). */
         boolean hasWorkToDo();
+
+        public boolean isRedstoneEnabled();
     }
 
     private final Callbacks callbacks;
@@ -221,6 +223,9 @@ public class InterfaceTickScheduler {
      * When the card has no adjacent targets, the caller passes {@code false} for
      * {@code hasAutoPullPushUpgrade}, causing this method to use the normal (no-card)
      * scheduling path where network IO runs every tick and the interface can sleep.
+     * <p>
+     * If a Redstone card is installed, it can skip the auto-pull/push and network I/O
+     * while its redstone signal is inactive.
      *
      * @param ticksSinceLastCall Number of ticks since this method was last called (from AE2 tick manager)
      * @param hasAutoPullPushUpgrade Whether the auto-pull/push card is effective
@@ -247,12 +252,13 @@ public class InterfaceTickScheduler {
         this.totalElapsedTicks += ticksSinceLastCall;
 
         boolean didNetworkWork = false;
+        boolean redstoneEnabled = this.callbacks.isRedstoneEnabled();
 
         // === Card operation (auto-pull/push) ===
         if (canPullPush) {
             long ticksSinceLastCard = this.totalElapsedTicks - this.lastCardOperationTick;
             if (ticksSinceLastCard >= autoPullPushInterval) {
-                this.callbacks.performAutoPullPush();
+                if (redstoneEnabled) this.callbacks.performAutoPullPush();
                 this.lastCardOperationTick = this.totalElapsedTicks;
             }
         }
@@ -276,7 +282,7 @@ public class InterfaceTickScheduler {
         }
 
         if (shouldDoNetworkIO) {
-            didNetworkWork = this.callbacks.performNetworkIO();
+            if (redstoneEnabled) didNetworkWork = this.callbacks.performNetworkIO();
             this.lastNetworkIOTick = this.totalElapsedTicks;
         }
 
@@ -286,12 +292,13 @@ public class InterfaceTickScheduler {
             if (this.pollingRate > 0) return TickRateModulation.SAME;
 
             // Adaptive + card: if network I/O did work, go faster; otherwise maintain SAME
-            // to keep the card timer advancing. Never sleep with a card installed.
+            // to keep the card timer advancing.
             if (didNetworkWork) return TickRateModulation.FASTER;
 
             // Check if we should slow down while keeping card timer alive
             // We are hard-capped by the card interval in getTickingRequest(),
             // so we won't wait longer than the card allows.
+            // Never sleep with an I/O card installed, only slow down to limit.
             boolean hasIOWork = this.callbacks.hasWorkToDo();
             return hasIOWork ? TickRateModulation.SAME : TickRateModulation.SLOWER;
         }

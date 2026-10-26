@@ -25,4 +25,6 @@ public interface IInterfaceTooltipView {
      * Used for tooltip display purposes only.
      */
     Collection<EnumFacing> getTooltipAutoTransferFacings();
+
+    public boolean isTooltipRedstonePowered();
 }

@@ -537,6 +537,11 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
     // ============================== Neighbor ==============================
 
     @Override
+    public boolean canConnectRedstone() {
+        return true;
+    }
+
+    @Override
     public void onNeighborChanged(IBlockAccess w, BlockPos pos, BlockPos neighbor) {
         for (IInterfaceLogic logic : this.allLogicsList) {
             if (logic instanceof AbstractResourceInterfaceLogic) {

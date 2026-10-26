@@ -510,6 +510,11 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     // ============================== Neighbor change delegation ==============================
 
     @Override
+    public boolean canConnectRedstone() {
+        return true;
+    }
+
+    @Override
     public void onNeighborChanged(IBlockAccess w, BlockPos pos, BlockPos neighbor) {
         if (this.logic instanceof AbstractResourceInterfaceLogic) {
             ((AbstractResourceInterfaceLogic<?, ?, ?>) this.logic).onNeighborChanged(neighbor);

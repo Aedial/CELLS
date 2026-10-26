@@ -25,6 +25,7 @@ import net.minecraftforge.items.IItemHandler;
 import appeng.client.gui.widgets.GuiCustomSlot;
 import appeng.container.AEBaseContainer;
 import appeng.container.interfaces.IJEIGhostIngredients;
+import appeng.container.slot.AppEngSlot;
 
 import mezz.jei.api.gui.IGhostIngredientHandler.Target;
 
@@ -45,6 +46,7 @@ import com.cells.gui.GuiPageNavigation;
 import com.cells.gui.GuiPullPushUpgradeButton;
 import com.cells.gui.GuiRecipeTransferDirectionButton;
 import com.cells.gui.ImportInterfaceControlsHelper;
+import com.cells.gui.InterfaceUpgradeTooltipHelper;
 import com.cells.gui.IToolboxContainer;
 import com.cells.gui.slots.AbstractResourceFilterSlot;
 import com.cells.gui.slots.AbstractResourceTankSlot;
@@ -119,7 +121,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
     public static final int POLLING_ACTION_BUTTON_X_NO_TOOLBOX = 186;
     public static final int POLLING_ACTION_BUTTON_Y_NO_TOOLBOX = 157;
-    public static final int POLLING_ACTION_BUTTON_X_WITH_TOOLBOX = 214;
+    public static final int POLLING_ACTION_BUTTON_X_WITH_TOOLBOX = 206;
     public static final int POLLING_ACTION_BUTTON_Y_WITH_TOOLBOX = 106;
     private static final int MIN_CARD_NETWORK_IO_INTERVAL = 20;
 
@@ -134,7 +136,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         this.container = container;
         this.host = host;
         this.ySize = 256;
-        this.xSize = 210;
+        this.xSize = 230;
     }
 
     // ============================== Abstract methods ==============================
@@ -490,8 +492,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             ImportInterfaceControlsHelper.drawControlsHelpWidget(
                 this.fontRenderer,
                 this.guiLeft,
-                this.guiTop,
-                !isActiveTabExport()
+                this.guiTop
             );
         }
     }
@@ -502,23 +503,31 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         ResourceLocation texture = hasToolbox ? BACKGROUND_TEXTURE_WITH_CARDS : BACKGROUND_TEXTURE;
 
         this.mc.getTextureManager().bindTexture(texture);
+
+        // Draw both upgrade columns and the refresh button's border from the texture
         this.drawTexturedModalRect(offsetX, offsetY, 0, 0, this.xSize, this.ySize);
 
-        // Draw toolbox extension area (x=210-246, y=149-216)
+        // Draw toolbox extension area (x=230-246, y=149-216)
         // The toolbox slots are at 186+3*18=240 max x, and y=156+3*18=210 max y
-        // This extends past the main xSize (210), so we need an additional draw call
-        // to render the portion from x=210 to x=246 (36 pixels wide), y=149 to y=216 (67 pixels tall)
+        // This extends past the main xSize (230), so we need an additional draw call
+        // to render the portion from x=230 to x=246 (16 pixels wide), y=149 to y=216 (67 pixels tall)
         if (hasToolbox) {
-            // Draw the extension from the same texture, sampling from x=210 in the texture
-            this.drawTexturedModalRect(offsetX + 210, offsetY + 149, 210, 149, 36, 67);
-
-            // Draw the refresh button's border (16x16 button + 8px padding) at the correct position
-            int padding = 8;
-            int size = 16 + 2 * padding;
-            int buttonX = POLLING_ACTION_BUTTON_X_WITH_TOOLBOX - padding;
-            int buttonY = POLLING_ACTION_BUTTON_Y_WITH_TOOLBOX - padding;
-            this.drawTexturedModalRect(offsetX + buttonX, offsetY + buttonY, buttonX, buttonY, size, size);
+            // Draw the extension from the same texture, sampling from x=230 in the texture
+            this.drawTexturedModalRect(offsetX + 230, offsetY + 149, 230, 149, 16, 67);
         }
+    }
+
+    @Override
+    protected void renderHoveredToolTip(int mouseX, int mouseY) {
+        Slot slot = this.getRealSlotUnderMouse();
+        if (slot instanceof AppEngSlot && !slot.getHasStack()
+            && ((AppEngSlot) slot).getItemHandler() == this.getUpgradeInventory()) {
+            this.drawHoveringText(InterfaceUpgradeTooltipHelper.getTooltip(
+                this.fontRenderer, this.isActiveTabExport(), this.host.isPart()), mouseX, mouseY);
+            return;
+        }
+
+        super.renderHoveredToolTip(mouseX, mouseY);
     }
 
     @Override
@@ -643,7 +652,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     /**
      * Provide JEI exclusion areas for the toolbox extension.
      * <p>
-     * When the toolbox is present, it extends past the main GUI area (x=210-246, y=149-216).
+     * When the toolbox is present, it extends past the main GUI area (x=230-246, y=149-216).
      * This tells JEI to avoid drawing items in that region.
      */
     @Override
@@ -655,8 +664,7 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
             Rectangle controlsBounds = ImportInterfaceControlsHelper.getBounds(
                 this.fontRenderer,
                 this.guiLeft,
-                this.guiTop,
-                !isActiveTabExport()
+                this.guiTop
             );
 
             if (controlsBounds.width > 0 && controlsBounds.height > 0) areas.add(controlsBounds);
@@ -666,21 +674,9 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         boolean hasToolbox = this.hasToolbox();
 
         if (hasToolbox) {
-            // Toolbox extension: x=210-246 (36px width), y=149-216 (67px height)
+            // Toolbox extension: x=230-246 (16px width), y=149-216 (67px height)
             // Offset by guiLeft and guiTop for screen coordinates
-            areas.add(new Rectangle(this.guiLeft + 210, this.guiTop + 149, 36, 67));
-        }
-
-        if (this.pollingActionButton != null && this.pollingActionButton.visible) {
-            Rectangle buttonBounds = new Rectangle(
-                this.pollingActionButton.x,
-                this.pollingActionButton.y,
-                this.pollingActionButton.getWidth(),
-                this.pollingActionButton.getHeight()
-            );
-            Rectangle mainGuiBounds = new Rectangle(this.guiLeft, this.guiTop, this.xSize, this.ySize);
-
-            if (!mainGuiBounds.contains(buttonBounds)) areas.add(buttonBounds);
+            areas.add(new Rectangle(this.guiLeft + 230, this.guiTop + 149, 16, 67));
         }
 
         return areas;
@@ -844,21 +840,25 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
         this.pullPushButton.enabled = true;
     }
 
-    @SuppressWarnings("rawtypes")
     private ItemStack findPullPushCard() {
-        if (this.host instanceof IIOInterfaceHost && this.container instanceof ContainerIOInterface) {
-            return findCardIn(((ContainerIOInterface) this.container).getUpgradeInventoryView());
-        }
+        IItemHandler upgradeInventory = this.getUpgradeInventory();
+        return upgradeInventory != null ? findCardIn(upgradeInventory) : ItemStack.EMPTY;
+    }
 
-        IItemHandler upgradeInventory = null;
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    private IItemHandler getUpgradeInventory() {
+        if (this.host instanceof IIOInterfaceHost && this.container instanceof ContainerIOInterface) {
+            return ((ContainerIOInterface) this.container).getUpgradeInventoryView();
+        }
 
         if (this.host instanceof IFilterableInterfaceHost) {
-            upgradeInventory = ((IFilterableInterfaceHost) this.host).getUpgradeInventory();
+            return ((IFilterableInterfaceHost) this.host).getUpgradeInventory();
         } else if (this.host instanceof ICombinedInterfaceHost) {
-            upgradeInventory = ((ICombinedInterfaceHost) this.host).getItemLogic().getUpgradeInventory();
+            return ((ICombinedInterfaceHost) this.host).getItemLogic().getUpgradeInventory();
         }
 
-        return upgradeInventory != null ? findCardIn(upgradeInventory) : ItemStack.EMPTY;
+        return null;
     }
 
     private static ItemStack findCardIn(IItemHandler inventory) {

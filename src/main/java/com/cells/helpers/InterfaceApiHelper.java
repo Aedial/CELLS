@@ -565,6 +565,12 @@ public final class InterfaceApiHelper {
             return this.logic.getMaxSlotSize();
         }
 
+        @Override
+        public boolean isTooltipRedstonePowered() {
+            World world = this.owner.getHostWorld();
+            return world != null && world.isBlockPowered(this.owner.getHostPos());
+        }
+
         @Nonnull
         @Override
         public Collection<EnumFacing> getTooltipAutoTransferFacings() {

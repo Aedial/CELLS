@@ -31,9 +31,9 @@ public class ImportInterfaceControlsHelper {
      * Wrap help lines to fit within {@code textWidth} and truncate to fit within the
      * scaled screen height. Single source of truth shared by getBounds and drawControlsHelpWidget.
      */
-    private static List<String> computeWrappedLines(FontRenderer fontRenderer, int textWidth, boolean cardsHelp) {
+    private static List<String> computeWrappedLines(FontRenderer fontRenderer, int textWidth) {
         List<String> wrappedLines = new ArrayList<>();
-        for (String line : getHelpLines(cardsHelp)) {
+        for (String line : getHelpLines()) {
             if (line.isEmpty()) {
                 wrappedLines.add("");
             } else {
@@ -56,24 +56,15 @@ public class ImportInterfaceControlsHelper {
     }
 
     /**
-     * Generate help lines for the Import Interface.
+     * Generate shared controls help for import and export interfaces.
      *
-     * @param cardsHelp Whether to include help for upgrade cards
+     * Upgrade card help appears in empty-slot tooltips.
      * @return List of formatted help lines
      */
-    public static List<String> getHelpLines(boolean cardsHelp) {
+    public static List<String> getHelpLines() {
         List<String> lines = new ArrayList<>();
 
         lines.add(I18n.format("cells.controls.use_settings"));
-        lines.add("");
-
-        lines.add(I18n.format("cells.controls.capacity_cards"));
-        if (cardsHelp) {
-            lines.add(I18n.format("cells.controls.use_cards"));
-            lines.add("");
-        }
-
-        lines.add(I18n.format("cells.controls.push_pull_cards"));
         lines.add("");
 
         // Memory card section
@@ -109,20 +100,14 @@ public class ImportInterfaceControlsHelper {
      * @param fontRenderer Font renderer (needed for text wrapping calculations)
      * @param guiLeft Left position of the main GUI
      * @param guiTop Top position of the main GUI
-     * @param cardsHelp Whether upgrade card help lines are included
      * @return The bounding rectangle in screen coordinates, or a zero-size rectangle if empty
      */
-    public static Rectangle getBounds(
-            FontRenderer fontRenderer,
-            int guiLeft,
-            int guiTop,
-            boolean cardsHelp) {
-
+    public static Rectangle getBounds(FontRenderer fontRenderer, int guiLeft, int guiTop) {
         int panelWidth = guiLeft - RIGHT_MARGIN - LEFT_MARGIN;
         if (panelWidth < 60) panelWidth = 60;
 
         int textWidth = panelWidth - (PADDING * 2);
-        List<String> wrappedLines = computeWrappedLines(fontRenderer, textWidth, cardsHelp);
+        List<String> wrappedLines = computeWrappedLines(fontRenderer, textWidth);
         if (wrappedLines.isEmpty()) return new Rectangle(0, 0, 0, 0);
 
         int panelHeight = wrappedLines.size() * LINE_HEIGHT + (PADDING * 2);
@@ -141,18 +126,14 @@ public class ImportInterfaceControlsHelper {
      * @param guiLeft Left position of the main GUI
      * @param guiTop Top position of the main GUI
      */
-    public static void drawControlsHelpWidget(
-            FontRenderer fontRenderer,
-            int guiLeft,
-            int guiTop,
-            boolean cardsHelp) {
+    public static void drawControlsHelpWidget(FontRenderer fontRenderer, int guiLeft, int guiTop) {
 
         // Calculate panel width
         int panelWidth = guiLeft - RIGHT_MARGIN - LEFT_MARGIN;
         if (panelWidth < 60) panelWidth = 60;
 
         int textWidth = panelWidth - (PADDING * 2);
-        List<String> wrappedLines = computeWrappedLines(fontRenderer, textWidth, cardsHelp);
+        List<String> wrappedLines = computeWrappedLines(fontRenderer, textWidth);
         if (wrappedLines.isEmpty()) return;
 
         // Calculate positions (relative to GUI left)
@@ -184,9 +165,7 @@ public class ImportInterfaceControlsHelper {
             if (lineY + LINE_HEIGHT > panelBottom - PADDING) break;
 
             String line = wrappedLines.get(i);
-            if (!line.isEmpty()) {
-                fontRenderer.drawString(line, textX, lineY, 0xCCCCCC);
-            }
+            if (!line.isEmpty()) fontRenderer.drawString(line, textX, lineY, 0xCCCCCC);
         }
     }
 }
