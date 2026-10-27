@@ -2439,7 +2439,7 @@ public class PartSubnetProxyFront extends AEBasePart
      * For anti-looping logic, see {@link SubnetProxyInventoryHandler}.
      * <p>
      * Only called when {@code sourcesDirty} is true (Grid A cell array update
-     * forwarded by the back part, or initial placement). Cost: O(nodes) per
+     * forwarded by the back part, or initial placement). Cost: O(classes + provider nodes) per
      * invocation, amortized to O(1) between grid events.
      */
     private void updatePassthroughSources() {
@@ -2517,48 +2517,53 @@ public class PartSubnetProxyFront extends AEBasePart
                 List<PartSubnetProxyFront> newPeers = new ArrayList<>();
                 Set<IActionHost> newKnownLocalProviders = Collections.newSetFromMap(new IdentityHashMap<>());
 
-                for (IGridNode node : gridA.getNodes()) {
-                    IGridHost host = node.getMachine();
-                    if (!(host instanceof ICellProvider)) continue;
-                    if (!isActiveCellProviderNode(node, host)) continue;
+                for (Class<? extends IGridHost> hostClass : gridA.getMachinesClasses()) {
+                    if (!ICellProvider.class.isAssignableFrom(hostClass)) continue;
 
-                    // Skip our own proxy to prevent proxy-to-proxy chains.
-                    // Other PartSubnetProxyFront on this back-grid are PEERS:
-                    // their back-grids become candidate origins for us to expose,
-                    // but they MUST be excluded from local-cell collection (their
-                    // ICellContainer would otherwise add their items here doubled).
-                    if (host instanceof PartSubnetProxyFront) {
-                        PartSubnetProxyFront peer = (PartSubnetProxyFront) host;
-                        if (peer != this) newPeers.add(peer);
-                        continue;
+                    for (IGridNode node : gridA.getMachines(hostClass)) {
+                        IGridHost host = node.getMachine();
+                        if (!isActiveCellProviderNode(node, host)) continue;
+
+                        // Skip our own proxy to prevent proxy-to-proxy chains.
+                        // Other PartSubnetProxyFront on this back-grid are PEERS:
+                        // their back-grids become candidate origins for us to expose,
+                        // but they MUST be excluded from local-cell collection (their
+                        // ICellContainer would otherwise add their items here doubled).
+                        if (host instanceof PartSubnetProxyFront) {
+                            PartSubnetProxyFront peer = (PartSubnetProxyFront) host;
+                            if (peer != this) newPeers.add(peer);
+                            continue;
+                        }
+
+                        // Skip back parts: their insertion handlers are write-only wrappers
+                        // for Grid B's storage, not local storage on Grid A.
+                        if (host instanceof PartSubnetProxyBack) continue;
+
+                        // For cable-bus parts (storage buses and similar), check if their
+                        // target tile provides STORAGE_MONITORABLE_ACCESSOR. If so, the
+                        // part is bridging to another ME network (i.e. subnet passthrough)
+                        // and must be excluded to prevent loop inflation.
+                        if (isPassthroughBusStatic(host)) continue;
+
+                        if (host instanceof IActionHost) {
+                            newKnownLocalProviders.add((IActionHost) host);
+                        }
+
+                        ICellProvider provider = (ICellProvider) host;
+
+                        for (IMEInventoryHandler<?> h : provider.getCellArray(itemChannel)) {
+                            localItemCells.add((IMEInventoryHandler<IAEItemStack>) h);
+                        }
+
+                        for (IMEInventoryHandler<?> h : provider.getCellArray(fluidChannel)) {
+                            localFluidCells.add((IMEInventoryHandler<IAEFluidStack>) h);
+                        }
+
+                        if (collectGasCells) SubnetProxyGasHelper.appendLocalCells(localGasCells, provider);
+                        if (collectEssentiaCells) {
+                            SubnetProxyEssentiaHelper.appendLocalCells(localEssentiaCells, provider);
+                        }
                     }
-
-                    // Skip back parts: their insertion handlers are write-only wrappers
-                    // for Grid B's storage, not local storage on Grid A.
-                    if (host instanceof PartSubnetProxyBack) continue;
-
-                    // For cable-bus parts (storage buses and similar), check if their
-                    // target tile provides STORAGE_MONITORABLE_ACCESSOR. If so, the
-                    // part is bridging to another ME network (i.e. subnet passthrough)
-                    // and must be excluded to prevent loop inflation.
-                    if (isPassthroughBusStatic(host)) continue;
-
-                    if (host instanceof IActionHost) {
-                        newKnownLocalProviders.add((IActionHost) host);
-                    }
-
-                    ICellProvider provider = (ICellProvider) host;
-
-                    for (IMEInventoryHandler<?> h : provider.getCellArray(itemChannel)) {
-                        localItemCells.add((IMEInventoryHandler<IAEItemStack>) h);
-                    }
-
-                    for (IMEInventoryHandler<?> h : provider.getCellArray(fluidChannel)) {
-                        localFluidCells.add((IMEInventoryHandler<IAEFluidStack>) h);
-                    }
-
-                    if (collectGasCells) SubnetProxyGasHelper.appendLocalCells(localGasCells, provider);
-                    if (collectEssentiaCells) SubnetProxyEssentiaHelper.appendLocalCells(localEssentiaCells, provider);
                 }
 
                 // Publish updated peer/origin sets BEFORE refreshing the coordinator

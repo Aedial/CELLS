@@ -320,7 +320,8 @@ public class SubnetProxyInventoryHandler<T extends IAEStack<T>> implements IMEIn
         // then by us). This gives chained visibility (B → A → C makes B's
         // items visible from C) while electing dedups diamond topologies.
         if (this.frontPart != null) {
-            this.frontPart.appendPeerItemsForListing(out, this.channel, this::matchesVisibleStack);
+            Predicate<T> visibleFilter = this.getVisibleFilter();
+            this.frontPart.appendPeerItemsForListing(out, this.channel, visibleFilter);
         }
 
         return out;
