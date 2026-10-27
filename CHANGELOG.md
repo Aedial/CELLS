@@ -12,6 +12,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Added
 - Add Redstone card (+ Inverter card) support to the Import/Export Interfaces.
 - Add full cards description and behavior to the upgrade slots' tooltips.
+- Add Stocking Threshold Cards for the Import/Export Interfaces. These cards prevent refilling a slot until the network stock reaches the configured multiplier times the slot size.
 
 ### Fixed
 - Fix performance issues with the Compacting Pattern Exposer.

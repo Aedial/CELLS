@@ -37,6 +37,7 @@ import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.interfacebase.IPullPushCardStateContainer;
 import com.cells.blocks.interfacebase.IResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.ISizeOverrideContainer;
+import com.cells.blocks.interfacebase.IStockingThresholdContainer;
 import com.cells.gui.IToolboxContainer;
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.network.CellsNetworkHandler;
@@ -63,7 +64,7 @@ import com.cells.network.sync.ResourceType;
  */
 public class ContainerCombinedInterface extends AEBaseContainer
     implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
-    IToolboxContainer, IPullPushCardStateContainer {
+    IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer {
 
     private final ICombinedInterfaceHost host;
 
@@ -114,6 +115,9 @@ public class ContainerCombinedInterface extends AEBaseContainer
     @GuiSync(6)
     public int autoPushPullQuantity = 0;
 
+    @GuiSync(7)
+    public int stockingThresholdMultiplier = 0;
+
     // ================================= Constructors =================================
 
     /**
@@ -154,6 +158,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
         this.totalPages = activeLogic.getTotalPages();
         this.autoPullPushInterval = activeLogic.getAutoPullPushInterval();
         this.autoPushPullQuantity = activeLogic.getAutoPushPullQuantity();
+        this.stockingThresholdMultiplier = activeLogic.getStockingThresholdMultiplier();
 
         // Set up toolbox (network tool)
         this.setupToolbox(anchor);
@@ -268,6 +273,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
         this.totalPages = logic.getTotalPages();
         this.autoPullPushInterval = logic.getAutoPullPushInterval();
         this.autoPushPullQuantity = logic.getAutoPushPullQuantity();
+        this.stockingThresholdMultiplier = logic.getStockingThresholdMultiplier();
 
         // Clear caches to force full re-sync for the new tab
         this.serverFilterCache.clear();
@@ -361,6 +367,11 @@ public class ContainerCombinedInterface extends AEBaseContainer
         return this.autoPushPullQuantity;
     }
 
+    @Override
+    public int getStockingThresholdMultiplier() {
+        return this.stockingThresholdMultiplier;
+    }
+
     // ================================= Sync =================================
 
     @Override
@@ -384,6 +395,9 @@ public class ContainerCombinedInterface extends AEBaseContainer
             }
             if (this.autoPushPullQuantity != activeLogic.getAutoPushPullQuantity()) {
                 this.autoPushPullQuantity = activeLogic.getAutoPushPullQuantity();
+            }
+            if (this.stockingThresholdMultiplier != activeLogic.getStockingThresholdMultiplier()) {
+                this.stockingThresholdMultiplier = activeLogic.getStockingThresholdMultiplier();
             }
         }
 

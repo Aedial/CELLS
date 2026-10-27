@@ -57,7 +57,7 @@ import com.cells.network.sync.ResourceType;
 public abstract class AbstractContainerInterface<T, K, H extends IFilterableInterfaceHost<T, K>>
     extends AEBaseContainer
     implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
-        IToolboxContainer, IPullPushCardStateContainer {
+        IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer {
 
     protected final H host;
 
@@ -101,6 +101,9 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
     @GuiSync(5)
     public int autoPushPullQuantity = 0;
 
+    @GuiSync(6)
+    public int stockingThresholdMultiplier = 0;
+
     /**
      * Common constructor for both tile and part hosts.
      */
@@ -127,6 +130,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         this.totalPages = host.getTotalPages();
         this.autoPullPushInterval = host.getInterfaceLogic().getAutoPullPushInterval();
         this.autoPushPullQuantity = host.getInterfaceLogic().getAutoPushPullQuantity();
+        this.stockingThresholdMultiplier = host.getInterfaceLogic().getStockingThresholdMultiplier();
 
         this.setupToolbox(anchor);
 
@@ -195,6 +199,11 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
     @Override
     public int getAutoPushPullQuantity() {
         return this.autoPushPullQuantity;
+    }
+
+    @Override
+    public int getStockingThresholdMultiplier() {
+        return this.stockingThresholdMultiplier;
     }
 
     /**
@@ -371,6 +380,9 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
             }
             if (this.autoPushPullQuantity != logic.getAutoPushPullQuantity()) {
                 this.autoPushPullQuantity = logic.getAutoPushPullQuantity();
+            }
+            if (this.stockingThresholdMultiplier != logic.getStockingThresholdMultiplier()) {
+                this.stockingThresholdMultiplier = logic.getStockingThresholdMultiplier();
             }
         }
 

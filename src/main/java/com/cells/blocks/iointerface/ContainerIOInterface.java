@@ -49,6 +49,7 @@ import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.interfacebase.IPullPushCardStateContainer;
 import com.cells.blocks.interfacebase.IResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.ISizeOverrideContainer;
+import com.cells.blocks.interfacebase.IStockingThresholdContainer;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
 import com.cells.gui.IToolboxContainer;
@@ -77,7 +78,7 @@ import com.cells.network.sync.ResourceType;
  */
 public class ContainerIOInterface extends AEBaseContainer
     implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
-    IToolboxContainer, IPullPushCardStateContainer {
+    IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer {
 
     private final IIOInterfaceHost host;
 
@@ -128,6 +129,9 @@ public class ContainerIOInterface extends AEBaseContainer
     @GuiSync(6)
     public int autoPushPullQuantity = 0;
 
+    @GuiSync(7)
+    public int stockingThresholdMultiplier = 0;
+
     // ================================= Constructors =================================
 
     /** Constructor for tile entity hosts. */
@@ -161,6 +165,7 @@ public class ContainerIOInterface extends AEBaseContainer
         this.totalPages = activeLogic.getTotalPages();
         this.autoPullPushInterval = activeLogic.getAutoPullPushInterval();
         this.autoPushPullQuantity = activeLogic.getAutoPushPullQuantity();
+        this.stockingThresholdMultiplier = activeLogic.getStockingThresholdMultiplier();
 
         // Create switchable upgrade inventory
         this.switchableUpgradeInv = new SwitchableUpgradeInventory(getActiveLogicUpgradeInv());
@@ -261,6 +266,7 @@ public class ContainerIOInterface extends AEBaseContainer
         this.totalPages = logic.getTotalPages();
         this.autoPullPushInterval = logic.getAutoPullPushInterval();
         this.autoPushPullQuantity = logic.getAutoPushPullQuantity();
+        this.stockingThresholdMultiplier = logic.getStockingThresholdMultiplier();
 
         // Switch the upgrade inventory delegate
         this.switchableUpgradeInv.switchTo(getActiveLogicUpgradeInv());
@@ -409,6 +415,11 @@ public class ContainerIOInterface extends AEBaseContainer
         return this.autoPushPullQuantity;
     }
 
+    @Override
+    public int getStockingThresholdMultiplier() {
+        return this.stockingThresholdMultiplier;
+    }
+
     // ================================= Sync =================================
 
     @Override
@@ -426,6 +437,9 @@ public class ContainerIOInterface extends AEBaseContainer
             }
             if (this.autoPushPullQuantity != activeLogic.getAutoPushPullQuantity()) {
                 this.autoPushPullQuantity = activeLogic.getAutoPushPullQuantity();
+            }
+            if (this.stockingThresholdMultiplier != activeLogic.getStockingThresholdMultiplier()) {
+                this.stockingThresholdMultiplier = activeLogic.getStockingThresholdMultiplier();
             }
         }
 

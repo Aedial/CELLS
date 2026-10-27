@@ -19,7 +19,6 @@ public final class InterfaceUpgradeTooltipHelper {
     public static List<String> getTooltip(FontRenderer font, boolean isExport, boolean isPart) {
         List<String> lines = new ArrayList<>();
         lines.add(I18n.format("tooltip.cells.interface.upgrades.title"));
-        lines.add("");
 
         addCard(lines, font, "capacity", AbstractResourceInterfaceLogic.MAX_CAPACITY_CARDS,
             AbstractResourceInterfaceLogic.SLOTS_PER_PAGE);
@@ -27,6 +26,8 @@ public final class InterfaceUpgradeTooltipHelper {
         String transfer = isExport ? "push" : "pull";
         String sides = isPart ? "part" : "block";
         addCard(lines, font, transfer + "." + sides, 1);
+
+        if (isExport) addCard(lines, font, "stocking_threshold", 1);
 
         if (!isExport) {
             addCard(lines, font, "overflow", 1);

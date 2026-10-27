@@ -24,6 +24,7 @@ import net.minecraftforge.fml.common.registry.ForgeRegistries;
 
 import com.cells.Cells;
 import com.cells.Tags;
+import com.cells.items.upgrades.AbstractCustomUpgrade;
 
 
 /**
@@ -89,7 +90,9 @@ public final class DisassemblyConfig {
         if (source.isEmpty() || source.getItem().getRegistryName() == null) return Collections.emptyList();
 
         String itemName = source.getItem().getRegistryName().toString();
-        List<OutputSpec> outputSpecs = ENTRIES.get(itemName + "@" + source.getMetadata());
+        int metadata = source.getItem() instanceof AbstractCustomUpgrade
+            ? ((AbstractCustomUpgrade) source.getItem()).getDisassemblyMetadata(source) : source.getMetadata();
+        List<OutputSpec> outputSpecs = ENTRIES.get(itemName + "@" + metadata);
         if (outputSpecs == null) return Collections.emptyList();
 
         List<ItemStack> outputs = new ArrayList<>();

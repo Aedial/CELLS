@@ -2,6 +2,7 @@ package com.cells.blocks.interfacebase;
 
 import java.awt.Rectangle;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -240,6 +241,8 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
                             new PacketOpenSlotOverrideGui(pos, absoluteSlot, this.host.getPartSide())
                         );
                     });
+                    ((AbstractResourceFilterSlot<?>) filterSlot).setStockingThresholdTooltip(
+                        () -> this.getStockingThresholdTooltip(displayIndex));
                 }
 
                 this.guiSlots.add(filterSlot);
@@ -843,6 +846,19 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
     private ItemStack findPullPushCard() {
         IItemHandler upgradeInventory = this.getUpgradeInventory();
         return upgradeInventory != null ? findCardIn(upgradeInventory) : ItemStack.EMPTY;
+    }
+
+    @Nullable
+    private String getStockingThresholdTooltip(int displaySlot) {
+        if (!this.isActiveTabExport() || !(this.container instanceof IStockingThresholdContainer)) return null;
+
+        int multiplier = ((IStockingThresholdContainer) this.container).getStockingThresholdMultiplier();
+        if (multiplier <= 0) return null;
+
+        BigInteger threshold = BigInteger.valueOf(this.getEffectiveMaxSlotSizeForDisplay(displaySlot))
+            .multiply(BigInteger.valueOf(multiplier));
+        return I18n.format("cells.filter_slot.stocking_threshold", String.format("%,d", threshold),
+            I18n.format("cells.unit." + this.getUnitTypeName()), multiplier);
     }
 
     @Nullable

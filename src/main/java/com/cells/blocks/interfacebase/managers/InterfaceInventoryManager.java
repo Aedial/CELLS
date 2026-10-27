@@ -29,6 +29,7 @@ import appeng.api.networking.security.IActionSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.api.storage.IMEInventory;
 import appeng.api.storage.data.IAEStack;
+import appeng.api.storage.data.IItemList;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 
@@ -154,6 +155,8 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
          * Used to clamp requests to avoid issues with some mods.
          */
         long getMaxAENetworkRequestSize();
+
+        public int getStockingThresholdMultiplier();
 
         /** Get the world this host is in (may be null during loading). */
         @Nullable
@@ -1370,6 +1373,10 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
             returnOrphanedToNetwork();
             returnOverflowToNetwork();
 
+            int thresholdMultiplier = this.callbacks.getStockingThresholdMultiplier();
+            IItemList<AE> networkStock = thresholdMultiplier > 0
+                ? storageGrid.getInventory(inventory.getChannel()).getStorageList() : null;
+
             for (int slot : this.filterSlotList) {
                 R filter = this.filters[slot];
                 if (filter == null) continue;
@@ -1385,6 +1392,13 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
 
                 // Request resources from network (AE2 uses long natively)
                 AE request = this.ops.toAEStack(this.ops.copyWithAmount(filter, 1));
+                if (networkStock != null) {
+                    AE available = networkStock.findPrecise(request);
+                    long networkAmount = available == null ? 0 : this.ops.getAEStackSize(available);
+
+                    if (networkAmount / getEffectiveMaxSlotSize(slot) < thresholdMultiplier) continue;
+                }
+
                 request.setStackSize(Math.min(space, this.callbacks.getMaxAENetworkRequestSize()));
 
                 AE extracted = inventory.extractItems(request, Actionable.MODULATE, this.callbacks.getActionSource());

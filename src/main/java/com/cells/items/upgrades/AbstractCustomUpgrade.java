@@ -178,6 +178,10 @@ public class AbstractCustomUpgrade extends Item implements IUpgradeModule {
         return tierNames;
     }
 
+    public int getDisassemblyMetadata(ItemStack stack) {
+        return stack.getMetadata();
+    }
+
     @Override
     @Nonnull
     public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, @Nonnull EntityPlayer player,

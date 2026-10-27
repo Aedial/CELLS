@@ -112,6 +112,11 @@ public class CellsJEIPlugin implements IModPlugin {
         registry.addRecipeRegistryPlugin(new CellWorkbenchUpgradeRegistryPlugin());
         registry.addRecipeRegistryPlugin(new MemoryCardRegistryPlugin());
 
+        // Higher-tier Stocking Threshold Cards share the 1x recipe, so redirect their lookups to it
+        if (ItemRegistry.STOCKING_THRESHOLD_CARD != null) {
+            registry.addRecipeRegistryPlugin(new StockingThresholdRedirectPlugin());
+        }
+
         registerInterfaceRecipeTransferHandlers(registry);
         registerCreativeCellRecipeTransferHandlers(registry);
 

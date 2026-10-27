@@ -17,6 +17,7 @@ import com.cells.items.upgrades.ItemAutoPullCard;
 import com.cells.items.upgrades.ItemAutoPushCard;
 import com.cells.items.upgrades.ItemOverflowCard;
 import com.cells.items.upgrades.ItemTrashUnselectedCard;
+import com.cells.items.upgrades.ItemStockingThresholdCard;
 import com.cells.util.TickManagerHelper;
 
 
@@ -162,6 +163,10 @@ public class InterfaceUpgradeManager {
         return this.installedCapacityUpgrades;
     }
 
+    public int getStockingThresholdMultiplier() {
+        return this.isExport ? ItemStockingThresholdCard.getInstalledMultiplier(this.upgradeInventory) : 0;
+    }
+
     // ============================== Refresh ==============================
 
     /**
@@ -303,6 +308,10 @@ public class InterfaceUpgradeManager {
 
         if (stack.getItem() instanceof ItemAutoPushCard && this.isExport) {
             return countUpgrade(ItemAutoPushCard.class) < 1;
+        }
+
+        if (stack.getItem() instanceof ItemStockingThresholdCard && this.isExport) {
+            return countUpgrade(ItemStockingThresholdCard.class) < 1;
         }
 
         // Capacity, redstone, and inverter cards support both import and export

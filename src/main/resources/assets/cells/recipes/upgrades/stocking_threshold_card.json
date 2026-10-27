@@ -1,0 +1,25 @@
+{
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        {
+            "item": "appliedenergistics2:material",
+            "data": 28
+        },
+        {
+            "item": "minecraft:comparator"
+        },
+        {
+            "item": "appliedenergistics2:part",
+            "data": 280
+        },
+        {
+            "item": "appliedenergistics2:material",
+            "data": 26
+        }
+    ],
+    "result": {
+        "item": "cells:stocking_threshold_card",
+        "count": 1,
+        "data": 0
+    }
+}

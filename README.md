@@ -198,6 +198,12 @@ Similar to the Pull Card, but for pushing items to adjacent inventories.
 **Compatible with**: Export Interfaces
 
 
+#### Stocking Threshold Card
+Install in an Export Interface to only refill a slot when there is enough of it in the network, as a multiplier of the slot's size. This only gates the refilling itself, how much is refilled does not change. Right-click the held stack in air to cycle multipliers. The server config controls the multipliers.
+
+**Compatible with**: Export Interfaces
+
+
 #### Insertion Card
 Install in a Subnet Proxy to allow the Proxy to *receive* content from the network it exposes to, in addition to letting it be pulled from. This makes the proxy two-way, allowing you to push items from the main network into the subnet through the proxy (still respecting the filter, of course). Without it, the proxy is read-only and only allows the main network to pull from the subnet.
 

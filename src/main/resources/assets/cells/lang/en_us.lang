@@ -55,6 +55,7 @@ cells.max_slot_size.tooltip=Maximum %s to keep in the slots.
 cells.slot_size_override.title=Max Slot Size (slot %d)
 cells.slot_size_override.clear_hint=Clear the field to reset override
 cells.slot_size_override.using_global=global
+cells.filter_slot.stocking_threshold=Does not refill until network reaches §a%s§7 %s (§b%sx§7 slot size)
 cells.filter_slot.hint.left_click_1=§bLeft-click with an item§7 to set
 cells.filter_slot.hint.left_click_2=§bLeft-click with empty hand§7 to clear
 cells.filter_slot.hint.right_click=§bRight-click§7 to override max slot size
@@ -100,14 +101,15 @@ tooltip.cells.probe.filters=Filters configured: §a%s§r / §a%s§r
 tooltip.cells.probe.filters.import=Import %s filters configured: §a%s§r / §a%s§r
 tooltip.cells.probe.filters.export=Export %s filters configured: §a%s§r / §a%s§r
 tooltip.cells.probe.state.enabled=enabled
-tooltip.cells.probe.state.active=active
-tooltip.cells.probe.state.inactive=inactive
+tooltip.cells.probe.state.active=§aactive§r
+tooltip.cells.probe.state.inactive=§cinactive§r
 tooltip.cells.probe.state.disabled=disabled
 tooltip.cells.probe.state.installed=installed
 tooltip.cells.probe.state.not_installed=not installed
 tooltip.cells.probe.state.none=§cnone§r
 tooltip.cells.probe.interface.behavior.import=Import behavior: %s
 tooltip.cells.probe.interface.behavior.export=Export behavior: %s
+tooltip.cells.probe.interface.stocking_threshold=Stocking threshold: §b%sx§r slot size
 tooltip.cells.probe.interface.behavior.overflow=Overflow
 tooltip.cells.probe.interface.redstone=Redstone status: %s
 tooltip.cells.probe.interface.redstone.inverted=Redstone status (inverted): %s
@@ -236,6 +238,8 @@ cells.config.enableConfigurableCells=Enable Configurable Cell
 cells.config.enableConfigurableCells.tooltip=Enable Configurable storage cells
 
 ## Config: Interfaces
+cells.config.stockingThresholdMultipliers=Stocking Threshold Multipliers
+cells.config.stockingThresholdMultipliers.tooltip=Stocking Threshold Card multipliers in cycling order. The first tier always uses 1x. Values must be positive integers.
 cells.config.interfaceMaxSlotSizeLimit=Interface Max Slot Size Limit
 cells.config.interfaceMaxSlotSizeLimit.tooltip=Maximum slot size limit for interfaces. Caps the user-configurable max slot size per slot. Min: 1, Max: 9.2 quintillion (Long.MAX_VALUE), Default: 2.1 billion (Integer.MAX_VALUE).
 cells.config.interfaceMaxSlotSizeUseFixedValues=Use Fixed Max Slot Size Values
@@ -677,6 +681,11 @@ tooltip.cells.recovery_container.usage=§bRight-click§8 on a container to trans
 cells.recovery_container.transferred=Transferred %d %s
 cells.recovery_container.no_transfer=Target cannot accept %s
 
+# Stocking Threshold Card
+item.cells.stocking_threshold_card.name=Stocking Threshold Card (%sx)
+tooltip.cells.stocking_threshold_card.desc=Does not refill until network stock reaches §b%sx§7 slot size.
+tooltip.cells.stocking_threshold_card.cycle=Right-click in air to cycle the multiplier.
+
 # Auto-Pull/Push Cards
 item.cells.pull_card.name=Auto-Pull Card
 item.cells.push_card.name=Auto-Push Card
@@ -699,16 +708,17 @@ tooltip.cells.insertion_card.desc=§7Allows sending content back through the Sub
 tooltip.cells.type.subnet_proxy=Subnet Proxy
 
 # Interface Upgrade Slots
-tooltip.cells.interface.upgrades.title=Allowed upgrades
-tooltip.cells.interface.upgrades.capacity=Capacity Card (max %d): Opens a new page with %d slots.
-tooltip.cells.interface.upgrades.pull.part=Auto-Pull Card (max %d): Automatically pulls configured content from the facing inventory into the internal inventory. Does not trigger Trash Unselected or Overflow voiding.
-tooltip.cells.interface.upgrades.pull.block=Auto-Pull Card (max %d): Automatically pulls configured content from all adjacent inventories into the internal inventory. Does not trigger Trash Unselected or Overflow voiding.
-tooltip.cells.interface.upgrades.push.part=Auto-Push Card (max %d): Automatically pushes configured content from the internal inventory into the facing inventory.
-tooltip.cells.interface.upgrades.push.block=Auto-Push Card (max %d): Automatically pushes configured content from the internal inventory into all adjacent inventories.
-tooltip.cells.interface.upgrades.overflow=Overflow Card (max %d): Voids configured content inserted into the interface when its internal buffer is full.
-tooltip.cells.interface.upgrades.trash=Trash Unselected Card (max %d): Voids ANY non-configured content inserted into the interface. Use with CAUTION!
-tooltip.cells.interface.upgrades.redstone=Redstone Card (max %d): Runs scheduled network I/O and auto-pull/push ONLY WHILE the interface receives a redstone signal.
-tooltip.cells.interface.upgrades.inverter=Inverter Card (max %d): Reverses the Redstone Card so scheduled transfers run ONLY WITHOUT a redstone signal. Requires a Redstone Card.
+tooltip.cells.interface.upgrades.title=Allowed upgrades:
+tooltip.cells.interface.upgrades.stocking_threshold=  - §bStocking Threshold Card (max %d)§7: Does not refill a slot until network stock reaches Nx slot size.
+tooltip.cells.interface.upgrades.capacity=  - §bCapacity Card (max %d)§7: Opens a new page with %d slots.
+tooltip.cells.interface.upgrades.pull.part=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from the facing inventory into the internal inventory. Does not trigger Trash Unselected or Overflow voiding.
+tooltip.cells.interface.upgrades.pull.block=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from all adjacent inventories into the internal inventory. Does not trigger Trash Unselected or Overflow voiding.
+tooltip.cells.interface.upgrades.push.part=  - §bAuto-Push Card (max %d)§7: Automatically pushes configured content from the internal inventory into the facing inventory.
+tooltip.cells.interface.upgrades.push.block=  - §bAuto-Push Card (max %d)§7: Automatically pushes configured content from the internal inventory into all adjacent inventories.
+tooltip.cells.interface.upgrades.overflow=  - §bOverflow Card (max %d)§7: Voids configured content inserted into the interface when its internal buffer is full.
+tooltip.cells.interface.upgrades.trash=  - §bTrash Unselected Card (max %d)§7: Voids ANY non-configured content inserted into the interface. Use with CAUTION!
+tooltip.cells.interface.upgrades.redstone=  - §bRedstone Card (max %d)§7: Runs scheduled network I/O and auto-pull/push ONLY WHILE the interface receives a redstone signal.
+tooltip.cells.interface.upgrades.inverter=  - §bInverter Card (max %d)§7: Reverses the Redstone Card so scheduled transfers run ONLY WITHOUT a redstone signal. Requires a Redstone Card.
 
 # Pull/Push Upgrade Button (interface GUI)
 cells.pull_push_button.disabled=Insert %s to interact

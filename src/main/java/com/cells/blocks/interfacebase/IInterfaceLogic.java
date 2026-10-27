@@ -140,6 +140,8 @@ public interface IInterfaceLogic {
      */
     int getAutoPushPullQuantity();
 
+    int getStockingThresholdMultiplier();
+
     /**
      * Handle upgrade inventory changes - refreshes upgrades and marks dirty.
      */

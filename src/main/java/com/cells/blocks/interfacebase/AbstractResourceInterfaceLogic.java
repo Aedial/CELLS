@@ -235,6 +235,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             @Override public AENetworkProxy getGridProxy() { return host.getGridProxy(); }
             @Override public IActionSource getActionSource() { return host.getActionSource(); }
             @Override public long getMaxAENetworkRequestSize() { return AbstractResourceInterfaceLogic.this.getMaxAENetworkRequestSize(); }
+            @Override public int getStockingThresholdMultiplier() { return upgradeManager.getStockingThresholdMultiplier(); }
             @Override public World getHostWorld() { return host.getHostWorld(); }
             @Override public BlockPos getHostPos() { return host.getHostPos(); }
         };
@@ -876,6 +877,11 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     @Override
     public int getAutoPushPullQuantity() {
         return this.upgradeManager.getAutoPushPullQuantity();
+    }
+
+    @Override
+    public int getStockingThresholdMultiplier() {
+        return this.upgradeManager.getStockingThresholdMultiplier();
     }
 
     @Override

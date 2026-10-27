@@ -32,6 +32,7 @@ import com.cells.Tags;
 public final class CellsConfig {
 
     private static final int[] DEFAULT_EMC_CELL_PARTITION_SLOTS = new int[] {1, 9, 54};
+    private static final int[] DEFAULT_STOCKING_THRESHOLD_MULTIPLIERS = {1, 2, 5, 10, 50, 100, 1000, 10000};
     private static final long DEFAULT_EMC_CELL_REPORTED_AMOUNT = Integer.MAX_VALUE;
     private static final String[] DEFAULT_INTERFACE_MAX_SLOT_SIZE_OFFSETS = new String[] {
         "1", "10", "100", "1000"
@@ -156,6 +157,13 @@ public final class CellsConfig {
         int[] sanitizedPartitionSlots = sanitizeEmcCellPartitionSlots(general.emcCellPartitionSlots);
         if (!Arrays.equals(sanitizedPartitionSlots, general.emcCellPartitionSlots)) {
             general.emcCellPartitionSlots = sanitizedPartitionSlots;
+            changed = true;
+        }
+
+        int[] thresholdMultipliers = sanitizeStockingThresholdMultipliers(
+            interfaces.stockingThresholdMultipliers);
+        if (!Arrays.equals(thresholdMultipliers, interfaces.stockingThresholdMultipliers)) {
+            interfaces.stockingThresholdMultipliers = thresholdMultipliers;
             changed = true;
         }
 
@@ -344,6 +352,24 @@ public final class CellsConfig {
         }
 
         return sanitizedSlots;
+    }
+
+    public static int[] getStockingThresholdMultipliers() {
+        return sanitizeStockingThresholdMultipliers(interfaces.stockingThresholdMultipliers);
+    }
+
+    private static int[] sanitizeStockingThresholdMultipliers(int[] configuredMultipliers) {
+        if (configuredMultipliers == null || configuredMultipliers.length == 0) {
+            return DEFAULT_STOCKING_THRESHOLD_MULTIPLIERS.clone();
+        }
+
+        int[] multipliers = new int[Math.min(configuredMultipliers.length, Short.MAX_VALUE + 1)];
+        multipliers[0] = 1;
+        for (int tier = 1; tier < multipliers.length; tier++) {
+            multipliers[tier] = Math.max(1, configuredMultipliers[tier]);
+        }
+
+        return multipliers;
     }
 
     /**
@@ -545,6 +571,13 @@ public final class CellsConfig {
     }
 
     public static class InterfacesCategory {
+
+        @Config.LangKey(Tags.MODID + ".config.stockingThresholdMultipliers")
+        @Config.Comment({
+            "Stocking Threshold Card multipliers in cycling order. The first tier always uses 1x.",
+            "Values must be positive integers. Every entry corresponds to a metadata tier."
+        })
+        public int[] stockingThresholdMultipliers = DEFAULT_STOCKING_THRESHOLD_MULTIPLIERS.clone();
 
         // Forge's 1.12 annotation config has no long adapter, so this stays string-backed
         // and is normalized during config sync before being cached as a parsed long.

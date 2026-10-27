@@ -75,6 +75,8 @@ final class CellJeiHelper {
         addTieredItems(items, ItemRegistry.INSERTION_CARD, 1);
         addTieredItems(items, ItemRegistry.PULL_CARD, 1);
         addTieredItems(items, ItemRegistry.PUSH_CARD, 1);
+        addTieredItems(items, ItemRegistry.STOCKING_THRESHOLD_CARD,
+            ItemRegistry.STOCKING_THRESHOLD_CARD.getTierNames().length);
         addTieredItems(items, ItemRegistry.EQUAL_DISTRIBUTION_CARD,
             ItemRegistry.EQUAL_DISTRIBUTION_CARD.getTierNames().length);
         addTieredItems(items, ItemRegistry.COMPRESSION_TIER_CARD,

@@ -31,6 +31,7 @@ import com.cells.items.upgrades.ItemAutoPullCard;
 import com.cells.items.upgrades.ItemAutoPushCard;
 import com.cells.items.upgrades.ItemOverflowCard;
 import com.cells.items.upgrades.ItemTrashUnselectedCard;
+import com.cells.items.upgrades.ItemStockingThresholdCard;
 import com.cells.items.upgrades.pullpush.ContainerPullPushCard;
 import com.cells.parts.subnetproxy.PartSubnetProxyBack;
 import com.cells.parts.subnetproxy.PartSubnetProxyFront;
@@ -266,6 +267,7 @@ public abstract class AbstractProbeTooltipHelper<T> {
             if (interfaceHost == null) continue;
 
             acceptLine(sink, buildInterfaceBehaviorLine(interfaceHost));
+            acceptLine(sink, buildInterfaceStockingThresholdLine(interfaceHost));
             acceptLine(sink, buildInterfaceRedstoneLine(interfaceHost));
         }
     }
@@ -457,6 +459,16 @@ public abstract class AbstractProbeTooltipHelper<T> {
                 ? "tooltip.cells.probe.interface.behavior.export"
                 : "tooltip.cells.probe.interface.behavior.import",
             joinLocalizedTexts(behaviors, translate("tooltip.cells.probe.state.none")));
+    }
+
+    @Nullable
+    private LocalizedTooltipText buildInterfaceStockingThresholdLine(IInterfaceHost interfaceHost) {
+        if (!interfaceHost.isExport()) return null;
+
+        int multiplier = ItemStockingThresholdCard.getInstalledMultiplier(interfaceHost.getUpgradeInventory());
+        if (multiplier <= 0) return null;
+
+        return translate("tooltip.cells.probe.interface.stocking_threshold", literal(Integer.toString(multiplier)));
     }
 
     @Nonnull

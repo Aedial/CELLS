@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -70,6 +71,9 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
      */
     private Runnable rightClickHandler;
 
+    @Nullable
+    private Supplier<String> stockingThresholdTooltip;
+
     protected AbstractResourceFilterSlot(int slot, int x, int y) {
         super(slot, x, y);
         this.slot = slot;
@@ -88,6 +92,10 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
      */
     public void setRightClickHandler(Runnable handler) {
         this.rightClickHandler = handler;
+    }
+
+    public void setStockingThresholdTooltip(Supplier<String> tooltip) {
+        this.stockingThresholdTooltip = tooltip;
     }
 
     // ==================== Abstract methods - implement these ====================
@@ -198,6 +206,11 @@ public abstract class AbstractResourceFilterSlot<R> extends GuiCustomSlot implem
         // Build the full tooltip: subclass-provided resource lines first
         // then our own click hints at the bottom.
         List<String> lines = new ArrayList<>(getResourceTooltipLines(resource));
+
+        if (this.stockingThresholdTooltip != null) {
+            String threshold = this.stockingThresholdTooltip.get();
+            if (threshold != null) lines.add(threshold);
+        }
 
         lines.add("");
         lines.add(I18n.format("cells.filter_slot.hint.left_click_1"));
