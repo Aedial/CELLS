@@ -288,18 +288,19 @@ public final class ComponentHelper {
      */
     public static void setInstalledComponent(ItemStack cellStack, ItemStack component) {
         NBTTagCompound tag = cellStack.getTagCompound();
+        if (component == null || component.isEmpty()) {
+            removeTag(cellStack, "component");
+            return;
+        }
+
         if (tag == null) {
             tag = new NBTTagCompound();
             cellStack.setTagCompound(tag);
         }
 
-        if (component == null || component.isEmpty()) {
-            tag.removeTag("component");
-        } else {
-            NBTTagCompound componentTag = new NBTTagCompound();
-            component.writeToNBT(componentTag);
-            tag.setTag("component", componentTag);
-        }
+        NBTTagCompound componentTag = new NBTTagCompound();
+        component.writeToNBT(componentTag);
+        tag.setTag("component", componentTag);
     }
 
 
@@ -322,7 +323,7 @@ public final class ComponentHelper {
 
         // Remove the key if the value is unlimited (default behavior)
         if (value == Long.MAX_VALUE) {
-            if (tag != null) tag.removeTag("maxPerType");
+            removeTag(cellStack, "maxPerType");
             return;
         }
 
@@ -354,7 +355,7 @@ public final class ComponentHelper {
 
         // Remove the key if the value is unlimited (default behavior)
         if (value == Integer.MAX_VALUE) {
-            if (tag != null) tag.removeTag("userMaxTypes");
+            removeTag(cellStack, "userMaxTypes");
             return;
         }
 
@@ -364,6 +365,14 @@ public final class ComponentHelper {
         }
 
         tag.setInteger("userMaxTypes", value);
+    }
+
+    private static void removeTag(ItemStack cellStack, String key) {
+        NBTTagCompound tag = cellStack.getTagCompound();
+        if (tag == null) return;
+
+        tag.removeTag(key);
+        if (tag.isEmpty()) cellStack.setTagCompound(null);
     }
 
     /**

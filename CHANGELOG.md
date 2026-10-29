@@ -17,6 +17,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Fixed
 - Fix performance issues with the Compacting Pattern Exposer.
 - Fix cards dropping when the Subnet Proxy is disassembled with a wrench, duplicating the cards (disassembly saves the block state, including the cards).
+- Fix Configurable Cells not stacking with newly created ones if they have been configured then reset to default.
 
 
 ## [0.6.9] - 2026-09-30
