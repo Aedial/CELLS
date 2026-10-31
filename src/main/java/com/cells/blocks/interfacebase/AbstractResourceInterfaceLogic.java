@@ -38,6 +38,7 @@ import com.cells.blocks.interfacebase.managers.InterfaceInventoryManager;
 import com.cells.blocks.interfacebase.managers.InterfaceTickScheduler;
 import com.cells.blocks.interfacebase.managers.InterfaceUpgradeManager;
 import com.cells.helpers.MemoryCardUpgradeHelper;
+import com.cells.items.upgrades.ItemRedirectUnselectedCard;
 import com.cells.util.TickManagerHelper;
 
 
@@ -143,8 +144,10 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     /** Manages tick scheduling, polling rate, and sleep/wake state. */
     protected final InterfaceTickScheduler tickScheduler;
 
-    /** Manages capability cache and auto-pull/push with adjacent blocks. */
+    /** Manages capability cache and transfers with adjacent blocks. */
     protected final InterfaceAdjacentHandler<R, K> adjacentHandler;
+
+    private boolean redirecting;
 
     protected AbstractResourceInterfaceLogic(Host host, Class<R> resourceClass) {
         this.host = host;
@@ -199,8 +202,8 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             @Override public AENetworkProxy getGridProxy() { return host.getGridProxy(); }
             @Override public IGridTickable getTickable() { return host.getTickable(); }
             @Override public void onCapacityReduction(int oldCount, int newCount) { inventoryManager.handleCapacityReduction(oldCount, newCount); }
-            @Override public void onAutoPullPushInstalled() { refreshCapabilityCache(); }
-            @Override public void onAutoPullPushRemoved() { clearCapabilityCache(); }
+            @Override public void onAdjacentCacheNeeded() { refreshCapabilityCache(); }
+            @Override public void onAdjacentCacheReleased() { if (!upgradeManager.hasRedirectUpgrade()) clearCapabilityCache(); }
             @Override public void wakeUpIfAdaptive() { AbstractResourceInterfaceLogic.this.wakeUpIfAdaptive(); }
             @Override public void clampCurrentPage(int maxPage) { if (currentPage > maxPage) currentPage = maxPage; }
         };
@@ -259,6 +262,10 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             @Override public long countResourceInHandler(Object handler, K key, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.countResourceInHandler(handler, key, facing); }
             @Override public long extractResourceFromHandler(Object handler, K key, int maxAmount, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.extractResourceFromHandler(handler, key, maxAmount, facing); }
             @Override public long insertResourceIntoHandler(Object handler, R identity, int maxAmount, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.insertResourceIntoHandler(handler, identity, maxAmount, facing); }
+            @Override public long insertRedirectedResource(Object handler, R resource, int amount,
+                                                            EnumFacing facing, boolean doTransfer) {
+                return AbstractResourceInterfaceLogic.this.insertRedirectedResource(handler, resource, amount, facing, doTransfer);
+            }
             @Override public R copyAsIdentity(R resource) { return AbstractResourceInterfaceLogic.this.copyAsIdentity(resource); }
             @Override public Map<K, Long> buildResourceCountMap(Object handler, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.buildResourceCountMap(handler, facing); }
             @Override public void flushOperationCaches() { AbstractResourceInterfaceLogic.this.flushOperationCaches(); }
@@ -419,7 +426,8 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public void onNeighborChanged(BlockPos neighborPos) {
         boolean hadAdjacentBefore = this.adjacentHandler.hasAnyCachedCapability();
 
-        this.adjacentHandler.onNeighborChanged(neighborPos, this.upgradeManager.hasAutoPullPushUpgrade());
+        this.adjacentHandler.onNeighborChanged(neighborPos,
+                this.upgradeManager.hasAutoPullPushUpgrade() || this.upgradeManager.hasRedirectUpgrade());
 
         // If the card is installed and the effective "card active" state changed,
         // re-register the tick rate so the scheduler uses the right bounds/mode.
@@ -725,9 +733,72 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Used by import interface external handlers.
      */
     public int receiveFiltered(R resource, boolean doTransfer) {
+        if (resource != null && getAmount(resource) > 0 && this.upgradeManager.hasRedirectUpgrade()) {
+            K key = createKey(resource);
+            if (key == null) return 0;
+            if (!this.inventoryManager.isInFilter(key)) return redirectUnselected(resource, doTransfer);
+        }
+
         return this.inventoryManager.receiveFiltered(resource, doTransfer,
                 this.upgradeManager.hasOverflowUpgrade(),
                 this.upgradeManager.hasTrashUnselectedUpgrade());
+    }
+
+    @Nullable
+    public EnumFacing getRedirectFacing() {
+        ItemStack card = this.upgradeManager.getRedirectCard();
+        BlockPos destination = ItemRedirectUnselectedCard.getDestination(card);
+        World world = this.host.getHostWorld();
+        if (destination == null || world == null || ItemRedirectUnselectedCard.getDimension(card)
+                != world.provider.getDimension()) return null;
+
+        BlockPos pos = this.host.getHostPos();
+        if (pos == null) return null;
+        for (EnumFacing facing : this.host.getTargetFacings()) {
+            if (pos.offset(facing).equals(destination)) return facing;
+        }
+
+        return null;
+    }
+
+    public boolean hasRedirectTarget() {
+        EnumFacing facing = getRedirectFacing();
+        if (facing == null) return false;
+        if (!this.adjacentHandler.isCachePopulated()) refreshCapabilityCache();
+
+        return this.adjacentHandler.getValidCachedCapability(facing) != null;
+    }
+
+    public int getRedirectStatus() {
+        if (!this.upgradeManager.hasRedirectUpgrade()) return IRedirectStatusContainer.NONE;
+        if (ItemRedirectUnselectedCard.getDestination(this.upgradeManager.getRedirectCard()) == null) {
+            return IRedirectStatusContainer.UNBOUND;
+        }
+
+        if (getRedirectFacing() == null) return IRedirectStatusContainer.NOT_ADJACENT;
+
+        return hasRedirectTarget() ? IRedirectStatusContainer.READY : IRedirectStatusContainer.NO_TARGET;
+    }
+
+    private int redirectUnselected(R resource, boolean doTransfer) {
+        if (this.redirecting || !hasRedirectTarget()) return 0;
+
+        EnumFacing facing = getRedirectFacing();
+        if (facing == null) return 0;
+
+        this.redirecting = true;
+        try {
+            return (int) this.adjacentHandler.insertRedirectedResource(
+                    facing, resource, getAmount(resource), doTransfer);
+        } finally {
+            if (doTransfer) flushOperationCaches();
+            this.redirecting = false;
+        }
+    }
+
+    protected long insertRedirectedResource(Object handler, R resource, int amount,
+                                            EnumFacing facing, boolean doTransfer) {
+        return doTransfer ? insertResourceIntoHandler(handler, resource, amount, facing) : 0;
     }
 
     /**
@@ -750,7 +821,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Check if this interface can receive the given resource type.
      */
     public boolean canReceive(R resource) {
-        return this.inventoryManager.canReceive(resource);
+        return this.inventoryManager.canReceive(resource)
+                || resource != null && createKey(resource) != null
+                && this.upgradeManager.hasRedirectUpgrade() && hasRedirectTarget();
     }
 
     /**
@@ -845,10 +918,12 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     @Override
     public void onGridReady() {
-        if (!this.upgradeManager.hasAutoPullPushUpgrade()) return;
+        if (!this.upgradeManager.hasAutoPullPushUpgrade() && !this.upgradeManager.hasRedirectUpgrade()) return;
 
         // Re-scan the capability cache now that all TEs are guaranteed to be in the world.
         refreshCapabilityCache();
+
+        if (!this.upgradeManager.hasAutoPullPushUpgrade()) return;
 
         // Re-register tick rate: during readFromNBT, the proxy wasn't ready so
         // reRegisterTickRate was a no-op. Now isCardEffective() returns the correct

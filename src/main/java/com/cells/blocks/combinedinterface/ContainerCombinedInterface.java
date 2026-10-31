@@ -38,6 +38,7 @@ import com.cells.blocks.interfacebase.IPullPushCardStateContainer;
 import com.cells.blocks.interfacebase.IResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.ISizeOverrideContainer;
 import com.cells.blocks.interfacebase.IStockingThresholdContainer;
+import com.cells.blocks.interfacebase.IRedirectStatusContainer;
 import com.cells.gui.IToolboxContainer;
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.network.CellsNetworkHandler;
@@ -64,7 +65,7 @@ import com.cells.network.sync.ResourceType;
  */
 public class ContainerCombinedInterface extends AEBaseContainer
     implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
-    IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer {
+    IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer, IRedirectStatusContainer {
 
     private final ICombinedInterfaceHost host;
 
@@ -117,6 +118,14 @@ public class ContainerCombinedInterface extends AEBaseContainer
 
     @GuiSync(7)
     public int stockingThresholdMultiplier = 0;
+
+    @GuiSync(8)
+    public int redirectStatus = 0;
+
+    @Override
+    public int getRedirectStatus() {
+        return this.redirectStatus;
+    }
 
     // ================================= Constructors =================================
 
@@ -390,6 +399,12 @@ public class ContainerCombinedInterface extends AEBaseContainer
         if (this.totalPages != activeLogic.getTotalPages()) this.totalPages = activeLogic.getTotalPages();
 
         if (Platform.isServer()) {
+            this.redirectStatus = 0;
+            for (IInterfaceLogic logic : this.host.getAllLogics()) {
+                int status = ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).getRedirectStatus();
+                if (status > this.redirectStatus) this.redirectStatus = status;
+                if (status == IRedirectStatusContainer.READY) break;
+            }
             if (this.autoPullPushInterval != activeLogic.getAutoPullPushInterval()) {
                 this.autoPullPushInterval = activeLogic.getAutoPullPushInterval();
             }

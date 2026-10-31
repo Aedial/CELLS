@@ -13,11 +13,13 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Add Redstone card (+ Inverter card) support to the Import/Export Interfaces.
 - Add full cards description and behavior to the upgrade slots' tooltips.
 - Add Stocking Threshold Cards for the Import/Export Interfaces. These cards prevent refilling a slot until the network stock reaches the configured multiplier times the slot size.
+- Add Redirect Unselected Cards for the Import Interfaces, allowing unselected items that enter the interface to be redirected to a specified destination. The destination is configurable via the card and must be adjacent to the interface.
 
 ### Fixed
 - Fix performance issues with the Compacting Pattern Exposer.
 - Fix cards dropping when the Subnet Proxy is disassembled with a wrench, duplicating the cards (disassembly saves the block state, including the cards).
 - Fix Configurable Cells not stacking with newly created ones if they have been configured then reset to default.
+- Fix some WAILA probe info being stale due to not being properly updated from the server.
 
 
 ## [0.6.9] - 2026-09-30

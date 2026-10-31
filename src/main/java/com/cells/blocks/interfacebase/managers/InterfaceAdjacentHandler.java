@@ -63,6 +63,9 @@ public class InterfaceAdjacentHandler<R, K> {
          */
         long insertResourceIntoHandler(Object handler, R identity, int maxAmount, EnumFacing facing);
 
+        public long insertRedirectedResource(Object handler, R resource, int amount,
+                                             EnumFacing facing, boolean doTransfer);
+
         /**
          * Create an identity-only copy of a resource (amount=1).
          */
@@ -385,6 +388,13 @@ public class InterfaceAdjacentHandler<R, K> {
             if (getValidCachedCapability(facing) != null) return true;
         }
         return false;
+    }
+
+    public long insertRedirectedResource(EnumFacing facing, R resource, int amount, boolean doTransfer) {
+        Object handler = getValidCachedCapability(facing);
+        if (handler == null) return 0;
+
+        return this.ops.insertRedirectedResource(handler, resource, amount, facing, doTransfer);
     }
 
     // ============================== Pull/Push operations ==============================

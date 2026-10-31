@@ -181,7 +181,7 @@ Install in a cell's upgrade slots to void excess items when full. Useful for aut
 
 
 #### Trash Unselected Card
-Install in an Import Interface to void items that don't match any filter. This is useful to prevent clogging the machine with leftover items, especially when used with machines that export items without filtering capabilities.
+Install in an Import Interface to void items that do not match any filter. This is useful to prevent clogging the machine with leftover items, especially when used with machines that export items without filtering capabilities.
 
 **Compatible with**: Import Interfaces
 
@@ -202,6 +202,12 @@ Similar to the Pull Card, but for pushing items to adjacent inventories.
 Install in an Export Interface to only refill a slot when there is enough of it in the network, as a multiplier of the slot's size. This only gates the refilling itself, how much is refilled does not change. Right-click the held stack in air to cycle multipliers. The server config controls the multipliers.
 
 **Compatible with**: Export Interfaces
+
+
+#### Redirect Unselected Card
+Install in an Import Interface to redirect items that do not match any filter (like a non-voiding Trash Unselected Card) to a specified adjacent destination. The destination is configurable by right-clicking the card on the desired block, and must be adjacent to the interface when in use.
+
+**Compatible with**: Import Interfaces
 
 
 #### Insertion Card

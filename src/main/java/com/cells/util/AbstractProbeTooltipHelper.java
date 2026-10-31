@@ -26,10 +26,12 @@ import com.cells.api.IInterfaceHost;
 import com.cells.api.IInterfaceProvider;
 import com.cells.api.ResourceType;
 import com.cells.blocks.compactingpatternexposer.TileCompactingPatternExposer;
+import com.cells.blocks.interfacebase.IRedirectStatusContainer;
 import com.cells.blocks.interfacebase.managers.InterfaceTickScheduler;
 import com.cells.items.upgrades.ItemAutoPullCard;
 import com.cells.items.upgrades.ItemAutoPushCard;
 import com.cells.items.upgrades.ItemOverflowCard;
+import com.cells.items.upgrades.ItemRedirectUnselectedCard;
 import com.cells.items.upgrades.ItemTrashUnselectedCard;
 import com.cells.items.upgrades.ItemStockingThresholdCard;
 import com.cells.items.upgrades.pullpush.ContainerPullPushCard;
@@ -53,6 +55,11 @@ public abstract class AbstractProbeTooltipHelper<T> {
         public String getLangKey() {
             return this.langKey;
         }
+    }
+
+    public static boolean supportsTarget(@Nullable Object target) {
+        return target instanceof IInterfaceProvider || target instanceof TileCompactingPatternExposer
+                || target instanceof PartSubnetProxyFront || target instanceof PartSubnetProxyBack;
     }
 
     protected final boolean appendLines(@Nullable Object target, Consumer<T> sink) {
@@ -101,6 +108,7 @@ public abstract class AbstractProbeTooltipHelper<T> {
         }
 
         appendInterfaceBehaviorSummaryLines(uniqueUpgradeHosts, sink);
+        appendInterfaceRedirectLines(uniqueUpgradeHosts, interfaceHosts, sink);
         appendInterfaceCardSummaryLines(interfaceHosts, sink);
     }
 
@@ -269,6 +277,42 @@ public abstract class AbstractProbeTooltipHelper<T> {
             acceptLine(sink, buildInterfaceBehaviorLine(interfaceHost));
             acceptLine(sink, buildInterfaceStockingThresholdLine(interfaceHost));
             acceptLine(sink, buildInterfaceRedstoneLine(interfaceHost));
+        }
+    }
+
+    private void appendInterfaceRedirectLines(List<IInterfaceHost> upgradeHosts,
+                                              List<IInterfaceHost> interfaceHosts, Consumer<T> sink) {
+        for (IInterfaceHost upgradeHost : upgradeHosts) {
+            if (!hasInterfaceUpgradeCard(upgradeHost, ItemRedirectUnselectedCard.class)) continue;
+
+            IItemHandler upgrades = upgradeHost.getUpgradeInventory();
+            int status = IRedirectStatusContainer.NONE;
+            EnumFacing facing = null;
+
+            for (IInterfaceHost interfaceHost : interfaceHosts) {
+                if (!(interfaceHost instanceof IInterfaceTooltipView)) continue;
+                if (interfaceHost.getUpgradeInventory() != upgrades) continue;
+
+                IInterfaceTooltipView view = (IInterfaceTooltipView) interfaceHost;
+                int current = view.getTooltipRedirectStatus();
+                if (current == IRedirectStatusContainer.READY) {
+                    facing = view.getTooltipRedirectFacing();
+                    if (facing != null) {
+                        status = current;
+                        break;
+                    }
+                } else if (current > status && current <= IRedirectStatusContainer.NO_TARGET) {
+                    status = current;
+                }
+            }
+
+            if (status == IRedirectStatusContainer.READY) {
+                acceptLine(sink, translate("tooltip.cells.probe.redirect.ready",
+                        translate("tooltip.cells.probe.side." + facing.getName())));
+            } else if (status >= IRedirectStatusContainer.UNBOUND && status <= IRedirectStatusContainer.NO_TARGET) {
+                acceptLine(sink, translate("tooltip.cells.probe.redirect.error",
+                        translate("cells.redirect_unselected_card.error." + status)));
+            }
         }
     }
 

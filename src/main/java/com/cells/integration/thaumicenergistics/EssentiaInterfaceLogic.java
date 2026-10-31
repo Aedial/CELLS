@@ -209,13 +209,13 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
 
     /**
      * Check if the container accepts a specific aspect.
-     * Returns true if there's a filter for this aspect.
+     * Returns true if a filter matches or a redirect destination is available.
      */
     public boolean doesContainerAccept(Aspect aspect) {
         if (aspect == null) return false;
 
         EssentiaStackKey key = EssentiaStackKey.of(aspect);
-        return isInFilter(key);
+        return isInFilter(key) || this.upgradeManager.hasRedirectUpgrade() && hasRedirectTarget();
     }
 
     /**
@@ -275,10 +275,11 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         if (this.host.isExport()) return amount;
 
         EssentiaStack toInsert = new EssentiaStack(aspect, amount);
+        boolean filtered = isInFilter(EssentiaStackKey.of(aspect));
         int added = receiveFiltered(toInsert, true);
 
         // Record the change for storage bus notification
-        if (added > 0) {
+        if (added > 0 && filtered) {
             recordEssentiaChange(aspect, added);
             notifyStorageBusOfChanges();
         }
@@ -347,7 +348,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      * We return null (accept any aspect) to maximize compatibility with tube routing.
      * Thaumcraft tubes seem to prefer routing to sinks that accept any type.
      * The actual filtering happens in addToContainer() -> receiveFiltered() where
-     * we only accept essentia matching our filters.
+     * filters and installed upgrades determine how much essentia is accepted.
      * <p>
      * This behavior matches how Thaumcraft jars work - they return null for suction
      * type but only store one aspect type per jar.

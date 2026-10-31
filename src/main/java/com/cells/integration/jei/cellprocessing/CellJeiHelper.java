@@ -72,6 +72,7 @@ final class CellJeiHelper {
         addTieredItems(items, ItemRegistry.OVERFLOW_CARD, 1);
         addTieredItems(items, ItemRegistry.OREDICT_CARD, 1);
         addTieredItems(items, ItemRegistry.TRASH_UNSELECTED_CARD, 1);
+        addTieredItems(items, ItemRegistry.REDIRECT_UNSELECTED_CARD, 1);
         addTieredItems(items, ItemRegistry.INSERTION_CARD, 1);
         addTieredItems(items, ItemRegistry.PULL_CARD, 1);
         addTieredItems(items, ItemRegistry.PUSH_CARD, 1);

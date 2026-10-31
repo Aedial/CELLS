@@ -490,6 +490,15 @@ public abstract class AbstractResourceInterfaceGui<H extends IInterfaceHost, C e
 
         this.fontRenderer.drawString(title, 18, 6, 0x404040);
 
+        if (this.container instanceof IRedirectStatusContainer) {
+            int status = ((IRedirectStatusContainer) this.container).getRedirectStatus();
+            if (status > IRedirectStatusContainer.NONE && status < IRedirectStatusContainer.READY) {
+                String msg = I18n.format("cells.redirect_unselected_card.error." + status);
+                int size = this.fontRenderer.getStringWidth(msg);
+                this.fontRenderer.drawString(msg, (this.xSize - size) / 2, -10, 0xFF5555);
+            }
+        }
+
         // Draw controls help widget on the left side (only when enabled)
         if (CellsConfig.hidden.showControlsHelp) {
             ImportInterfaceControlsHelper.drawControlsHelpWidget(

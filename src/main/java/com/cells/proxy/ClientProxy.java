@@ -18,6 +18,7 @@ import com.cells.client.ComponentTooltipHandler;
 import com.cells.client.KeyBindings;
 import com.cells.client.MemoryCardInteractionHandler;
 import com.cells.client.OverlayEventHandler;
+import com.cells.client.RedirectDestinationRenderer;
 import com.cells.gui.subnetproxy.NoChannelsWarningRenderer;
 import com.cells.items.ItemRecoveryContainer;
 
@@ -49,6 +50,8 @@ public class ClientProxy extends CommonProxy {
 
         // Register HUD overlay renderer for feedback messages
         MinecraftForge.EVENT_BUS.register(new OverlayEventHandler());
+
+        MinecraftForge.EVENT_BUS.register(new RedirectDestinationRenderer());
 
         MinecraftForge.EVENT_BUS.register(NoChannelsWarningRenderer.class);
 

@@ -1,9 +1,6 @@
 package com.cells.util;
 
-import java.util.function.Consumer;
-
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import net.minecraft.client.resources.I18n;
 
@@ -12,29 +9,12 @@ import net.minecraftforge.fml.relauncher.SideOnly;
 
 
 @SideOnly(Side.CLIENT)
-public final class InterfaceProbeTooltipHelper extends AbstractProbeTooltipHelper<String> {
-
-    private static final InterfaceProbeTooltipHelper INSTANCE = new InterfaceProbeTooltipHelper();
+public final class InterfaceProbeTooltipHelper {
 
     private InterfaceProbeTooltipHelper() {}
 
-    public static boolean appendTooltipLines(@Nullable Object target, Consumer<String> sink) {
-        return INSTANCE.appendLines(target, sink);
-    }
-
-    @Override
-    protected void appendSeparator(Consumer<String> sink) {
-        sink.accept("");
-    }
-
     @Nonnull
-    @Override
-    protected String renderLine(LocalizedTooltipText line) {
-        return render(line);
-    }
-
-    @Nonnull
-    private static String render(LocalizedTooltipText line) {
+    public static String render(LocalizedTooltipText line) {
         if (line.isLiteral()) return line.getLiteral();
 
         Object[] arguments = new Object[line.getArguments().size()];

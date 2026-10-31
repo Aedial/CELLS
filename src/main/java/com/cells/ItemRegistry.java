@@ -49,6 +49,7 @@ import com.cells.items.upgrades.ItemOverflowCard;
 import com.cells.items.ItemSingularityProcessor;
 import com.cells.items.ItemRecoveryContainer;
 import com.cells.items.upgrades.ItemTrashUnselectedCard;
+import com.cells.items.upgrades.ItemRedirectUnselectedCard;
 import com.cells.items.upgrades.ItemAutoPullCard;
 import com.cells.items.upgrades.ItemAutoPushCard;
 import com.cells.items.upgrades.ItemInsertionCard;
@@ -79,6 +80,7 @@ public class ItemRegistry {
     public static ItemOverflowCard OVERFLOW_CARD;
     public static ItemOreDictCard OREDICT_CARD;
     public static ItemTrashUnselectedCard TRASH_UNSELECTED_CARD;
+    public static ItemRedirectUnselectedCard REDIRECT_UNSELECTED_CARD;
     public static ItemEqualDistributionCard EQUAL_DISTRIBUTION_CARD;
     public static ItemCompressionTierCard COMPRESSION_TIER_CARD;
     public static ItemDecompressionTierCard DECOMPRESSION_TIER_CARD;
@@ -139,6 +141,7 @@ public class ItemRegistry {
         OVERFLOW_CARD = new ItemOverflowCard();
         OREDICT_CARD = new ItemOreDictCard();
         TRASH_UNSELECTED_CARD = new ItemTrashUnselectedCard();
+        REDIRECT_UNSELECTED_CARD = new ItemRedirectUnselectedCard();
         EQUAL_DISTRIBUTION_CARD = new ItemEqualDistributionCard();
         COMPRESSION_TIER_CARD = new ItemCompressionTierCard();
         DECOMPRESSION_TIER_CARD = new ItemDecompressionTierCard();
@@ -197,6 +200,7 @@ public class ItemRegistry {
         event.getRegistry().register(OVERFLOW_CARD);
         event.getRegistry().register(OREDICT_CARD);
         event.getRegistry().register(TRASH_UNSELECTED_CARD);
+        event.getRegistry().register(REDIRECT_UNSELECTED_CARD);
         event.getRegistry().register(EQUAL_DISTRIBUTION_CARD);
         event.getRegistry().register(COMPRESSION_TIER_CARD);
         event.getRegistry().register(DECOMPRESSION_TIER_CARD);
@@ -243,6 +247,9 @@ public class ItemRegistry {
         // Trash unselected card also lives under upgrades
         ModelLoader.setCustomModelResourceLocation(TRASH_UNSELECTED_CARD, 0,
             makeModelLocation(TRASH_UNSELECTED_CARD, "upgrades"));
+
+        ModelLoader.setCustomModelResourceLocation(REDIRECT_UNSELECTED_CARD, 0,
+            makeModelLocation(REDIRECT_UNSELECTED_CARD, "upgrades"));
 
         // Pull/Push cards live under upgrades
         ModelLoader.setCustomModelResourceLocation(PULL_CARD, 0,

@@ -571,6 +571,17 @@ public final class InterfaceApiHelper {
             return world != null && world.isBlockPowered(this.owner.getHostPos());
         }
 
+        @Override
+        public int getTooltipRedirectStatus() {
+            return this.logic.getRedirectStatus();
+        }
+
+        @Nullable
+        @Override
+        public EnumFacing getTooltipRedirectFacing() {
+            return this.logic.getRedirectFacing();
+        }
+
         @Nonnull
         @Override
         public Collection<EnumFacing> getTooltipAutoTransferFacings() {

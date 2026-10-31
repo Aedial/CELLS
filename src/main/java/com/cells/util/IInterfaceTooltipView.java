@@ -2,6 +2,8 @@ package com.cells.util;
 
 import java.util.Collection;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.util.EnumFacing;
 
 
@@ -27,4 +29,9 @@ public interface IInterfaceTooltipView {
     Collection<EnumFacing> getTooltipAutoTransferFacings();
 
     public boolean isTooltipRedstonePowered();
+
+    public int getTooltipRedirectStatus();
+
+    @Nullable
+    public EnumFacing getTooltipRedirectFacing();
 }

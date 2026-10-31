@@ -118,6 +118,8 @@ tooltip.cells.probe.interface.redstone.import.inverted=Import redstone status (i
 tooltip.cells.probe.interface.redstone.export=Export redstone status: %s
 tooltip.cells.probe.interface.redstone.export.inverted=Export redstone status (inverted): %s
 tooltip.cells.probe.interface.behavior.trash_unselected=Trash Unselected
+tooltip.cells.probe.redirect.ready=Redirect unselected to %s
+tooltip.cells.probe.redirect.error=§c%s§r
 tooltip.cells.probe.compacting.summary=Exposed patterns: §b%s§r, custom multipliers: §a%s§r
 tooltip.cells.probe.subnet_proxy.unpaired_front=§eFront half is not paired with a back half.
 tooltip.cells.probe.subnet_proxy.unpaired_back=§eBack half is not paired with a front half.
@@ -296,6 +298,15 @@ tooltip.cells.oredict_card.desc=§7Allows ore dictionary equivalent items to be 
 item.cells.trash_unselected_card.name=Trash Unselected Card
 tooltip.cells.trash_unselected_card.desc=§7Voids items that do not match the filter
 tooltip.cells.trash_unselected_card.warning=§eWarning: This card does not come with any protection! Use with caution.
+
+# Redirect Unselected Card
+item.cells.redirect_unselected_card.name=Redirect Unselected Card
+tooltip.cells.redirect_unselected_card.desc=§7Redirects resources that do not match the filter to the bound destination
+tooltip.cells.redirect_unselected_card.unbound=§eRight-click a block to select a destination
+tooltip.cells.redirect_unselected_card.bound=§aDestination: %s, %s, %s (dimension %s)
+cells.redirect_unselected_card.error.1=Redirect Card: no destination selected
+cells.redirect_unselected_card.error.2=Redirect Card: destination is not on an allowed adjacent side
+cells.redirect_unselected_card.error.3=Redirect Card: no compatible adjacent inventory
 
 # Equal Distribution Card
 item.cells.equal_distribution_card.1x.name=Equal Distribution Card (1x)
@@ -711,12 +722,13 @@ tooltip.cells.type.subnet_proxy=Subnet Proxy
 tooltip.cells.interface.upgrades.title=Allowed upgrades:
 tooltip.cells.interface.upgrades.stocking_threshold=  - §bStocking Threshold Card (max %d)§7: Does not refill a slot until network stock reaches Nx slot size.
 tooltip.cells.interface.upgrades.capacity=  - §bCapacity Card (max %d)§7: Opens a new page with %d slots.
-tooltip.cells.interface.upgrades.pull.part=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from the facing inventory into the internal inventory. Does not trigger Trash Unselected or Overflow voiding.
-tooltip.cells.interface.upgrades.pull.block=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from all adjacent inventories into the internal inventory. Does not trigger Trash Unselected or Overflow voiding.
+tooltip.cells.interface.upgrades.pull.part=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from the facing inventory into the internal inventory. Does not trigger Trash Unselected, Redirect Unselected, or Overflow voiding.
+tooltip.cells.interface.upgrades.pull.block=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from all adjacent inventories into the internal inventory. Does not trigger Trash Unselected, Redirect Unselected, or Overflow voiding.
 tooltip.cells.interface.upgrades.push.part=  - §bAuto-Push Card (max %d)§7: Automatically pushes configured content from the internal inventory into the facing inventory.
 tooltip.cells.interface.upgrades.push.block=  - §bAuto-Push Card (max %d)§7: Automatically pushes configured content from the internal inventory into all adjacent inventories.
 tooltip.cells.interface.upgrades.overflow=  - §bOverflow Card (max %d)§7: Voids configured content inserted into the interface when its internal buffer is full.
-tooltip.cells.interface.upgrades.trash=  - §bTrash Unselected Card (max %d)§7: Voids ANY non-configured content inserted into the interface. Use with CAUTION!
+tooltip.cells.interface.upgrades.trash=  - §bTrash Unselected Card (max %d)§7: Voids ANY non-configured content inserted into the interface. §eUse with CAUTION!
+tooltip.cells.interface.upgrades.redirect=  - §bRedirect Unselected Card (max %d)§7: Sends ANY non-configured content to its selected adjacent inventory.
 tooltip.cells.interface.upgrades.redstone=  - §bRedstone Card (max %d)§7: Runs scheduled network I/O and auto-pull/push ONLY WHILE the interface receives a redstone signal.
 tooltip.cells.interface.upgrades.inverter=  - §bInverter Card (max %d)§7: Reverses the Redstone Card so scheduled transfers run ONLY WITHOUT a redstone signal. Requires a Redstone Card.
 

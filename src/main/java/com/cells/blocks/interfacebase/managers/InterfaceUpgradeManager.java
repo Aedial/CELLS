@@ -17,13 +17,14 @@ import com.cells.items.upgrades.ItemAutoPullCard;
 import com.cells.items.upgrades.ItemAutoPushCard;
 import com.cells.items.upgrades.ItemOverflowCard;
 import com.cells.items.upgrades.ItemTrashUnselectedCard;
+import com.cells.items.upgrades.ItemRedirectUnselectedCard;
 import com.cells.items.upgrades.ItemStockingThresholdCard;
 import com.cells.util.TickManagerHelper;
 
 
 /**
  * Manages upgrade cards installed in an interface: overflow, trash unselected,
- * auto-pull/push, capacity, redstone, and inverter cards. Reads card NBT for interval/quantity
+ * redirect, auto-pull/push, capacity, redstone, and inverter cards. Reads card NBT for interval/quantity
  * settings and notifies the parent logic when card state changes.
  */
 public class InterfaceUpgradeManager {
@@ -46,10 +47,10 @@ public class InterfaceUpgradeManager {
         void onCapacityReduction(int oldCount, int newCount);
 
         /** Notify that the adjacent capability cache should be refreshed. */
-        void onAutoPullPushInstalled();
+        void onAdjacentCacheNeeded();
 
         /** Notify that the adjacent capability cache should be cleared. */
-        void onAutoPullPushRemoved();
+        void onAdjacentCacheReleased();
 
         /** Wake up the interface if in adaptive polling mode. */
         void wakeUpIfAdaptive();
@@ -69,6 +70,8 @@ public class InterfaceUpgradeManager {
 
     /** Whether trash unselected upgrade is installed (import only). */
     private boolean installedTrashUnselectedUpgrade = false;
+
+    private ItemStack redirectCard = ItemStack.EMPTY;
 
     private boolean installedRedstoneUpgrade = false;
     private boolean installedInverterUpgrade = false;
@@ -135,6 +138,14 @@ public class InterfaceUpgradeManager {
         return this.installedTrashUnselectedUpgrade;
     }
 
+    public ItemStack getRedirectCard() {
+        return this.redirectCard;
+    }
+
+    public boolean hasRedirectUpgrade() {
+        return !this.redirectCard.isEmpty();
+    }
+
     public boolean hasAutoPullPushUpgrade() {
         return this.installedAutoPushPullUpgrade;
     }
@@ -171,16 +182,24 @@ public class InterfaceUpgradeManager {
 
     /**
      * Refresh the status of installed upgrades.
-     * Handles card lifecycle: when auto-pull/push card is inserted or removed,
-     * updates the capability cache and re-registers the tick rate.
+     * Updates the capability cache for transfer cards and re-registers the tick rate for auto-pull/push.
      */
     public void refreshUpgrades() {
+        boolean hadRedirect = hasRedirectUpgrade();
+        this.redirectCard = ItemStack.EMPTY;
         this.installedRedstoneUpgrade = countUpgrade(Upgrades.REDSTONE) > 0;
         this.installedInverterUpgrade = countUpgrade(Upgrades.INVERTER) > 0;
 
         if (!this.isExport) {
             this.installedOverflowUpgrade = countUpgrade(ItemOverflowCard.class) > 0;
             this.installedTrashUnselectedUpgrade = countUpgrade(ItemTrashUnselectedCard.class) > 0;
+            for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
+                ItemStack stack = this.upgradeInventory.getStackInSlot(i);
+                if (stack.getItem() instanceof ItemRedirectUnselectedCard) {
+                    this.redirectCard = stack;
+                    break;
+                }
+            }
         }
 
         boolean wasCardInstalled = this.installedAutoPushPullUpgrade;
@@ -195,19 +214,24 @@ public class InterfaceUpgradeManager {
 
             // Card just installed or settings changed, scan adjacent tiles and re-register tick rate
             if (!wasCardInstalled) {
-                this.callbacks.onAutoPullPushInstalled();
+                this.callbacks.onAdjacentCacheNeeded();
                 reRegisterTickRate();
             } else if (this.autoPullPushInterval != oldCardInterval) {
                 // Card interval changed: re-register tick rate to match
                 reRegisterTickRate();
             }
         } else if (wasCardInstalled) {
-            // Card was removed: clear cache, reset timers, revert tick rate
-            this.callbacks.onAutoPullPushRemoved();
+            // Card was removed: release its cache, reset timers, revert tick rate
+            this.callbacks.onAdjacentCacheReleased();
             this.autoPullPushInterval = -1;
             this.autoPushPullQuantity = 0;
             this.autoPullPushKeepQuantity = 0;
             reRegisterTickRate();
+        }
+
+        if (hadRedirect != hasRedirectUpgrade() && !this.installedAutoPushPullUpgrade) {
+            if (hasRedirectUpgrade()) this.callbacks.onAdjacentCacheNeeded();
+            else this.callbacks.onAdjacentCacheReleased();
         }
 
         int oldCapacityCount = this.installedCapacityUpgrades;
@@ -298,7 +322,13 @@ public class InterfaceUpgradeManager {
             }
 
             if (stack.getItem() instanceof ItemTrashUnselectedCard) {
-                return countUpgrade(ItemTrashUnselectedCard.class) < 1;
+                return countUpgrade(ItemTrashUnselectedCard.class) < 1
+                        && countUpgrade(ItemRedirectUnselectedCard.class) == 0;
+            }
+
+            if (stack.getItem() instanceof ItemRedirectUnselectedCard) {
+                return countUpgrade(ItemRedirectUnselectedCard.class) < 1
+                        && countUpgrade(ItemTrashUnselectedCard.class) == 0;
             }
         }
 

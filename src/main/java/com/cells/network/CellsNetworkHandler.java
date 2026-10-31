@@ -33,6 +33,8 @@ import com.cells.network.sync.PacketCompactingPatternPreview;
 import com.cells.network.sync.PacketCompactingPatternMultiplier;
 import com.cells.network.sync.PacketResourceSlot;
 import com.cells.network.sync.PacketStorageSync;
+import com.cells.network.sync.PacketRequestProbeData;
+import com.cells.network.sync.PacketProbeData;
 
 
 /**
@@ -72,10 +74,10 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketCompactingPatternMultiplier.ServerHandler.class, PacketCompactingPatternMultiplier.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketCompactingPatternMultiplier.ClientHandler.class, PacketCompactingPatternMultiplier.class, packetId++, Side.CLIENT);
 
-        // Compacting Pattern Exposer preview sync (server->client)
+        // Compacting Pattern Exposer preview sync (server -> client)
         INSTANCE.registerMessage(PacketCompactingPatternPreview.ClientHandler.class, PacketCompactingPatternPreview.class, packetId++, Side.CLIENT);
 
-        // Storage sync packet (server→client: syncs storage identity + amount per slot)
+        // Storage sync packet (server -> client: syncs storage identity + amount per slot)
         INSTANCE.registerMessage(PacketStorageSync.ClientHandler.class, PacketStorageSync.class, packetId++, Side.CLIENT);
 
         // Tab switching for combined interface
@@ -84,7 +86,7 @@ public class CellsNetworkHandler {
         // Server→client overlay messages (displayed above hotbar alongside chat messages)
         INSTANCE.registerMessage(PacketOverlayMessage.ClientHandler.class, PacketOverlayMessage.class, packetId++, Side.CLIENT);
 
-        // Per-slot size override: client→server to set, server→client to sync
+        // Per-slot size override: client -> server to set, server -> client to sync
         INSTANCE.registerMessage(PacketsetMaxSlotSizeOverride.Handler.class, PacketsetMaxSlotSizeOverride.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSyncSlotSizeOverride.ClientHandler.class, PacketSyncSlotSizeOverride.class, packetId++, Side.CLIENT);
 
@@ -108,5 +110,9 @@ public class CellsNetworkHandler {
 
         // Subnet Proxy: toggle a single channel's exposure on the front-grid
         INSTANCE.registerMessage(PacketToggleProxyChannel.Handler.class, PacketToggleProxyChannel.class, packetId++, Side.SERVER);
+
+        // WAILA Probe data sync (client -> server request -> client sync)
+        INSTANCE.registerMessage(PacketRequestProbeData.Handler.class, PacketRequestProbeData.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketProbeData.Handler.class, PacketProbeData.class, packetId++, Side.CLIENT);
     }
 }

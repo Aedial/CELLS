@@ -342,6 +342,18 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
         return gasHandler.receiveGas(pushSide, new GasStack(targetGas, maxAmount), true);
     }
 
+    @Override
+    protected long insertRedirectedResource(Object handler, GasStack resource, int amount,
+                                            EnumFacing facing, boolean doTransfer) {
+        if (!(handler instanceof IGasHandler)) return 0;
+
+        IGasHandler gasHandler = (IGasHandler) handler;
+        EnumFacing side = facing.getOpposite();
+        if (!gasHandler.canReceiveGas(side, resource.getGas())) return 0;
+
+        return gasHandler.receiveGas(side, new GasStack(resource.getGas(), amount), doTransfer);
+    }
+
     // ============================== External handlers ==============================
 
     /**

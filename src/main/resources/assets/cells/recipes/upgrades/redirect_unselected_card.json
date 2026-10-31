@@ -1,0 +1,9 @@
+{
+    "type": "minecraft:crafting_shapeless",
+    "ingredients": [
+        { "item": "appliedenergistics2:material", "data": 28 },
+        { "item": "minecraft:hopper" },
+        { "item": "minecraft:ender_pearl" }
+    ],
+    "result": { "item": "cells:redirect_unselected_card", "count": 1 }
+}

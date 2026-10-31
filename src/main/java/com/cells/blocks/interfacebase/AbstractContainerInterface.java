@@ -57,7 +57,7 @@ import com.cells.network.sync.ResourceType;
 public abstract class AbstractContainerInterface<T, K, H extends IFilterableInterfaceHost<T, K>>
     extends AEBaseContainer
     implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
-        IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer {
+        IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer, IRedirectStatusContainer {
 
     protected final H host;
 
@@ -103,6 +103,14 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
 
     @GuiSync(6)
     public int stockingThresholdMultiplier = 0;
+
+    @GuiSync(7)
+    public int redirectStatus = 0;
+
+    @Override
+    public int getRedirectStatus() {
+        return this.redirectStatus;
+    }
 
     /**
      * Common constructor for both tile and part hosts.
@@ -375,6 +383,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
 
         if (Platform.isServer()) {
             IInterfaceLogic logic = this.host.getInterfaceLogic();
+            this.redirectStatus = ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).getRedirectStatus();
             if (this.autoPullPushInterval != logic.getAutoPullPushInterval()) {
                 this.autoPullPushInterval = logic.getAutoPullPushInterval();
             }

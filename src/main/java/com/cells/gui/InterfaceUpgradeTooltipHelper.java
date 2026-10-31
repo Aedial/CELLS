@@ -32,6 +32,7 @@ public final class InterfaceUpgradeTooltipHelper {
         if (!isExport) {
             addCard(lines, font, "overflow", 1);
             addCard(lines, font, "trash", 1);
+            addCard(lines, font, "redirect", 1);
         }
 
         addCard(lines, font, "redstone", 1);

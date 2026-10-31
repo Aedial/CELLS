@@ -612,6 +612,22 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
         }
     }
 
+    @Override
+    protected long insertRedirectedResource(Object handler, ItemStack resource, int amount,
+                                            EnumFacing facing, boolean doTransfer) {
+        ItemStack remaining = copyWithAmount(resource, amount);
+        if (handler instanceof IItemRepository) {
+            remaining = ((IItemRepository) handler).insertItem(remaining, !doTransfer);
+        } else if (handler instanceof IItemHandler) {
+            IItemHandler inventory = (IItemHandler) handler;
+            for (int slot = 0; slot < inventory.getSlots() && !remaining.isEmpty(); slot++) {
+                remaining = inventory.insertItem(slot, remaining, !doTransfer);
+            }
+        }
+
+        return amount - (remaining.isEmpty() ? 0 : remaining.getCount());
+    }
+
     // ============================== Item-specific insertion (slotless) ==============================
 
     /**

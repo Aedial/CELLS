@@ -334,6 +334,16 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
         return ((IFluidHandler) handler).fill(toFill, true);
     }
 
+    @Override
+    protected long insertRedirectedResource(Object handler, FluidStack resource, int amount,
+                                            EnumFacing facing, boolean doTransfer) {
+        if (!(handler instanceof IFluidHandler)) return 0;
+
+        FluidStack toFill = resource.copy();
+        toFill.amount = amount;
+        return ((IFluidHandler) handler).fill(toFill, doTransfer);
+    }
+
     // ============================== External handlers ==============================
 
     /**

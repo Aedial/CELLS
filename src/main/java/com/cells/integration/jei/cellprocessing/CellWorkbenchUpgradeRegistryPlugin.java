@@ -173,6 +173,7 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
         addCard(importUpgrades, aeCapacityCard());
         addCard(importUpgrades, ItemRegistry.OVERFLOW_CARD);
         addCard(importUpgrades, ItemRegistry.TRASH_UNSELECTED_CARD);
+        addCard(importUpgrades, ItemRegistry.REDIRECT_UNSELECTED_CARD);
         addCard(importUpgrades, ItemRegistry.PULL_CARD);
         addAlternativeRecipe(recipes, importUpgrades, importInterfaces());
 
