@@ -171,6 +171,8 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
 
         List<List<ItemStack>> importUpgrades = new ArrayList<>();
         addCard(importUpgrades, aeCapacityCard());
+        addCard(importUpgrades, aeRedstoneCard());
+        addCard(importUpgrades, aeInverterCard());
         addCard(importUpgrades, ItemRegistry.OVERFLOW_CARD);
         addCard(importUpgrades, ItemRegistry.TRASH_UNSELECTED_CARD);
         addCard(importUpgrades, ItemRegistry.REDIRECT_UNSELECTED_CARD);
@@ -179,7 +181,10 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
 
         List<List<ItemStack>> exportUpgrades = new ArrayList<>();
         addCard(exportUpgrades, aeCapacityCard());
+        addCard(exportUpgrades, aeRedstoneCard());
+        addCard(exportUpgrades, aeInverterCard());
         addCard(exportUpgrades, ItemRegistry.PUSH_CARD);
+        addCards(exportUpgrades, ItemRegistry.STOCKING_THRESHOLD_CARD);
         addAlternativeRecipe(recipes, exportUpgrades, exportInterfaces());
 
         return recipes;
@@ -339,6 +344,10 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
 
     private static ItemStack aeCapacityCard() {
         return AEApi.instance().definitions().materials().cardCapacity().maybeStack(1).orElse(ItemStack.EMPTY);
+    }
+
+    private static ItemStack aeRedstoneCard() {
+        return AEApi.instance().definitions().materials().cardRedstone().maybeStack(1).orElse(ItemStack.EMPTY);
     }
 
     private static ItemStack aeFuzzyCard() {

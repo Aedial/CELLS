@@ -25,6 +25,7 @@ import appeng.fluids.items.FluidDummyItem;
 import com.cells.gui.subnetproxy.ContainerSubnetProxy;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.network.packets.PacketJEISubnetProxyFilter;
+import com.cells.network.sync.ResourceType;
 
 
 /**
@@ -39,7 +40,7 @@ import com.cells.network.packets.PacketJEISubnetProxyFilter;
  *   <li>Ignores the current filter mode, trusts AE2's type system
  *       (ItemStacks stay as items, FluidStacks → FluidDummyItem)</li>
  *   <li>Silently skips duplicates and full inventory (no error messages)</li>
- *   <li>Supports both item and fluid ingredients from any recipe category</li>
+ *   <li>Supports item, fluid, gas, and essentia ingredients from any recipe category</li>
  * </ul>
  */
 public class SubnetProxyRecipeTransferHandler implements IRecipeTransferHandler<ContainerSubnetProxy> {
@@ -97,7 +98,14 @@ public class SubnetProxyRecipeTransferHandler implements IRecipeTransferHandler<
         // Extract fluid ingredients
         extractFluidIngredients(recipeLayout, filterStacks);
 
-        // FIXME: support gas and essentia ingredients
+        RecipeTransferIngredientCollector.RecipeComponentSelection resourceSelection =
+            RecipeTransferIngredientCollector.RecipeComponentSelection.valueOf(this.selection.name());
+        for (ResourceType type : new ResourceType[] {ResourceType.GAS, ResourceType.ESSENTIA}) {
+            for (Object resource : RecipeTransferIngredientCollector.collect(recipeLayout, type, resourceSelection)) {
+                ItemStack filterStack = ContainerSubnetProxy.resourceToFilterStack(resource);
+                if (!filterStack.isEmpty()) filterStacks.add(filterStack);
+            }
+        }
 
         if (filterStacks.isEmpty()) return null;
 

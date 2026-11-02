@@ -21,6 +21,7 @@ import net.minecraft.util.EnumActionResult;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
@@ -39,6 +40,7 @@ import appeng.util.ReadableNumberConverter;
 
 import com.cells.Tags;
 import com.cells.ItemRegistry;
+import com.cells.helpers.RecoveryContainerHelper;
 import com.cells.integration.mekanismenergistics.MekanismEnergisticsIntegration;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.network.sync.ResourceType;
@@ -46,7 +48,7 @@ import com.cells.util.FluidStackKey;
 
 
 /**
- * An item that holds a single fluid, gas, or essentia type with up to Integer.MAX_VALUE quantity.
+ * Recovery items for a single item, fluid, gas, or essentia type with up to Long.MAX_VALUE quantity.
  * <p>
  * This item is spawned when an interface is broken/shrunk and cannot return all contents to the
  * network. It acts as a transient container allowing players to recover lost content.
@@ -597,7 +599,7 @@ public class ItemRecoveryContainer extends Item {
 
         int type = getType(heldStack);
         // Use long to preserve the full amount without capping at Integer.MAX_VALUE.
-        // Individual transfer APIs return int, but we track the total as long.
+        // External capabilities return int; CELLS interface transfers also accept long quantities
         long amount = getAmount(heldStack);
         if (amount <= 0) return EnumActionResult.PASS;
 
@@ -609,33 +611,34 @@ public class ItemRecoveryContainer extends Item {
         // The transfer (or failure message) will be handled server-side.
         if (world.isRemote) return EnumActionResult.SUCCESS;
 
-        long transferred = 0;
+        long transferred = RecoveryContainerHelper.tryTransferToInterface(
+            heldStack, te, new Vec3d(hitX, hitY, hitZ));
 
-        switch (type) {
-            case TYPE_FLUID:
-                transferred = tryTransferFluid(heldStack, te, facing);
-                break;
+        if (transferred < 0) {
+            transferred = 0;
 
-            case TYPE_GAS:
-                if (MekanismEnergisticsIntegration.isModLoaded()) {
-                    transferred = GasDropHelper.tryTransferGas(heldStack, te, facing);
-                }
-                break;
+            switch (type) {
+                case TYPE_FLUID:
+                    transferred = tryTransferFluid(heldStack, te, facing);
+                    break;
 
-            case TYPE_ESSENTIA:
-                if (ThaumicEnergisticsIntegration.isModLoaded()) {
-                    transferred = EssentiaDropHelper.tryTransferEssentia(heldStack, te, facing);
-                }
-                break;
+                case TYPE_GAS:
+                    if (MekanismEnergisticsIntegration.isModLoaded()) {
+                        transferred = GasDropHelper.tryTransferGas(heldStack, te, facing);
+                    }
+                    break;
 
-            case TYPE_ITEM:
-                transferred = tryTransferItem(heldStack, te, facing);
-                break;
+                case TYPE_ESSENTIA:
+                    if (ThaumicEnergisticsIntegration.isModLoaded()) {
+                        transferred = EssentiaDropHelper.tryTransferEssentia(heldStack, te, facing);
+                    }
+                    break;
+
+                case TYPE_ITEM:
+                    transferred = tryTransferItem(heldStack, te, facing);
+                    break;
+            }
         }
-
-        // TODO: Add special interaction for Import Interfaces to allow transfering more than Integer.MAX_VALUE
-        //       Normal capabilities CANNOT transfer more than max int, no matter how much you delude yourself
-        //       into thinking the problem is already solved
 
         // Use type-appropriate unit for message
         ResourceType resourceType = getResourceType(type);

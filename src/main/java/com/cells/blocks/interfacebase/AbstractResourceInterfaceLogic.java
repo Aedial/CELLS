@@ -733,13 +733,25 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      * Used by import interface external handlers.
      */
     public int receiveFiltered(R resource, boolean doTransfer) {
-        if (resource != null && getAmount(resource) > 0 && this.upgradeManager.hasRedirectUpgrade()) {
+        return (int) receiveFilteredLong(resource, resource == null ? 0 : getAmount(resource), doTransfer);
+    }
+
+    /**
+     * Receive a long quantity using the interface filters and overflow behavior.
+     */
+    public long receiveFilteredLong(R resource, long amount, boolean doTransfer) {
+        if (resource == null || amount <= 0 || getAmount(resource) <= 0) return 0;
+
+        if (this.upgradeManager.hasRedirectUpgrade()) {
             K key = createKey(resource);
             if (key == null) return 0;
-            if (!this.inventoryManager.isInFilter(key)) return redirectUnselected(resource, doTransfer);
+            if (!this.inventoryManager.isInFilter(key)) {
+                R redirected = copyWithAmount(resource, (int) Math.min(amount, Integer.MAX_VALUE));
+                return redirectUnselected(redirected, doTransfer);
+            }
         }
 
-        return this.inventoryManager.receiveFiltered(resource, doTransfer,
+        return this.inventoryManager.receiveFiltered(resource, amount, doTransfer,
                 this.upgradeManager.hasOverflowUpgrade(),
                 this.upgradeManager.hasTrashUnselectedUpgrade());
     }

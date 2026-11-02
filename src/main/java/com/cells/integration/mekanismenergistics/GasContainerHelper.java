@@ -11,23 +11,23 @@ import mekanism.common.capabilities.Capabilities;
 import com.mekeng.github.common.me.data.IAEGasStack;
 
 import com.cells.blocks.interfacebase.IInterfaceLogic;
-import com.cells.blocks.iointerface.IIOInterfaceHost;
 import com.cells.gui.QuickAddHelper;
 import com.cells.items.ItemRecoveryContainer;
 
 
 /**
- * Container helper for gas empty/fill item actions in the I/O Interface.
+ * Container helper for gas empty/fill item actions in I/O and Universal Interfaces.
  * <p>
  * Isolates all MekanismEnergistics type references so that
- * {@link com.cells.blocks.iointerface.ContainerIOInterface} never directly references
+ * {@link com.cells.blocks.iointerface.ContainerIOInterface} and
+ * {@link com.cells.blocks.combinedinterface.ContainerCombinedInterface} never directly reference
  * gas classes, preventing ClassNotFoundException when MekanismEnergistics is not installed.
  * <p>
  * Only call methods on this class after verifying MekanismEnergistics is loaded.
  */
-public final class IOContainerGasHelper {
+public final class GasContainerHelper {
 
-    private IOContainerGasHelper() {}
+    private GasContainerHelper() {}
 
     /**
      * Handle pouring gas from held item into tank (import only).
@@ -36,10 +36,9 @@ public final class IOContainerGasHelper {
      * @return true if the action was handled
      */
     public static boolean handleGasEmptyItem(
-            EntityPlayerMP player, int tankSlot, IIOInterfaceHost host,
+            EntityPlayerMP player, int tankSlot, IInterfaceLogic logic,
             Runnable updateHeld, Runnable detectChanges) {
 
-        IInterfaceLogic logic = host.getActiveLogic();
         if (!(logic instanceof GasInterfaceLogic)) return false;
 
         GasInterfaceLogic gasLogic = (GasInterfaceLogic) logic;
@@ -54,13 +53,13 @@ public final class IOContainerGasHelper {
 
         // Check for IGasItem (Mekanism gas tanks)
         if (held.getItem() instanceof IGasItem) {
-            return handleIGasItemPouring(player, tankSlot, held, gasLogic, host, updateHeld, detectChanges);
+            return handleIGasItemPouring(player, tankSlot, held, gasLogic, updateHeld, detectChanges);
         }
 
         // Check for gas handler capability
         IGasHandler handler = held.getCapability(Capabilities.GAS_HANDLER_CAPABILITY, null);
         if (handler != null) {
-            return handleGasCapabilityPouring(player, tankSlot, held, handler, gasLogic, host, updateHeld, detectChanges);
+            return handleGasCapabilityPouring(player, tankSlot, held, handler, gasLogic, updateHeld, detectChanges);
         }
 
         return false;
@@ -72,10 +71,9 @@ public final class IOContainerGasHelper {
      * @return true if the action was handled
      */
     public static boolean handleGasFillItem(
-            EntityPlayerMP player, int tankSlot, IIOInterfaceHost host,
+            EntityPlayerMP player, int tankSlot, IInterfaceLogic logic,
             Runnable updateHeld, Runnable detectChanges) {
 
-        IInterfaceLogic logic = host.getActiveLogic();
         if (!(logic instanceof GasInterfaceLogic)) return false;
 
         GasInterfaceLogic gasLogic = (GasInterfaceLogic) logic;
@@ -148,7 +146,7 @@ public final class IOContainerGasHelper {
 
     private static boolean handleIGasItemPouring(
             EntityPlayerMP player, int tankSlot, ItemStack held,
-            GasInterfaceLogic gasLogic, IIOInterfaceHost host,
+            GasInterfaceLogic gasLogic,
             Runnable updateHeld, Runnable detectChanges) {
 
         IGasItem gasItem = (IGasItem) held.getItem();
@@ -186,7 +184,7 @@ public final class IOContainerGasHelper {
 
     private static boolean handleGasCapabilityPouring(
             EntityPlayerMP player, int tankSlot, ItemStack held, IGasHandler handler,
-            GasInterfaceLogic gasLogic, IIOInterfaceHost host,
+            GasInterfaceLogic gasLogic,
             Runnable updateHeld, Runnable detectChanges) {
 
         GasStack drainable = handler.drawGas(null, Integer.MAX_VALUE, false);

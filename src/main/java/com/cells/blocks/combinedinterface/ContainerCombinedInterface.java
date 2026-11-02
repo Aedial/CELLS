@@ -883,7 +883,11 @@ public class ContainerCombinedInterface extends AEBaseContainer
             );
         }
 
-        // TODO: Gas pour support when gas tab is active
+        if (activeTab == ResourceType.GAS && ResourceType.GAS.isAvailable()) {
+            return com.cells.integration.mekanismenergistics.GasContainerHelper.handleGasEmptyItem(
+                player, slot, this.host.getGasLogic(), () -> this.updateHeld(player), this::detectAndSendChanges);
+        }
+
         return false;
     }
 
@@ -899,7 +903,11 @@ public class ContainerCombinedInterface extends AEBaseContainer
             );
         }
 
-        // TODO: Gas fill support when gas tab is active
+        if (activeTab == ResourceType.GAS && ResourceType.GAS.isAvailable()) {
+            return com.cells.integration.mekanismenergistics.GasContainerHelper.handleGasFillItem(
+                player, slot, this.host.getGasLogic(), () -> this.updateHeld(player), this::detectAndSendChanges);
+        }
+
         return false;
     }
 

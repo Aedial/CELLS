@@ -8,18 +8,25 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
-## [0.6.10] - 2026-??-??
+## [0.6.10] - 2026-11-05
 ### Added
+- Add gas container pouring and filling to Universal Interfaces.
+- Add gas and essentia recipe transfer support to Subnet Proxy filters in JEI.
+- Add bulk Recovery Container transfers into Import Interfaces, including block, part, Universal, and I/O variants.
 - Add Redstone card (+ Inverter card) support to the Import/Export Interfaces.
 - Add full cards description and behavior to the upgrade slots' tooltips.
-- Add Stocking Threshold Cards for the Import/Export Interfaces. These cards prevent refilling a slot until the network stock reaches the configured multiplier times the slot size.
-- Add Redirect Unselected Cards for the Import Interfaces, allowing unselected items that enter the interface to be redirected to a specified destination. The destination is configurable via the card and must be adjacent to the interface.
+- Add Stocking Threshold Cards for Export Interfaces. These cards prevent refilling a slot until the network stock reaches the configured multiplier times the slot size.
+- Add Redirect Unselected Cards for Import Interfaces, allowing unselected items that enter the interface to be redirected to a specified destination. The destination is configurable via the card and must be adjacent to the interface.
+- Allow the Recovery Container to transfer long quantities directly into Import Interfaces, bypassing the Integer.MAX_VALUE limitation of standard capabilities.
 
 ### Fixed
 - Fix performance issues with the Compacting Pattern Exposer.
 - Fix cards dropping when the Subnet Proxy is disassembled with a wrench, duplicating the cards (disassembly saves the block state, including the cards).
 - Fix Configurable Cells not stacking with newly created ones if they have been configured then reset to default.
 - Fix some WAILA probe info being stale due to not being properly updated from the server.
+
+### Changed
+- Increase the number of upgrade slots available in the Import/Export Interfaces from 4 to 8.
 
 
 ## [0.6.9] - 2026-09-30

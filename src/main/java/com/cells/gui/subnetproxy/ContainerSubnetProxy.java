@@ -626,7 +626,7 @@ public class ContainerSubnetProxy extends AEBaseContainer
      * Convert a resource object (IAEItemStack, IAEFluidStack, etc.) to an ItemStack
      * suitable for storage in the config inventory.
      */
-    private static ItemStack resourceToFilterStack(Object resource) {
+    public static ItemStack resourceToFilterStack(Object resource) {
         if (resource instanceof IAEItemStack) {
             ItemStack stack = ((IAEItemStack) resource).createItemStack();
             stack.setCount(1);

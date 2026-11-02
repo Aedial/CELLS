@@ -1131,19 +1131,18 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
      * Used by import interface external handlers.
      *
      * @param resource The resource to receive
+     * @param inputAmount The quantity to receive
      * @param doTransfer If true, actually perform the transfer; if false, simulate
      * @param hasOverflowUpgrade Whether overflow upgrade is installed
      * @param hasTrashUnselectedUpgrade Whether trash unselected upgrade is installed
      * @return The amount accepted (may include voided amounts if upgrades are installed)
      */
-    public int receiveFiltered(R resource, boolean doTransfer,
-                               boolean hasOverflowUpgrade, boolean hasTrashUnselectedUpgrade) {
-        if (resource == null || this.ops.getAmount(resource) <= 0) return 0;
+    public long receiveFiltered(R resource, long inputAmount, boolean doTransfer,
+                                boolean hasOverflowUpgrade, boolean hasTrashUnselectedUpgrade) {
+        if (resource == null || inputAmount <= 0 || this.ops.getAmount(resource) <= 0) return 0;
 
         K key = this.ops.createKey(resource);
         if (key == null) return 0;
-
-        int inputAmount = this.ops.getAmount(resource);
 
         // No filter matches - void if trash unselected upgrade installed, reject otherwise
         Integer slot = this.filterToSlotMap.get(key);
@@ -1159,7 +1158,7 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
         // Slot full - void overflow if upgrade installed, reject otherwise
         if (space <= 0) return hasOverflowUpgrade ? inputAmount : 0;
 
-        // Input is int, but we can accept up to maxSlotSize (long)
+        // Limit the incoming quantity to the remaining slot capacity (long)
         long toInsert = Math.min(inputAmount, space);
 
         if (doTransfer) {
@@ -1177,10 +1176,10 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
         }
 
         // If overflow upgrade installed, accept all resource (void the excess)
-        int excess = inputAmount - (int) toInsert;
+        long excess = inputAmount - toInsert;
         if (excess > 0 && hasOverflowUpgrade) return inputAmount;
 
-        return (int) toInsert;
+        return toInsert;
     }
 
     /**

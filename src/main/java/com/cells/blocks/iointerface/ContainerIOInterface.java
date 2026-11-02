@@ -1204,22 +1204,22 @@ public class ContainerIOInterface extends AEBaseContainer
 
     /**
      * Handle pouring gas from held item into tank (import only).
-     * Delegates to IOContainerGasHelper to isolate MekanismEnergistics type references.
+     * Delegates to GasContainerHelper to isolate MekanismEnergistics type references.
      */
     @Optional.Method(modid = "mekeng")
     private boolean handleGasEmptyItem(EntityPlayerMP player, int slot) {
-        return com.cells.integration.mekanismenergistics.IOContainerGasHelper.handleGasEmptyItem(
-            player, slot, this.host, () -> this.updateHeld(player), this::detectAndSendChanges);
+        return com.cells.integration.mekanismenergistics.GasContainerHelper.handleGasEmptyItem(
+            player, slot, this.host.getActiveLogic(), () -> this.updateHeld(player), this::detectAndSendChanges);
     }
 
     /**
      * Handle filling held item from gas tank (export only).
-     * Delegates to IOContainerGasHelper to isolate MekanismEnergistics type references.
+     * Delegates to GasContainerHelper to isolate MekanismEnergistics type references.
      */
     @Optional.Method(modid = "mekeng")
     private boolean handleGasFillItem(EntityPlayerMP player, int slot) {
-        return com.cells.integration.mekanismenergistics.IOContainerGasHelper.handleGasFillItem(
-            player, slot, this.host, () -> this.updateHeld(player), this::detectAndSendChanges);
+        return com.cells.integration.mekanismenergistics.GasContainerHelper.handleGasFillItem(
+            player, slot, this.host.getActiveLogic(), () -> this.updateHeld(player), this::detectAndSendChanges);
     }
 
     // ================================= Essentia Storage Interaction =================================

@@ -17,6 +17,7 @@ import net.minecraftforge.items.IItemHandler;
 import appeng.tile.inventory.AppEngInternalInventory;
 
 import com.cells.gui.overlay.ServerMessageHelper;
+import com.cells.items.upgrades.ItemStockingThresholdCard;
 
 
 /**
@@ -26,6 +27,7 @@ import com.cells.gui.overlay.ServerMessageHelper;
  * Matching ignores NBT so cards with per-card settings can still match existing
  * installs, while the saved NBT is copied onto the matched or newly inserted
  * card afterward.
+ * Some specific cards (e.g., Stocking Threshold Cards) also match based on metadata.
  */
 public final class MemoryCardUpgradeHelper {
 
@@ -36,8 +38,8 @@ public final class MemoryCardUpgradeHelper {
      * Restore the upgrades stored under the given NBT key.
      * <p>
      * Existing installed cards satisfy the saved requirement one-for-one when
-     * they match by item identity. Only missing cards are sourced from the
-     * player's main inventory.
+     * they match by item and tier.
+     * Only missing cards come from the player's main inventory.
      */
     public static void restoreFromMemoryCard(@Nonnull NBTTagCompound data,
                                              @Nonnull String key,
@@ -155,12 +157,19 @@ public final class MemoryCardUpgradeHelper {
     private static ItemStack copySavedSettings(ItemStack targetBase, ItemStack savedUpgrade) {
         ItemStack updated = targetBase.copy();
         updated.setCount(1);
+        if (updated.getItem() instanceof ItemStockingThresholdCard) {
+            updated.setItemDamage(savedUpgrade.getMetadata());
+        }
+
         updated.setTagCompound(savedUpgrade.hasTagCompound() ? savedUpgrade.getTagCompound().copy() : null);
         return updated;
     }
 
     private static boolean sameUpgradeItem(ItemStack left, ItemStack right) {
-        return !left.isEmpty() && !right.isEmpty() && ItemStack.areItemsEqual(left, right);
+        if (left.isEmpty() || right.isEmpty()) return false;
+        if (left.getItem() instanceof ItemStockingThresholdCard && left.getItem() == right.getItem()) return true;
+
+        return ItemStack.areItemsEqual(left, right);
     }
 
     private static boolean sameStackWithTags(ItemStack left, ItemStack right) {

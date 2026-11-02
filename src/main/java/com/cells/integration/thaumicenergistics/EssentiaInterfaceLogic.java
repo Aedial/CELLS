@@ -265,27 +265,38 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      *
      * @param aspect The aspect to add
      * @param amount The amount to add
-     * @return The amount actually added
+     * @return The amount that could not be added
      */
     public int addToContainer(Aspect aspect, int amount) {
+        return (int) addToContainer(aspect, (long) amount);
+    }
+
+    /**
+     * Receive a long quantity and notify adjacent storage buses of buffered changes.
+     *
+     * @return The amount that could not be added
+     */
+    public long addToContainer(Aspect aspect, long amount) {
         if (aspect == null || amount <= 0) return amount;
 
         // Only import interfaces accept essentia from tubes (they are sinks)
         // Export interfaces PROVIDE essentia, they don't accept it
         if (this.host.isExport()) return amount;
 
-        EssentiaStack toInsert = new EssentiaStack(aspect, amount);
-        boolean filtered = isInFilter(EssentiaStackKey.of(aspect));
-        int added = receiveFiltered(toInsert, true);
+        EssentiaStack toInsert = new EssentiaStack(aspect, (int) Math.min(amount, Integer.MAX_VALUE));
+        int slot = findSlotByKey(EssentiaStackKey.of(aspect));
+        long previousAmount = getSlotAmount(slot);
+        long accepted = receiveFilteredLong(toInsert, amount, true);
+        long added = getSlotAmount(slot) - previousAmount;
 
         // Record the change for storage bus notification
-        if (added > 0 && filtered) {
+        if (added > 0) {
             recordEssentiaChange(aspect, added);
             notifyStorageBusOfChanges();
         }
 
-        // IAspectContainer contract: return the leftover that could NOT be added
-        return amount - added;
+        // IAspectContainer returns the leftover that could NOT be added
+        return amount - accepted;
     }
 
     /**
