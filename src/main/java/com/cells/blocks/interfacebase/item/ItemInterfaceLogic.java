@@ -437,6 +437,30 @@ public class ItemInterfaceLogic extends AbstractResourceInterfaceLogic<ItemStack
         return totalExtracted;
     }
 
+    @Override
+    @Nullable
+    protected ItemStack simulateResourceExtraction(Object handler, ItemStackKey key, int amount, EnumFacing facing) {
+        if (handler instanceof IItemRepository) {
+            return ((IItemRepository) handler).extractItem(key.toStack(1), amount, true);
+        }
+
+        if (!(handler instanceof IItemHandler)) return null;
+
+        IItemHandler inventory = (IItemHandler) handler;
+        ItemHandlerSlotCache cache = getOrBuildCache(inventory);
+        List<ItemHandlerSlotCache.SlotEntry> entries = cache.occupiedSlots.get(key);
+        if (entries == null) return null;
+
+        for (ItemHandlerSlotCache.SlotEntry entry : entries) {
+            if (entry.count <= 0) continue;
+
+            ItemStack extracted = inventory.extractItem(entry.slotIndex, amount, true);
+            if (!extracted.isEmpty()) return extracted;
+        }
+
+        return null;
+    }
+
     /**
      * Insert items into an adjacent IItemHandler using the slot cache.
      * Phase 1: merge into existing slots that already contain the same item type.

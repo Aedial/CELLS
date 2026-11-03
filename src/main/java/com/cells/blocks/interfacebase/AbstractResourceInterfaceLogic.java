@@ -266,6 +266,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
                                                             EnumFacing facing, boolean doTransfer) {
                 return AbstractResourceInterfaceLogic.this.insertRedirectedResource(handler, resource, amount, facing, doTransfer);
             }
+            @Override
+            public long redirectUnselectedResource(Object handler, K key, int amount, EnumFacing facing) {
+                return AbstractResourceInterfaceLogic.this.redirectUnselectedResource(handler, key, amount, facing);
+            }
+            @Override
+            public Map<K, Long> getUnselectedResourceCounts(Object handler, EnumFacing facing) {
+                return AbstractResourceInterfaceLogic.this.getUnselectedResourceCounts(handler, facing);
+            }
             @Override public R copyAsIdentity(R resource) { return AbstractResourceInterfaceLogic.this.copyAsIdentity(resource); }
             @Override public Map<K, Long> buildResourceCountMap(Object handler, EnumFacing facing) { return AbstractResourceInterfaceLogic.this.buildResourceCountMap(handler, facing); }
             @Override public void flushOperationCaches() { AbstractResourceInterfaceLogic.this.flushOperationCaches(); }
@@ -279,6 +287,10 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             @Override public boolean isExport() { return host.isExport(); }
             @Override public void markDirtyAndSave() { host.markDirtyAndSave(); }
             @Override public EnumSet<EnumFacing> getTargetFacings() { return host.getTargetFacings(); }
+            @Override
+            public EnumFacing getUnselectedPullDestination() {
+                return AbstractResourceInterfaceLogic.this.getUnselectedPullDestination();
+            }
         };
     }
 
@@ -456,7 +468,6 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     protected boolean performAutoPullPush() {
         if (!this.upgradeManager.hasAutoPullPushUpgrade()) return false;
-        if (this.inventoryManager.getFilterSlotList().isEmpty()) return false;
 
         // Ensure cache is populated (handles first tick after load)
         if (!this.adjacentHandler.isCachePopulated()) refreshCapabilityCache();
@@ -464,6 +475,53 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         return this.adjacentHandler.performAutoPullPush(
                 this.upgradeManager.getAutoPushPullQuantity(),
                 this.upgradeManager.getAutoPullPushKeepQuantity());
+    }
+
+    @Nullable
+    protected Map<K, Long> getUnselectedResourceCounts(Object handler, EnumFacing facing) {
+        return buildResourceCountMap(handler, facing);
+    }
+
+    @Nullable
+    protected abstract R simulateResourceExtraction(Object handler, K key, int amount, EnumFacing facing);
+
+    @Nullable
+    private EnumFacing getUnselectedPullDestination() {
+        if (this.host.isExport() || !this.upgradeManager.isPullUnselectedEnabled()
+                || !this.upgradeManager.hasRedirectUpgrade() || !hasRedirectTarget()) return null;
+
+        return getRedirectFacing();
+    }
+
+    private long redirectUnselectedResource(Object handler, K key, int amount, EnumFacing facing) {
+        if (this.redirecting || amount <= 0) return 0;
+
+        EnumFacing destination = getUnselectedPullDestination();
+        if (destination == null || destination == facing) return 0;
+
+        long transferred = 0;
+        this.redirecting = true;
+        try {
+            while (amount > 0) {
+                R available = simulateResourceExtraction(handler, key, amount, facing);
+                if (available == null || getAmount(available) <= 0) break;
+
+                int offered = Math.min(amount, getAmount(available));
+                long accepted = this.adjacentHandler.insertRedirectedResource(destination, available, offered, true);
+                accepted = Math.max(0, Math.min(offered, accepted));
+                if (accepted <= 0) break;
+
+                // Extract only the amount accepted by the redirect destination
+                long extracted = extractResourceFromHandler(handler, key, (int) accepted, facing);
+                transferred += extracted;
+                amount -= (int) extracted;
+                if (extracted < accepted) break;
+            }
+
+            return transferred;
+        } finally {
+            this.redirecting = false;
+        }
     }
 
     /**
@@ -953,7 +1011,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     @Override
     public void refreshUpgrades() {
+        boolean pullUnselected = this.upgradeManager.isPullUnselectedEnabled();
         this.upgradeManager.refreshUpgrades();
+        if (pullUnselected != this.upgradeManager.isPullUnselectedEnabled()) this.host.markDirtyAndSave();
     }
 
     @Override

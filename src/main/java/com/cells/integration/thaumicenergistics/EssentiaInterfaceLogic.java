@@ -44,8 +44,10 @@ import thaumicenergistics.part.PartEssentiaStorageBus;
 
 import com.cells.Cells;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
+import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.interfacebase.managers.InterfaceAdjacentHandler;
 import com.cells.blocks.interfacebase.managers.InterfaceInventoryManager;
+import com.cells.blocks.iointerface.IIOInterfaceHost;
 import com.cells.items.ItemRecoveryContainer;
 
 
@@ -849,6 +851,50 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     @Override
     protected List<Capability<?>> getAdjacentCapabilities() {
         return Collections.emptyList();
+    }
+
+    @Override
+    @Nullable
+    protected EssentiaStack simulateResourceExtraction(Object handler, EssentiaStackKey key,
+                                                       int amount, EnumFacing facing) {
+        if (!(handler instanceof IAspectContainer)) return null;
+
+        Aspect aspect = key.getAspect();
+        if (aspect == null) return null;
+
+        // Keep rejected essentia in the source container
+        // Read its available amount before the destination reports acceptance
+        int available = Math.min(amount, ((IAspectContainer) handler).containerContains(aspect));
+        return available > 0 ? new EssentiaStack(aspect, available) : null;
+    }
+
+    @Override
+    @Nullable
+    protected Map<EssentiaStackKey, Long> getUnselectedResourceCounts(Object handler, EnumFacing facing) {
+        if (!(handler instanceof IAspectContainer)) return null;
+
+        if (handler instanceof AbstractResourceInterfaceLogic.Host
+                && !((AbstractResourceInterfaceLogic.Host) handler).isExport()) return null;
+
+        AspectList contents;
+        if (handler instanceof IIOInterfaceHost) {
+            IInterfaceLogic export = ((IIOInterfaceHost) handler).getExportLogic();
+            if (!(export instanceof EssentiaInterfaceLogic)) return null;
+
+            contents = ((EssentiaInterfaceLogic) export).getAspects();
+        } else {
+            contents = ((IAspectContainer) handler).getAspects();
+        }
+
+        if (contents == null) return null;
+
+        Map<EssentiaStackKey, Long> counts = new HashMap<>();
+        for (Aspect aspect : contents.getAspects()) {
+            EssentiaStackKey key = EssentiaStackKey.of(aspect);
+            if (key != null) counts.put(key, (long) contents.getAmount(aspect));
+        }
+
+        return counts;
     }
 
     @Override

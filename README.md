@@ -189,6 +189,8 @@ Install in an Import Interface to void items that do not match any filter. This 
 #### Pull Card
 Install in an Import Interface to pull items from adjacent inventories until the internal inventory is full (full slots are skipped for performance). This is useful for automated systems where items need to be imported from external sources. Can set the time interval, quantity per operation, and quantity to maintain in the adjacent inventories. The quantity is per interface's filter.
 
+Enable **Pull Unselected** in the card's GUI to also pull unselected resources through a bound Redirect Unselected Card.
+
 **Compatible with**: Import Interfaces
 
 

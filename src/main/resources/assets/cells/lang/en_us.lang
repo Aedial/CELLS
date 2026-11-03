@@ -712,6 +712,9 @@ cells.push_pull_card.quantity.title=Transfer Quantity:
 cells.push_pull_card.quantity.tooltip=How many items/mB/etc. to transfer per operation.
 cells.push_pull_card.limit.title=To keep in adjacent inventory:
 cells.push_pull_card.limit.tooltip=How many items/mB/etc. of each type to maintain in the adjacent inventory (no more, no less).
+cells.pull_card.unselected.title=Pull Unselected
+cells.pull_card.unselected.tooltip=Allows the Pull Card to pull unselected resources via the Redirect Unselected Card.
+tooltip.cells.pull_card.unselected=Redirect Unselected enabled: compatible with Redirect Unselected Card.
 
 # Insertion Card (Subnet Proxy upgrade)
 item.cells.insertion_card.name=Insertion Card
@@ -722,8 +725,8 @@ tooltip.cells.type.subnet_proxy=Subnet Proxy
 tooltip.cells.interface.upgrades.title=Allowed upgrades:
 tooltip.cells.interface.upgrades.stocking_threshold=  - §bStocking Threshold Card (max %d)§7: Does not refill a slot until network stock reaches Nx slot size.
 tooltip.cells.interface.upgrades.capacity=  - §bCapacity Card (max %d)§7: Opens a new page with %d slots.
-tooltip.cells.interface.upgrades.pull.part=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from the facing inventory into the internal inventory. Does not trigger Trash Unselected, Redirect Unselected, or Overflow voiding.
-tooltip.cells.interface.upgrades.pull.block=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from all adjacent inventories into the internal inventory. Does not trigger Trash Unselected, Redirect Unselected, or Overflow voiding.
+tooltip.cells.interface.upgrades.pull.part=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from the facing inventory into the internal inventory. Does not trigger Trash Unselected or Overflow voiding. Part does not work with the Redirect Unselected Card.
+tooltip.cells.interface.upgrades.pull.block=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from all adjacent inventories into the internal inventory. Does not trigger Trash Unselected or Overflow voiding. Redirect Unselected needs to be enabled to work.
 tooltip.cells.interface.upgrades.push.part=  - §bAuto-Push Card (max %d)§7: Automatically pushes configured content from the internal inventory into the facing inventory.
 tooltip.cells.interface.upgrades.push.block=  - §bAuto-Push Card (max %d)§7: Automatically pushes configured content from the internal inventory into all adjacent inventories.
 tooltip.cells.interface.upgrades.overflow=  - §bOverflow Card (max %d)§7: Voids configured content inserted into the interface when its internal buffer is full.

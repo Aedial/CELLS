@@ -17,6 +17,7 @@ import com.cells.network.packets.PacketSetPollingRate;
 import com.cells.network.packets.PacketSetPullPushKeepQuantity;
 import com.cells.network.packets.PacketSetPullPushQuantity;
 import com.cells.network.packets.PacketSetPullPushRate;
+import com.cells.network.packets.PacketSetPullUnselected;
 import com.cells.network.packets.PacketTriggerPollingAction;
 import com.cells.network.packets.PacketsetMaxSlotSizeOverride;
 import com.cells.network.packets.PacketOpenSlotOverrideGui;
@@ -62,6 +63,7 @@ public class CellsNetworkHandler {
         INSTANCE.registerMessage(PacketSetPullPushRate.Handler.class, PacketSetPullPushRate.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetPullPushQuantity.Handler.class, PacketSetPullPushQuantity.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketSetPullPushKeepQuantity.Handler.class, PacketSetPullPushKeepQuantity.class, packetId++, Side.SERVER);
+        INSTANCE.registerMessage(PacketSetPullUnselected.Handler.class, PacketSetPullUnselected.class, packetId++, Side.SERVER);
 
         // Unified resource slot packet (bidirectional: handles filter sync for ALL resource types)
         INSTANCE.registerMessage(PacketResourceSlot.ServerHandler.class, PacketResourceSlot.class, packetId++, Side.SERVER);

@@ -17,6 +17,7 @@ import net.minecraft.util.math.BlockPos;
 
 import appeng.client.gui.AEBaseGui;
 import appeng.client.gui.widgets.GuiTabButton;
+import appeng.client.gui.widgets.GuiToggleButton;
 
 import com.cells.Tags;
 import com.cells.blocks.combinedinterface.ICombinedInterfaceHost;
@@ -28,6 +29,7 @@ import com.cells.network.packets.PacketOpenGui;
 import com.cells.network.packets.PacketSetPullPushKeepQuantity;
 import com.cells.network.packets.PacketSetPullPushQuantity;
 import com.cells.network.packets.PacketSetPullPushRate;
+import com.cells.network.packets.PacketSetPullUnselected;
 import com.cells.util.PollingRateUtils;
 
 
@@ -67,6 +69,9 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
      * main interface GUI. Null when opened from the player's hand.
      */
     private GuiTabButton backButton;
+
+    private GuiToggleButton pullUnselectedButton;
+    private boolean pullUnselected;
 
     /**
      * The interface host when this GUI is opened from an interface.
@@ -143,6 +148,13 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
         // Register as listener for interval changes
         ((ContainerPullPushCard) this.inventorySlots).setListener(this);
 
+        if (this.isImport) {
+            this.pullUnselectedButton = new GuiToggleButton(this.guiLeft + 143, this.guiTop + 6,
+                177, 193, "cells.pull_card.unselected.title", "cells.pull_card.unselected.tooltip");
+            this.pullUnselectedButton.setState(this.pullUnselected);
+            this.buttonList.add(this.pullUnselectedButton);
+        }
+
         // Plus buttons (top row) - positioned similar to priority GUI
         this.buttonList.add(this.plusTick = new GuiButton(0, this.guiLeft + 10, this.guiTop + 32, 28, 20, "+1t"));
         this.buttonList.add(this.plusSec = new GuiButton(1, this.guiLeft + 40, this.guiTop + 32, 28, 20, "+1s"));
@@ -217,6 +229,12 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
     }
 
     @Override
+    public void onPullUnselectedChanged(boolean enabled) {
+        this.pullUnselected = enabled;
+        if (this.pullUnselectedButton != null) this.pullUnselectedButton.setState(enabled);
+    }
+
+    @Override
     public void drawFG(final int offsetX, final int offsetY, final int mouseX, final int mouseY) {
         String type = this.isImport ? "pull" : "push";
         String title = I18n.format("item.cells." + type + "_card.name");
@@ -256,6 +274,11 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
     @Override
     protected void actionPerformed(@Nonnull final GuiButton btn) throws IOException {
         super.actionPerformed(btn);
+
+        if (btn == this.pullUnselectedButton) {
+            CellsNetworkHandler.INSTANCE.sendToServer(new PacketSetPullUnselected(!this.pullUnselected));
+            return;
+        }
 
         // Handle back button (interface mode only)
         if (btn == this.backButton && this.interfaceHost != null) {

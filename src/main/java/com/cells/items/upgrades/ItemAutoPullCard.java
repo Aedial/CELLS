@@ -40,6 +40,7 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
     private static final String NBT_KEY_INTERVAL = "PullInterval";
     private static final String NBT_KEY_QUANTITY = "PullQuantity";
     private static final String NBT_KEY_KEEP = "PullKeepQuantity";
+    private static final String NBT_KEY_UNSELECTED = "PullUnselected";
     private static final int DEFAULT_INTERVAL = ContainerPullPushCard.DEFAULT_INTERVAL;
     private static final int DEFAULT_QUANTITY = ContainerPullPushCard.MINIMUM_QUANTITY;
     private static final int DEFAULT_KEEP = ContainerPullPushCard.MINIMUM_KEEP_QUANTITY;
@@ -108,6 +109,14 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
         AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_KEEP, keepQuantity, 0, DEFAULT_KEEP);
     }
 
+    public static boolean isPullUnselectedEnabled(ItemStack stack) {
+        return AbstractCustomUpgrade.getIntKey(stack, NBT_KEY_UNSELECTED, 0) != 0;
+    }
+
+    public static void setPullUnselectedEnabled(ItemStack stack, boolean enabled) {
+        AbstractCustomUpgrade.setIntKey(stack, NBT_KEY_UNSELECTED, enabled ? 1 : 0, 0, 0);
+    }
+
     @Override
     @Nonnull
     public ActionResult<ItemStack> onItemRightClick(@Nonnull World world, @Nonnull EntityPlayer player,
@@ -148,7 +157,8 @@ public class ItemAutoPullCard extends AbstractCustomUpgrade {
         }
 
         tooltip.add(I18n.format("tooltip.cells.push_pull_card.polling_rate_warning"));
-        tooltip.add(I18n.format("tooltip.cells.push_pull_card.only_filtered_slots"));
+        tooltip.add(I18n.format(isPullUnselectedEnabled(stack)
+            ? "tooltip.cells.pull_card.unselected" : "tooltip.cells.push_pull_card.only_filtered_slots"));
         tooltip.add(I18n.format("tooltip.cells.click_to_configure"));
 
         if (interval < DEFAULT_INTERVAL) {

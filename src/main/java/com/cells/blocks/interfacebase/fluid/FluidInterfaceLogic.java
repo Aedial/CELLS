@@ -280,6 +280,15 @@ public class FluidInterfaceLogic extends AbstractResourceInterfaceLogic<FluidSta
     }
 
     @Override
+    @Nullable
+    protected FluidStack simulateResourceExtraction(Object handler, FluidStackKey key, int amount, EnumFacing facing) {
+        if (!(handler instanceof IFluidHandler)) return null;
+
+        FluidStack request = new FluidStack(key.getFluid(), amount, key.getNbt() == null ? null : key.getNbt().copy());
+        return ((IFluidHandler) handler).drain(request, false);
+    }
+
+    @Override
     protected long countResourceInHandler(Object handler, FluidStackKey key, EnumFacing facing) {
         if (!(handler instanceof IFluidHandler)) return 0;
 

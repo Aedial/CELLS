@@ -275,6 +275,19 @@ public class GasInterfaceLogic extends AbstractResourceInterfaceLogic<GasStack, 
     }
 
     @Override
+    @Nullable
+    protected GasStack simulateResourceExtraction(Object handler, GasStackKey key, int amount, EnumFacing facing) {
+        if (!(handler instanceof IGasHandler)) return null;
+
+        IGasHandler inventory = (IGasHandler) handler;
+        EnumFacing side = facing.getOpposite();
+        if (!inventory.canDrawGas(side, key.getGas())) return null;
+
+        GasStack available = inventory.drawGas(side, amount, false);
+        return key.matches(available) ? available : null;
+    }
+
+    @Override
     protected long countResourceInHandler(Object handler, GasStackKey key, EnumFacing facing) {
         if (!(handler instanceof IGasHandler)) return 0;
 

@@ -88,6 +88,8 @@ public class InterfaceUpgradeManager {
     /** Keep quantity for auto-pull/push operations, stored in the respective card's NBT. */
     private int autoPullPushKeepQuantity = 0;
 
+    private boolean pullUnselectedEnabled = false;
+
     /** Number of installed capacity cards. */
     private int installedCapacityUpgrades = 0;
 
@@ -170,6 +172,10 @@ public class InterfaceUpgradeManager {
         return this.autoPullPushKeepQuantity;
     }
 
+    public boolean isPullUnselectedEnabled() {
+        return this.pullUnselectedEnabled;
+    }
+
     public int getInstalledCapacityUpgrades() {
         return this.installedCapacityUpgrades;
     }
@@ -226,6 +232,7 @@ public class InterfaceUpgradeManager {
             this.autoPullPushInterval = -1;
             this.autoPushPullQuantity = 0;
             this.autoPullPushKeepQuantity = 0;
+            this.pullUnselectedEnabled = false;
             reRegisterTickRate();
         }
 
@@ -287,6 +294,7 @@ public class InterfaceUpgradeManager {
     }
 
     private void initAutoPullPushFromUpgrades() {
+        this.pullUnselectedEnabled = false;
         for (int i = 0; i < this.upgradeInventory.getSlots(); i++) {
             ItemStack stack = this.upgradeInventory.getStackInSlot(i);
             if (stack.isEmpty()) continue;
@@ -296,6 +304,7 @@ public class InterfaceUpgradeManager {
                     this.autoPullPushInterval = ItemAutoPullCard.getInterval(stack);
                     this.autoPushPullQuantity = ItemAutoPullCard.getQuantity(stack);
                     this.autoPullPushKeepQuantity = ItemAutoPullCard.getKeepQuantity(stack);
+                    this.pullUnselectedEnabled = ItemAutoPullCard.isPullUnselectedEnabled(stack);
                 } else {
                     this.autoPullPushInterval = ItemAutoPushCard.getInterval(stack);
                     this.autoPushPullQuantity = ItemAutoPushCard.getQuantity(stack);
@@ -424,6 +433,7 @@ public class InterfaceUpgradeManager {
         this.autoPullPushInterval = -1;
         this.autoPushPullQuantity = 0;
         this.autoPullPushKeepQuantity = 0;
+        this.pullUnselectedEnabled = false;
     }
 
     /**

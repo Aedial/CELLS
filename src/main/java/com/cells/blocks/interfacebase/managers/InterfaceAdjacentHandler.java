@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.lang.ref.WeakReference;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -66,6 +68,11 @@ public class InterfaceAdjacentHandler<R, K> {
         public long insertRedirectedResource(Object handler, R resource, int amount,
                                              EnumFacing facing, boolean doTransfer);
 
+        public long redirectUnselectedResource(Object handler, K key, int amount, EnumFacing facing);
+
+        @Nullable
+        public Map<K, Long> getUnselectedResourceCounts(Object handler, EnumFacing facing);
+
         /**
          * Create an identity-only copy of a resource (amount=1).
          */
@@ -118,6 +125,9 @@ public class InterfaceAdjacentHandler<R, K> {
          * Full-block tiles return all 6 directions, cable bus parts return only their attached side.
          */
         EnumSet<EnumFacing> getTargetFacings();
+
+        @Nullable
+        public EnumFacing getUnselectedPullDestination();
     }
 
     private final ResourceOps<R, K> ops;
@@ -412,15 +422,26 @@ public class InterfaceAdjacentHandler<R, K> {
      */
     public boolean pullFromAdjacent(Object adjacentHandler, EnumFacing facing, int quantity, int keepQuantity) {
         boolean didWork = false;
+        EnumFacing destination = this.callbacks.getUnselectedPullDestination();
+        boolean pullUnselected = destination != null && facing != destination
+            && adjacentHandler != getValidCachedCapability(destination);
+        Set<K> processedKeys = pullUnselected ? new HashSet<>() : null;
 
         // Pre-compute resource counts to avoid re-scanning the adjacent handler per filter slot.
-        // Only needed when keepQuantity > 0 (otherwise we don't care about adjacent amounts).
-        Map<K, Long> resourceCountMap = keepQuantity > 0
-                ? this.ops.buildResourceCountMap(adjacentHandler, facing) : null;
+        // Use counts for keepQuantity and the unselected output pass
+        Map<K, Long> resourceCountMap = null;
+        if (pullUnselected) {
+            resourceCountMap = this.ops.getUnselectedResourceCounts(adjacentHandler, facing);
+        } else if (keepQuantity > 0) {
+            resourceCountMap = this.ops.buildResourceCountMap(adjacentHandler, facing);
+        }
 
         for (int filterIdx : this.inventoryManager.getFilterSlotList()) {
             K filterKey = this.inventoryManager.getFilterKey(filterIdx);
             if (filterKey == null) continue;
+
+            // Keep selected resources out of the redirect pass when their slots are full
+            if (processedKeys != null) processedKeys.add(filterKey);
 
             long spaceRemaining = this.inventoryManager.getEffectiveMaxSlotSize(filterIdx) - this.inventoryManager.getSlotAmount(filterIdx);
             if (spaceRemaining <= 0) continue;
@@ -458,6 +479,20 @@ public class InterfaceAdjacentHandler<R, K> {
             }
 
             didWork = true;
+        }
+
+        if (processedKeys != null && resourceCountMap != null) {
+            for (K key : new ArrayList<>(resourceCountMap.keySet())) {
+                if (key == null || !processedKeys.add(key)) continue;
+
+                long available = resourceCountMap.getOrDefault(key, 0L) - keepQuantity;
+                if (available <= 0) continue;
+
+                int amount = (int) Math.min(quantity, available);
+                if (amount <= 0) continue;
+
+                didWork |= this.ops.redirectUnselectedResource(adjacentHandler, key, amount, facing) > 0;
+            }
         }
 
         if (didWork) this.callbacks.markDirtyAndSave();
@@ -534,7 +569,8 @@ public class InterfaceAdjacentHandler<R, K> {
      * @return true if any resource was transferred
      */
     public boolean performAutoPullPush(int quantity, int keepQuantity) {
-        if (this.inventoryManager.getFilterSlotList().isEmpty()) return false;
+        if (this.inventoryManager.getFilterSlotList().isEmpty()
+                && this.callbacks.getUnselectedPullDestination() == null) return false;
 
         // Ensure cache is populated (handles first tick after load)
         if (!this.capabilityCachePopulated) refreshCapabilityCache();

@@ -97,12 +97,16 @@ public class ContainerPullPushCard extends AEBaseContainer {
     @GuiSync(2)
     public long keepsQuantity;
 
+    @GuiSync(3)
+    public boolean pullUnselected;
+
     private void initVars() {
         // Load initial interval from NBT
         if (this.isPullCard) {
             this.interval = ItemAutoPullCard.getInterval(cardStack);
             this.quantity = ItemAutoPullCard.getQuantity(cardStack);
             this.keepsQuantity = ItemAutoPullCard.getKeepQuantity(cardStack);
+            this.pullUnselected = ItemAutoPullCard.isPullUnselectedEnabled(cardStack);
         } else {
             this.interval = ItemAutoPushCard.getInterval(cardStack);
             this.quantity = ItemAutoPushCard.getQuantity(cardStack);
@@ -246,6 +250,7 @@ public class ContainerPullPushCard extends AEBaseContainer {
         this.listener.onIntervalChanged((int) Math.min(this.interval, Integer.MAX_VALUE));
         this.listener.onQuantityChanged((int) Math.min(this.quantity, Integer.MAX_VALUE));
         this.listener.onKeepsQuantityChanged((int) Math.min(this.keepsQuantity, Integer.MAX_VALUE));
+        this.listener.onPullUnselectedChanged(this.pullUnselected);
     }
 
     /**
@@ -329,6 +334,15 @@ public class ContainerPullPushCard extends AEBaseContainer {
         this.refreshHostUpgrades();
     }
 
+    public void setPullUnselected(boolean enabled) {
+        if (!this.isPullCard || !canInteractWith(getInventoryPlayer().player)) return;
+
+        ItemAutoPullCard.setPullUnselectedEnabled(this.cardStack, enabled);
+        this.pullUnselected = enabled;
+        getInventoryPlayer().markDirty();
+        this.refreshHostUpgrades();
+    }
+
     @Override
     public void detectAndSendChanges() {
         super.detectAndSendChanges();
@@ -345,6 +359,8 @@ public class ContainerPullPushCard extends AEBaseContainer {
             this.listener.onQuantityChanged((int) Math.min(this.quantity, Integer.MAX_VALUE));
         } else if (field.equals("keepsQuantity") && this.listener != null) {
             this.listener.onKeepsQuantityChanged((int) Math.min(this.keepsQuantity, Integer.MAX_VALUE));
+        } else if (field.equals("pullUnselected") && this.listener != null) {
+            this.listener.onPullUnselectedChanged(this.pullUnselected);
         }
 
         super.onUpdate(field, oldValue, newValue);
@@ -401,5 +417,6 @@ public class ContainerPullPushCard extends AEBaseContainer {
         void onIntervalChanged(int interval);
         void onQuantityChanged(int quantity);
         void onKeepsQuantityChanged(int keepsQuantity);
+        public void onPullUnselectedChanged(boolean enabled);
     }
 }

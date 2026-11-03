@@ -10,6 +10,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [0.6.10] - 2026-11-05
 ### Added
+- Add an optional Pull Unselected mode to Pull Cards, forwarding unselected adjacent output through Redirect Unselected.
 - Add gas container pouring and filling to Universal Interfaces.
 - Add gas and essentia recipe transfer support to Subnet Proxy filters in JEI.
 - Add bulk Recovery Container transfers into Import Interfaces, including block, part, Universal, and I/O variants.
