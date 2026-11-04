@@ -45,6 +45,7 @@ import com.cells.api.IInterfaceProvider;
 import com.cells.api.IUpgradeable;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
+import com.cells.blocks.interfacebase.managers.InterfaceRatioHandler;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.helpers.InterfaceApiHelper;
@@ -102,6 +103,8 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
 
     // Debounce: markChunkDirty to once per tick
     private long lastSaveTick = -1;
+
+    private final InterfaceRatioHandler ratioHandler = new InterfaceRatioHandler();
 
     protected AbstractCombinedInterfaceTile() {
         this.getProxy().setFlags(GridFlags.REQUIRE_CHANNEL);
@@ -165,6 +168,11 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
     }
 
     // ============================== ICombinedInterfaceHost ==============================
+
+    @Override
+    public InterfaceRatioHandler getRatioHandler() {
+        return this.ratioHandler;
+    }
 
     @Override
     public ItemInterfaceLogic getItemLogic() {
@@ -365,6 +373,7 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
         this.fluidLogic.readFromNBT(data, true);
         if (this.gasLogic != null) this.gasLogic.readFromNBT(data, true);
         if (this.essentiaLogic != null) this.essentiaLogic.readFromNBT(data, true);
+        this.ratioHandler.readFromNBT(data.getCompoundTag(InterfaceRatioHandler.NBT_KEY));
     }
 
     @Override
@@ -376,6 +385,7 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
         this.fluidLogic.writeToNBT(data);
         if (this.gasLogic != null) this.gasLogic.writeToNBT(data);
         if (this.essentiaLogic != null) this.essentiaLogic.writeToNBT(data);
+        this.ratioHandler.writeToNBT(data, InterfaceRatioHandler.NBT_KEY);
 
         return data;
     }

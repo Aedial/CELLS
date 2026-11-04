@@ -50,6 +50,9 @@ import com.cells.integration.thaumicenergistics.EssentiaInterfaceGuiHandler;
 import com.cells.integration.thaumicenergistics.ThaumicEnergisticsIntegration;
 import com.cells.items.upgrades.pullpush.ContainerPullPushCard;
 import com.cells.items.upgrades.pullpush.GuiPullPushCard;
+import com.cells.items.upgrades.RatioControlCard;
+import com.cells.items.upgrades.ratio.ContainerRatioCard;
+import com.cells.items.upgrades.ratio.GuiRatioCard;
 import com.cells.parts.subnetproxy.PartSubnetProxyFront;
 
 
@@ -79,6 +82,7 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_ITEM_IO_INTERFACE = 15;
     public static final int GUI_FLUID_IO_INTERFACE = 16;
     public static final int GUI_COMPACTING_PATTERN_EXPOSER = 17;
+    public static final int GUI_RATIO_CARD = 18;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
@@ -355,6 +359,11 @@ public class CellsGuiHandler implements IGuiHandler {
             case GUI_PULL_PUSH_CARD:
                 return new ContainerPullPushCard(player.inventory, EnumHand.values()[x]);
 
+            case GUI_RATIO_CARD:
+                if (x < 0 || x >= EnumHand.values().length) return null;
+                if (!(player.getHeldItem(EnumHand.values()[x]).getItem() instanceof RatioControlCard)) return null;
+                return new ContainerRatioCard(player.inventory, EnumHand.values()[x]);
+
             case GUI_PULL_PUSH_CARD_INTERFACE:
                 if (tile instanceof IFilterableInterfaceHost) {
                     return new ContainerPullPushCard(player.inventory, (IFilterableInterfaceHost) tile);
@@ -545,6 +554,11 @@ public class CellsGuiHandler implements IGuiHandler {
 
             case GUI_PULL_PUSH_CARD:
                 return new GuiPullPushCard(player.inventory, EnumHand.values()[x]);
+
+            case GUI_RATIO_CARD:
+                if (x < 0 || x >= EnumHand.values().length) return null;
+                if (!(player.getHeldItem(EnumHand.values()[x]).getItem() instanceof RatioControlCard)) return null;
+                return new GuiRatioCard(player.inventory, EnumHand.values()[x]);
 
             case GUI_PULL_PUSH_CARD_INTERFACE:
                 if (tile instanceof IFilterableInterfaceHost) {

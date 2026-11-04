@@ -716,6 +716,16 @@ cells.pull_card.unselected.title=Pull Unselected
 cells.pull_card.unselected.tooltip=Allows the Pull Card to pull unselected resources via the Redirect Unselected Card.
 tooltip.cells.pull_card.unselected=Redirect Unselected enabled: compatible with Redirect Unselected Card.
 
+# Ratio Control Card
+item.cells.ratio_card.name=Ratio Control Card
+tooltip.cells.ratio_card.desc=Pushes items according to the ratios defined by its encoded patterns, up to Push quantity AND local stock. Requires a Push Card.
+tooltip.cells.ratio_card.memory=Excluded from Memory Card copying
+tooltip.cells.ratio_card.count=Patterns: %s/%s
+tooltip.cells.ratio_card.shift=Hold Shift to show the patterns
+tooltip.cells.ratio_card.pattern=%s: %s
+tooltip.cells.ratio_card.invalid=Invalid pattern
+tooltip.cells.ratio_card.inactive=%s patterns have invalid inputs or missing filters
+
 # Insertion Card (Subnet Proxy upgrade)
 item.cells.insertion_card.name=Insertion Card
 tooltip.cells.insertion_card.desc=§7Allows sending content back through the Subnet Proxy (§emake sure§7 the Proxy's filter is properly configured!). This is meant for returning content to their storage location.
@@ -723,6 +733,7 @@ tooltip.cells.type.subnet_proxy=Subnet Proxy
 
 # Interface Upgrade Slots
 tooltip.cells.interface.upgrades.title=Allowed upgrades:
+tooltip.cells.interface.upgrades.ratio=  - §bRatio Control Card (max %d)§7: Pushes items according to the ratios defined by its encoded patterns, up to Push quantity AND local stock. Requires a Push Card.
 tooltip.cells.interface.upgrades.stocking_threshold=  - §bStocking Threshold Card (max %d)§7: Does not refill a slot until network stock reaches Nx slot size.
 tooltip.cells.interface.upgrades.capacity=  - §bCapacity Card (max %d)§7: Opens a new page with %d slots.
 tooltip.cells.interface.upgrades.pull.part=  - §bAuto-Pull Card (max %d)§7: Automatically pulls configured content from the facing inventory into the internal inventory. Does not trigger Trash Unselected or Overflow voiding. Part does not work with the Redirect Unselected Card.

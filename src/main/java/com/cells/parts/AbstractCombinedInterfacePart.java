@@ -54,6 +54,7 @@ import com.cells.api.IUpgradeable;
 import com.cells.blocks.combinedinterface.ICombinedInterfaceHost;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
+import com.cells.blocks.interfacebase.managers.InterfaceRatioHandler;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.gui.CellsGuiHandler;
@@ -93,6 +94,8 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
     private ResourceType activeTab = ResourceType.ITEM;
 
     private long lastSaveTick = -1;
+
+    private final InterfaceRatioHandler ratioHandler = new InterfaceRatioHandler();
 
     protected AbstractCombinedInterfacePart(final ItemStack is) {
         super(is);
@@ -139,6 +142,7 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
 
     // ============================== ICombinedInterfaceHost ==============================
 
+    @Override public InterfaceRatioHandler getRatioHandler() { return this.ratioHandler; }
     @Override public ItemInterfaceLogic getItemLogic() { return this.itemLogic; }
     @Override public FluidInterfaceLogic getFluidLogic() { return this.fluidLogic; }
     @Override @Nullable public IInterfaceLogic getGasLogic() { return this.gasLogic; }
@@ -339,12 +343,14 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
     public void readFromNBT(final NBTTagCompound data) {
         super.readFromNBT(data);
         for (IInterfaceLogic logic : this.allLogics) logic.readFromNBT(data, false);
+        this.ratioHandler.readFromNBT(data.getCompoundTag(InterfaceRatioHandler.NBT_KEY));
     }
 
     @Override
     public void writeToNBT(final NBTTagCompound data) {
         super.writeToNBT(data);
         for (IInterfaceLogic logic : this.allLogics) logic.writeToNBT(data);
+        this.ratioHandler.writeToNBT(data, InterfaceRatioHandler.NBT_KEY);
     }
 
     @Nonnull

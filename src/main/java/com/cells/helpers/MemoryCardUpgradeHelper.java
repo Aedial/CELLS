@@ -18,6 +18,7 @@ import appeng.tile.inventory.AppEngInternalInventory;
 
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.items.upgrades.ItemStockingThresholdCard;
+import com.cells.items.upgrades.RatioControlCard;
 
 
 /**
@@ -28,6 +29,7 @@ import com.cells.items.upgrades.ItemStockingThresholdCard;
  * installs, while the saved NBT is copied onto the matched or newly inserted
  * card afterward.
  * Some specific cards (e.g., Stocking Threshold Cards) also match based on metadata.
+ * Ratio Cards are excluded from copying.
  */
 public final class MemoryCardUpgradeHelper {
 
@@ -98,6 +100,7 @@ public final class MemoryCardUpgradeHelper {
         for (int slot = 0; slot < temp.getSlots(); slot++) {
             ItemStack sourceStack = temp.getStackInSlot(slot);
             if (sourceStack.isEmpty()) continue;
+            if (sourceStack.getItem() instanceof RatioControlCard) continue;
 
             int copies = Math.max(1, sourceStack.getCount());
             for (int i = 0; i < copies; i++) {

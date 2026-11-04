@@ -39,6 +39,7 @@ import com.cells.blocks.interfacebase.IResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.ISizeOverrideContainer;
 import com.cells.blocks.interfacebase.IStockingThresholdContainer;
 import com.cells.blocks.interfacebase.IRedirectStatusContainer;
+import com.cells.blocks.interfacebase.IRatioCardStateContainer;
 import com.cells.gui.IToolboxContainer;
 import com.cells.gui.overlay.ServerMessageHelper;
 import com.cells.network.CellsNetworkHandler;
@@ -65,7 +66,8 @@ import com.cells.network.sync.ResourceType;
  */
 public class ContainerCombinedInterface extends AEBaseContainer
     implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
-    IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer, IRedirectStatusContainer {
+    IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer, IRedirectStatusContainer,
+    IRatioCardStateContainer {
 
     private final ICombinedInterfaceHost host;
 
@@ -121,6 +123,19 @@ public class ContainerCombinedInterface extends AEBaseContainer
 
     @GuiSync(8)
     public int redirectStatus = 0;
+
+    @GuiSync(9)
+    public int inactivePatternMask = 0;
+
+    @Override
+    public int getInactivePatternMask() {
+        return this.inactivePatternMask;
+    }
+
+    @Override
+    public ItemStack getInstalledRatioCard() {
+        return this.host.getItemLogic().getInstalledRatioCard();
+    }
 
     @Override
     public int getRedirectStatus() {
@@ -400,6 +415,7 @@ public class ContainerCombinedInterface extends AEBaseContainer
 
         if (Platform.isServer()) {
             this.redirectStatus = 0;
+            this.inactivePatternMask = this.host.getItemLogic().getInactivePatternMask();
             for (IInterfaceLogic logic : this.host.getAllLogics()) {
                 int status = ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).getRedirectStatus();
                 if (status > this.redirectStatus) this.redirectStatus = status;

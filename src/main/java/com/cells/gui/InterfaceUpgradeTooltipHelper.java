@@ -27,6 +27,7 @@ public final class InterfaceUpgradeTooltipHelper {
         String sides = isPart ? "part" : "block";
         addCard(lines, font, transfer + "." + sides, 1);
 
+        if (isExport) addCard(lines, font, "ratio", 1);
         if (isExport) addCard(lines, font, "stocking_threshold", 1);
 
         if (!isExport) {

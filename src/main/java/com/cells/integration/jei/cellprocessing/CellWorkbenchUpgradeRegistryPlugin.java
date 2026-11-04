@@ -184,6 +184,7 @@ public class CellWorkbenchUpgradeRegistryPlugin implements IRecipeRegistryPlugin
         addCard(exportUpgrades, aeRedstoneCard());
         addCard(exportUpgrades, aeInverterCard());
         addCard(exportUpgrades, ItemRegistry.PUSH_CARD);
+        addCard(exportUpgrades, ItemRegistry.RATIO_CARD);
         addCards(exportUpgrades, ItemRegistry.STOCKING_THRESHOLD_CARD);
         addAlternativeRecipe(recipes, exportUpgrades, exportInterfaces());
 

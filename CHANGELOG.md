@@ -10,6 +10,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [0.6.10] - 2026-11-05
 ### Added
+- Add Ratio Control Card for Export Interfaces, with a 27-slot pattern inventory (+ Pattern Multi-Tool support), filter handling, and grouped pushing alongside Push Cards.
 - Add an optional Pull Unselected mode to Pull Cards, forwarding unselected adjacent output through Redirect Unselected.
 - Add gas container pouring and filling to Universal Interfaces.
 - Add gas and essentia recipe transfer support to Subnet Proxy filters in JEI.

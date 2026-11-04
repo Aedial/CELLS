@@ -55,6 +55,7 @@ import com.cells.items.upgrades.ItemAutoPushCard;
 import com.cells.items.upgrades.ItemInsertionCard;
 import com.cells.items.upgrades.ItemEmcCapacityCard;
 import com.cells.items.upgrades.ItemStockingThresholdCard;
+import com.cells.items.upgrades.RatioControlCard;
 import com.cells.recipes.CellComponentSwapRecipe;
 import com.cells.recipes.ConfigurableCellAssemblyRecipe;
 
@@ -93,6 +94,7 @@ public class ItemRegistry {
     public static ItemRecoveryContainer RECOVERY_CONTAINER;
     public static ItemAutoPullCard PULL_CARD;
     public static ItemAutoPushCard PUSH_CARD;
+    public static RatioControlCard RATIO_CARD;
     public static ItemInsertionCard INSERTION_CARD;
     public static ItemStockingThresholdCard STOCKING_THRESHOLD_CARD;
 
@@ -147,6 +149,7 @@ public class ItemRegistry {
         DECOMPRESSION_TIER_CARD = new ItemDecompressionTierCard();
         PULL_CARD = new ItemAutoPullCard();
         PUSH_CARD = new ItemAutoPushCard();
+        RATIO_CARD = new RatioControlCard();
         INSERTION_CARD = new ItemInsertionCard();
         STOCKING_THRESHOLD_CARD = new ItemStockingThresholdCard();
 
@@ -206,6 +209,7 @@ public class ItemRegistry {
         event.getRegistry().register(DECOMPRESSION_TIER_CARD);
         event.getRegistry().register(PULL_CARD);
         event.getRegistry().register(PUSH_CARD);
+        event.getRegistry().register(RATIO_CARD);
         event.getRegistry().register(INSERTION_CARD);
         event.getRegistry().register(STOCKING_THRESHOLD_CARD);
         event.getRegistry().register(COMPRESSED_CALCULATION_PRINT);
@@ -256,6 +260,8 @@ public class ItemRegistry {
             makeModelLocation(PULL_CARD, "upgrades"));
         ModelLoader.setCustomModelResourceLocation(PUSH_CARD, 0,
             makeModelLocation(PUSH_CARD, "upgrades"));
+        ModelLoader.setCustomModelResourceLocation(RATIO_CARD, 0,
+            makeModelLocation(RATIO_CARD, "upgrades"));
 
         // Insertion card lives under upgrades
         ModelLoader.setCustomModelResourceLocation(INSERTION_CARD, 0,

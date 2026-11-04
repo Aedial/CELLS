@@ -200,6 +200,18 @@ Similar to the Pull Card, but for pushing items to adjacent inventories.
 **Compatible with**: Export Interfaces
 
 
+#### Ratio Control Card
+Install alongside a Push Card in an Export Interface to push ingredient groups from encoded patterns. Right-click the held card to open its pattern slots, with Pattern Multi-Tool access when NAE2 is installed. Disassembling the card returns its patterns along with its crafting components.
+
+Upon installation, the card will auto-filter the interface based on its encoded patterns. It will only push items in the specific ratios matching its encoded patterns, e.g. 1 tin + 3 copper (= 4 bronze) will only move as X tin and 3X copper, maintaining the correct ratio for bronze production, up to the minimum of the Push Card's transfer quantity and available buffered ingredients.
+
+Items not matching the encoded patterns will not be pushed, ensuring that only the correct ratios are maintained. They stay available for external IO operations.
+
+The card is not saved in Memory Card, as it may contain a lot of patterns.
+
+**Compatible with**: Export Interfaces (+ Push Card)
+
+
 #### Stocking Threshold Card
 Install in an Export Interface to only refill a slot when there is enough of it in the network, as a multiplier of the slot's size. This only gates the refilling itself, how much is refilled does not change. Right-click the held stack in air to cycle multipliers. The server config controls the multipliers.
 

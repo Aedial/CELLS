@@ -51,6 +51,7 @@ import com.cells.blocks.interfacebase.IResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.ISizeOverrideContainer;
 import com.cells.blocks.interfacebase.IStockingThresholdContainer;
 import com.cells.blocks.interfacebase.IRedirectStatusContainer;
+import com.cells.blocks.interfacebase.IRatioCardStateContainer;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
 import com.cells.gui.IToolboxContainer;
@@ -79,7 +80,8 @@ import com.cells.network.sync.ResourceType;
  */
 public class ContainerIOInterface extends AEBaseContainer
     implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
-    IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer, IRedirectStatusContainer {
+    IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer, IRedirectStatusContainer,
+    IRatioCardStateContainer {
 
     private final IIOInterfaceHost host;
 
@@ -135,6 +137,19 @@ public class ContainerIOInterface extends AEBaseContainer
 
     @GuiSync(8)
     public int redirectStatus = 0;
+
+    @GuiSync(9)
+    public int inactivePatternMask = 0;
+
+    @Override
+    public int getInactivePatternMask() {
+        return this.inactivePatternMask;
+    }
+
+    @Override
+    public ItemStack getInstalledRatioCard() {
+        return ((AbstractResourceInterfaceLogic<?, ?, ?>) this.host.getExportLogic()).getInstalledRatioCard();
+    }
 
     @Override
     public int getRedirectStatus() {
@@ -443,6 +458,8 @@ public class ContainerIOInterface extends AEBaseContainer
         if (Platform.isServer()) {
             this.redirectStatus = this.activeDirectionTab == IIOInterfaceHost.TAB_IMPORT
                     ? ((AbstractResourceInterfaceLogic<?, ?, ?>) this.host.getImportLogic()).getRedirectStatus() : 0;
+            this.inactivePatternMask = ((AbstractResourceInterfaceLogic<?, ?, ?>) this.host.getExportLogic())
+                .getInactivePatternMask();
             if (this.autoPullPushInterval != activeLogic.getAutoPullPushInterval()) {
                 this.autoPullPushInterval = activeLogic.getAutoPullPushInterval();
             }

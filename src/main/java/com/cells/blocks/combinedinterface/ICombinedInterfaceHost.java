@@ -8,6 +8,7 @@ import com.cells.blocks.interfacebase.IInterfaceHost;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.interfacebase.item.ItemInterfaceLogic;
 import com.cells.blocks.interfacebase.fluid.FluidInterfaceLogic;
+import com.cells.blocks.interfacebase.managers.InterfaceRatioHandler;
 import com.cells.network.sync.ResourceType;
 
 
@@ -23,6 +24,8 @@ import com.cells.network.sync.ResourceType;
  * Instead, typed access is provided through dedicated logic accessors.
  */
 public interface ICombinedInterfaceHost extends IInterfaceHost {
+
+    public InterfaceRatioHandler getRatioHandler();
 
     /**
      * @return The item interface logic (always present).

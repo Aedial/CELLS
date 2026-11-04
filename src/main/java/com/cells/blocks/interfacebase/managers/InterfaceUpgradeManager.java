@@ -19,6 +19,7 @@ import com.cells.items.upgrades.ItemOverflowCard;
 import com.cells.items.upgrades.ItemTrashUnselectedCard;
 import com.cells.items.upgrades.ItemRedirectUnselectedCard;
 import com.cells.items.upgrades.ItemStockingThresholdCard;
+import com.cells.items.upgrades.RatioControlCard;
 import com.cells.util.TickManagerHelper;
 
 
@@ -174,6 +175,10 @@ public class InterfaceUpgradeManager {
 
     public boolean isPullUnselectedEnabled() {
         return this.pullUnselectedEnabled;
+    }
+
+    public ItemStack getRatioCard() {
+        return this.isExport ? RatioControlCard.find(this.upgradeInventory) : ItemStack.EMPTY;
     }
 
     public int getInstalledCapacityUpgrades() {
@@ -353,6 +358,10 @@ public class InterfaceUpgradeManager {
             return countUpgrade(ItemStockingThresholdCard.class) < 1;
         }
 
+        if (stack.getItem() instanceof RatioControlCard && this.isExport) {
+            return countUpgrade(RatioControlCard.class) < 1;
+        }
+
         // Capacity, redstone, and inverter cards support both import and export
         if (stack.getItem() instanceof IUpgradeModule) {
             IUpgradeModule module = (IUpgradeModule) stack.getItem();
@@ -416,6 +425,16 @@ public class InterfaceUpgradeManager {
      */
     public void writeToNBT(NBTTagCompound data, String key) {
         this.upgradeInventory.writeToNBT(data, key);
+    }
+
+    public void writeToMemoryCard(NBTTagCompound data, String key) {
+        AppEngInternalInventory copy = new AppEngInternalInventory(null, UPGRADE_SLOTS, 1);
+        for (int slot = 0; slot < this.upgradeInventory.getSlots(); slot++) {
+            ItemStack upgrade = this.upgradeInventory.getStackInSlot(slot);
+            if (!(upgrade.getItem() instanceof RatioControlCard)) copy.setStackInSlot(slot, upgrade.copy());
+        }
+
+        copy.writeToNBT(data, key);
     }
 
     /**

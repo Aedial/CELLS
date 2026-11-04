@@ -119,6 +119,8 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      */
     private boolean neighborCheckPending = true;
 
+    private Map<Aspect, Long> ratioPushBefore;
+
     @Override
     public long getDefaultMaxSlotSize() {
         return DEFAULT_MAX_SLOT_SIZE;
@@ -681,6 +683,30 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         }
 
         return result;
+    }
+
+    @Override
+    public void beginRatioPush() {
+        if (this.neighborCheckPending) {
+            this.neighborCheckPending = false;
+            checkForAdjacentStorageBuses();
+        }
+
+        this.ratioPushBefore = this.hasAdjacentStorageBus ? captureStorageState() : null;
+    }
+
+    @Override
+    public void finishRatioPush() {
+        if (this.ratioPushBefore == null) return;
+
+        computeAndRecordDeltas(this.ratioPushBefore, captureStorageState());
+        this.ratioPushBefore = null;
+        notifyStorageBusOfChanges();
+    }
+
+    @Override
+    protected int getRatioInsertionLimit(Object handler, EssentiaStack resource, int amount, EnumFacing facing) {
+        return amount;
     }
 
     // ============================== Abstract method implementations ==============================

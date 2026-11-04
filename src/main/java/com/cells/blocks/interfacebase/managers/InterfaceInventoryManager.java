@@ -747,9 +747,8 @@ public class InterfaceInventoryManager<R, AE extends IAEStack<AE>, K> {
         List<R> skippedFilters = new ArrayList<>();
 
         int effectiveSlots = Math.max(0, Math.min(FILTER_SLOTS, this.callbacks.getEffectiveFilterSlots()));
-        int sourceSlotCount = Math.min(sourceFilters.size(), FILTER_SLOTS);
 
-        for (int sourceSlot = 0; sourceSlot < sourceSlotCount; sourceSlot++) {
+        for (int sourceSlot = 0; sourceSlot < sourceFilters.size(); sourceSlot++) {
             R sourceFilter = sourceFilters.get(sourceSlot);
             if (sourceFilter == null) continue;
 

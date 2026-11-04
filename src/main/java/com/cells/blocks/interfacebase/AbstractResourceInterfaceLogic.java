@@ -37,8 +37,11 @@ import com.cells.blocks.interfacebase.managers.InterfaceAdjacentHandler;
 import com.cells.blocks.interfacebase.managers.InterfaceInventoryManager;
 import com.cells.blocks.interfacebase.managers.InterfaceTickScheduler;
 import com.cells.blocks.interfacebase.managers.InterfaceUpgradeManager;
+import com.cells.blocks.interfacebase.managers.InterfaceRatioHandler;
+import com.cells.blocks.combinedinterface.ICombinedInterfaceHost;
 import com.cells.helpers.MemoryCardUpgradeHelper;
 import com.cells.items.upgrades.ItemRedirectUnselectedCard;
+import com.cells.network.sync.ResourceType;
 import com.cells.util.TickManagerHelper;
 
 
@@ -148,6 +151,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     protected final InterfaceAdjacentHandler<R, K> adjacentHandler;
 
     private boolean redirecting;
+
+    private InterfaceRatioHandler ratioHandler;
+    private InterfaceRatioChannel<R, AE, K> ratioChannel;
 
     protected AbstractResourceInterfaceLogic(Host host, Class<R> resourceClass) {
         this.host = host;
@@ -468,6 +474,15 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
      */
     protected boolean performAutoPullPush() {
         if (!this.upgradeManager.hasAutoPullPushUpgrade()) return false;
+
+        if (this.host.isExport() && !this.upgradeManager.getRatioCard().isEmpty()) {
+            InterfaceRatioHandler handler = getRatioHandler();
+            handler.refresh(this.upgradeManager.getRatioCard(), this.host.getHostWorld());
+            handler.initializeFilters(getRatioChannels());
+
+            return handler.push(this, this.host, this.upgradeManager.getAutoPushPullQuantity(),
+                this.upgradeManager.getAutoPullPushKeepQuantity());
+        }
 
         // Ensure cache is populated (handles first tick after load)
         if (!this.adjacentHandler.isCachePopulated()) refreshCapabilityCache();
@@ -1014,7 +1029,72 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         boolean pullUnselected = this.upgradeManager.isPullUnselectedEnabled();
         this.upgradeManager.refreshUpgrades();
         if (pullUnselected != this.upgradeManager.isPullUnselectedEnabled()) this.host.markDirtyAndSave();
+        refreshRatioFilters();
     }
+
+    private InterfaceRatioHandler getRatioHandler() {
+        if (this.host instanceof ICombinedInterfaceHost) {
+            return ((ICombinedInterfaceHost) this.host).getRatioHandler();
+        }
+
+        if (this.ratioHandler == null) this.ratioHandler = new InterfaceRatioHandler();
+
+        return this.ratioHandler;
+    }
+
+    private void refreshRatioFilters() {
+        if (!this.host.isExport() || this.host.getHostWorld() == null) return;
+
+        InterfaceRatioHandler handler = getRatioHandler();
+        handler.refresh(this.upgradeManager.getRatioCard(), this.host.getHostWorld());
+        handler.mergeFilters(this);
+    }
+
+    public ItemStack getInstalledRatioCard() {
+        return this.upgradeManager.getRatioCard();
+    }
+
+    public int getInactivePatternMask() {
+        ItemStack card = this.upgradeManager.getRatioCard();
+        if (card.isEmpty() || this.host.getHostWorld() == null) return 0;
+
+        InterfaceRatioHandler handler = getRatioHandler();
+        handler.refresh(card, this.host.getHostWorld());
+        return handler.getInactiveMask(this);
+    }
+
+    public List<IInterfaceLogic> getRatioChannels() {
+        if (this.host instanceof ICombinedInterfaceHost) {
+            return ((ICombinedInterfaceHost) this.host).getAllLogics();
+        }
+
+        return Collections.singletonList(this);
+    }
+
+    @Nullable
+    public InterfaceRatioChannel<?, ?, ?> getRatioChannel(ResourceType type) {
+        if (this.host instanceof ICombinedInterfaceHost) {
+            IInterfaceLogic logic = ((ICombinedInterfaceHost) this.host).getLogicForType(type);
+            return logic instanceof AbstractResourceInterfaceLogic
+                ? ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).getRatioChannel() : null;
+        }
+
+        return getTypeName().equals(type.getName()) ? getRatioChannel() : null;
+    }
+
+    public InterfaceRatioChannel<R, AE, K> getRatioChannel() {
+        if (this.ratioChannel == null) this.ratioChannel = new InterfaceRatioChannel<>(this);
+
+        return this.ratioChannel;
+    }
+
+    protected int getRatioInsertionLimit(Object handler, R resource, int amount, EnumFacing facing) {
+        return (int) insertRedirectedResource(handler, resource, amount, facing, false);
+    }
+
+    protected void beginRatioPush() {}
+
+    protected void finishRatioPush() {}
 
     @Override
     public int getAutoPullPushInterval() {
@@ -1257,6 +1337,13 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
 
         this.inventoryManager.refreshFilterMap();
         this.upgradeManager.refreshUpgrades();
+        if (this.host.isExport() && !(this.host instanceof ICombinedInterfaceHost)) {
+            String key = getStorageNBTKey() + "Ratio";
+            if (!this.upgradeManager.getRatioCard().isEmpty() || data.hasKey(key)) {
+                getRatioHandler().readFromNBT(data.getCompoundTag(key));
+            }
+        }
+        refreshRatioFilters();
     }
 
     /**
@@ -1276,6 +1363,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         this.upgradeManager.writeToNBT(data, getUpgradesNBTKey());
         this.inventoryManager.writeToNBT(data, getMaxSlotSizeNBTKey());
         this.tickScheduler.writeToNBT(data, getPollingRateNBTKey());
+        if (this.ratioHandler != null) this.ratioHandler.writeToNBT(data, getStorageNBTKey() + "Ratio");
     }
 
     // ============================== Stream serialization ==============================
@@ -1335,7 +1423,7 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     public NBTTagCompound downloadSettingsWithFilter() {
         NBTTagCompound output = downloadSettings();
         this.inventoryManager.writeFiltersToNBT(output, getFiltersNBTKey());
-        this.upgradeManager.writeToNBT(output, getUpgradesNBTKey());
+        this.upgradeManager.writeToMemoryCard(output, getUpgradesNBTKey());
         output.setBoolean(MEMORY_CARD_UPGRADES_FROM_INVENTORY_KEY, true);
 
         return output;

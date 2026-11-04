@@ -57,7 +57,8 @@ import com.cells.network.sync.ResourceType;
 public abstract class AbstractContainerInterface<T, K, H extends IFilterableInterfaceHost<T, K>>
     extends AEBaseContainer
     implements IResourceSyncContainer, IQuickAddFilterContainer, IStorageSyncContainer, ISizeOverrideContainer,
-        IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer, IRedirectStatusContainer {
+        IToolboxContainer, IPullPushCardStateContainer, IStockingThresholdContainer, IRedirectStatusContainer,
+        IRatioCardStateContainer {
 
     protected final H host;
 
@@ -106,6 +107,19 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
 
     @GuiSync(7)
     public int redirectStatus = 0;
+
+    @GuiSync(8)
+    public int inactivePatternMask = 0;
+
+    @Override
+    public int getInactivePatternMask() {
+        return this.inactivePatternMask;
+    }
+
+    @Override
+    public ItemStack getInstalledRatioCard() {
+        return ((AbstractResourceInterfaceLogic<?, ?, ?>) this.host.getInterfaceLogic()).getInstalledRatioCard();
+    }
 
     @Override
     public int getRedirectStatus() {
@@ -384,6 +398,7 @@ public abstract class AbstractContainerInterface<T, K, H extends IFilterableInte
         if (Platform.isServer()) {
             IInterfaceLogic logic = this.host.getInterfaceLogic();
             this.redirectStatus = ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).getRedirectStatus();
+            this.inactivePatternMask = ((AbstractResourceInterfaceLogic<?, ?, ?>) logic).getInactivePatternMask();
             if (this.autoPullPushInterval != logic.getAutoPullPushInterval()) {
                 this.autoPullPushInterval = logic.getAutoPullPushInterval();
             }
