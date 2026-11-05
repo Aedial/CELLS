@@ -279,7 +279,7 @@ public abstract class AbstractCombinedInterfacePart extends PartBasicState
 
     @Override @Nullable
     public World getHostWorld() {
-        TileEntity te = this.getHost().getTile();
+        TileEntity te = this.getTile();
         return te != null ? te.getWorld() : null;
     }
 

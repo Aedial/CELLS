@@ -164,8 +164,7 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
         @Override
         @Nullable
         public World getHostWorld() {
-            TileEntity te = AbstractIOInterfacePart.this.getHost().getTile();
-            return te != null ? te.getWorld() : null;
+            return AbstractIOInterfacePart.this.getHostWorld();
         }
 
         @Override
@@ -249,7 +248,7 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
     @Override
     @Nullable
     public World getHostWorld() {
-        TileEntity te = this.getHost().getTile();
+        TileEntity te = this.getTile();
         return te != null ? te.getWorld() : null;
     }
 

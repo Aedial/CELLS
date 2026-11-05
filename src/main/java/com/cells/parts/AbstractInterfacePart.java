@@ -169,7 +169,7 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     @Override
     @Nullable
     public World getHostWorld() {
-        TileEntity te = this.getHost().getTile();
+        TileEntity te = this.getTile();
         return te != null ? te.getWorld() : null;
     }
 

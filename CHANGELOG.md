@@ -8,6 +8,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.6.10-hotfix] - 2026-11-05
+### Fixed
+- Fix Export Interface parts crashing when trying to place them in the world.
+
+
 ## [0.6.10] - 2026-11-05
 ### Added
 - Add Ratio Control Card for Export Interfaces, with a 27-slot pattern inventory (+ Pattern Multi-Tool support), filter handling, and grouped pushing alongside Push Cards.
