@@ -149,7 +149,9 @@ public class GuiPullPushCard extends AEBaseGui implements ContainerPullPushCard.
         ((ContainerPullPushCard) this.inventorySlots).setListener(this);
 
         if (this.isImport) {
-            this.pullUnselectedButton = new GuiToggleButton(this.guiLeft + 143, this.guiTop + 6,
+            // Button is shifted to avoid overlapping the back button when in interface mode
+            int buttonX = this.guiLeft + 130 + (this.interfaceHost == null ? 28 - 16 : 0);
+            this.pullUnselectedButton = new GuiToggleButton(buttonX, this.guiTop + 4,
                 177, 193, "cells.pull_card.unselected.title", "cells.pull_card.unselected.tooltip");
             this.pullUnselectedButton.setState(this.pullUnselected);
             this.buttonList.add(this.pullUnselectedButton);
