@@ -32,6 +32,10 @@ public interface IInterfaceTooltipView {
 
     public int getTooltipRedirectStatus();
 
+    public long getTooltipRedirectBufferAmount();
+
+    public int getTooltipRedirectBufferTypes();
+
     @Nullable
     public EnumFacing getTooltipRedirectFacing();
 }

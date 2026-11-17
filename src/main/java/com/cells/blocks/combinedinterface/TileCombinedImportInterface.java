@@ -187,7 +187,7 @@ public class TileCombinedImportInterface extends AbstractCombinedInterfaceTile
     @Optional.Method(modid = "thaumcraft")
     @Override
     public int addEssentia(Aspect aspect, int amount, EnumFacing facing) {
-        return CombinedInterfaceEssentiaHelper.addToContainer(this.essentiaLogic, aspect, amount);
+        return CombinedInterfaceEssentiaHelper.addEssentia(this.essentiaLogic, aspect, amount);
     }
 
     /**

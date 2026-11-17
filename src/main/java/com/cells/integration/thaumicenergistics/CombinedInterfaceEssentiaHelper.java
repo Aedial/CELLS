@@ -50,11 +50,11 @@ public class CombinedInterfaceEssentiaHelper {
      * Safely cast and return the logic's aspect list.
      *
      * @param essentiaLogic the essentiaLogic field from the combined tile (nullable)
-     * @return the stored aspect list, or an empty list if the logic is null
+     * @return the extractable aspect list, or an empty list if the logic is null
      */
     public static AspectList getAspects(@Nullable IInterfaceLogic essentiaLogic) {
         if (essentiaLogic == null) return new AspectList();
-        return ((EssentiaInterfaceLogic) essentiaLogic).getAspects();
+        return ((EssentiaInterfaceLogic) essentiaLogic).getAvailableAspects();
     }
 
     /**
@@ -66,18 +66,18 @@ public class CombinedInterfaceEssentiaHelper {
 
         for (Aspect aspect : aspects.getAspects()) {
             if (aspect == null) continue;
-            if (!logic.containerContainsAny(aspect)) return false;
+            if (!logic.doesContainerContainAmount(aspect, aspects.getAmount(aspect))) return false;
         }
 
         return true;
     }
 
     /**
-     * Return the amount of a specific aspect stored.
+     * Return the extractable amount of a specific aspect.
      */
     public static int containerContains(@Nullable IInterfaceLogic essentiaLogic, Aspect aspect) {
         if (essentiaLogic == null) return 0;
-        return ((EssentiaInterfaceLogic) essentiaLogic).getEssentiaCount(aspect);
+        return ((EssentiaInterfaceLogic) essentiaLogic).getAvailableEssentiaCount(aspect);
     }
 
     /**
@@ -126,8 +126,7 @@ public class CombinedInterfaceEssentiaHelper {
      */
     public static boolean takeFromContainerSingle(@Nullable IInterfaceLogic essentiaLogic, Aspect aspect, int amount) {
         if (essentiaLogic == null) return false;
-        int taken = ((EssentiaInterfaceLogic) essentiaLogic).takeEssentiaAmount(aspect, amount);
-        return taken >= amount;
+        return ((EssentiaInterfaceLogic) essentiaLogic).takeFromContainer(aspect, amount);
     }
 
     // ============================== IEssentiaTransport delegates ==============================
@@ -171,6 +170,10 @@ public class CombinedInterfaceEssentiaHelper {
     public static int addToContainer(@Nullable IInterfaceLogic essentiaLogic, Aspect aspect, int amount) {
         if (essentiaLogic == null) return amount;
         return ((EssentiaInterfaceLogic) essentiaLogic).addToContainer(aspect, amount);
+    }
+
+    public static int addEssentia(@Nullable IInterfaceLogic essentiaLogic, Aspect aspect, int amount) {
+        return amount - addToContainer(essentiaLogic, aspect, amount);
     }
 
     /**

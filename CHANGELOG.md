@@ -8,6 +8,12 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - Semantic Versioning: https://semver.org/spec/v2.0.0.html
 
 
+## [0.7.0] - 2026-11-??
+### Added
+- Protect against some sloppy behaviors from Thaumic Energistics, in which it may duplicate or void essentia, due to improper handling of transfer simulation (it simulate by performing a real transfer).
+- Add a config to disable the Export Interface's correction of exposed content on Storage Bus, which existed due to older versions of Thaumic Energistics not refreshing content when the interface's contents changes.
+
+
 ## [0.6.10-hotfix] - 2026-11-05
 ### Fixed
 - Fix Export Interface parts crashing when trying to place them in the world.

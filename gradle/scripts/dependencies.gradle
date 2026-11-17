@@ -61,7 +61,8 @@ dependencies {
 
     // ---- Optional: Thaumic Energistics ----
     devOnlyNonPublishable rfg.deobf("curse.maven:thaumcraft-223628:2629023")
-    devOnlyNonPublishable rfg.deobf("curse.maven:thaumic-energistics-223666:2915506")
+    // devOnlyNonPublishable rfg.deobf("curse.maven:thaumic-energistics-223666:2915506")
+    devOnlyNonPublishable rfg.deobf("curse.maven:thaumic-energistics-extended-life-849094:8416527")
 
     // ---- Optional: Mekanism Energistics ----
     devOnlyNonPublishable rfg.deobf("curse.maven:mekanism-ce-399904:7660563")

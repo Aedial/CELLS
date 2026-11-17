@@ -119,6 +119,7 @@ tooltip.cells.probe.interface.redstone.export=Export redstone status: %s
 tooltip.cells.probe.interface.redstone.export.inverted=Export redstone status (inverted): %s
 tooltip.cells.probe.interface.behavior.trash_unselected=Trash Unselected
 tooltip.cells.probe.redirect.ready=Redirect unselected to %s
+tooltip.cells.probe.redirect.buffer=%s essentia (%s types) stuck in redirect buffer
 tooltip.cells.probe.redirect.error=§c%s§r
 tooltip.cells.probe.compacting.summary=Exposed patterns: §b%s§r, custom multipliers: §a%s§r
 tooltip.cells.probe.subnet_proxy.unpaired_front=§eFront half is not paired with a back half.
@@ -256,6 +257,8 @@ cells.config.useFixedInterfaceTextures=Use Fixed Interface Textures
 cells.config.useFixedInterfaceTextures.tooltip=Use fixed (non-animated) textures for interface blocks and parts. Requires a game restart to take effect.
 cells.config.essentiaContainerBlacklist=Essentia Container Blacklist
 cells.config.essentiaContainerBlacklist.tooltip=List of tile entity IDs (e.g. "thaumcraft:thaumatorium") to ignore as essentia containers. Blacklisted tile entities will not be detected by the Essentia Interface, preventing push and pull (the block can still interact with us, though). Use F3 or WAILA/TOP to find the ID.
+cells.config.notifyEssentiaStorageBuses=Notify Essentia Storage Buses
+cells.config.notifyEssentiaStorageBuses.tooltip=Manually report export buffer changes to older Thaumic Energistics storage buses. Disable if the bus correctly reports transfers and polls external changes itself.
 
 
 # Compacting Cells

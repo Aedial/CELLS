@@ -576,6 +576,16 @@ public final class InterfaceApiHelper {
             return this.logic.getRedirectStatus();
         }
 
+        @Override
+        public long getTooltipRedirectBufferAmount() {
+            return this.logic.getRedirectBufferAmount();
+        }
+
+        @Override
+        public int getTooltipRedirectBufferTypes() {
+            return this.logic.getRedirectBufferTypes();
+        }
+
         @Nullable
         @Override
         public EnumFacing getTooltipRedirectFacing() {

@@ -79,7 +79,7 @@ public class TileEssentiaImportInterface extends AbstractInterfaceTile<EssentiaI
 
     @Override
     public AspectList getAspects() {
-        return this.logic.getAspects();
+        return this.logic.getAvailableAspects();
     }
 
     @Override
@@ -91,7 +91,7 @@ public class TileEssentiaImportInterface extends AbstractInterfaceTile<EssentiaI
     public boolean doesContainerContain(AspectList aspects) {
         for (Aspect aspect : aspects.getAspects()) {
             if (aspect == null) continue;
-            if (!this.logic.containerContainsAny(aspect)) return false;
+            if (!this.logic.doesContainerContainAmount(aspect, aspects.getAmount(aspect))) return false;
         }
         return true;
     }
@@ -112,7 +112,7 @@ public class TileEssentiaImportInterface extends AbstractInterfaceTile<EssentiaI
 
     @Override
     public int containerContains(Aspect aspect) {
-        return this.logic.getEssentiaCount(aspect);
+        return this.logic.getAvailableEssentiaCount(aspect);
     }
 
     // ============================== IEssentiaTransport Implementation ==============================
@@ -208,7 +208,7 @@ public class TileEssentiaImportInterface extends AbstractInterfaceTile<EssentiaI
      */
     @Override
     public int addEssentia(Aspect aspect, int amount, EnumFacing facing) {
-        return this.logic.addToContainer(aspect, amount);
+        return amount - this.logic.addToContainer(aspect, amount);
     }
 
     /**

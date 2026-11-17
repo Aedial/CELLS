@@ -1,0 +1,10 @@
+{
+    "package": "com.cells.mixin.thaumicenergistics",
+    "refmap": "mixins.cells.refmap.json",
+    "target": "@env(DEFAULT)",
+    "minVersion": "0.8",
+    "compatibilityLevel": "JAVA_8",
+    "mixins": ["MixinEssentiaContainerAdapter"],
+    "server": [],
+    "client": []
+}

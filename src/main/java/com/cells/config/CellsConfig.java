@@ -612,6 +612,14 @@ public final class CellsConfig {
         @Config.LangKey(Tags.MODID + ".config.essentiaContainerBlacklist")
         @Config.Comment("List of tile entity registry IDs that the Essentia Interface should ignore. Blacklisted tile entities will not be detected as adjacent essentia containers, preventing both push and pull operations. Use F3 or a mod like WAILA/TOP to find the tile entity ID (e.g. \"thaumcraft:thaumatorium\").")
         public String[] essentiaContainerBlacklist = DEFAULT_ESSENTIA_CONTAINER_BLACKLIST.clone();
+
+        @Config.LangKey(Tags.MODID + ".config.notifyEssentiaStorageBuses")
+        @Config.Comment({
+            "Manually notify adjacent Essentia Storage Buses about changes to export buffers.",
+            "Enable for older Thaumic Energistics versions. Disable if the bus correctly reports ",
+            " transfers and polls external changes itself."
+        })
+        public boolean notifyEssentiaStorageBuses = true;
     }
 
     public static class HiddenCategory {

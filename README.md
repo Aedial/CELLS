@@ -14,7 +14,10 @@ Because Thaumcraft's essentia transport system is pull-based: anything importing
 
 ### What mods does C.E.L.L.S. support?
 The mod requires AE2-UEL. It also has support for:
-- MixinBooter: Allows C.E.L.L.S.'s Storage Cells to stack to 64. Without it, allowing them to stack enables a duplication exploit with the ME Chest. Also provides the item count display for the JEI Cell Preview.
+- MixinBooter:
+    - Allows C.E.L.L.S.'s Storage Cells to stack to 64. Without it, allowing them to stack enables a duplication exploit with the ME Chest.
+    - Provides the item count display for the JEI Cell Preview.
+    - Prevents Essentia Storage Buses from duplicating/voiding essentia when they simulate transfers (as they perform a REAL transfer during transfer *simulation*)
 - JEI: Import Interface drag-and-drop and quick-add features, Creative Cell drag-and-drop feature, and JEI Cell Preview feature
 - Thaumic Energistics: Configurable Cell components
 - Mekanism Energistics: Configurable Cell components

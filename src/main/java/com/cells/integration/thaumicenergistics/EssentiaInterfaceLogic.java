@@ -48,6 +48,7 @@ import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.interfacebase.managers.InterfaceAdjacentHandler;
 import com.cells.blocks.interfacebase.managers.InterfaceInventoryManager;
 import com.cells.blocks.iointerface.IIOInterfaceHost;
+import com.cells.config.CellsConfig;
 import com.cells.items.ItemRecoveryContainer;
 
 
@@ -120,6 +121,8 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     private boolean neighborCheckPending = true;
 
     private Map<Aspect, Long> ratioPushBefore;
+    private boolean simulatingTransfer;
+    private final EssentiaRedirectBuffer redirectBuffer = new EssentiaRedirectBuffer(this, this.host);
 
     @Override
     public long getDefaultMaxSlotSize() {
@@ -196,7 +199,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
 
     /**
      * Get the AspectList representation of current storage.
-     * Used by IAspectContainer.getAspects().
+     * Export tiles expose this list through IAspectContainer.getAspects().
      */
     public AspectList getAspects() {
         AspectList list = new AspectList();
@@ -211,6 +214,14 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         return list;
     }
 
+    public AspectList getAvailableAspects() {
+        return this.host.isExport() ? getAspects() : new AspectList();
+    }
+
+    public int getAvailableEssentiaCount(Aspect aspect) {
+        return this.host.isExport() ? getEssentiaCount(aspect) : 0;
+    }
+
     /**
      * Check if the container accepts a specific aspect.
      * Returns true if a filter matches or a redirect destination is available.
@@ -223,20 +234,18 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     }
 
     /**
-     * Check if the container contains at least the specified amount of an aspect.
+     * Check if external consumers can extract the specified amount of an aspect.
      */
     public boolean doesContainerContainAmount(Aspect aspect, int amount) {
-        if (aspect == null || amount <= 0) return false;
+        if (!this.host.isExport() || aspect == null || amount <= 0) return false;
 
-        int slot = findSlotForAspect(aspect);
-        if (slot < 0) return false;
-
-        return getStorageIdentity(slot) != null && getSlotAmount(slot) >= amount;
+        return getEssentiaCount(aspect) >= amount;
     }
 
     /**
      * Get the total amount of a specific aspect in the container.
-     * This is what IAspectContainer.containerContains(Aspect) should return.
+     * Export tiles expose this quantity through IAspectContainer.containerContains(Aspect).
+     * Import tiles expose zero because external consumers can only extract from export buffers.
      * We ensure uniqueness of filters, so there will be at most one slot per aspect.
      */
     public int getEssentiaCount(Aspect aspect) {
@@ -253,11 +262,34 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     }
 
     /**
-     * Check if the container contains any amount of an aspect.
+     * Check if the container offers any amount of an aspect.
      * Convenience method for checking presence (amount > 0).
      */
     public boolean containerContainsAny(Aspect aspect) {
-        return getEssentiaCount(aspect) > 0;
+        return getAvailableEssentiaCount(aspect) > 0;
+    }
+
+    /** @return the previous simulation state */
+    public boolean setTransferSimulation(boolean simulate) {
+        boolean previous = this.simulatingTransfer;
+        this.simulatingTransfer = simulate;
+        return previous;
+    }
+
+    @Override
+    public long getRedirectBufferAmount() {
+        return this.redirectBuffer.getAmount();
+    }
+
+    @Override
+    public int getRedirectBufferTypes() {
+        return this.redirectBuffer.getTypes();
+    }
+
+    public boolean takeFromContainer(Aspect aspect, int amount) {
+        if (this.simulatingTransfer || !doesContainerContainAmount(aspect, amount)) return false;
+
+        return takeEssentiaAmount(aspect, amount) == amount;
     }
 
     /**
@@ -288,6 +320,8 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         if (this.host.isExport()) return amount;
 
         EssentiaStack toInsert = new EssentiaStack(aspect, (int) Math.min(amount, Integer.MAX_VALUE));
+        if (this.simulatingTransfer) return amount - receiveFilteredLong(toInsert, amount, false);
+
         int slot = findSlotByKey(EssentiaStackKey.of(aspect));
         long previousAmount = getSlotAmount(slot);
         long accepted = receiveFilteredLong(toInsert, amount, true);
@@ -311,14 +345,14 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      * that pull essentia from the ME network and provide it externally.
      * <p>
      * Note: For IAspectContainer.takeFromContainer() which returns boolean,
-     * tiles should call this and return (result >= amount).
+     * tiles should call takeFromContainer() to check the full quantity before draining.
      *
      * @param aspect The aspect to take
      * @param amount The amount to take
      * @return The amount actually taken
      */
     public int takeEssentiaAmount(Aspect aspect, int amount) {
-        if (aspect == null || amount <= 0) return 0;
+        if (this.simulatingTransfer || aspect == null || amount <= 0) return 0;
 
         // Only export interfaces provide essentia to tubes (they are sources)
         // Import interfaces ACCEPT essentia, they don't provide it
@@ -400,6 +434,10 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
 
     // ============================== Storage Bus Notification ==============================
 
+    private boolean shouldNotifyStorageBuses() {
+        return CellsConfig.interfaces.notifyEssentiaStorageBuses && this.host.isExport();
+    }
+
     /**
      * Called when a neighbor block changes.
      * Checks if the changed neighbor is an Essentia Storage Bus and updates the cache.
@@ -411,6 +449,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     public void onNeighborChanged(BlockPos neighborPos) {
         // Delegate to base class for capability cache invalidation (IAspectContainer scanning)
         super.onNeighborChanged(neighborPos);
+        if (!shouldNotifyStorageBuses()) return;
 
         World world = this.host.getHostWorld();
         BlockPos pos = this.host.getHostPos();
@@ -456,7 +495,7 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      * @param delta  The change amount (positive for additions, negative for removals)
      */
     protected void recordEssentiaChange(Aspect aspect, long delta) {
-        if (aspect == null || delta == 0) return;
+        if (!shouldNotifyStorageBuses() || aspect == null || delta == 0) return;
 
         this.pendingChanges.merge(aspect, delta, this::saturatingAdd);
     }
@@ -468,6 +507,8 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      * @return true if at least one storage bus was found
      */
     protected boolean checkForAdjacentStorageBuses() {
+        if (!shouldNotifyStorageBuses()) return false;
+
         World world = this.host.getHostWorld();
         BlockPos pos = this.host.getHostPos();
         if (world == null || pos == null) return false;
@@ -508,6 +549,11 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      * Called after each AE2 tick or after external I/O operations that modify storage.
      */
     protected void notifyStorageBusOfChanges() {
+        if (!shouldNotifyStorageBuses()) {
+            this.pendingChanges.clear();
+            return;
+        }
+
         // If no pending changes, nothing to do
         if (this.pendingChanges.isEmpty()) return;
 
@@ -662,6 +708,13 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
      */
     @Override
     public TickRateModulation onTick(int ticksSinceLastCall) {
+        if (!shouldNotifyStorageBuses()) {
+            this.pendingChanges.clear();
+            this.hasAdjacentStorageBus = false;
+            this.neighborCheckPending = true;
+            return super.onTick(ticksSinceLastCall);
+        }
+
         // Check for adjacent storage buses if needed (e.g. on init or after neighbor change)
         if (this.neighborCheckPending) {
             this.neighborCheckPending = false;
@@ -686,7 +739,44 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     }
 
     @Override
+    protected boolean performNetworkIO() {
+        boolean returned = this.redirectBuffer.retryReturns();
+        return super.performNetworkIO() || returned;
+    }
+
+    @Override
+    protected boolean hasWorkToDo() {
+        if (this.redirectBuffer != null && !this.redirectBuffer.isEmpty()) return true;
+
+        return super.hasWorkToDo();
+    }
+
+    @Override
+    public void readFromNBT(NBTTagCompound data) {
+        this.redirectBuffer.readFromNBT(data);
+        super.readFromNBT(data);
+    }
+
+    @Override
+    public void writeToNBT(NBTTagCompound data) {
+        super.writeToNBT(data);
+        this.redirectBuffer.writeToNBT(data);
+    }
+
+    @Override
+    public void getStorageDrops(List<ItemStack> drops) {
+        this.redirectBuffer.retryReturns();
+        this.redirectBuffer.getDrops(drops);
+        super.getStorageDrops(drops);
+    }
+
+    @Override
     public void beginRatioPush() {
+        if (!shouldNotifyStorageBuses()) {
+            this.ratioPushBefore = null;
+            return;
+        }
+
         if (this.neighborCheckPending) {
             this.neighborCheckPending = false;
             checkForAdjacentStorageBuses();
@@ -959,6 +1049,19 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
     }
 
     @Override
+    protected long redirectUnselectedResource(Object handler, EssentiaStackKey key, int amount, EnumFacing facing) {
+        if (this.simulatingTransfer) return 0;
+
+        EnumFacing destination = getUnselectedPullDestination();
+        if (destination == null || destination == facing) return 0;
+
+        Object target = this.adjacentHandler.getValidCachedCapability(destination);
+        if (target == null || target == handler) return 0;
+
+        return this.redirectBuffer.transfer(handler, target, key, amount, facing, destination);
+    }
+
+    @Override
     protected long insertResourceIntoHandler(Object handler, EssentiaStack identity, int maxAmount, EnumFacing facing) {
         if (!(handler instanceof IAspectContainer)) return 0;
 
@@ -980,6 +1083,20 @@ public class EssentiaInterfaceLogic extends AbstractResourceInterfaceLogic<Essen
         } catch (NullPointerException e) {
             // Thaumatorium (or similar) has no recipe set, silently reject the essentia
             return 0;
+        }
+    }
+
+    @Override
+    protected long insertRedirectedResource(Object handler, EssentiaStack resource, int amount,
+                                            EnumFacing facing, boolean doTransfer) {
+        if (doTransfer) return super.insertRedirectedResource(handler, resource, amount, facing, true);
+        if (!(handler instanceof IAspectContainer)) return 0;
+
+        IAspectContainer container = (IAspectContainer) handler;
+        try (EssentiaTransferScope scope = EssentiaTransferScope.prepare(container, true)) {
+            if (scope == null || !container.doesContainerAccept(resource.getAspect())) return 0;
+
+            return amount - container.addToContainer(resource.getAspect(), amount);
         }
     }
 }

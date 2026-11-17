@@ -255,9 +255,9 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             @Override public AENetworkProxy getGridProxy() { return host.getGridProxy(); }
             @Override public IGridTickable getTickable() { return host.getTickable(); }
             @Override public void markDirtyAndSave() { host.markDirtyAndSave(); }
-            @Override public boolean performNetworkIO() { return host.isExport() ? inventoryManager.exportResources() : inventoryManager.importResources(); }
+            @Override public boolean performNetworkIO() { return AbstractResourceInterfaceLogic.this.performNetworkIO(); }
             @Override public boolean performAutoPullPush() { return AbstractResourceInterfaceLogic.this.performAutoPullPush(); }
-            @Override public boolean hasWorkToDo() { return inventoryManager.hasWorkToDo(); }
+            @Override public boolean hasWorkToDo() { return AbstractResourceInterfaceLogic.this.hasWorkToDo(); }
             @Override public boolean isRedstoneEnabled() { return AbstractResourceInterfaceLogic.this.isRedstoneEnabled(); }
         };
     }
@@ -501,14 +501,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
     protected abstract R simulateResourceExtraction(Object handler, K key, int amount, EnumFacing facing);
 
     @Nullable
-    private EnumFacing getUnselectedPullDestination() {
+    protected EnumFacing getUnselectedPullDestination() {
         if (this.host.isExport() || !this.upgradeManager.isPullUnselectedEnabled()
                 || !this.upgradeManager.hasRedirectUpgrade() || !hasRedirectTarget()) return null;
 
         return getRedirectFacing();
     }
 
-    private long redirectUnselectedResource(Object handler, K key, int amount, EnumFacing facing) {
+    protected long redirectUnselectedResource(Object handler, K key, int amount, EnumFacing facing) {
         if (this.redirecting || amount <= 0) return 0;
 
         EnumFacing destination = getUnselectedPullDestination();
@@ -863,6 +863,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
         if (getRedirectFacing() == null) return IRedirectStatusContainer.NOT_ADJACENT;
 
         return hasRedirectTarget() ? IRedirectStatusContainer.READY : IRedirectStatusContainer.NO_TARGET;
+    }
+
+    public long getRedirectBufferAmount() {
+        return 0;
+    }
+
+    public int getRedirectBufferTypes() {
+        return 0;
     }
 
     private int redirectUnselected(R resource, boolean doTransfer) {
@@ -1576,6 +1584,14 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             isCardEffective(),
             this.upgradeManager.getAutoPullPushInterval()
         );
+    }
+
+    protected boolean performNetworkIO() {
+        return this.host.isExport() ? this.inventoryManager.exportResources() : this.inventoryManager.importResources();
+    }
+
+    protected boolean hasWorkToDo() {
+        return this.inventoryManager.hasWorkToDo();
     }
 
     /**

@@ -109,6 +109,7 @@ public abstract class AbstractProbeTooltipHelper<T> {
 
         appendInterfaceBehaviorSummaryLines(uniqueUpgradeHosts, sink);
         appendInterfaceRedirectLines(uniqueUpgradeHosts, interfaceHosts, sink);
+        appendInterfaceRedirectBufferLines(interfaceHosts, sink);
         appendInterfaceCardSummaryLines(interfaceHosts, sink);
     }
 
@@ -313,6 +314,20 @@ public abstract class AbstractProbeTooltipHelper<T> {
                 acceptLine(sink, translate("tooltip.cells.probe.redirect.error",
                         translate("cells.redirect_unselected_card.error." + status)));
             }
+        }
+    }
+
+    private void appendInterfaceRedirectBufferLines(List<IInterfaceHost> interfaceHosts, Consumer<T> sink) {
+        for (IInterfaceHost interfaceHost : interfaceHosts) {
+            if (!(interfaceHost instanceof IInterfaceTooltipView)) continue;
+
+            IInterfaceTooltipView view = (IInterfaceTooltipView) interfaceHost;
+            long amount = view.getTooltipRedirectBufferAmount();
+            if (amount <= 0) continue;
+
+            LocalizedTooltipText quantity = literal(formatTransferQuantity(amount));
+            LocalizedTooltipText types = literal(Integer.toString(view.getTooltipRedirectBufferTypes()));
+            acceptLine(sink, translate("tooltip.cells.probe.redirect.buffer", quantity, types));
         }
     }
 

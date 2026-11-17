@@ -65,9 +65,8 @@ public class TileEssentiaIOInterface extends AbstractIOInterfaceTile<EssentiaInt
 
     @Override
     public boolean doesContainerContainAmount(Aspect aspect, int amount) {
-        // Check both logics - export side provides essentia
-        return this.importLogic.doesContainerContainAmount(aspect, amount)
-            || this.exportLogic.doesContainerContainAmount(aspect, amount);
+        // Check the export buffer that provides essentia to external consumers
+        return this.exportLogic.doesContainerContainAmount(aspect, amount);
     }
 
     @Override
@@ -86,21 +85,8 @@ public class TileEssentiaIOInterface extends AbstractIOInterfaceTile<EssentiaInt
 
     @Override
     public AspectList getAspects() {
-        // Combine aspects from both logics
-        AspectList combined = new AspectList();
-        AspectList importAspects = this.importLogic.getAspects();
-        AspectList exportAspects = this.exportLogic.getAspects();
-
-        for (Aspect aspect : importAspects.getAspects()) {
-            if (aspect == null) continue;
-            combined.add(aspect, importAspects.getAmount(aspect));
-        }
-        for (Aspect aspect : exportAspects.getAspects()) {
-            if (aspect == null) continue;
-            combined.add(aspect, exportAspects.getAmount(aspect));
-        }
-
-        return combined;
+        // Expose the export buffer through the shared container methods
+        return this.exportLogic.getAspects();
     }
 
     @Override
@@ -112,8 +98,7 @@ public class TileEssentiaIOInterface extends AbstractIOInterfaceTile<EssentiaInt
     public boolean doesContainerContain(AspectList aspects) {
         for (Aspect aspect : aspects.getAspects()) {
             if (aspect == null) continue;
-            if (!this.importLogic.containerContainsAny(aspect)
-                    && !this.exportLogic.containerContainsAny(aspect)) {
+            if (!this.exportLogic.doesContainerContainAmount(aspect, aspects.getAmount(aspect))) {
                 return false;
             }
         }
@@ -140,15 +125,13 @@ public class TileEssentiaIOInterface extends AbstractIOInterfaceTile<EssentiaInt
     @Override
     public boolean takeFromContainer(Aspect aspect, int amount) {
         // Export side: tubes/altars pull from us
-        int taken = this.exportLogic.takeEssentiaAmount(aspect, amount);
-        return taken >= amount;
+        return this.exportLogic.takeFromContainer(aspect, amount);
     }
 
     @Override
     public int containerContains(Aspect aspect) {
-        // Report total from both logics
-        return this.importLogic.getEssentiaCount(aspect)
-             + this.exportLogic.getEssentiaCount(aspect);
+        // Report the quantity available from the export buffer
+        return this.exportLogic.getEssentiaCount(aspect);
     }
 
     // ============================== IEssentiaTransport Implementation ==============================
@@ -228,7 +211,7 @@ public class TileEssentiaIOInterface extends AbstractIOInterfaceTile<EssentiaInt
      */
     @Override
     public int addEssentia(Aspect aspect, int amount, EnumFacing facing) {
-        return this.importLogic.addToContainer(aspect, amount);
+        return amount - this.importLogic.addToContainer(aspect, amount);
     }
 
     /**

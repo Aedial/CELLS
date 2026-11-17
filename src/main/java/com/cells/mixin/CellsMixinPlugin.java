@@ -35,6 +35,7 @@ public class CellsMixinPlugin implements ILateMixinLoader {
 
         // Load JEI mixin only if JEI is present
         if (Loader.isModLoaded("jei")) configs.add("mixins.cells.jei.json");
+        if (Loader.isModLoaded("thaumicenergistics")) configs.add("mixins.cells.thaumicenergistics.json");
 
         return configs;
     }

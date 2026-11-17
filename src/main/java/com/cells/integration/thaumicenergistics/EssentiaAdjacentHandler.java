@@ -57,10 +57,7 @@ public class EssentiaAdjacentHandler extends InterfaceAdjacentHandler<EssentiaSt
         if (!(te instanceof IAspectContainer)) return;
 
         // Check if this tile entity or block type is blacklisted in config
-        ResourceLocation teId = TileEntity.getKey(te.getClass());
-        ResourceLocation blockId = world.getBlockState(adjacentPos).getBlock().getRegistryName();
-        if ((teId != null && CellsConfig.isEssentiaContainerBlacklisted(teId.toString()))
-                || (blockId != null && CellsConfig.isEssentiaContainerBlacklisted(blockId.toString()))) return;
+        if (isContainerBlacklisted(world, adjacentPos, te)) return;
 
         // Don't cache ourselves (should never happen, but just in case)
         BlockPos selfPos = this.callbacks.getHostPos();
@@ -68,5 +65,12 @@ public class EssentiaAdjacentHandler extends InterfaceAdjacentHandler<EssentiaSt
 
         // Store the TileEntity as both the TE reference and the "handler"
         putCapabilityCache(facing, te, te);
+    }
+
+    public static boolean isContainerBlacklisted(World world, BlockPos pos, TileEntity tile) {
+        ResourceLocation tileId = TileEntity.getKey(tile.getClass());
+        ResourceLocation blockId = world.getBlockState(pos).getBlock().getRegistryName();
+        return (tileId != null && CellsConfig.isEssentiaContainerBlacklisted(tileId.toString()))
+            || (blockId != null && CellsConfig.isEssentiaContainerBlacklisted(blockId.toString()));
     }
 }

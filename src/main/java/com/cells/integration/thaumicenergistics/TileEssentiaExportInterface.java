@@ -110,7 +110,7 @@ public class TileEssentiaExportInterface extends AbstractInterfaceTile<EssentiaI
     public boolean doesContainerContain(AspectList aspects) {
         for (Aspect aspect : aspects.getAspects()) {
             if (aspect == null) continue;
-            if (!this.logic.containerContainsAny(aspect)) return false;
+            if (!this.logic.doesContainerContainAmount(aspect, aspects.getAmount(aspect))) return false;
         }
         return true;
     }
@@ -139,8 +139,7 @@ public class TileEssentiaExportInterface extends AbstractInterfaceTile<EssentiaI
     @Override
     public boolean takeFromContainer(Aspect aspect, int amount) {
         // Export interface: we are a source, tubes can pull from us
-        int taken = this.logic.takeEssentiaAmount(aspect, amount);
-        return taken >= amount;
+        return this.logic.takeFromContainer(aspect, amount);
     }
 
     @Override
