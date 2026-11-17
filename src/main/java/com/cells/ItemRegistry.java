@@ -48,6 +48,7 @@ import com.cells.items.ItemOverclockedProcessor;
 import com.cells.items.upgrades.ItemOverflowCard;
 import com.cells.items.ItemSingularityProcessor;
 import com.cells.items.ItemRecoveryContainer;
+import com.cells.items.ItemInterfaceScanner;
 import com.cells.items.upgrades.ItemTrashUnselectedCard;
 import com.cells.items.upgrades.ItemRedirectUnselectedCard;
 import com.cells.items.upgrades.ItemAutoPullCard;
@@ -92,6 +93,7 @@ public class ItemRegistry {
     public static ItemOverclockedProcessor OVERCLOCKED_PROCESSOR;
     public static ItemSingularityProcessor SINGULARITY_PROCESSOR;
     public static ItemRecoveryContainer RECOVERY_CONTAINER;
+    public static ItemInterfaceScanner INTERFACE_SCANNER;
     public static ItemAutoPullCard PULL_CARD;
     public static ItemAutoPushCard PUSH_CARD;
     public static RatioControlCard RATIO_CARD;
@@ -161,6 +163,8 @@ public class ItemRegistry {
         OVERCLOCKED_PROCESSOR = new ItemOverclockedProcessor();
         SINGULARITY_PROCESSOR = new ItemSingularityProcessor();
 
+        INTERFACE_SCANNER = new ItemInterfaceScanner();
+
         // Utility items (no creative tab, spawned programmatically)
         RECOVERY_CONTAINER = new ItemRecoveryContainer();
     }
@@ -221,6 +225,7 @@ public class ItemRegistry {
 
         // Utility items
         event.getRegistry().register(RECOVERY_CONTAINER);
+        event.getRegistry().register(INTERFACE_SCANNER);
     }
 
     @SubscribeEvent
@@ -431,6 +436,9 @@ public class ItemRegistry {
         // Register recovery container model (no folder prefix - it's at root items level)
         ModelLoader.setCustomModelResourceLocation(RECOVERY_CONTAINER, 0,
             new ModelResourceLocation(Tags.MODID + ":recovery_container", "inventory"));
+
+        ModelLoader.setCustomModelResourceLocation(INTERFACE_SCANNER, 0,
+            makeModelLocation(INTERFACE_SCANNER, "tools"));
     }
 
     @SideOnly(Side.CLIENT)

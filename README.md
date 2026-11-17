@@ -48,6 +48,14 @@ The counterpart to the Import Interface, allowing content to be exported from th
 The Essentia Export Interface works with Storage Bus, Thaumatorium, and Infusion out of the box. Tubes also work, but are hampered by their 1 essentia type limit.
 
 
+### Interface Starvation Scanner
+Right-click an ME network with the Interface Starvation Scanner to list Export Interfaces whose configured internal buffers have run dry. The static view shows each interface's block, coordinates, and missing contents. The last completed scan is cached until the users logs out or perform another scan.
+
+You can use the "Subnet" button to include or exclude connected subnets in the scan, and double-click an interface header to highlight its block.
+
+The Interface Starvation Scanner is meant to help users quickly identify which interfaces in their ME network are lacking the necessary resources (are starving), allowing for easier troubleshooting and maintenance of the network's automation chains, short of setting up complex monitoring for hundreds of resources.
+
+
 ### Subnet Proxy
 A two-block multipart that bridges two ME networks together with a configurable, filtered window. Unlike the classic AE2 Subnet bridge (Storage Bus on Interface), the Subnet Proxy has :
 - **No looping guarantees**: the proxy network automatically detects and prevents loops, so that looping topologies like `A → B → A` will not cause ghost items or force updates.

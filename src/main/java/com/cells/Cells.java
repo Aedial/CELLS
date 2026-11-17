@@ -16,6 +16,7 @@ import net.minecraftforge.fml.common.event.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
+import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 
 import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
@@ -30,6 +31,7 @@ import com.cells.network.CellsNetworkHandler;
 import com.cells.proxy.CommonProxy;
 import com.cells.util.DisassemblyConfig;
 import com.cells.util.OreDictValidator;
+import com.cells.scanner.InterfaceScannerCache;
 
 
 @Mod(
@@ -115,5 +117,10 @@ public class Cells {
         event.registerServerCommand(new FillCellCommand());
         event.registerServerCommand(new InspectSlotCommand());
         event.registerServerCommand(new InspectSubnetProxyCommand());
+    }
+
+    @EventHandler
+    public void serverStopped(FMLServerStoppedEvent event) {
+        InterfaceScannerCache.clear();
     }
 }

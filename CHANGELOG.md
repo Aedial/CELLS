@@ -12,6 +12,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 ### Added
 - Protect against some sloppy behaviors from Thaumic Energistics, in which it may duplicate or void essentia, due to improper handling of transfer simulation (it simulate by performing a real transfer).
 - Add a config to disable the Export Interface's correction of exposed content on Storage Bus, which existed due to older versions of Thaumic Energistics not refreshing content when the interface's contents changes.
+- Add the Interface Scanner for better monitoring of broken chains within the network.
 
 
 ## [0.6.10-hotfix] - 2026-11-05

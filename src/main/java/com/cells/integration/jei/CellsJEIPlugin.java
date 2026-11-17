@@ -99,6 +99,8 @@ public class CellsJEIPlugin implements IModPlugin {
         // filter slot tooltips to show the same content JEI shows on hover).
         ingredientRegistry = registry.getIngredientRegistry();
 
+        registry.addAdvancedGuiHandlers(new InterfaceScannerGuiHandler());
+
         // Register configurable cell assembly recipe plugin
         if (CellsConfig.enabledCells.enableConfigurableCells && ItemRegistry.CONFIGURABLE_CELL != null) {
             registry.addRecipeRegistryPlugin(new ConfigurableCellRegistryPlugin());

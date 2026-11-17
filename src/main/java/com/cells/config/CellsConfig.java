@@ -300,6 +300,15 @@ public final class CellsConfig {
     }
 
     /**
+     * Persist the scanner size preference to the hidden config category.
+     * Must be called from the client side only.
+     */
+    public static void setInterfaceScannerTall(boolean value) {
+        hidden.interfaceScannerTall = value;
+        ConfigManager.sync(Tags.MODID, Config.Type.INSTANCE);
+    }
+
+    /**
      * Whether the given interface direction should receive JEI recipe inputs.
      * Export uses the shared preference directly and Import receives the opposite side.
      */
@@ -625,6 +634,7 @@ public final class CellsConfig {
     public static class HiddenCategory {
 
         public boolean showControlsHelp = false;
+        public boolean interfaceScannerTall = false;
         public boolean jeiTransferInputsToExport = true;
         public boolean jeiTransferOutputsToCreativeCell = true;
     }

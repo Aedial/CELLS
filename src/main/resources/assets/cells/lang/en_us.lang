@@ -828,3 +828,25 @@ cells.config.subnetProxyReportUpdateChurn=Subnet Proxy Update Churn Reporting
 cells.config.subnetProxyReportUpdateChurn.tooltip=Enable Subnet Proxy update-churn counters and throttled warning logs. Disabling clears counters when the proxy next receives an update.
 cells.config.subnetProxyUpdateChurnLogDelay=Subnet Proxy Update Churn Log Delay
 cells.config.subnetProxyUpdateChurnLogDelay.tooltip=Minimum time (in minutes) between Subnet Proxy update-churn warning logs, if enabled (1-1440)
+
+# Interface Scanner
+item.cells.interface_scanner.name=Interface Starvation Scanner
+cells.interface_scanner.title=Interface Scanner
+cells.interface_scanner.tooltip=§aRight-click§7 an ME network to view empty Export Interface stocks, §aright-click§7 in air to reopen the last scan
+cells.interface_scanner.no_network=No ME network is available
+cells.interface_scanner.interface=Interface
+cells.interface_scanner.scanning=Scanning interfaces...
+cells.interface_scanner.empty=No empty filtered export slots
+cells.interface_scanner.location=[%d, %d, %d] (DIM %d)
+cells.interface_scanner.facing=Facing: %s
+cells.interface_scanner.direction.import=Import
+cells.interface_scanner.direction.export=Export
+cells.interface_scanner.subnets=Include Subnets
+cells.interface_scanner.subnets.enabled=§aEnabled
+cells.interface_scanner.subnets.disabled=§cDisabled
+cells.interface_scanner.filter.show=§aShow
+cells.interface_scanner.filter.hide=§cHide
+cells.interface_scanner.no_scan=This scanner has no completed scan
+cells.interface_scanner.locate=Double-click to locate
+cells.interface_scanner.different_dimension=The interface is in a different dimension
+cells.interface_scanner.highlighted=Highlighted interface at [%d, %d, %d]

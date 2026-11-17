@@ -1,0 +1,27 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "IRI",
+        "ICI",
+        " P "
+    ],
+    "key": {
+        "I": {
+            "item": "minecraft:iron_ingot"
+        },
+        "R": {
+            "item": "minecraft:redstone"
+        },
+        "C": {
+            "item": "minecraft:compass"
+        },
+        "P": {
+            "item": "cells:overclocked_processor",
+            "data": 0
+        }
+    },
+    "result": {
+        "item": "cells:interface_scanner",
+        "count": 1
+    }
+}

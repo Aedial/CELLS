@@ -54,6 +54,9 @@ import com.cells.items.upgrades.RatioControlCard;
 import com.cells.items.upgrades.ratio.ContainerRatioCard;
 import com.cells.items.upgrades.ratio.GuiRatioCard;
 import com.cells.parts.subnetproxy.PartSubnetProxyFront;
+import com.cells.items.ItemInterfaceScanner;
+import com.cells.scanner.ContainerInterfaceScanner;
+import com.cells.gui.scanner.GuiInterfaceScanner;
 
 
 /**
@@ -83,6 +86,8 @@ public class CellsGuiHandler implements IGuiHandler {
     public static final int GUI_FLUID_IO_INTERFACE = 16;
     public static final int GUI_COMPACTING_PATTERN_EXPOSER = 17;
     public static final int GUI_RATIO_CARD = 18;
+    public static final int GUI_INTERFACE_SCANNER = 19;
+    public static final int GUI_INTERFACE_SCANNER_RESULTS = 20;
 
     // Part-based GUI IDs (require side encoding)
     public static final int GUI_PART_IMPORT_INTERFACE = 100;
@@ -208,6 +213,14 @@ public class CellsGuiHandler implements IGuiHandler {
     @Override
     @SuppressWarnings("rawtypes")
     public Object getServerGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+        if ((id >> 4) == GUI_INTERFACE_SCANNER || (id >> 4) == GUI_INTERFACE_SCANNER_RESULTS) {
+            EnumHand hand = EnumHand.values()[(id >> 3) & 1];
+            if (!(player.getHeldItem(hand).getItem() instanceof ItemInterfaceScanner)) return null;
+
+            return new ContainerInterfaceScanner(player.inventory, world, new BlockPos(x, y, z),
+                AEPartLocation.fromOrdinal(id & 7), hand, (id >> 4) == GUI_INTERFACE_SCANNER);
+        }
+
         // Delegate to gas GUI handler if this is a gas GUI ID
         GasInterfaceGuiHandler gasHandler = getGasGuiHandler();
         if (gasHandler != null && GasInterfaceGuiHandler.isGasInterfaceGuiId(id)) {
@@ -403,6 +416,13 @@ public class CellsGuiHandler implements IGuiHandler {
     @Override
     @SuppressWarnings("rawtypes")
     public Object getClientGuiElement(int id, EntityPlayer player, World world, int x, int y, int z) {
+        if ((id >> 4) == GUI_INTERFACE_SCANNER || (id >> 4) == GUI_INTERFACE_SCANNER_RESULTS) {
+            ContainerInterfaceScanner container = new ContainerInterfaceScanner(player.inventory, world,
+                new BlockPos(x, y, z), AEPartLocation.fromOrdinal(id & 7), EnumHand.values()[(id >> 3) & 1],
+                (id >> 4) == GUI_INTERFACE_SCANNER);
+            return new GuiInterfaceScanner(container);
+        }
+
         // Delegate to gas GUI handler if this is a gas GUI ID
         GasInterfaceGuiHandler gasHandler = getGasGuiHandler();
         if (gasHandler != null && GasInterfaceGuiHandler.isGasInterfaceGuiId(id)) {

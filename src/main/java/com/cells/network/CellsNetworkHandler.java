@@ -36,6 +36,8 @@ import com.cells.network.sync.PacketResourceSlot;
 import com.cells.network.sync.PacketStorageSync;
 import com.cells.network.sync.PacketRequestProbeData;
 import com.cells.network.sync.PacketProbeData;
+import com.cells.network.sync.PacketInterfaceScannerSync;
+import com.cells.network.packets.PacketInterfaceScannerSubnets;
 
 
 /**
@@ -116,5 +118,9 @@ public class CellsNetworkHandler {
         // WAILA Probe data sync (client -> server request -> client sync)
         INSTANCE.registerMessage(PacketRequestProbeData.Handler.class, PacketRequestProbeData.class, packetId++, Side.SERVER);
         INSTANCE.registerMessage(PacketProbeData.Handler.class, PacketProbeData.class, packetId++, Side.CLIENT);
+
+        // Interface scanner results and subnet scope
+        INSTANCE.registerMessage(PacketInterfaceScannerSync.ClientHandler.class, PacketInterfaceScannerSync.class, packetId++, Side.CLIENT);
+        INSTANCE.registerMessage(PacketInterfaceScannerSubnets.Handler.class, PacketInterfaceScannerSubnets.class, packetId++, Side.SERVER);
     }
 }
