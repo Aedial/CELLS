@@ -43,6 +43,9 @@ import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
 import com.cells.api.IInterfaceProvider;
+import com.cells.profiling.CellsProfiler;
+import com.cells.profiling.ProfileOperation;
+import com.cells.profiling.Profiler;
 import com.cells.api.IUpgradeable;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceHost;
@@ -532,7 +535,9 @@ public abstract class AbstractInterfacePart<L extends IInterfaceLogic> extends P
     @Override
     @Nonnull
     public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
-        return this.logic.onTick(ticksSinceLastCall);
+        return Profiler.wrap(
+            IInterfaceLogic::onTick, ProfileOperation.TICK,
+            CellsProfiler.getDeviceEntry(this), this.logic, ticksSinceLastCall);
     }
 
     // ============================== Utility methods ==============================

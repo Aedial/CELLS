@@ -34,6 +34,7 @@ import moze_intel.projecte.utils.Constants;
 
 import com.cells.Cells;
 import com.cells.config.CellsConfig;
+import com.cells.profiling.ICellProfilingInventory;
 import com.cells.util.CellMathHelper;
 import com.cells.util.DeferredCellOperations;
 import com.cells.util.ItemStackKey;
@@ -46,7 +47,7 @@ import com.cells.util.ItemStackKey;
  * then keeps matching on cached filter state only. Provider EMC is only queried live
  * when the local EMC buffer cannot satisfy an extraction on its own.
  */
-public class EmcCellInventory implements ICellInventory<IAEItemStack> {
+public class EmcCellInventory implements ICellInventory<IAEItemStack>, ICellProfilingInventory {
 
     public static final String NBT_STORED_EMC = "StoredEmc";
 
@@ -296,6 +297,11 @@ public class EmcCellInventory implements ICellInventory<IAEItemStack> {
         }
 
         return out;
+    }
+
+    @Override
+    public ISaveProvider getProfilingContainer() {
+        return this.container;
     }
 
     @Override

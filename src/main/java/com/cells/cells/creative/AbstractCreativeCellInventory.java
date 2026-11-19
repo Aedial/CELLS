@@ -18,6 +18,7 @@ import appeng.api.storage.data.IItemList;
 
 import com.cells.util.DeferredCellOperations;
 import com.cells.util.EmptyItemHandler;
+import com.cells.profiling.ICellProfilingInventory;
 
 
 /**
@@ -38,7 +39,7 @@ import com.cells.util.EmptyItemHandler;
  * @param <H> The filter handler type (CreativeCellFilterHandler, etc.)
  */
 public abstract class AbstractCreativeCellInventory<T extends IAEStack<T>, S, K, H extends AbstractCreativeCellFilterHandler<S, K>>
-        implements ICellInventory<T> {
+        implements ICellInventory<T>, ICellProfilingInventory {
 
     /** Amount reported for each partitioned item */
     public static final long REPORTED_AMOUNT = Long.MAX_VALUE / 2;
@@ -302,6 +303,11 @@ public abstract class AbstractCreativeCellInventory<T extends IAEStack<T>, S, K,
         }
 
         return out;
+    }
+
+    @Override
+    public ISaveProvider getProfilingContainer() {
+        return this.saveProvider;
     }
 
     @Override

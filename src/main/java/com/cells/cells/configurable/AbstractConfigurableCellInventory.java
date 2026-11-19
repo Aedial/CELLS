@@ -16,6 +16,7 @@ import appeng.util.Platform;
 
 import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
+import com.cells.profiling.ICellProfilingInventory;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CustomCellUpgrades;
 import com.cells.util.DeferredCellOperations;
@@ -34,7 +35,8 @@ import com.cells.util.DeferredCellOperations;
  *
  * @param <T> The AE stack type for this channel
  */
-public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> implements ICellInventory<T>, INBTSizeProvider {
+public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>>
+        implements ICellInventory<T>, INBTSizeProvider, ICellProfilingInventory {
 
     protected final ItemStack cellStack;
     protected final ISaveProvider container;
@@ -101,6 +103,11 @@ public abstract class AbstractConfigurableCellInventory<T extends IAEStack<T>> i
     // =====================
     // ICellInventory implementation - common methods
     // =====================
+
+    @Override
+    public ISaveProvider getProfilingContainer() {
+        return this.container;
+    }
 
     @Override
     public abstract IStorageChannel<T> getChannel();

@@ -42,6 +42,11 @@ import com.cells.blocks.combinedinterface.ICombinedInterfaceHost;
 import com.cells.helpers.MemoryCardUpgradeHelper;
 import com.cells.items.upgrades.ItemRedirectUnselectedCard;
 import com.cells.network.sync.ResourceType;
+import com.cells.profiling.CellsProfiler;
+import com.cells.profiling.ProfileEntry;
+import com.cells.profiling.ProfileOperation;
+import com.cells.profiling.ProfileSession;
+import com.cells.profiling.Profiler;
 import com.cells.util.TickManagerHelper;
 
 
@@ -255,8 +260,33 @@ public abstract class AbstractResourceInterfaceLogic<R, AE extends IAEStack<AE>,
             @Override public AENetworkProxy getGridProxy() { return host.getGridProxy(); }
             @Override public IGridTickable getTickable() { return host.getTickable(); }
             @Override public void markDirtyAndSave() { host.markDirtyAndSave(); }
-            @Override public boolean performNetworkIO() { return AbstractResourceInterfaceLogic.this.performNetworkIO(); }
-            @Override public boolean performAutoPullPush() { return AbstractResourceInterfaceLogic.this.performAutoPullPush(); }
+            @Override
+            public boolean performNetworkIO(boolean scheduled) {
+                ProfileSession session = CellsProfiler.getSession();
+                if (session == null) return AbstractResourceInterfaceLogic.this.performNetworkIO();
+
+                ProfileEntry entry = session.getDeviceEntry(host.getTickable());
+                boolean worked = Profiler.wrapPredicate(
+                    AbstractResourceInterfaceLogic::performNetworkIO, ProfileOperation.NETWORK_IO,
+                    entry, AbstractResourceInterfaceLogic.this);
+
+                if (scheduled && session.mode == ProfileSession.Mode.ADAPTIVE) {
+                    ProfileEntry adaptive = session.getAdaptiveEntry(
+                        (IInterfaceHost) host.getTickable(),
+                        AbstractResourceInterfaceLogic.this, host.isExport());
+                    if (adaptive != null) adaptive.recordPoll(worked);
+                }
+
+                return worked;
+            }
+            @Override
+            public boolean performAutoPullPush() {
+                ProfileSession session = CellsProfiler.getSession();
+                ProfileEntry entry = session != null ? session.getDeviceEntry(host.getTickable()) : null;
+                return Profiler.wrapPredicate(
+                    AbstractResourceInterfaceLogic::performAutoPullPush, ProfileOperation.ADJACENT_IO,
+                    entry, AbstractResourceInterfaceLogic.this);
+            }
             @Override public boolean hasWorkToDo() { return AbstractResourceInterfaceLogic.this.hasWorkToDo(); }
             @Override public boolean isRedstoneEnabled() { return AbstractResourceInterfaceLogic.this.isRedstoneEnabled(); }
         };

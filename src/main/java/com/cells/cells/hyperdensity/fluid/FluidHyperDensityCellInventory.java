@@ -24,6 +24,7 @@ import appeng.util.Platform;
 
 import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
+import com.cells.profiling.ICellProfilingInventory;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.DeferredCellOperations;
@@ -48,7 +49,8 @@ import com.cells.util.NBTSizeHelper;
  * - The total capacity is divided equally among those types
  * - Each type can only store up to its allocated share
  */
-public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidStack>, INBTSizeProvider {
+public class FluidHyperDensityCellInventory
+        implements ICellInventory<IAEFluidStack>, INBTSizeProvider, ICellProfilingInventory {
 
     private static final String NBT_FLUID_TYPE = "fluidType";
     private static final String NBT_STORED_COUNT = "StoredCount";
@@ -511,6 +513,11 @@ public class FluidHyperDensityCellInventory implements ICellInventory<IAEFluidSt
         }
 
         return out;
+    }
+
+    @Override
+    public ISaveProvider getProfilingContainer() {
+        return this.container;
     }
 
     @Override

@@ -35,6 +35,9 @@ import appeng.util.SettingsFrom;
 import appeng.util.inv.InvOperation;
 
 import com.cells.api.IInterfaceProvider;
+import com.cells.profiling.CellsProfiler;
+import com.cells.profiling.ProfileOperation;
+import com.cells.profiling.Profiler;
 import com.cells.api.IUpgradeable;
 import com.cells.helpers.InterfaceApiHelper;
 import com.cells.util.PowerStateHelper;
@@ -381,6 +384,8 @@ public abstract class AbstractInterfaceTile<L extends IInterfaceLogic> extends A
     @Override
     @Nonnull
     public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
-        return this.logic.onTick(ticksSinceLastCall);
+        return Profiler.wrap(
+            IInterfaceLogic::onTick, ProfileOperation.TICK,
+            CellsProfiler.getDeviceEntry(this), this.logic, ticksSinceLastCall);
     }
 }

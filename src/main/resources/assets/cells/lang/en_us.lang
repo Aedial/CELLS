@@ -850,3 +850,11 @@ cells.interface_scanner.no_scan=This scanner has no completed scan
 cells.interface_scanner.locate=Double-click to locate
 cells.interface_scanner.different_dimension=The interface is in a different dimension
 cells.interface_scanner.highlighted=Highlighted interface at [%d, %d, %d]
+
+# Profiling
+commands.cells.profile.usage=/cells profile <adaptive|devices|sources> [seconds: 1-300, default 20] | /cells profile stop
+commands.cells.profile.started=Started CELLS %s profiling for %s seconds across loaded dimensions. Results will appear in the server log.
+commands.cells.profile.running=A CELLS profiling session is already running.
+commands.cells.profile.inactive=No CELLS profiling session is running.
+commands.cells.profile.stopping=CELLS profiling has been stopped.
+commands.cells.profile.finished=CELLS %s profiling finished: %s entries logged in the server log.

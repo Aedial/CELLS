@@ -4,9 +4,9 @@ import appeng.api.config.AccessRestriction;
 import appeng.api.config.IncludeExclude;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
-import appeng.me.storage.MEInventoryHandler;
-
 import appeng.api.storage.data.IAEStack;
+
+import com.cells.profiling.ProfilingInventoryHandler;
 
 
 /**
@@ -21,7 +21,7 @@ public class AbstractCreativeCellInventoryHandler<
         T extends IAEStack<T>,
         C extends AbstractCreativeCellInventory<T, ?, ?, ?>
     >
-    extends MEInventoryHandler<T>
+    extends ProfilingInventoryHandler<T>
     implements ICellInventoryHandler<T> {
 
     private final C inventory;

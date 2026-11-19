@@ -13,10 +13,11 @@ import appeng.api.storage.IMEInventory;
 import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.data.IAEStack;
 import appeng.api.storage.data.IItemList;
-import appeng.me.storage.MEInventoryHandler;
 import appeng.me.storage.MEPassThrough;
 import appeng.util.prioritylist.FuzzyPriorityList;
 import appeng.util.prioritylist.PrecisePriorityList;
+
+import com.cells.profiling.ProfilingInventoryHandler;
 
 
 /**
@@ -30,7 +31,8 @@ import appeng.util.prioritylist.PrecisePriorityList;
  *
  * @param <T> The AE stack type for this channel
  */
-public class AbstractCellInventoryHandler<T extends IAEStack<T>> extends MEInventoryHandler<T> implements ICellInventoryHandler<T> {
+public class AbstractCellInventoryHandler<T extends IAEStack<T>> extends ProfilingInventoryHandler<T>
+        implements ICellInventoryHandler<T> {
 
     protected IncludeExclude myWhitelist = IncludeExclude.WHITELIST;
 

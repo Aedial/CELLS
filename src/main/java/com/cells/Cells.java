@@ -25,10 +25,12 @@ import com.cells.cells.configurable.ComponentHelper;
 import com.cells.commands.FillCellCommand;
 import com.cells.commands.InspectSubnetProxyCommand;
 import com.cells.commands.InspectSlotCommand;
+import com.cells.commands.ProfileCommand;
 import com.cells.config.CellsConfig;
 import com.cells.gui.CellsGuiHandler;
 import com.cells.network.CellsNetworkHandler;
 import com.cells.proxy.CommonProxy;
+import com.cells.profiling.CellsProfiler;
 import com.cells.util.DisassemblyConfig;
 import com.cells.util.OreDictValidator;
 import com.cells.scanner.InterfaceScannerCache;
@@ -117,10 +119,12 @@ public class Cells {
         event.registerServerCommand(new FillCellCommand());
         event.registerServerCommand(new InspectSlotCommand());
         event.registerServerCommand(new InspectSubnetProxyCommand());
+        event.registerServerCommand(new ProfileCommand());
     }
 
     @EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
+        CellsProfiler.serverStopped();
         InterfaceScannerCache.clear();
     }
 }

@@ -18,6 +18,10 @@ import appeng.api.storage.IStorageChannel;
 import appeng.api.storage.data.IAEStack;
 import appeng.hooks.TickHandler;
 
+import com.cells.profiling.CellsProfiler;
+import com.cells.profiling.ProfileOperation;
+import com.cells.profiling.Profiler;
+
 
 /**
  * Utility for deferring cell operations to the end of tick.
@@ -154,12 +158,18 @@ public final class DeferredCellOperations {
         callbackRegistered = false;
 
         // Process saves first so NBT is up to date before notifications
-        for (PendingSave save : pendingSaves.values()) save.execute();
+        for (PendingSave save : pendingSaves.values()) {
+            Profiler.wrapConsumer(
+                PendingSave::execute, ProfileOperation.SAVE,
+                CellsProfiler.getDeviceEntry(save.container), save);
+        }
         pendingSaves.clear();
 
         // Then process notifications
         for (PendingNotification<?> notification : pendingNotifications.values()) {
-            notification.execute();
+            Profiler.wrapConsumer(
+                PendingNotification::execute, ProfileOperation.NOTIFY,
+                CellsProfiler.getDeviceEntry(notification.container), notification);
         }
         pendingNotifications.clear();
     }
@@ -172,10 +182,18 @@ public final class DeferredCellOperations {
      */
     public static void flushCell(ICellInventory<?> cell) {
         PendingSave save = pendingSaves.remove(cell);
-        if (save != null) save.execute();
+        if (save != null) {
+            Profiler.wrapConsumer(
+                PendingSave::execute, ProfileOperation.SAVE,
+                CellsProfiler.getDeviceEntry(save.container), save);
+        }
 
         PendingNotification<?> notification = pendingNotifications.remove(cell);
-        if (notification != null) notification.execute();
+        if (notification != null) {
+            Profiler.wrapConsumer(
+                PendingNotification::execute, ProfileOperation.NOTIFY,
+                CellsProfiler.getDeviceEntry(notification.container), notification);
+        }
     }
 
     // ===============================
@@ -191,7 +209,7 @@ public final class DeferredCellOperations {
             this.container = container;
         }
 
-        void execute() {
+        private void execute() {
             cell.persist();
             container.saveChanges(cell);
         }
@@ -225,7 +243,7 @@ public final class DeferredCellOperations {
             }
         }
 
-        void execute() {
+        private void execute() {
             // Remove zero-delta changes (due to merges canceling each other out)
             mergedChanges.removeIf(stack -> stack.getStackSize() == 0);
             if (mergedChanges.isEmpty()) return;

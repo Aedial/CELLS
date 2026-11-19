@@ -45,6 +45,9 @@ import appeng.util.inv.IAEAppEngInventory;
 import appeng.util.inv.InvOperation;
 
 import com.cells.api.IInterfaceProvider;
+import com.cells.profiling.CellsProfiler;
+import com.cells.profiling.ProfileOperation;
+import com.cells.profiling.Profiler;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
 import com.cells.blocks.iointerface.IIOInterfaceHost;
@@ -582,8 +585,11 @@ public abstract class AbstractIOInterfacePart<L extends IInterfaceLogic> extends
     @Override
     @Nonnull
     public TickRateModulation tickingRequest(@Nonnull final IGridNode node, final int ticksSinceLastCall) {
-        TickRateModulation importMod = this.importLogic.onTick(ticksSinceLastCall);
-        TickRateModulation exportMod = this.exportLogic.onTick(ticksSinceLastCall);
+        TickRateModulation importMod = Profiler.wrap(IInterfaceLogic::onTick, ProfileOperation.TICK,
+            CellsProfiler.getDeviceEntry(this), this.importLogic, ticksSinceLastCall);
+        TickRateModulation exportMod = Profiler.wrap(
+            IInterfaceLogic::onTick, ProfileOperation.TICK,
+            CellsProfiler.getDeviceEntry(this), this.exportLogic, ticksSinceLastCall);
 
         // Return the more aggressive modulation
         return importMod.ordinal() > exportMod.ordinal() ? importMod : exportMod;

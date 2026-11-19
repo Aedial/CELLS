@@ -355,6 +355,18 @@ Show the available slots from the block the player is looking at.
 Show developer information about the Subnet Proxy the player is looking at. It is intended for debugging of the Subnet Proxy's behavior and is not meant for general use. See `Subnet Proxy Fault Reporting` in the Subnet Proxy Debug section for more details.
 
 
+### /cells profile
+Capture per-device timings and adaptive polling frequency across loaded dimensions. There are several subcommands to control which category is being profiled :
+- `/cells profile adaptive [seconds]`: List loaded adaptive interface logics, sorted by observed scheduled network polls per server tick. Idle logics remain listed with zero polls; manual polling does not affect their frequency.
+- `/cells profile devices [seconds]`: Rank CELLS interfaces and containers holding CELLS cells by average measured ms per server tick, with I/O, enumeration, query, deferred save, and deferred notification breakdowns. Combined and I/O interface logics share their physical device's row.
+- `/cells profile sources [seconds]`: Rank requesting machines by time spent inside CELLS cell handlers, including simulations and unsuccessful calls. Counts represent cell calls; a network request may visit several cells. Enumeration, player-only sources, deferred work, and time outside CELLS handlers have no machine attribution.
+- `/cells profile stop`: Finish the active capture at the end of the server tick.
+
+The command requires op permission to use, and the duration accepts a value between 1 and 3600 (seconds), defaulting to 20 seconds. The full sorted report appears in the server log (latest.log) after the capture finishes. A short completion message will be sent to the initiating player if they are still online. The console can also start captures without a player.
+
+Averages include all captured server ticks, including idle ticks, with the "Tick percentages" calculated on a standard 50 ms tick budget. Maximum ms/tick sums each entry's measured work within each server tick. Device rows include synchronous downstream work and can overlap, so their times should be read individually. The coverage includes CELLS handlers and interfaces across item, fluid, gas, and essentia channels, including creative and EMC cells. It is meant to complement a Spark report, with individual device locations, as Lag Goggles cannot peek inside AE2 processes.
+
+
 ## Credits
 - Chinese translation: @ZHAY10086
 - Russian translation: @MrKoteo, @Konstantin

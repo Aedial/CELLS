@@ -23,6 +23,7 @@ import appeng.util.Platform;
 
 import com.cells.cells.common.INBTSizeProvider;
 import com.cells.config.CellsConfig;
+import com.cells.profiling.ICellProfilingInventory;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.DeferredCellOperations;
@@ -50,7 +51,8 @@ import com.cells.util.NBTSizeHelper;
  *   <li>Each type can only store up to its allocated share</li>
  * </ul>
  */
-public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, INBTSizeProvider {
+public class HyperDensityCellInventory
+        implements ICellInventory<IAEItemStack>, INBTSizeProvider, ICellProfilingInventory {
 
     // NBT keys - use "Stored" prefix to avoid conflicts with ItemStack's "Count" tag
     private static final String NBT_ITEM_TYPE = "itemType";
@@ -544,6 +546,11 @@ public class HyperDensityCellInventory implements ICellInventory<IAEItemStack>, 
         }
 
         return out;
+    }
+
+    @Override
+    public ISaveProvider getProfilingContainer() {
+        return this.container;
     }
 
     @Override

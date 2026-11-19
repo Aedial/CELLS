@@ -46,8 +46,11 @@ public class InterfaceTickScheduler {
         /** Mark the host as dirty and save. */
         void markDirtyAndSave();
 
-        /** Perform network I/O (import or export). Returns true if work was done. */
-        boolean performNetworkIO();
+        /**
+         * Perform network I/O (import or export). Returns true if work was done.
+         * @param scheduled True if this network I/O was triggered by the scheduled tick, false if manual.
+         */
+        boolean performNetworkIO(boolean scheduled);
 
         /** Perform auto-pull/push operations. Returns true if work was done. */
         boolean performAutoPullPush();
@@ -282,7 +285,7 @@ public class InterfaceTickScheduler {
         }
 
         if (shouldDoNetworkIO) {
-            if (redstoneEnabled) didNetworkWork = this.callbacks.performNetworkIO();
+            if (redstoneEnabled) didNetworkWork = this.callbacks.performNetworkIO(true);
             this.lastNetworkIOTick = this.totalElapsedTicks;
         }
 
@@ -331,11 +334,11 @@ public class InterfaceTickScheduler {
         boolean didWork = false;
 
         if (isExport) {
-            didWork |= this.callbacks.performNetworkIO();
+            didWork |= this.callbacks.performNetworkIO(false);
             if (hasAutoPullPushUpgrade) didWork |= this.callbacks.performAutoPullPush();
         } else {
             if (hasAutoPullPushUpgrade) didWork |= this.callbacks.performAutoPullPush();
-            didWork |= this.callbacks.performNetworkIO();
+            didWork |= this.callbacks.performNetworkIO(false);
         }
 
         if (didWork) this.callbacks.markDirtyAndSave();

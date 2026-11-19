@@ -31,6 +31,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.util.Platform;
 
 import com.cells.cells.compacting.CompactingHelper;
+import com.cells.profiling.ICellProfilingInventory;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.CellMathHelper;
 import com.cells.util.DeferredCellOperations;
@@ -115,7 +116,7 @@ import com.cells.util.OreDictValidator;
  * @see IItemHyperDensityCompactingCell
  * @see CompactingHelper
  */
-public class HyperDensityCompactingCellInventory implements ICellInventory<IAEItemStack> {
+public class HyperDensityCompactingCellInventory implements ICellInventory<IAEItemStack>, ICellProfilingInventory {
 
     /** NBT key prefix for stored base units (saved as _hi and _lo integer pairs for long support). */
     private static final String NBT_STORED_BASE_UNITS = "storedBaseUnits";
@@ -1858,6 +1859,11 @@ public class HyperDensityCompactingCellInventory implements ICellInventory<IAEIt
         }
 
         return out;
+    }
+
+    @Override
+    public ISaveProvider getProfilingContainer() {
+        return this.container;
     }
 
     @Override

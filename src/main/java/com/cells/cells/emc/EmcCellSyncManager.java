@@ -10,6 +10,9 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import com.cells.Tags;
 import com.cells.config.CellsConfig;
+import com.cells.profiling.CellsProfiler;
+import com.cells.profiling.ProfileOperation;
+import com.cells.profiling.Profiler;
 
 
 /**
@@ -42,7 +45,11 @@ public final class EmcCellSyncManager {
 
         // Could check EMC to avoid flushing when we're at max, but aggregating all providers is annoying
         for (EmcCellInventory inventory : trackedInventories.toArray(new EmcCellInventory[0])) {
-            if (inventory != null) inventory.flushBufferedEmc();
+            if (inventory == null) continue;
+
+            Profiler.wrapPredicate(
+                EmcCellInventory::flushBufferedEmc, ProfileOperation.EMC_SYNC,
+                CellsProfiler.getDeviceEntry(inventory.getProfilingContainer()), inventory);
         }
     }
 }

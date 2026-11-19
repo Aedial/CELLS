@@ -42,6 +42,9 @@ import appeng.util.inv.InvOperation;
 
 import com.cells.api.IInterfaceHost;
 import com.cells.api.IInterfaceProvider;
+import com.cells.profiling.CellsProfiler;
+import com.cells.profiling.ProfileOperation;
+import com.cells.profiling.Profiler;
 import com.cells.api.IUpgradeable;
 import com.cells.blocks.interfacebase.AbstractResourceInterfaceLogic;
 import com.cells.blocks.interfacebase.IInterfaceLogic;
@@ -524,7 +527,9 @@ public abstract class AbstractCombinedInterfaceTile extends AENetworkInvTile
         TickRateModulation result = TickRateModulation.IDLE;
 
         for (IInterfaceLogic logic : this.allLogics) {
-            TickRateModulation mod = logic.onTick(ticksSinceLastCall);
+            TickRateModulation mod = Profiler.wrap(
+                IInterfaceLogic::onTick, ProfileOperation.TICK,
+                CellsProfiler.getDeviceEntry(this), logic, ticksSinceLastCall);
             if (mod.ordinal() > result.ordinal()) result = mod;
         }
 

@@ -31,6 +31,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.util.Platform;
 
 import com.cells.cells.compacting.CompactingHelper;
+import com.cells.profiling.ICellProfilingInventory;
 import com.cells.util.CellMathHelper;
 import com.cells.util.CellUpgradeHelper;
 import com.cells.util.ItemStackKey;
@@ -52,7 +53,7 @@ import com.cells.util.OreDictValidator;
  * Only the partitioned item tier counts toward storage capacity.
  * Compressed/decompressed forms are virtual utilities for network access.
  */
-public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
+public class CompactingCellInventory implements ICellInventory<IAEItemStack>, ICellProfilingInventory {
 
     private static final String NBT_STORED_BASE_UNITS = "storedBaseUnits";
     private static final String NBT_CONV_RATES = "convRates";
@@ -1544,6 +1545,11 @@ public class CompactingCellInventory implements ICellInventory<IAEItemStack> {
         }
 
         return out;
+    }
+
+    @Override
+    public ISaveProvider getProfilingContainer() {
+        return this.container;
     }
 
     @Override

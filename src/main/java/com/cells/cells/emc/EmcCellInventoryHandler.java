@@ -5,13 +5,14 @@ import appeng.api.config.IncludeExclude;
 import appeng.api.storage.ICellInventory;
 import appeng.api.storage.ICellInventoryHandler;
 import appeng.api.storage.data.IAEItemStack;
-import appeng.me.storage.MEInventoryHandler;
+
+import com.cells.profiling.ProfilingInventoryHandler;
 
 
 /**
  * AE2 inventory handler for the EMC cell.
  */
-public class EmcCellInventoryHandler extends MEInventoryHandler<IAEItemStack>
+public class EmcCellInventoryHandler extends ProfilingInventoryHandler<IAEItemStack>
         implements ICellInventoryHandler<IAEItemStack> {
 
     private final EmcCellInventory inventory;
