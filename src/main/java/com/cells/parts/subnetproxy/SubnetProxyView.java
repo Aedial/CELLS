@@ -423,6 +423,7 @@ public final class SubnetProxyView<T extends IAEStack<T>> implements IMEMonitorH
 
             if (!delivery.completed()) throw new IllegalStateException("Delta changes not received/accepted");
         } catch (RuntimeException error) {
+            delivery.warning();
             this.invalidate("publication failure");
             this.node.requestGridReset();
 

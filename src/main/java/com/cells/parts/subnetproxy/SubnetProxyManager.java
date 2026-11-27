@@ -527,6 +527,9 @@ public final class SubnetProxyManager {
         /** Whether the delivery has been processed on the target grid (for deduplication) */
         private boolean applied;
 
+        /** Last callback result for publication failure diagnostics */
+        private String callback = "not received";
+
         /** Whether the delivery is still valid */
         private boolean active = true;
 
@@ -543,29 +546,67 @@ public final class SubnetProxyManager {
             return this.applied && this.target.resetRevision() == this.resetRevision;
         }
 
+        public void warning() {
+            Cells.LOGGER.warn("Subnet Proxy delivery failed: channel={} origin={} target={} resource={} x {}"
+                + "lastCallback={} applied={} registered={} valid={} generation={}/{} resetRevision={}/{}",
+                this.target.channel().getType(), this.origin, this.target.node(), this.change.getStackSize(),
+                this.change, this.callback, this.applied, this.target.node().isRegistered(),
+                this.target.isValid(this.target), this.generation, this.target.node().getGeneration(),
+                this.resetRevision, this.target.resetRevision());
+        }
+
         public void close() {
             this.active = false;
         }
 
         public boolean accept(SubnetProxyView<?> receiver, IBaseMonitor<?> monitor, Iterable<?> changes) {
-            if (receiver.node() != this.target.node() || monitor != this.target.monitor()) return false;
+            if (receiver.node() != this.target.node()) {
+                this.callback = "receiver grid mismatch: received=" + receiver.node();
+                return false;
+            }
+
+            if (monitor != this.target.monitor()) {
+                this.callback = "monitor mismatch: expected=" + this.target.monitor() + " received=" + monitor;
+                return false;
+            }
 
             Iterator<?> iterator = changes.iterator();
-            if (!iterator.hasNext()) return false;
+            if (!iterator.hasNext()) {
+                this.callback = "empty changes";
+                return false;
+            }
 
             Object candidate = iterator.next();
-            if (iterator.hasNext() || !(candidate instanceof IAEStack)) return false;
+            if (iterator.hasNext() || !(candidate instanceof IAEStack)) {
+                this.callback = "multiple changes or invalid stack: received=" + candidate;
+                return false;
+            }
 
             IAEStack<?> stack = (IAEStack<?>) candidate;
-            if (!this.change.equals(stack) || this.change.getStackSize() != stack.getStackSize()) return false;
+            if (!this.change.equals(stack) || this.change.getStackSize() != stack.getStackSize()) {
+                this.callback = "resource or quantity mismatch: received=" + stack + " delta=" + stack.getStackSize();
+                return false;
+            }
 
-            if (receiver != this.target || receiver.node().getGeneration() != this.generation
-                || receiver.resetRevision() != this.resetRevision) return true;
+            if (receiver != this.target) {
+                this.callback = "receiver view replaced";
+                return true;
+            }
 
-            if (this.applied) return true;
+            if (receiver.node().getGeneration() != this.generation || receiver.resetRevision() != this.resetRevision) {
+                this.callback = "generation or reset revision changed";
+                return true;
+            }
 
+            if (this.applied) {
+                this.callback = "already applied";
+                return true;
+            }
+
+            this.callback = "accounting";
             this.target.account(this.origin, this.change);
             this.applied = true;
+            this.callback = "applied";
 
             return true;
         }
