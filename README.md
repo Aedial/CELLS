@@ -57,44 +57,48 @@ The Interface Starvation Scanner is meant to help users quickly identify which i
 
 
 ### Subnet Proxy
-A two-block multipart that bridges two ME networks together with a configurable, filtered window. Unlike the classic AE2 Subnet bridge (Storage Bus on Interface), the Subnet Proxy has :
-- **No looping guarantees**: the proxy network automatically detects and prevents loops, so that looping topologies like `A → B → A` will not cause ghost items or force updates.
-- **No multi-hop guarantees**: the proxy only gives the main network 1-hop visibility into the subnet's local storage, and does not chain through other proxies on the subnet. This means that, with `B → A → C → D`, C will see A and B, but D will not see B's content through A. This prevents events from inflating exponentially in complex subnet topologies, keeping the performance impact manageable.
-- **Up to 25 * 63 filter slots**: the filter is paginated and can be expanded with capacity cards (up to 24 upgrade slots with config), allowing you to share a large portion of a subnet if needed.
-- **On-way or two-way operation**: by default, the proxy is read-only (the main network can see and pull from the subnet, but cannot push back). This design is intentional to spare the network from having *every single inserted item* checking insertions against the filter of *every single* Subnet Proxy, even if they are only intended for exposing content one-way. However, you can add an Insertion Card to the Subnet Proxy that exposes the content to make it two-way, allowing the main network to also push items back into a subnet through the Proxy (still respecting the filter, of course).
-- **Universal resource support**: the same Subnet Proxy works for items, fluids, gases, and essentia. Use the Resource Type cycling button in the filter GUI to switch between item/fluid/gas/essentia "encoding" modes for the filter slots. The encoding mode has no impact on what the proxy can expose from the subnet, it is only used when actually adding things to the filter. For controlling what types of resources the proxy exposes, you can use the side buttons to enable/disable channels (default to all disabled, to opt-in to exposing specific channels).
-- **Filtered event forwarding**: the proxy only forwards changes that match the filter, so that the network only sees what you want it to see. This also means that if something changes in the main network but doesn't match any filter, no subnet will see it, and thus no unnecessary updates will be triggered on the subnets' side.
+A subnet connection is a way to link 2 separate ME networks together, allowing them to share resources while keeping the storage separated. This is usually done by using a ME Storage Bus on an empty ME Interface.
 
-#### What it is
-The Subnet Proxy comes as a pair of cable parts that have to be placed *facing each other across one block boundary*, like a storage bus aimed at an ME interface:
-- **Subnet Proxy (Back)**: sits on the cable of the the network whose content you want to share. This is your "source" side.
-- **Subnet Proxy (Front)**: sits on the cable of the the network that should *see* the content. This is your "destination" side and the one that owns the GUI.
+Some may use the term "subnet" loosely to describe any network that is not your main network, but I will be talking purely about standard subnet connections between networks, exposing quantities.
 
-Once both halves are placed, the front part starts publishing a filtered view of the back's network into the main network, exactly like an extra cell on a drive would.
+Subnets are mainly used for reducing the channels use and thought to improve performance of the network. In practice, it RARELY provides much of a performance improvement, and usually introduces more problems and performance penalties than it solves (explained below). The only performance gain comes from having 10 ME Drives to insert into instead of 100, for example, which is easily overshadowed by the added overhead of network-to-network communication.
 
-#### What it is for
-Common use cases:
-- **Sharing storage across networks without merging them.** You can keep two networks on separate channel budgets while still letting the main network read (and optionally write) a subset of the subnet's contents.
-- **Black-boxing a machine or system.** You can put a machine behind a subnet and only expose the relevant items/fluids/gases/essentia to the main network, without letting it see the internal workings of the subnet. A looping design (e.g. `A → B → A`) can be used to let the subnet see the main network's content as well, without merging the two networks. The subnet only know of the `A → B` connection, and the main network only knows of the `B → A` connection, so they stay logically separate and independent. If the 
+Standard subnet connections have big issues, that make them somewhat of a run-killer for huge networks :
+1. They scale poorly with multiple networks, as each additional subnet needs to be notified of any change happening in every single other network, even if tightly filtered. You may have a network extracting items from 50 subnets deep, meaning it will walk through 50 networks to find the requested items.
+2. Unless the Storage Bus is set to Extraction Only, it will attempt to insert items into the connected network, which is not desirable in most subnet setups.
+3. They allow only up to 63 filters (through the Storage Bus), which is an issue for the next point.
+4. They MUST be filtered to work correctly, otherwise they will generate ghost items (duplicate items that do not exist) and will force a full refresh of the network very frequently. This is very bad on large networks, leading to upwards of 20% of your TPS being consumed by network refreshes.
+5. Having 2 parallel subnet connections WILL cause ghost items or straight up not work, as the network cannot properly differentiate the two connections.
 
-#### How to use it
-1. Craft the Subnet Proxy item and place the **Back** part then the **Front** part facing each other across a block boundary, like a storage bus aimed at an ME interface. The order of placement does not matter, but they have to be placed facing each other. The proxy will automatically detect the connection and start working, no configuration needed for it to start sharing the subnet's content with the main network.
-2. Right-click any of the 2 parts to open the filter GUI. The filter works like a Storage Bus filter:
-   - Drag items, fluids, gases, or essentia into the filter slots to whitelist them. Inventory/JEI dragging and quick-add keybind work, as well as the '+' button in JEI, which will add the inputs of a recipe to the filter. The 
-   - Use the **Filter Mode** button (top-right) to switch between Item / Fluid / Gas / Essentia modes for what the filter slots *convert to*.
-   - Add a **Capacity Card** to unlock additional pages of filter slots; navigate with the page arrows.
-   - Add a **Fuzzy Card** to enable fuzzy matching (damage / NBT-tolerant).
-   - Add an **Inverter Card** to invert the filter (everything *except* the listed items passes through).
-3. Click the **wrench button** (top-left of the filter GUI) to open the standard AE2 priority screen. The proxy honors priority on both directions just like a drive does:
-   - Higher priority means the main network prefers extracting from this proxy first when multiple sources have the requested item.
-   - Higher priority means the main network prefers inserting into this proxy first (when an Insertion Card is installed).
-4. *(Optional)* Add an **Insertion Card** to make the bridge two-way. Without it the proxy is **read-only** (the front network can see and pull from the back network, but cannot push back). With it, items matching the same filter that land on the front network can be routed back into the back network through the proxy.
+The Subnet Proxy is a specialized solution to mitigate these issues :
+1. To avoid the scalability issues of standard subnets, the Subnet Proxy only communicates to other Subnet Proxies up to a depth of 2. This means `origin -> A -> B` works fine, but in the case of `origin -> A -> B -> C`, `C` will not see anything from the `origin` network (it will only see what `A` and `B` contain). This holds for the change notifications AND extractions. It will ignore normal subnet connection, as the depth and deduplication constraints cannot be properly enforced.
+2. To address the insertion issue, the Subnet Proxy is one-way by default, meaning it will only expose resources from the Back network to the Front network. You can however use an Insertion Upgrade to allow the Front network to insert resources into the Back network through the proxy's filters, behaving like a ME Storage Drive of sorts (you can extract and insert back).
+3. See point below.
+4. The Subnet Proxy is not limited to 63 filters like the standard Storage Bus. It can hold 63 filters (of any type) per page, with 1 additional available page for each capacity card. The Proxy has 4 upgrade slots by default, but it can be changed in config (up to 24).
+5. To avoid ghost items and allow parallel subnet connections, the Subnet Proxy thoroughly tracks the origin of each resource and ensures that they are properly deduplicated. You can have an infinite number of parallel subnet connections or more complex topologies (like diamond or triangle) without running into the issues that standard subnets face.
 
-#### Behavior notes & guard-rails
-- **One hop only.** The proxy gives the main network 1-hop visibility into the subnet's *local* storage (drives, ME chests, storage buses on vanilla inventories). It deliberately does **not** chain through other passthrough storage buses on the subnet, so chains like `A → B → C → D` only ever expose one hop at a time and cannot inflate events exponentially over complex topologies.
-- **No write loops.** Insertions cannot chain through more than one Subnet Proxy in the same operation. Even if you have insertion cards on both `A → B` and `B → A`, the second proxy sees that the call is already inside an insertion and refuses to forward, so you cannot accidentally build a duplication or stack-overflow loop.
-- **Listing matches extraction.** Anything visible in the main network's terminal *is* extractable, and anything not listed will not be silently extracted. Listing and extract use the exact same source set, so terminals never lie about what's actually pullable.
-- **Networks stay independent.** The two halves of the proxy do not merge their grids: channel budgets, P2P tunnels, security terminals, and crafting CPUs all stay scoped to their respective networks. Only the filtered storage view crosses the boundary.
+The Subnet Proxy is composed of 2 parts :
+- Front part: It acts like the Storage Bus in a standard subnet connection, exposing the resources from the Back network to its connected network.
+- Back part: It acts like the Interface in a standard subnet connection, forwarding the changes of its connected network to the Front network.
+
+Both parts create a relation `Back -> Front`, where the content is extracted from the Back network *when requested by the Front network*. It does not proactively push content. Insertion Upgrade allows `Front -> Back` insertions through the proxy's filters as if `Back` was a standard ME Storage Drive.
+
+#### Keep in Mind
+- The Subnet Proxy has a strict depth limit of 2, meaning it cannot propagate changes beyond two network hops.
+- The changes scale with the number of items that need to be tracked and propagated, so a Proxy coming from a large network *should* be filtered with only the necessary items to avoid performance issues. A blank filter will expose EVERYTHING to the connected network.
+
+#### When to Use the Subnet Proxy
+1. If you want cleaner compartmentalization of your ME network, having machines producing resources in separate subnets. You may use filtered Proxy for mainnet -> subnet for input resources and then a blank/filtered Proxy for subnet -> mainnet for output resources, keeping the storage on the subnet. You should consider using Import/Export interfaces on a long timer for the mainnet -> subnet connection, to break the direct Proxy loop.
+2. If you want to leave your main network un-partitioned while having separate subnets strictly partitioned and limited. Point 1 still applies to some extent, as you can use Level Emitters/Storage Level Emitters to control relevant machines (instead of relying on there being no space left for the content). Failing an insertion is usually fairly expensive, as it needs to go through every single storage target in the network to find a suitable location.
+
+#### How to Use the Subnet Proxy
+As there is a strict limit of depth 2, I would recommend having a central main network acting as the "trunk", on which subnets connect as "branches". This looks something like:
+```
+trunk -> branch1 -> trunk -> branch2 -> trunk
+isolated branch -> trunk -> any other branch
+```
+
+The trunk would be your main network, in which all major storage and processing occurs. Keep in mind that, while the Proxy makes network-to-network communication much lighter on big networks, such communication still puts strain on the server.
 
 
 ### Compacting Pattern Exposer

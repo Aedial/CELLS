@@ -498,12 +498,12 @@ public final class CellsConfig {
         public int subnetProxyUpgradeSlots = 5;
 
         @Config.LangKey(Tags.MODID + ".config.subnetProxyMinTickRate")
-        @Config.Comment("Minimum tick rate for the Subnet Proxy in ticks (lower = more responsive, higher = less CPU). This is the fastest the proxy will poll for changes.")
+        @Config.Comment("Ticks of stability before initialization or recovery listing (1-200). Stable content changes publish without delay.")
         @Config.RangeInt(min = 1, max = 200)
         public int subnetProxyMinTickRate = 5;
 
         @Config.LangKey(Tags.MODID + ".config.subnetProxyMaxTickRate")
-        @Config.Comment("Maximum tick rate for the Subnet Proxy in ticks (idle interval). This is the slowest the proxy will poll when no changes are detected.")
+        @Config.Comment("Ticks before retrying a failed local baseline acquisition (1-1200).")
         @Config.RangeInt(min = 1, max = 1200)
         public int subnetProxyMaxTickRate = 60;
 

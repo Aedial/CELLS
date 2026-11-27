@@ -1,171 +1,50 @@
 package com.cells.parts.subnetproxy;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Predicate;
-
 import net.minecraft.item.ItemStack;
 
 import appeng.api.AEApi;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.ICellProvider;
-import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.IMEMonitorHandlerReceiver;
-import appeng.api.storage.IStorageChannel;
-import appeng.tile.inventory.AppEngInternalInventory;
+import appeng.api.config.Upgrades;
+import appeng.api.storage.data.IItemList;
 
 import com.mekeng.github.common.item.ItemDummyGas;
 import com.mekeng.github.common.me.data.IAEGasStack;
 import com.mekeng.github.common.me.storage.IGasStorageChannel;
-
 import mekanism.api.gas.GasStack;
 
-import com.cells.integration.mekanismenergistics.GasStackKey;
+import com.cells.network.sync.ResourceType;
 
 
 /**
- * Isolates all MekanismEnergistics class references for the Subnet Proxy.
- * <p>
- * This class is only loaded when "mekeng" is present, preventing
- * {@link ClassNotFoundException} when the mod is absent. All calls
- * must be guarded by {@code MekanismEnergisticsIntegration.isModLoaded()}.
+ * Optional gas-channel implementation loaded after Mekanism Energistics is available. It captures
+ * gas filter entries and supplies the gas storage channel to the shared proxy flows.
  */
-final class SubnetProxyGasHelper {
+public final class SubnetProxyGasHelper extends SubnetProxyChannel<IAEGasStack> {
 
-    static volatile IGasStorageChannel CACHED_GAS_CHANNEL = null;
+    private SubnetProxyGasHelper() {
+        super(ResourceType.GAS, AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class));
+    }
 
-    private SubnetProxyGasHelper() {}
+    public static SubnetProxyChannel<IAEGasStack> channel() {
+        return new SubnetProxyGasHelper();
+    }
 
-    /** Get the gas storage channel from AE2. */
-    static IStorageChannel<IAEGasStack> getChannel() {
-        IGasStorageChannel ch = CACHED_GAS_CHANNEL;
-        if (ch == null) {
-            ch = AEApi.instance().storage().getStorageChannel(IGasStorageChannel.class);
-            CACHED_GAS_CHANNEL = ch;
+    @Override
+    public Filter<IAEGasStack> captureFilter(PartSubnetProxyFront front) {
+        IItemList<IAEGasStack> gases = this.getChannel().createList();
+
+        for (int slot = 0; slot < front.getFilterSlots(); slot++) {
+            ItemStack stack = front.getFilter(slot);
+            if (stack.isEmpty() || !(stack.getItem() instanceof ItemDummyGas)) continue;
+
+            GasStack gas = ((ItemDummyGas) stack.getItem()).getGasStack(stack);
+            if (gas != null) gases.add(this.getChannel().createStack(new GasStack(gas.getGas(), 1)));
         }
 
-        return CACHED_GAS_CHANNEL;
+        boolean invert = front.getInstalledUpgrades(Upgrades.INVERTER) > 0;
+        return new Filter<>(gases, invert);
     }
 
-    /** Create a new SubnetProxyInventoryHandler for gas. */
-    static SubnetProxyInventoryHandler<IAEGasStack> createHandler(int priority) {
-        return new SubnetProxyInventoryHandler<>(getChannel(), priority);
-    }
-
-    /** Create a new SubnetProxyInsertionHandler for gas (front-grid &rarr; back-grid). */
-    static SubnetProxyInsertionHandler<IAEGasStack> createInsertionHandler() {
-        return new SubnetProxyInsertionHandler<>(getChannel());
-    }
-
-    /** True if the given AE2 storage channel is the gas channel. */
-    static boolean matchesChannel(IStorageChannel<?> ch) {
-        return ch == getChannel();
-    }
-
-    /** Wire the back-grid gas monitor + read-side filter into the insertion handler. */
-    static void wireInsertionHandler(
-            SubnetProxyInsertionHandler<IAEGasStack> insertion,
-            SubnetProxyInventoryHandler<IAEGasStack> read,
-            IStorageGrid backStorage,
-            int priority) {
-        insertion.setMonitor(backStorage.getInventory(getChannel()));
-        insertion.setFilter(read.getFilter());
-        insertion.setPriority(priority);
-    }
-
-    /** Append gas handlers from a local cell provider. */
-    @SuppressWarnings({ "rawtypes"})
-    static void appendLocalCells(List<IMEInventoryHandler> localGasCells,
-            ICellProvider provider) {
-        localGasCells.addAll(provider.getCellArray(getChannel()));
-    }
-
-    /**
-     * Return a singleton cell array list for getCellArray.
-     */
-    @SuppressWarnings("rawtypes")
-    static List<IMEInventoryHandler> asCellArray(
-            SubnetProxyInventoryHandler<IAEGasStack> handler,
-            IStorageChannel<?> requestedChannel) {
-
-        if (requestedChannel == getChannel()) return handler.asCellArray();
-
-        return Collections.emptyList();
-    }
-
-    /**
-     * Check if a config slot ItemStack is a gas dummy item.
-     */
-    static boolean isGasDummy(ItemStack stack) {
+    public static boolean isDummy(ItemStack stack) {
         return stack.getItem() instanceof ItemDummyGas;
-    }
-
-    /**
-     * Extract a GasStackKey from a gas dummy ItemStack.
-     */
-    static GasStackKey extractGasKey(ItemStack stack) {
-        GasStack gasStack = ((ItemDummyGas) stack.getItem()).getGasStack(stack);
-        return GasStackKey.of(gasStack);
-    }
-
-    /**
-     * Build a filter predicate for gas stacks.
-     * Returns null if no filter needed (empty set + whitelist).
-     */
-    static Predicate<IAEGasStack> buildFilter(Set<GasStackKey> filterSet, boolean hasInverter) {
-        if (filterSet.isEmpty() && !hasInverter) return null;
-
-        return aeStack -> {
-            if (aeStack == null) return false;
-
-            GasStack gs = aeStack.getGasStack();
-            boolean matchesAny = false;
-            for (GasStackKey key : filterSet) {
-                if (key.matches(gs)) {
-                    matchesAny = true;
-                    break;
-                }
-            }
-
-            return hasInverter != matchesAny;
-        };
-    }
-
-    /**
-     * Scan the config inventory for gas dummy items, build a filter set,
-     * and apply the resulting predicate to the handler.
-     * <p>
-     * This keeps all GasStackKey references isolated in this class.
-     */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static void rebuildFilter(SubnetProxyInventoryHandler handler, AppEngInternalInventory config,
-                              int totalSlots, boolean hasInverter) {
-        Set<GasStackKey> filterSet = new HashSet<>();
-
-        for (int i = 0; i < totalSlots; i++) {
-            ItemStack stack = config.getStackInSlot(i);
-            if (stack.isEmpty() || !isGasDummy(stack)) continue;
-
-            GasStackKey key = extractGasKey(stack);
-            if (key != null) filterSet.add(key);
-        }
-
-        handler.setFilter(buildFilter(filterSet, hasInverter));
-    }
-
-    // ========================= Listener Registration =========================
-
-    /** Register the raw listener on Grid A's gas monitor. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static void registerListener(SubnetProxyInventoryHandler<IAEGasStack> handler,
-                                 IStorageGrid sg, IMEMonitorHandlerReceiver listener, Object token) {
-        IMEMonitor<IAEGasStack> monitor = sg.getInventory(getChannel());
-        if (monitor != null) {
-            handler.setRegisteredMonitor(monitor);
-            monitor.addListener(listener, token);
-        }
     }
 }

@@ -818,10 +818,10 @@ chat.cells.subnet_proxy.need_front=The back part needs to be placed on a front p
 chat.cells.subnet_proxy.need_back=The front part needs to be placed on a back part.
 cells.config.subnetProxyUpgradeSlots=Subnet Proxy Upgrade Slots
 cells.config.subnetProxyUpgradeSlots.tooltip=Number of upgrade slots for the Subnet Proxy (1-24)
-cells.config.subnetProxyMinTickRate=Subnet Proxy Min Tick Rate
-cells.config.subnetProxyMinTickRate.tooltip=Minimum tick rate for the Subnet Proxy (lower = more responsive, 1-200)
-cells.config.subnetProxyMaxTickRate=Subnet Proxy Max Tick Rate
-cells.config.subnetProxyMaxTickRate.tooltip=Maximum tick rate for the Subnet Proxy when idle (1-1200)
+cells.config.subnetProxyMinTickRate=Subnet Proxy Stability Delay
+cells.config.subnetProxyMinTickRate.tooltip=Ticks of stability before initialization or recovery listing (1-200). Stable content changes publish without delay.
+cells.config.subnetProxyMaxTickRate=Subnet Proxy Failure Retry Delay
+cells.config.subnetProxyMaxTickRate.tooltip=Ticks before retrying a failed local baseline acquisition (1-1200).
 cells.config.subnetProxyReportExtractionFaults=Subnet Proxy Fault Reporting
 cells.config.subnetProxyReportExtractionFaults.tooltip=Enable Subnet Proxy extraction-fault reporting and warning logs. A reported fault may come from the proxy, a connected inventory, or the network itself, including ghost or unextractable items.
 cells.config.subnetProxyReportUpdateChurn=Subnet Proxy Update Churn Reporting

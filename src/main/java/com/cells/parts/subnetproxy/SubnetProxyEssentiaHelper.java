@@ -1,172 +1,85 @@
 package com.cells.parts.subnetproxy;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Predicate;
+import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 
 import appeng.api.AEApi;
-import appeng.api.networking.storage.IStorageGrid;
-import appeng.api.storage.ICellProvider;
+import appeng.api.config.Upgrades;
+import appeng.api.networking.IGridHost;
+import appeng.api.storage.data.IItemList;
 import appeng.api.storage.IMEInventoryHandler;
-import appeng.api.storage.IMEMonitor;
-import appeng.api.storage.IMEMonitorHandlerReceiver;
-import appeng.api.storage.IStorageChannel;
-import appeng.tile.inventory.AppEngInternalInventory;
-
-import thaumicenergistics.api.storage.IAEEssentiaStack;
-import thaumicenergistics.api.storage.IEssentiaStorageChannel;
-import thaumicenergistics.item.ItemDummyAspect;
 
 import thaumcraft.api.aspects.Aspect;
+import thaumcraft.api.aspects.IAspectContainer;
+import thaumicenergistics.api.EssentiaStack;
+import thaumicenergistics.api.storage.IAEEssentiaStack;
+import thaumicenergistics.api.storage.IEssentiaStorageChannel;
+import thaumicenergistics.integration.appeng.grid.EssentiaContainerAdapter;
+import thaumicenergistics.item.ItemDummyAspect;
+import thaumicenergistics.part.PartEssentiaStorageBus;
+import thaumicenergistics.tile.TileInfusionProvider;
 
-import com.cells.integration.thaumicenergistics.EssentiaStackKey;
-
-import net.minecraft.item.ItemStack;
+import com.cells.network.sync.ResourceType;
 
 
 /**
- * Isolates all ThaumicEnergistics class references for the Subnet Proxy.
- * <p>
- * This class is only loaded when "thaumicenergistics" is present, preventing
- * {@link ClassNotFoundException} when the mod is absent. All calls
- * must be guarded by {@code ThaumicEnergisticsIntegration.isModLoaded()}.
+ * Optional essentia-channel implementation for aspect filters and storage-bus source checks after
+ * Thaumic Energistics loads. Essentia Interfaces and Infusion Providers count as passthroughs.
  */
-final class SubnetProxyEssentiaHelper {
+public final class SubnetProxyEssentiaHelper extends SubnetProxyChannel<IAEEssentiaStack> {
 
-    static volatile IEssentiaStorageChannel CACHED_ESSENTIA_CHANNEL = null;
+    private SubnetProxyEssentiaHelper() {
+        super(ResourceType.ESSENTIA, AEApi.instance().storage().getStorageChannel(IEssentiaStorageChannel.class));
+    }
 
-    private SubnetProxyEssentiaHelper() {}
+    public static SubnetProxyChannel<IAEEssentiaStack> channel() {
+        return new SubnetProxyEssentiaHelper();
+    }
 
-    /** Get the essentia storage channel from AE2. */
-    static IStorageChannel<IAEEssentiaStack> getChannel() {
-        IEssentiaStorageChannel ch = CACHED_ESSENTIA_CHANNEL;
-        if (ch == null) {
-            ch = AEApi.instance().storage().getStorageChannel(IEssentiaStorageChannel.class);
-            CACHED_ESSENTIA_CHANNEL = ch;
+    @Override
+    public SubnetProxyProvider.Handler<IAEEssentiaStack> captureHandler(SubnetProxyProvider provider,
+            IGridHost host, IMEInventoryHandler<IAEEssentiaStack> inventory) {
+        if (!(host instanceof PartEssentiaStorageBus)
+            || inventory.getClass() != EssentiaContainerAdapter.class) {
+            return super.captureHandler(provider, host, inventory);
         }
 
-        return CACHED_ESSENTIA_CHANNEL;
+        // Original Thaumic Energistics recreates the bus wrapper on each lookup
+        TileEntity container = target(host);
+        if (!(container instanceof IAspectContainer) || container.isInvalid()) return null;
+
+        return new SubnetProxyProvider.Handler<>(provider, inventory, host, container);
     }
 
-    /** Create a new SubnetProxyInventoryHandler for essentia. */
-    static SubnetProxyInventoryHandler<IAEEssentiaStack> createHandler(int priority) {
-        return new SubnetProxyInventoryHandler<>(getChannel(), priority);
+    @Override
+    public boolean isPassthrough(IGridHost host) {
+        if (super.isPassthrough(host)) return true;
+        if (!(host instanceof PartEssentiaStorageBus)) return false;
+
+        TileEntity target = target(host);
+        if (target == null) return false;
+
+        return target instanceof TileInfusionProvider
+            || target.getClass().getName().equals("thaumicenergistics.tile.TileEssentiaInterface");
     }
 
-    /** Create a new SubnetProxyInsertionHandler for essentia (front-grid &rarr; back-grid). */
-    static SubnetProxyInsertionHandler<IAEEssentiaStack> createInsertionHandler() {
-        return new SubnetProxyInsertionHandler<>(getChannel());
-    }
+    @Override
+    public Filter<IAEEssentiaStack> captureFilter(PartSubnetProxyFront front) {
+        IItemList<IAEEssentiaStack> aspects = this.getChannel().createList();
 
-    /** True if the given AE2 storage channel is the essentia channel. */
-    static boolean matchesChannel(IStorageChannel<?> ch) {
-        return ch == getChannel();
-    }
+        for (int slot = 0; slot < front.getFilterSlots(); slot++) {
+            ItemStack stack = front.getFilter(slot);
+            if (stack.isEmpty() || !(stack.getItem() instanceof ItemDummyAspect)) continue;
 
-    /** Wire the back-grid essentia monitor + read-side filter into the insertion handler. */
-    static void wireInsertionHandler(
-            SubnetProxyInsertionHandler<IAEEssentiaStack> insertion,
-            SubnetProxyInventoryHandler<IAEEssentiaStack> read,
-            IStorageGrid backStorage,
-            int priority) {
-        insertion.setMonitor(backStorage.getInventory(getChannel()));
-        insertion.setFilter(read.getFilter());
-        insertion.setPriority(priority);
-    }
-
-    /** Append essentia handlers from a local cell provider. */
-    @SuppressWarnings("rawtypes")
-    static void appendLocalCells(List<IMEInventoryHandler> localEssentiaCells,
-            ICellProvider provider) {
-        localEssentiaCells.addAll(provider.getCellArray(getChannel()));
-    }
-
-    /**
-     * Return a singleton cell array list for getCellArray.
-     */
-    @SuppressWarnings("rawtypes")
-    static List<IMEInventoryHandler> asCellArray(
-            SubnetProxyInventoryHandler<IAEEssentiaStack> handler,
-            IStorageChannel<?> requestedChannel) {
-
-        if (requestedChannel == getChannel()) {
-            return handler.asCellArray();
+            Aspect aspect = ((ItemDummyAspect) stack.getItem()).getAspect(stack);
+            if (aspect != null) aspects.add(this.getChannel().createStack(new EssentiaStack(aspect, 1)));
         }
-        return Collections.emptyList();
+
+        boolean invert = front.getInstalledUpgrades(Upgrades.INVERTER) > 0;
+        return new Filter<>(aspects, invert);
     }
 
-    /**
-     * Check if a config slot ItemStack is an essentia dummy item.
-     */
-    static boolean isEssentiaDummy(ItemStack stack) {
+    public static boolean isDummy(ItemStack stack) {
         return stack.getItem() instanceof ItemDummyAspect;
-    }
-
-    /**
-     * Extract an EssentiaStackKey from an essentia dummy ItemStack.
-     */
-    static EssentiaStackKey extractEssentiaKey(ItemStack stack) {
-        Aspect aspect = ((ItemDummyAspect) stack.getItem()).getAspect(stack);
-        return EssentiaStackKey.of(aspect);
-    }
-
-    /**
-     * Build a filter predicate for essentia stacks.
-     * Returns null if no filter needed (empty set + whitelist).
-     */
-    static Predicate<IAEEssentiaStack> buildFilter(Set<EssentiaStackKey> filterSet, boolean hasInverter) {
-        if (filterSet.isEmpty() && !hasInverter) return null;
-
-        return aeStack -> {
-            if (aeStack == null) return false;
-
-            // Match by aspect tag
-            boolean matchesAny = false;
-            for (EssentiaStackKey key : filterSet) {
-                if (key.matches(aeStack.getStack())) {
-                    matchesAny = true;
-                    break;
-                }
-            }
-
-            return hasInverter != matchesAny;
-        };
-    }
-
-    /**
-     * Scan the config inventory for essentia dummy items, build a filter set,
-     * and apply the resulting predicate to the handler.
-     * <p>
-     * This keeps all EssentiaStackKey references isolated in this class.
-     */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static void rebuildFilter(SubnetProxyInventoryHandler handler, AppEngInternalInventory config,
-                              int totalSlots, boolean hasInverter) {
-        Set<EssentiaStackKey> filterSet = new HashSet<>();
-
-        for (int i = 0; i < totalSlots; i++) {
-            ItemStack stack = config.getStackInSlot(i);
-            if (stack.isEmpty() || !isEssentiaDummy(stack)) continue;
-
-            EssentiaStackKey key = extractEssentiaKey(stack);
-            if (key != null) filterSet.add(key);
-        }
-
-        handler.setFilter(buildFilter(filterSet, hasInverter));
-    }
-
-    // ========================= Listener Registration =========================
-
-    /** Register the raw listener on Grid A's essentia monitor. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    static void registerListener(SubnetProxyInventoryHandler<IAEEssentiaStack> handler,
-                                 IStorageGrid sg, IMEMonitorHandlerReceiver listener, Object token) {
-        IMEMonitor<IAEEssentiaStack> monitor = sg.getInventory(getChannel());
-        if (monitor != null) {
-            handler.setRegisteredMonitor(monitor);
-            monitor.addListener(listener, token);
-        }
     }
 }

@@ -19,6 +19,8 @@ import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.network.NetworkRegistry;
 
+import appeng.api.AEApi;
+
 import com.jaquadro.minecraft.storagedrawers.api.capabilities.IItemRepository;
 
 import com.cells.cells.configurable.ComponentHelper;
@@ -34,6 +36,9 @@ import com.cells.profiling.CellsProfiler;
 import com.cells.util.DisassemblyConfig;
 import com.cells.util.OreDictValidator;
 import com.cells.scanner.InterfaceScannerCache;
+import com.cells.parts.subnetproxy.ISubnetProxyNode;
+import com.cells.parts.subnetproxy.SubnetProxyManager;
+import com.cells.parts.subnetproxy.SubnetProxyNode;
 
 
 @Mod(
@@ -87,6 +92,8 @@ public class Cells {
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
+        AEApi.instance().registries().gridCache().registerGridCache(
+            ISubnetProxyNode.class, SubnetProxyNode.class);
         // Register GUI handler
         NetworkRegistry.INSTANCE.registerGuiHandler(this, new CellsGuiHandler());
 
@@ -124,6 +131,7 @@ public class Cells {
 
     @EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
+        SubnetProxyManager.shutdown();
         CellsProfiler.serverStopped();
         InterfaceScannerCache.clear();
     }
